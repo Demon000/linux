@@ -77,7 +77,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
 	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long target_volt, target_rate;
+	unsigned long temp_rate, target_volt, target_rate;
 	struct arm_smccc_res res;
 	bool odt_enable = false;
 	int err;
@@ -86,12 +86,25 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	target_rate = dev_pm_opp_get_freq(opp);
+	temp_rate = dev_pm_opp_get_freq(opp);
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
+	if ((long)target_rate <= 0)
+		target_rate = temp_rate;
 	target_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	if (dmcfreq->rate == target_rate)
+	if (dmcfreq->rate == target_rate && dmcfreq->volt == target_volt)
 		return 0;
+
+	if (dmcfreq->volt != target_volt) {
+		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
+					    target_volt);
+		if (err) {
+			dev_err(dev, "Cannot to set voltage %lu uV\n",
+				target_volt);
+			goto out;
+		}
+	}
 
 	mutex_lock(&dmcfreq->lock);
 
@@ -148,11 +161,14 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		regulator_set_voltage(dmcfreq->vdd_center, dmcfreq->volt,
 				      dmcfreq->volt);
 		goto out;
-	} else if (old_clk_rate > target_rate)
+	} else if (old_clk_rate > target_rate) {
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    target_volt);
-	if (err)
-		dev_err(dev, "Cannot set voltage %lu uV\n", target_volt);
+		if (err) {
+			dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+			goto out;
+		}
+	}
 
 	dmcfreq->rate = target_rate;
 	dmcfreq->volt = target_volt;
@@ -313,7 +329,6 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	struct rk3399_dmcfreq *data;
 	int ret, index, size;
 	uint32_t *timing;
-	struct dev_pm_opp *opp;
 	u32 ddr_type;
 	u32 val;
 
@@ -435,16 +450,7 @@ no_pmu:
 			     &data->ondemand_data.downdifferential);
 
 	data->rate = clk_get_rate(data->dmc_clk);
-
-	opp = devfreq_recommended_opp(dev, &data->rate, 0);
-	if (IS_ERR(opp)) {
-		ret = PTR_ERR(opp);
-		goto err_free_opp;
-	}
-
-	data->rate = dev_pm_opp_get_freq(opp);
-	data->volt = dev_pm_opp_get_voltage(opp);
-	dev_pm_opp_put(opp);
+	data->volt = regulator_get_voltage(data->vdd_center);
 
 	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
 
