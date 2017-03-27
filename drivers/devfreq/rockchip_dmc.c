@@ -55,13 +55,13 @@ struct dram_timing {
 	unsigned int phy_lpddr4_odt;
 };
 
-struct rk3399_dmcfreq {
+struct rockchip_dmcfreq {
 	struct device *dev;
 	struct devfreq *devfreq;
 	struct devfreq_simple_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev *edev;
-	struct mutex lock;
+	struct mutex lock; /* scaling frequency lock */
 	struct dram_timing timing;
 	struct regulator *vdd_center;
 	struct regmap *regmap_pmu;
@@ -71,10 +71,10 @@ struct rk3399_dmcfreq {
 	int odt_pd_arg0, odt_pd_arg1;
 };
 
-static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
-				 u32 flags)
+static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
+				   u32 flags)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
 	unsigned long old_clk_rate = dmcfreq->rate;
 	unsigned long temp_rate, target_volt, target_rate;
@@ -178,10 +178,10 @@ out:
 	return err;
 }
 
-static int rk3399_dmcfreq_get_dev_status(struct device *dev,
-					 struct devfreq_dev_status *stat)
+static int rockchip_dmcfreq_get_dev_status(struct device *dev,
+					   struct devfreq_dev_status *stat)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct devfreq_event_data edata;
 	int ret = 0;
 
@@ -196,25 +196,26 @@ static int rk3399_dmcfreq_get_dev_status(struct device *dev,
 	return ret;
 }
 
-static int rk3399_dmcfreq_get_cur_freq(struct device *dev, unsigned long *freq)
+static int rockchip_dmcfreq_get_cur_freq(struct device *dev,
+					 unsigned long *freq)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 
 	*freq = dmcfreq->rate;
 
 	return 0;
 }
 
-static struct devfreq_dev_profile rk3399_devfreq_dmc_profile = {
+static struct devfreq_dev_profile rockchip_devfreq_dmc_profile = {
 	.polling_ms	= 200,
-	.target		= rk3399_dmcfreq_target,
-	.get_dev_status	= rk3399_dmcfreq_get_dev_status,
-	.get_cur_freq	= rk3399_dmcfreq_get_cur_freq,
+	.target		= rockchip_dmcfreq_target,
+	.get_dev_status	= rockchip_dmcfreq_get_dev_status,
+	.get_cur_freq	= rockchip_dmcfreq_get_cur_freq,
 };
 
-static __maybe_unused int rk3399_dmcfreq_suspend(struct device *dev)
+static __maybe_unused int rockchip_dmcfreq_suspend(struct device *dev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
 	ret = devfreq_event_disable_edev(dmcfreq->edev);
@@ -232,9 +233,9 @@ static __maybe_unused int rk3399_dmcfreq_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
+static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
 	ret = devfreq_event_enable_edev(dmcfreq->edev);
@@ -251,8 +252,8 @@ static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
-			 rk3399_dmcfreq_resume);
+static SIMPLE_DEV_PM_OPS(rockchip_dmcfreq_pm, rockchip_dmcfreq_suspend,
+			 rockchip_dmcfreq_resume);
 
 static int of_get_ddr_timings(struct dram_timing *timing,
 			      struct device_node *np)
@@ -321,18 +322,18 @@ static int of_get_ddr_timings(struct dram_timing *timing,
 	return ret;
 }
 
-static int rk3399_dmcfreq_probe(struct platform_device *pdev)
+static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node, *node;
-	struct rk3399_dmcfreq *data;
+	struct rockchip_dmcfreq *data;
 	int ret, index, size;
-	uint32_t *timing;
+	u32 *timing;
 	u32 ddr_type;
 	u32 val;
 
-	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -452,10 +453,10 @@ no_pmu:
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
 
-	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
+	rockchip_devfreq_dmc_profile.initial_freq = data->rate;
 
 	data->devfreq = devm_devfreq_add_device(dev,
-					   &rk3399_devfreq_dmc_profile,
+					   &rockchip_devfreq_dmc_profile,
 					   DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					   &data->ondemand_data);
 	if (IS_ERR(data->devfreq)) {
@@ -478,9 +479,9 @@ err_edev:
 	return ret;
 }
 
-static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+static int rockchip_dmcfreq_remove(struct platform_device *pdev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
+	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
 
 	/*
 	 * Before remove the opp table we need to unregister the opp notifier.
@@ -491,23 +492,23 @@ static int rk3399_dmcfreq_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rk3399dmc_devfreq_of_match[] = {
-	{ .compatible = "rockchip,rk3399-dmc" },
+static const struct of_device_id rockchip_dmcfreq_of_match[] = {
+	{ .compatible = "rockchip,rockchip-dmc" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
+MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
 
-static struct platform_driver rk3399_dmcfreq_driver = {
-	.probe	= rk3399_dmcfreq_probe,
-	.remove = rk3399_dmcfreq_remove,
+static struct platform_driver rockchip_dmcfreq_driver = {
+	.probe	= rockchip_dmcfreq_probe,
+	.remove = rockchip_dmcfreq_remove,
 	.driver = {
-		.name	= "rk3399-dmc-freq",
-		.pm	= &rk3399_dmcfreq_pm,
-		.of_match_table = rk3399dmc_devfreq_of_match,
+		.name	= "rockchip-dmc",
+		.pm	= &rockchip_dmcfreq_pm,
+		.of_match_table = rockchip_dmcfreq_of_match,
 	},
 };
-module_platform_driver(rk3399_dmcfreq_driver);
+module_platform_driver(rockchip_dmcfreq_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Lin Huang <hl@rock-chips.com>");
-MODULE_DESCRIPTION("RK3399 dmcfreq driver with devfreq framework");
+MODULE_DESCRIPTION("rockchip dmcfreq driver with devfreq framework");
