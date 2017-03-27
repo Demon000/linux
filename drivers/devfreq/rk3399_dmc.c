@@ -100,7 +100,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    INT_MAX);
 		if (err) {
-			dev_err(dev, "Cannot to set voltage %lu uV\n",
+			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
 			goto out;
 		}
@@ -165,7 +165,7 @@ static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
 		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
 					    INT_MAX);
 		if (err) {
-			dev_err(dev, "Cannot to set vol %lu uV\n", target_volt);
+			dev_err(dev, "Cannot set vol %lu uV\n", target_volt);
 			goto out;
 		}
 	}
