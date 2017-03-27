@@ -10,8 +10,8 @@
 #define __SOC_ROCKCHIP_GRF_H
 
 #define PMUGRF_OS_REG2	0x308
-#define DDRTYPE_SHIFT	13
-#define DDRTYPE_MASK	7
+#define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
+#define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
 
 enum {
 	DDR3 = 3,

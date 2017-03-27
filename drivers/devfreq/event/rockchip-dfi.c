@@ -20,7 +20,7 @@
 
 #include <soc/rockchip/rockchip_grf.h>
 
-#define RK3399_DMC_NUM_CH	2
+#define MAX_DMC_NUM_CH		2
 
 /* DDRMON_CTRL */
 #define DDRMON_CTRL	0x04
@@ -50,31 +50,25 @@ struct dmc_usage {
 struct rockchip_dfi {
 	struct devfreq_event_dev *edev;
 	struct devfreq_event_desc *desc;
-	struct dmc_usage ch_usage[RK3399_DMC_NUM_CH];
-	struct device *dev;
+	struct dmc_usage ch_usage[MAX_DMC_NUM_CH];
 	void __iomem *regs;
-	struct regmap *regmap_pmu;
 	struct clk *clk;
+	u32 dram_type;
+	u32 ch_msk;
 };
 
 static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
-	u32 val;
-	u32 ddr_type;
-
-	/* get ddr type */
-	regmap_read(info->regmap_pmu, PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> DDRTYPE_SHIFT) & DDRTYPE_MASK;
 
 	/* clear DDRMON_CTRL setting */
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
 
 	/* set ddr type to dfi */
-	if (ddr_type == LPDDR3)
+	if (info->dram_type == LPDDR3)
 		writel_relaxed(LPDDR3_EN, dfi_regs + DDRMON_CTRL);
-	else if (ddr_type == LPDDR4)
+	else if (info->dram_type == LPDDR4)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
 
 	/* enable count, use software mode */
@@ -99,7 +93,9 @@ static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
 	rockchip_dfi_stop_hardware_counter(edev);
 
 	/* Find out which channel is busier */
-	for (i = 0; i < RK3399_DMC_NUM_CH; i++) {
+	for (i = 0; i < MAX_DMC_NUM_CH; i++) {
+		if (!(info->ch_msk & BIT(i)))
+			continue;
 		info->ch_usage[i].access = readl_relaxed(dfi_regs +
 				DDRMON_CH0_DFI_ACCESS_NUM + i * 20) * 4;
 		info->ch_usage[i].total = readl_relaxed(dfi_regs +
@@ -120,7 +116,8 @@ static int rockchip_dfi_disable(struct devfreq_event_dev *edev)
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 
 	rockchip_dfi_stop_hardware_counter(edev);
-	clk_disable_unprepare(info->clk);
+	if (info->clk)
+		clk_disable_unprepare(info->clk);
 
 	return 0;
 }
@@ -130,10 +127,13 @@ static int rockchip_dfi_enable(struct devfreq_event_dev *edev)
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	int ret;
 
-	ret = clk_prepare_enable(info->clk);
-	if (ret) {
-		dev_err(&edev->dev, "failed to enable dfi clk: %d\n", ret);
-		return ret;
+	if (info->clk) {
+		ret = clk_prepare_enable(info->clk);
+		if (ret) {
+			dev_err(&edev->dev, "failed to enable dfi clk: %d\n",
+				ret);
+			return ret;
+		}
 	}
 
 	rockchip_dfi_start_hardware_counter(edev);
@@ -169,22 +169,14 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.set_event = rockchip_dfi_set_event,
 };
 
-static const struct of_device_id rockchip_dfi_id_match[] = {
-	{ .compatible = "rockchip,rk3399-dfi" },
-	{ },
-};
-MODULE_DEVICE_TABLE(of, rockchip_dfi_id_match);
-
-static int rockchip_dfi_probe(struct platform_device *pdev)
+static __init int rockchip_dfi_init(struct platform_device *pdev)
 {
+	struct rockchip_dfi *data = platform_get_drvdata(pdev);
+	struct devfreq_event_desc *desc = data->desc;
 	struct device *dev = &pdev->dev;
-	struct rockchip_dfi *data;
-	struct devfreq_event_desc *desc;
 	struct device_node *np = pdev->dev.of_node, *node;
-
-	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
+	struct regmap *regmap_pmu;
+	u32 val;
 
 	data->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->regs))
@@ -199,30 +191,60 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	/* try to find the optional reference to the pmu syscon */
 	node = of_parse_phandle(np, "rockchip,pmu", 0);
 	if (node) {
-		data->regmap_pmu = syscon_node_to_regmap(node);
+		regmap_pmu = syscon_node_to_regmap(node);
 		of_node_put(node);
-		if (IS_ERR(data->regmap_pmu))
-			return PTR_ERR(data->regmap_pmu);
+		if (IS_ERR(regmap_pmu))
+			return PTR_ERR(regmap_pmu);
 	}
-	data->dev = dev;
+
+	regmap_read(regmap_pmu, PMUGRF_OS_REG2, &val);
+	data->dram_type = READ_DRAMTYPE_INFO(val);
+	data->ch_msk = READ_CH_INFO(val);
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
+static const struct of_device_id rockchip_dfi_id_match[] = {
+	{ .compatible = "rockchip,rk3399-dfi", .data = rockchip_dfi_init },
+	{ },
+};
+
+static int rockchip_dfi_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct rockchip_dfi *data;
+	struct devfreq_event_desc *desc;
+	struct device_node *np = pdev->dev.of_node;
+	int (*init)(struct platform_device *pdev, struct rockchip_dfi *data,
+		    struct devfreq_event_desc *desc);
+
+	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, data);
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 
-	desc->ops = &rockchip_dfi_ops;
 	desc->driver_data = data;
 	desc->name = np->name;
 	data->desc = desc;
 
-	data->edev = devm_devfreq_event_add_edev(&pdev->dev, desc);
+	init = device_get_match_data(dev);
+	if (!init)
+		return -EINVAL;
+
+	init(pdev, data, desc);
+
+	data->edev = devm_devfreq_event_add_edev(dev, desc);
 	if (IS_ERR(data->edev)) {
-		dev_err(&pdev->dev,
-			"failed to add devfreq-event device\n");
+		dev_err(dev, "failed to add devfreq-event device\n");
 		return PTR_ERR(data->edev);
 	}
-
-	platform_set_drvdata(pdev, data);
 
 	return 0;
 }

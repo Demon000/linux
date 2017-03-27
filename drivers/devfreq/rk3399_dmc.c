@@ -376,7 +376,7 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 	}
 
 	regmap_read(data->regmap_pmu, PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> DDRTYPE_SHIFT) & DDRTYPE_MASK;
+	ddr_type = READ_DRAMTYPE_INFO(val);
 
 	switch (ddr_type) {
 	case DDR3:
