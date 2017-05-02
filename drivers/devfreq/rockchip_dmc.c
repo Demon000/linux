@@ -23,7 +23,7 @@
 #include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rockchip_sip.h>
 
-struct dram_timing {
+struct rk3399_dram_timing {
 	unsigned int ddr3_speed_bin;
 	unsigned int pd_idle;
 	unsigned int sr_idle;
@@ -56,13 +56,11 @@ struct dram_timing {
 };
 
 struct rockchip_dmcfreq {
-	struct device *dev;
 	struct devfreq *devfreq;
 	struct devfreq_simple_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev *edev;
 	struct mutex lock; /* scaling frequency lock */
-	struct dram_timing timing;
 	struct regulator *vdd_center;
 	struct regmap *regmap_pmu;
 	unsigned long rate, target_rate;
@@ -255,8 +253,8 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rockchip_dmcfreq_pm, rockchip_dmcfreq_suspend,
 			 rockchip_dmcfreq_resume);
 
-static int of_get_ddr_timings(struct dram_timing *timing,
-			      struct device_node *np)
+static int of_get_rk3399_timings(struct rk3399_dram_timing *timing,
+				 struct device_node *np)
 {
 	int ret = 0;
 
@@ -322,16 +320,105 @@ static int of_get_ddr_timings(struct dram_timing *timing,
 	return ret;
 }
 
+static int rk3399_dmc_init(struct platform_device *pdev,
+			   struct rockchip_dmcfreq *data)
+{
+	struct device_node *np = pdev->dev.of_node, *node;
+	struct device *dev = &pdev->dev;
+	struct rk3399_dram_timing *timings;
+	struct arm_smccc_res res;
+	int index, size;
+	u32 ddr_type;
+	u32 *timing;
+	u32 val;
+
+	timings = devm_kzalloc(dev, sizeof(*timings), GFP_KERNEL);
+	if (!timings)
+		return -ENOMEM;
+
+	/*
+	 * Get dram timing and pass it to arm trust firmware,
+	 * the dram drvier in arm trust firmware will get these
+	 * timing and to do dram initial.
+	 */
+	if (!of_get_rk3399_timings(timings, np)) {
+		timing = &timings->ddr3_speed_bin;
+		size = sizeof(struct rk3399_dram_timing) / 4;
+		for (index = 0; index < size; index++) {
+			arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, *timing++, index,
+				      ROCKCHIP_SIP_CONFIG_DRAM_SET_PARAM,
+				      0, 0, 0, 0, &res);
+			if (res.a0) {
+				dev_err(dev, "Failed to set dram param: %ld\n",
+					res.a0);
+				return -EINVAL;
+			}
+		}
+	}
+
+	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
+		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
+		      0, 0, 0, 0, &res);
+
+	node = of_parse_phandle(np, "rockchip,pmu", 0);
+	if (!node)
+		return 0;
+
+	data->regmap_pmu = syscon_node_to_regmap(node);
+	of_node_put(node);
+	if (IS_ERR(data->regmap_pmu)) {
+		return PTR_ERR(data->regmap_pmu);
+	}
+
+	regmap_read(data->regmap_pmu, PMUGRF_OS_REG2, &val);
+	ddr_type = READ_DRAMTYPE_INFO(val);
+
+	switch (ddr_type) {
+	case DDR3:
+		data->odt_dis_freq = timings->ddr3_odt_dis_freq;
+		break;
+	case LPDDR3:
+		data->odt_dis_freq = timings->lpddr3_odt_dis_freq;
+		break;
+	case LPDDR4:
+		data->odt_dis_freq = timings->lpddr4_odt_dis_freq;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * In TF-A there is a platform SIP call to set the PD (power-down)
+	 * timings and to enable or disable the ODT (on-die termination).
+	 * This call needs three arguments as follows:
+	 *
+	 * arg0:
+	 *     bit[0-7]   : sr_idle
+	 *     bit[8-15]  : sr_mc_gate_idle
+	 *     bit[16-31] : standby idle
+	 * arg1:
+	 *     bit[0-11]  : pd_idle
+	 *     bit[16-27] : srpd_lite_idle
+	 * arg2:
+	 *     bit[0]     : odt enable
+	 */
+	data->odt_pd_arg0 = (timings->sr_idle & 0xff) |
+			    ((timings->sr_mc_gate_idle & 0xff) << 8) |
+			    ((timings->standby_idle & 0xffff) << 16);
+	data->odt_pd_arg1 = (timings->pd_idle & 0xfff) |
+			    ((timings->srpd_lite_idle & 0xfff) << 16);
+
+	return 0;
+}
+
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
-	struct arm_smccc_res res;
+	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node, *node;
 	struct rockchip_dmcfreq *data;
-	int ret, index, size;
-	u32 *timing;
-	u32 ddr_type;
-	u32 val;
+	int (*init)(struct platform_device *pdev,
+		    struct rockchip_dmcfreq *data);
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
 	if (!data)
@@ -359,81 +446,11 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/*
-	 * Get dram timing and pass it to arm trust firmware,
-	 * the dram driver in arm trust firmware will get these
-	 * timing and to do dram initial.
-	 */
-	if (!of_get_ddr_timings(&data->timing, np)) {
-		timing = &data->timing.ddr3_speed_bin;
-		size = sizeof(struct dram_timing) / 4;
-		for (index = 0; index < size; index++) {
-			arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, *timing++, index,
-				      ROCKCHIP_SIP_CONFIG_DRAM_SET_PARAM,
-				      0, 0, 0, 0, &res);
-			if (res.a0) {
-				dev_err(dev, "Failed to set dram param: %ld\n",
-					res.a0);
-				ret = -EINVAL;
-				goto err_edev;
-			}
-		}
-	}
-
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (!node)
-		goto no_pmu;
-
-	data->regmap_pmu = syscon_node_to_regmap(node);
-	of_node_put(node);
-	if (IS_ERR(data->regmap_pmu)) {
-		ret = PTR_ERR(data->regmap_pmu);
-		goto err_edev;
-	}
-
-	regmap_read(data->regmap_pmu, PMUGRF_OS_REG2, &val);
-	ddr_type = READ_DRAMTYPE_INFO(val);
-
-	switch (ddr_type) {
-	case DDR3:
-		data->odt_dis_freq = data->timing.ddr3_odt_dis_freq;
-		break;
-	case LPDDR3:
-		data->odt_dis_freq = data->timing.lpddr3_odt_dis_freq;
-		break;
-	case LPDDR4:
-		data->odt_dis_freq = data->timing.lpddr4_odt_dis_freq;
-		break;
-	default:
+	init = device_get_match_data(dev);
+	if (!init) {
 		ret = -EINVAL;
 		goto err_edev;
 	}
-
-no_pmu:
-	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
-		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
-		      0, 0, 0, 0, &res);
-
-	/*
-	 * In TF-A there is a platform SIP call to set the PD (power-down)
-	 * timings and to enable or disable the ODT (on-die termination).
-	 * This call needs three arguments as follows:
-	 *
-	 * arg0:
-	 *     bit[0-7]   : sr_idle
-	 *     bit[8-15]  : sr_mc_gate_idle
-	 *     bit[16-31] : standby idle
-	 * arg1:
-	 *     bit[0-11]  : pd_idle
-	 *     bit[16-27] : srpd_lite_idle
-	 * arg2:
-	 *     bit[0]     : odt enable
-	 */
-	data->odt_pd_arg0 = (data->timing.sr_idle & 0xff) |
-			    ((data->timing.sr_mc_gate_idle & 0xff) << 8) |
-			    ((data->timing.standby_idle & 0xffff) << 16);
-	data->odt_pd_arg1 = (data->timing.pd_idle & 0xfff) |
-			    ((data->timing.srpd_lite_idle & 0xfff) << 16);
 
 	/*
 	 * We add a devfreq driver to our parent since it has a device tree node
@@ -466,7 +483,6 @@ no_pmu:
 
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
-	data->dev = dev;
 	platform_set_drvdata(pdev, data);
 
 	return 0;
@@ -482,18 +498,19 @@ err_edev:
 static int rockchip_dmcfreq_remove(struct platform_device *pdev)
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
+	struct device *dev = &pdev->dev;
 
 	/*
 	 * Before remove the opp table we need to unregister the opp notifier.
 	 */
-	devm_devfreq_unregister_opp_notifier(dmcfreq->dev, dmcfreq->devfreq);
-	dev_pm_opp_of_remove_table(dmcfreq->dev);
+	devm_devfreq_unregister_opp_notifier(dev, dmcfreq->devfreq);
+	dev_pm_opp_of_remove_table(dev);
 
 	return 0;
 }
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
-	{ .compatible = "rockchip,rockchip-dmc" },
+	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
