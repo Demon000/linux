@@ -60,7 +60,6 @@ struct rockchip_dmcfreq {
 	struct devfreq_simple_ondemand_data ondemand_data;
 	struct clk *dmc_clk;
 	struct devfreq_event_dev *edev;
-	struct mutex lock; /* scaling frequency lock */
 	struct regulator *vdd_center;
 	struct regmap *regmap_pmu;
 	unsigned long rate, target_rate;
@@ -100,11 +99,9 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		if (err) {
 			dev_err(dev, "Cannot set voltage %lu uV\n",
 				target_volt);
-			goto out;
+			return err;
 		}
 	}
-
-	mutex_lock(&dmcfreq->lock);
 
 	if (dmcfreq->regmap_pmu) {
 		if (target_rate >= dmcfreq->odt_dis_freq)
@@ -172,7 +169,6 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	dmcfreq->volt = target_volt;
 
 out:
-	mutex_unlock(&dmcfreq->lock);
 	return err;
 }
 
@@ -423,8 +419,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dmcfreq), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
-	mutex_init(&data->lock);
 
 	data->vdd_center = devm_regulator_get(dev, "center");
 	if (IS_ERR(data->vdd_center))
