@@ -7,6 +7,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/clk.h>
 #include <linux/cpu.h>
+#include <linux/cpufreq.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
 #include <linux/devfreq-event.h>
@@ -74,10 +75,12 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 {
 	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
+	struct cpufreq_policy *policy;
 	unsigned long old_clk_rate = dmcfreq->rate;
 	unsigned long temp_rate, target_volt, target_rate;
 	struct arm_smccc_res res;
 	bool odt_enable = false;
+	unsigned int cpu_cur;
 	int err;
 
 	opp = devfreq_recommended_opp(dev, freq, flags);
@@ -120,6 +123,29 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	}
 
 	/*
+	 * We need to prevent cpu hotplug from happening while a dmc freq rate
+	 * change is happening.
+	 *
+	 * Do this before taking the policy rwsem to avoid deadlocks between the
+	 * mutex that is locked/unlocked in cpu_hotplug_disable/enable. And it
+	 * can also avoid deadlocks between the mutex that is locked/unlocked
+	 * in get/put_online_cpus (such as store_scaling_max_freq()).
+	 */
+	cpus_read_lock();
+
+	/*
+	 * Go to specified cpufreq and block other cpufreq changes since
+	 * set_rate needs to complete during vblank.
+	 */
+	cpu_cur = raw_smp_processor_id();
+	policy = cpufreq_cpu_get(cpu_cur);
+	if (!policy) {
+		dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
+		goto cpufreq;
+	}
+	down_write(&policy->rwsem);
+
+	/*
 	 * If frequency scaling from low to high, adjust voltage first.
 	 * If frequency scaling from high to low, adjust frequency first.
 	 */
@@ -133,16 +159,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
-	/*
-	 * We need to prevent cpu hotplug from happening while a dmc freq rate
-	 * change is happening.
-	 */
-	get_online_cpus();
-
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
-
-	put_online_cpus();
-
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
 			err);
@@ -179,6 +196,11 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	dmcfreq->volt = target_volt;
 
 out:
+	up_write(&policy->rwsem);
+	cpufreq_cpu_put(policy);
+cpufreq:
+	cpus_read_unlock();
+
 	return err;
 }
 
