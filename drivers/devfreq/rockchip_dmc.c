@@ -88,11 +88,12 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		return PTR_ERR(opp);
 
 	temp_rate = dev_pm_opp_get_freq(opp);
+	target_volt = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
+
 	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
 	if ((long)target_rate <= 0)
 		target_rate = temp_rate;
-	target_volt = dev_pm_opp_get_voltage(opp);
-	dev_pm_opp_put(opp);
 
 	if (dmcfreq->rate == target_rate && dmcfreq->volt == target_volt)
 		return 0;
