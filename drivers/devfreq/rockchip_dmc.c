@@ -453,7 +453,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->vdd_center = devm_regulator_get(dev, "center");
+	data->vdd_center = devm_regulator_get_optional(dev, "center");
 	if (IS_ERR(data->vdd_center))
 		return dev_err_probe(dev, PTR_ERR(data->vdd_center),
 				     "Cannot get the regulator \"center\"\n");
