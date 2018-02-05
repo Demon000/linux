@@ -27,7 +27,7 @@
 #define CLR_DDRMON_CTRL	(0x1f0000 << 0)
 #define LPDDR4_EN	(0x10001 << 4)
 #define HARDWARE_EN	(0x10001 << 3)
-#define LPDDR3_EN	(0x10001 << 2)
+#define LPDDR2_3_EN	(0x10001 << 2)
 #define SOFTWARE_EN	(0x10001 << 1)
 #define SOFTWARE_DIS	(0x10000 << 1)
 #define TIME_CNT_EN	(0x10001 << 0)
@@ -66,8 +66,8 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
 
 	/* set ddr type to dfi */
-	if (info->dram_type == LPDDR3)
-		writel_relaxed(LPDDR3_EN, dfi_regs + DDRMON_CTRL);
+	if (info->dram_type == LPDDR3 || info->dram_type == LPDDR2)
+		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
 	else if (info->dram_type == LPDDR4)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
 
@@ -169,6 +169,35 @@ static const struct devfreq_event_ops rockchip_dfi_ops = {
 	.set_event = rockchip_dfi_set_event,
 };
 
+static __init int px30_dfi_init(struct platform_device *pdev)
+{
+	struct rockchip_dfi *data = platform_get_drvdata(pdev);
+	struct devfreq_event_desc *desc = data->desc;
+	struct device_node *np = pdev->dev.of_node, *node;
+	struct regmap *regmap_pmugrf;
+	u32 val;
+
+	data->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(data->regs))
+		return PTR_ERR(data->regs);
+
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
+	if (node) {
+		regmap_pmugrf = syscon_node_to_regmap(node);
+		if (IS_ERR(regmap_pmugrf))
+			return PTR_ERR(regmap_pmugrf);
+	}
+
+	regmap_read(regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
+	data->dram_type = READ_DRAMTYPE_INFO(val);
+	data->ch_msk = 1;
+	data->clk = NULL;
+
+	desc->ops = &rockchip_dfi_ops;
+
+	return 0;
+}
+
 static __init int rockchip_dfi_init(struct platform_device *pdev)
 {
 	struct rockchip_dfi *data = platform_get_drvdata(pdev);
@@ -207,6 +236,7 @@ static __init int rockchip_dfi_init(struct platform_device *pdev)
 }
 
 static const struct of_device_id rockchip_dfi_id_match[] = {
+	{ .compatible = "rockchip,px30-dfi", .data = px30_dfi_init },
 	{ .compatible = "rockchip,rk3399-dfi", .data = rockchip_dfi_init },
 	{ },
 };

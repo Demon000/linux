@@ -9,12 +9,14 @@
 #ifndef __SOC_ROCKCHIP_GRF_H
 #define __SOC_ROCKCHIP_GRF_H
 
+#define PX30_PMUGRF_OS_REG2		0x208
 #define PMUGRF_OS_REG2	0x308
 #define READ_DRAMTYPE_INFO(n)		(((n) >> 13) & 0x7)
 #define READ_CH_INFO(n)			(((n) >> 28) & 0x3)
 
 enum {
 	DDR3 = 3,
+	LPDDR2 = 5,
 	LPDDR3 = 6,
 	LPDDR4 = 7,
 	UNUSED = 0xFF
