@@ -77,7 +77,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 	struct cpufreq_policy *policy;
 	unsigned long old_clk_rate = dmcfreq->rate;
-	unsigned long temp_rate, target_volt, target_rate;
+	unsigned long opp_rate, target_volt, target_rate;
 	struct arm_smccc_res res;
 	bool odt_enable = false;
 	unsigned int cpu_cur;
@@ -87,13 +87,13 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	temp_rate = dev_pm_opp_get_freq(opp);
+	opp_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, opp_rate);
 	if ((long)target_rate <= 0)
-		target_rate = temp_rate;
+		target_rate = opp_rate;
 
 	if (dmcfreq->rate == target_rate && dmcfreq->volt == target_volt)
 		return 0;
@@ -193,7 +193,7 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
-	dmcfreq->rate = target_rate;
+	dmcfreq->rate = opp_rate;
 	dmcfreq->volt = target_volt;
 
 out:
