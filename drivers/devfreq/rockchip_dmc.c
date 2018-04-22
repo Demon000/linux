@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
+#include <linux/pm_qos.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/rwsem.h>
@@ -439,6 +440,8 @@ struct rockchip_dmcfreq {
 	int odt_pd_arg0, odt_pd_arg1;
 };
 
+static struct pm_qos_request pm_qos;
+
 static DECLARE_RWSEM(rockchip_dmcfreq_sem);
 
 void rockchip_dmcfreq_lock(void)
@@ -701,8 +704,17 @@ int rockchip_dmcfreq_wait_complete(void)
 	wait_ctrl.wait_flag = 0;
 
 	enable_irq(wait_ctrl.irq);
+
+	/*
+	 * CPUs only enter WFI when idle to make sure that
+	 * FIQn can quick response.
+	 */
+	cpu_latency_qos_update_request(&pm_qos, 0);
+
 	wait_event_timeout(wait_ctrl.wait_wq, wait_ctrl.wait_flag,
 			   msecs_to_jiffies(DDR_CLK_FREQ_CHANGE_TIMEOUT));
+
+	cpu_latency_qos_update_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
 	disable_irq(wait_ctrl.irq);
 
 	return 0;
@@ -1061,6 +1073,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->volt = regulator_get_voltage(data->vdd_center);
 
 	rockchip_devfreq_dmc_profile.initial_freq = data->rate;
+
+	cpu_latency_qos_add_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	data->devfreq = devm_devfreq_add_device(dev,
 					   &rockchip_devfreq_dmc_profile,
