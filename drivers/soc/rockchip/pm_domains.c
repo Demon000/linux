@@ -29,6 +29,8 @@
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/power/rk3568-power.h>
 
+#include <soc/rockchip/rockchip_dmc.h>
+
 struct rockchip_domain_info {
 	const char *name;
 	int pwr_mask;
@@ -138,6 +140,18 @@ struct rockchip_pmu {
 
 #define DOMAIN_RK3568(name, pwr, req, wakeup)		\
 	DOMAIN_M(name, pwr, pwr, req, req, req, wakeup)
+
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
+{
+	mutex_lock(&pd->pmu->mutex);
+	rockchip_dmcfreq_lock();
+}
+
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
+{
+	rockchip_dmcfreq_unlock();
+	mutex_unlock(&pd->pmu->mutex);
+}
 
 static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 {
@@ -301,13 +315,13 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 	struct rockchip_pmu *pmu = pd->pmu;
 	int ret;
 
-	mutex_lock(&pmu->mutex);
+	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
 		ret = clk_bulk_enable(pd->num_clks, pd->clks);
 		if (ret < 0) {
 			dev_err(pmu->dev, "failed to enable clocks\n");
-			mutex_unlock(&pmu->mutex);
+			rockchip_pmu_unlock(pd);
 			return ret;
 		}
 
@@ -330,7 +344,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		clk_bulk_disable(pd->num_clks, pd->clks);
 	}
 
-	mutex_unlock(&pmu->mutex);
+	rockchip_pmu_unlock(pd);
 	return 0;
 }
 
@@ -538,9 +552,9 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 	clk_bulk_put(pd->num_clks, pd->clks);
 
 	/* protect the zeroing of pm->num_clks */
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	pd->num_clks = 0;
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	/* devm will free our memory */
 }
