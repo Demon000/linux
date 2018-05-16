@@ -70,6 +70,20 @@ struct rockchip_dmcfreq {
 	int odt_pd_arg0, odt_pd_arg1;
 };
 
+static DECLARE_RWSEM(rockchip_dmcfreq_sem);
+
+void rockchip_dmcfreq_lock(void)
+{
+	down_read(&rockchip_dmcfreq_sem);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_lock);
+
+void rockchip_dmcfreq_unlock(void)
+{
+	up_read(&rockchip_dmcfreq_sem);
+}
+EXPORT_SYMBOL(rockchip_dmcfreq_unlock);
+
 static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
@@ -163,7 +177,17 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		}
 	}
 
+	/*
+	 * Writer in rwsem may block readers even during its waiting in queue,
+	 * and this may lead to a deadlock when the code path takes read sem
+	 * twice (e.g. one in vop_lock() and another in rockchip_pmu_lock()).
+	 * As a (suboptimal) workaround, let writer to spin until it gets the
+	 * lock.
+	 */
+	while (!down_write_trylock(&rockchip_dmcfreq_sem))
+		cond_resched();
 	err = clk_set_rate(dmcfreq->dmc_clk, target_rate);
+	up_write(&rockchip_dmcfreq_sem);
 	if (err) {
 		dev_err(dev, "Cannot set frequency %lu (%d)\n", target_rate,
 			err);
