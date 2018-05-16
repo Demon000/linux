@@ -34,6 +34,8 @@
 #include <drm/bridge/analogix_dp.h>
 #endif
 
+#include <soc/rockchip/rockchip_dmc.h>
+
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
 #include "rockchip_drm_fb.h"
@@ -182,6 +184,18 @@ struct vop {
 
 	struct vop_win win[];
 };
+
+static void vop_lock(struct vop *vop)
+{
+	mutex_lock(&vop->vop_lock);
+	rockchip_dmcfreq_lock();
+}
+
+static void vop_unlock(struct vop *vop)
+{
+	rockchip_dmcfreq_unlock();
+	mutex_unlock(&vop->vop_lock);
+}
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -703,7 +717,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	if (crtc->state->self_refresh_active)
 		rockchip_drm_set_win_enabled(crtc, false);
 
-	mutex_lock(&vop->vop_lock);
+	vop_lock(vop);
 
 	drm_crtc_vblank_off(crtc);
 
@@ -742,7 +756,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 	pm_runtime_put(vop->dev);
 
 out:
-	mutex_unlock(&vop->vop_lock);
+	vop_unlock(vop);
 
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
@@ -1311,13 +1325,13 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (crtc->state->gamma_lut)
 		vop_crtc_gamma_set(vop, crtc, old_state);
 
-	mutex_lock(&vop->vop_lock);
+	vop_lock(vop);
 
 	WARN_ON(vop->event);
 
 	ret = vop_enable(crtc, old_state);
 	if (ret) {
-		mutex_unlock(&vop->vop_lock);
+		vop_unlock(vop);
 		DRM_DEV_ERROR(vop->dev, "Failed to enable vop (%d)\n", ret);
 		return;
 	}
@@ -1400,7 +1414,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
 	VOP_REG_SET(vop, common, standby, 0);
-	mutex_unlock(&vop->vop_lock);
+	vop_unlock(vop);
 }
 
 static bool vop_fs_irq_is_pending(struct vop *vop)
@@ -2059,7 +2073,7 @@ int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 	if (!crtc || !vop->is_enabled)
 		return -ENODEV;
 
-	mutex_lock(&vop->vop_lock);
+	vop_lock(vop);
 	if (mstimeout <= 0) {
 		ret = -EINVAL;
 		goto out;
@@ -2084,7 +2098,7 @@ int rockchip_drm_wait_vact_end(struct drm_crtc *crtc, unsigned int mstimeout)
 	}
 
 out:
-	mutex_unlock(&vop->vop_lock);
+	vop_unlock(vop);
 	return ret;
 }
 EXPORT_SYMBOL(rockchip_drm_wait_vact_end);
