@@ -197,6 +197,8 @@ struct v4l2_subdev_io_pin_config {
  * 	A master device (usually the bridge driver) will call this callback with the
  * 	event(s) that occurred and the sub device checks the event mask for the event(s)
  * 	on which they have to synchronize their pending changes.
+ *
+ * @post_register: called after the subdevice has been registered.
  */
 struct v4l2_subdev_core_ops {
 	int (*log_status)(struct v4l2_subdev *sd);
@@ -224,6 +226,7 @@ struct v4l2_subdev_core_ops {
 	int (*unsubscribe_event)(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 				 struct v4l2_event_subscription *sub);
 	int (*sync)(struct v4l2_subdev *sd, unsigned int sync_events);
+	int (*post_register)(struct v4l2_subdev *sd);
 };
 
 /**
