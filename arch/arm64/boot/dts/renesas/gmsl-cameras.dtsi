@@ -131,13 +131,37 @@
 		i2c@0 {
 			status = "okay";
 
-			camera@51 {
-				compatible = GMSL_CAMERA_MODEL;
-				reg = <0x51>, <0x61>;
+			serializer@51 {
+				compatible = "maxim,max9271";
+				reg = <0x51>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						fakra_con0: endpoint {
+							remote-endpoint = <&max9286_in0>;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						sensor_in0: endpoint {
+							remote-endpoint = <&sensor_out0>;
+						};
+					};
+				};
+			};
+
+			camera@61 {
+				compatible = "imi,rdacm20";
+				reg = <0x61>;
 
 				port {
-					fakra_con0: endpoint {
-						remote-endpoint = <&max9286_in0>;
+					sensor_out0: endpoint {
+						remote-endpoint = <&sensor_in0>;
 					};
 				};
 			};
