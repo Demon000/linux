@@ -231,6 +231,18 @@ config VIDEO_IMX412
 config VIDEO_MAX9271_LIB
 	tristate
 
+config VIDEO_MAX9271
+	tristate "MAX9271 GMSL serializer support"
+	depends on I2C
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	help
+	  This driver supports the Maxim MAX9271 GMSL serializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max9271.
+
 config VIDEO_MT9M001
 	tristate "mt9m001 support"
 	depends on I2C && VIDEO_DEV
