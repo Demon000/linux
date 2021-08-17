@@ -20,7 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 
-#include "max9271.h"
+#include "max9271-lib.h"
 
 static int max9271_read(struct max9271_device *dev, u8 reg)
 {

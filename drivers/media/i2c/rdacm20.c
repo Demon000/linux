@@ -27,7 +27,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 
-#include "max9271.h"
+#include "max9271-lib.h"
 
 #define OV10635_I2C_ADDRESS		0x30
 

@@ -21,7 +21,7 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
-#include "max9271.h"
+#include "max9271-lib.h"
 
 #define MAX9271_RESET_CYCLES		10
 
