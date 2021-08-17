@@ -594,7 +594,7 @@ static int max9286_notify_bound(struct v4l2_async_notifier *notifier,
 	max9286_check_config_link(priv, priv->source_mask);
 	max9286_configure_i2c(priv, false);
 
-	return max9286_set_pixelrate(priv);
+	return 0;
 }
 
 static void max9286_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -672,6 +672,10 @@ static int max9286_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
+		ret = max9286_set_pixelrate(priv);
+		if (ret)
+			return ret;
+
 		/*
 		 * The frame sync between cameras is transmitted across the
 		 * reverse channel as GPIO. We must open all channels while
