@@ -8701,24 +8701,24 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		} 
 		_rtw_memset(extra, '\0', sizeof(extra));
 		DBG_871X("\tOFFSET\tVALUE(hex)\n");
-		sprintf(extra, "%s \n", extra);
+		sprintf(extra + strlen(extra), " \n");
 		for ( i = 0; i < EFUSE_MAP_SIZE; i += 16 )
 		{
 			DBG_871X("\t0x%02x\t", i);
-			sprintf(extra, "%s \t0x%02x\t", extra,i);
+			sprintf(extra + strlen(extra), " \t0x%02x\t", i);
 			for (j = 0; j < 8; j++)
 			{	  
 				DBG_871X("%02X ", data[i+j]);
-				sprintf(extra, "%s %02X", extra, data[i+j]);
+				sprintf(extra + strlen(extra), " %02X", data[i+j]);
 			}
 			DBG_871X("\t");
-			sprintf(extra,"%s\t",extra);
+			sprintf(extra + strlen(extra), "\t");
 			for (; j < 16; j++){
 				DBG_871X("%02X ", data[i+j]);
-				sprintf(extra, "%s %02X", extra, data[i+j]);
+				sprintf(extra + strlen(extra), " %02X", data[i+j]);
 			}
 			DBG_871X("\n");
-			sprintf(extra,"%s\n",extra);	
+			sprintf(extra + strlen(extra), "\n");	
 		}
 		DBG_871X("\n");
 		wrqu->length = strlen(extra);
@@ -8755,9 +8755,9 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		_rtw_memset(extra, '\0', sizeof(extra));	 
 		for ( i = 0; i < cnts; i ++) {
 			DBG_871X("0x%02x", data[i]);
-			sprintf(extra, "%s 0x%02X", extra, data[i]);
+			sprintf(extra + strlen(extra), " 0x%02X", data[i]);
 			DBG_871X(" ");
-			sprintf(extra,"%s ",extra);
+			sprintf(extra + strlen(extra), " ");
 		}
 
 		wrqu->length = strlen(extra)+1;
@@ -8782,15 +8782,15 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		_rtw_memset(extra, '\0', sizeof(extra));
 		for ( i=0; i<mapLen; i++ ) {
 			DBG_871X(" %02x", rawdata[i]);
-			sprintf(extra, "%s %02x", extra, rawdata[i] );
+			sprintf(extra + strlen(extra), " %02x", rawdata[i] );
 
 			if ((i & 0xF) == 0xF){ 
 				DBG_871X("\n\t");
-				sprintf(extra, "%s\n\t", extra);
+				sprintf(extra + strlen(extra), "\n\t");
 			}
 			else if ((i & 0x7) == 0x7){ 
 				DBG_871X("\t");
-				sprintf(extra, "%s\t", extra);
+				sprintf(extra + strlen(extra), "\t");
 			}
 		}
 		wrqu->length = strlen(extra);
@@ -8821,9 +8821,9 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		_rtw_memset(extra, '\0', sizeof(extra));		 
 		for ( i = 0; i < cnts; i ++) {
 			DBG_871X("0x%02x", data[i]);
-			sprintf(extra, "%s 0x%02X", extra, data[i+j]);
+			sprintf(extra + strlen(extra), " 0x%02X", data[i+j]);
 			DBG_871X(" ");
-			sprintf(extra,"%s ",extra);
+			sprintf(extra +strlen(extra), " ");
 		}
 		wrqu->length = strlen(extra);
 		return 0;
@@ -8852,9 +8852,9 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 		_rtw_memset(extra, '\0', sizeof(extra));		 
 		for ( i = 0; i < cnts; i ++) {
 			DBG_871X("0x%02x", data[i]);
-			sprintf(extra, "%s 0x%02X", extra, data[i+j]);
+			sprintf(extra + strlen(extra), " 0x%02X", data[i+j]);
 			DBG_871X(" ");
-			sprintf(extra,"%s ",extra);
+			sprintf(extra + strlen(extra), " ");
 		}
 		wrqu->length = strlen(extra);
 		return 0;
@@ -8862,13 +8862,13 @@ static int rtw_mp_efuse_get(struct net_device *dev,
 	else if ( strcmp(tmp[0],"ableraw") == 0 ) {
 		efuse_GetCurrentSize(padapter,&raw_cursize);
 		raw_maxsize = efuse_GetMaxSize(padapter);
-		sprintf(extra, "%s : [ available raw size] = %d",extra,raw_maxsize-raw_cursize);
+		sprintf(extra + strlen(extra), " : [ available raw size] = %d",raw_maxsize-raw_cursize);
 		wrqu->length = strlen(extra);
 
 		return 0;
 	}else
 	{
-		 sprintf(extra, "%s : Command not found\n",extra);
+		 sprintf(extra + strlen(extra), " : Command not found\n");
 		  wrqu->length = strlen(extra);
 		  return 0;
 	}
