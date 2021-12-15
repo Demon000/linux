@@ -662,7 +662,7 @@ phy_registers_show(struct device *dev, struct device_attribute *attr, char *buf)
 	int index;
 
 	for (index = 0; index < 32; index++)
-		sprintf(buf, "%s%2d: 0x%x\n", buf, index,
+		sprintf(buf + strlen(buf), "%2d: 0x%x\n", index,
 			phy_read(phydev, index));
 
 	return strlen(buf);
