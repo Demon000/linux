@@ -698,6 +698,10 @@
 	pmuio2-supply = <&vcc3v3_pmu>;
 };
 
+&pwm0 {
+	status = "okay";
+};
+
 /* LCD Backlight PWM */
 &pwm1 {
 	status = "okay";
