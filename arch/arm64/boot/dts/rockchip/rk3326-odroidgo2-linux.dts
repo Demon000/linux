@@ -732,18 +732,6 @@
 				};
 			};
 
-			/* Rev 0.2 CAM Power - Disabled by default */
-			vcc_cam: LDO_REG9 {
-				regulator-min-microvolt = <3000000>;
-				regulator-max-microvolt = <3000000>;
-
-				regulator-name = "vcc_cam";
-				regulator-state-mem {
-					regulator-off-in-suspend;
-					regulator-suspend-microvolt = <3000000>;
-				};
-			};
-
 			dcdc_boost: BOOST {
 				regulator-always-on;
 				regulator-boot-on;
