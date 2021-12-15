@@ -79,7 +79,10 @@
 #include <asm/irq.h>
 
 #include "fbcon.h"
-
+#ifdef __VIB__
+#include <linux/gpio.h>
+#define VIB_EN_GPIO 15
+#endif
 #ifdef FBCONDEBUG
 #  define DPRINTK(fmt, args...) printk(KERN_DEBUG "%s: " fmt, __func__ , ## args)
 #else
@@ -1158,6 +1161,9 @@ static void fbcon_init(struct vc_data *vc, int init)
 	}
 
 	ops->p = &fb_display[fg_console];
+#ifdef __VIB__
+	gpio_direction_output(VIB_EN_GPIO, 0);
+#endif
 }
 
 static void fbcon_free_font(struct display *p, bool freefont)
