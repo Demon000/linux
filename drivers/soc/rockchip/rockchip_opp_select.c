@@ -607,6 +607,7 @@ static int rockchip_of_get_irdrop(struct device_node *np, unsigned long rate)
 	return ret ? ret : irdrop;
 }
 
+extern int soc_bin;
 static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 					 struct device_node *np,
 					 unsigned long *safe_rate,
@@ -621,6 +622,18 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 
 	of_property_read_u32_index(np, "rockchip,max-volt", 0, &max_volt);
 	of_property_read_u32_index(np, "rockchip,evb-irdrop", 0, &evb_irdrop);
+
+	if (!strcmp(dev_name(dev), "dmc") && ((soc_bin == 2) || (soc_bin == 3))) {
+		dev_pm_opp_remove(dev, 786000000);
+		dev_pm_opp_remove(dev, 666000000);
+	}
+
+	if (!strcmp(dev_name(dev), "ff400000.gpu") && (soc_bin == 3)) {
+		dev_pm_opp_remove(dev, 300000000);
+		dev_pm_opp_remove(dev, 400000000);
+		dev_pm_opp_remove(dev, 480000000);
+		dev_pm_opp_remove(dev, 520000000);
+	}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 	rcu_read_lock();
@@ -644,6 +657,8 @@ static int rockchip_adjust_opp_by_irdrop(struct device *dev,
 			delta_irdrop = 0;
 		else
 			delta_irdrop = board_irdrop - evb_irdrop;
+		if (!strcmp(dev_name(dev), "dmc") && ((soc_bin == 2) || (soc_bin == 3)))
+			delta_irdrop = 50000;
 		if ((opp->u_volt + delta_irdrop) <= max_volt) {
 			opp->u_volt += delta_irdrop;
 			opp->u_volt_min += delta_irdrop;
