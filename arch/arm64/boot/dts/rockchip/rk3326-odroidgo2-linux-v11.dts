@@ -138,18 +138,6 @@
 		vin-supply = <&vccsys>;
 	};
 
-	wireless-wlan {
-		compatible = "wlan-platdata";
-		rockchip,grf = <&grf>;
-		/* wifi_chip_type - wifi chip define
-		* ap6210, ap6330, ap6335
-		* rtl8188eu, rtl8723bs, rtl8723bu
-		* esp8089
-		*/
-		wifi_chip_type = "esp8089";
-		sdio_vref = <3300>; //1800mv or 3300mv
-		status = "okay";
-	};
 };
 
 
