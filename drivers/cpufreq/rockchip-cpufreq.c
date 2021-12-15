@@ -51,6 +51,7 @@ struct cluster_info {
 };
 static LIST_HEAD(cluster_info_list);
 
+int soc_bin;
 static int px30_get_soc_info(struct device *dev, struct device_node *np,
 			     int *bin, int *process)
 {
@@ -66,10 +67,15 @@ static int px30_get_soc_info(struct device *dev, struct device_node *np,
 			dev_err(dev, "Failed to get soc performance value\n");
 			return ret;
 		}
-		*bin = value;
+		if (value & 0x4)
+			soc_bin = *bin = 3;
+		else if (value & 0x2)
+			soc_bin = *bin = 2;
+		else
+			soc_bin = *bin = value;
 	}
 	if (*bin >= 0)
-		dev_info(dev, "bin=%d\n", *bin);
+		dev_info(dev, "bin=%d, value=%d\n", *bin, value);
 
 	return ret;
 }
