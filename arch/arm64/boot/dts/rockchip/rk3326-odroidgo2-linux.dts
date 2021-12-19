@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Hardkernel Co., Ltd
+ * Copyright (c) 2020 Anbernic
+ *
+ * Anbernic RG351P isn't ODROID-GO2 CLONE:)
+ *
  */
 
 /dts-v1/;
@@ -13,8 +16,8 @@
 #include "rk3326-linux.dtsi"
 
 / {
-	model = "Hardkernel ODROID-GO2";
-	compatible = "rockchip,rk3326-odroidgo2-linux", "rockchip,rk3326";
+	model = "Anbernic RG351P";
+	compatible = "rockchip,rk3326-rg351p-linux", "rockchip,rk3326";
 
 	chosen {
                 bootargs = "";
@@ -31,20 +34,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart2m1_xfer>;
 		status = "okay";
-	};
-
-	leds: gpio_leds {
-		compatible = "gpio-leds";
-
-		pinctrl-names = "led_pins";
-		pinctrl-0 = <&led_pins>;
-
-		/* Blue LED : GPIO0_C1 */
-		heartbeat {
-			label = "blue:heartbeat";
-			gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
 	};
 
 	backlight: backlight {
@@ -83,7 +72,20 @@
 			232 233 234 235 236 237 238 239
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
-		default-brightness-level = <200>;
+		default-brightness-level = <255>;
+	};
+	
+	leds: gpio_leds {
+		compatible = "gpio-leds";
+
+		pinctrl-names = "led_pins";
+		pinctrl-0 = <&led_pins>;
+
+		heartbeat {
+			label = "blue:heartbeat";
+			gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 
 	rk817-sound {
@@ -99,7 +101,7 @@
 			/*"IN1P", "Mic Jack",*/
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
-		simple-audio-card,hp-det-gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_HIGH>;
+		simple-audio-card,hp-det-gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>;
 		simple-audio-card,codec-hp-det = <1>;
 		simple-audio-card,cpu {
 			sound-dai = <&i2s1_2ch>;
@@ -109,15 +111,6 @@
 		};
 	};
 
-/*
-	rk_headset {
-		compatible = "rockchip_headset";
-		headset_gpio = <&gpio2 RK_PC6 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-	};
-*/
-
 	vccsys: vccsys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc3v8_sys";
@@ -125,18 +118,19 @@
 		regulator-min-microvolt = <3800000>;
 		regulator-max-microvolt = <3800000>;
 	};
-
+/*
 	vcc_host: vcc_host {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_host";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 
-		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
 		enable-active-high;
 		regulator-always-on;
 		vin-supply = <&vccsys>;
 	};
+*/
 };
 
 
@@ -151,10 +145,15 @@
 
 &cpu0_opp_table {
 	rockchip,avs = <1>;
-	/delete-node/ opp-408000000;
-	/delete-node/ opp-600000000;
-	/delete-node/ opp-816000000;
+
+	/* bin scaling clock 1.296MHz */
+	rockchip,bin-scaling-sel = <
+		0               13
+		1               13
+	>;
+
 	/delete-node/ opp-1416000000;
+	/delete-node/ opp-1512000000;
 };
 
 &display_subsystem {
@@ -279,10 +278,7 @@
 	status = "okay";
 };
 
-&route_dsi {
-	connect = <&vopb_out_dsi>;
-	status = "okay";
-};
+
 
 &dfi {
 	status = "okay";
@@ -293,27 +289,7 @@
 	status = "okay";
 };
 
-&dmc_opp_table {
-	/delete-node/ opp-194000000;
-	/delete-node/ opp-328000000;
-	/delete-node/ opp-450000000;
-
-	opp-786000000 {
-		status = "okay";
-	};
-};
-
-&gpu_opp_table {
-	/delete-node/ opp-200000000;
-	/delete-node/ opp-300000000;
-};
-
 &emmc {
-	status = "disabled";
-};
-
-
-&sfc {
 	status = "disabled";
 };
 
@@ -321,6 +297,7 @@
 	mali-supply = <&vdd_logic>;
 	status = "okay";
 };
+
 
 &i2c0 {
 	status = "okay";
@@ -560,6 +537,20 @@
 				};
 			};
 
+			/* Rev 1.1 WIFI Power */
+			vcc_wifi: LDO_REG9 {
+				regulator-always-on;
+				regulator-boot-on;
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+
+				regulator-name = "vcc_wifi";
+				regulator-state-mem {
+					regulator-off-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
 			dcdc_boost: BOOST {
 				regulator-always-on;
 				regulator-boot-on;
@@ -576,28 +567,18 @@
 
 		battery {
 			compatible = "rk817,battery";
-			ocv_table = <3165 3220 3280 3330 3380 3430 3480
-			3530 3580 3630 3670 3710 3750 3790
-			3830 3870 3910 3950 3990 3995 4000>;
+			ocv_table = <3300 3342 3384 3426 3468 3511 3554
+			3597 3640 3683 3726 3769 3812 3855
+			3898 3941 3984 4027 4070 4113 4158>;
 
-			/* KPL605475 Battery Spec */
-			/*
-				Capacity : 3.7V 3000mA
-				Normal Voltage = 3.7V
-				Cut-Off Voltage : 3.1V
-				Internal Impedance : 180 mOhm
-				Charging Voltage : 4.2V
-				Charging Voltage Max : 4.25V
-				Sample resister : 10 mohm
-			*/
-			design_capacity = <3380>;
-			design_qmax = <3718>;
-			bat_res = <100>;
+			design_capacity = <3000>;
+			design_qmax = <3000>;
+			bat_res = <180>;
 			sleep_enter_current = <300>;
 			sleep_exit_current = <300>;
 			sleep_filter_current = <100>;
-			power_off_thresd = <3000>;
-			zero_algorithm_vol = <3850>;
+			power_off_thresd = <3300>;
+			zero_algorithm_vol = <3700>;
 			max_soc_offset = <60>;
 			monitor_sec = <5>;
 			virtual_power = <0>;
@@ -612,11 +593,10 @@
 			max_chrg_current = <2000>;
 			max_chrg_voltage = <4200>;
 			chrg_term_mode = <0>;
-			chrg_finish_cur = <52>;
+			chrg_finish_cur = <66>;
 			virtual_power = <0>;
 			sample_res = <10>;
 
-			/* P.C.B rev0.2 DC Detect & Charger Status LED GPIO */
 			dc_det_gpio  = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 			bat_low_gpio = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 
@@ -630,14 +610,13 @@
 			clock-names = "mclk";
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s1_2ch_mclk>;
-			hp-volume = <20>;
+			hp-volume = <0>;
 			spk-volume = <3>;
 			status = "okay";
 		};
 	};
 };
 
-/* EXT Header(P2) : 7(SCL:GPIO0.C2), 8(SDA:GPIO0.C3) */
 &i2c1 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -680,14 +659,6 @@
 	status = "okay";
 };
 
-&rkisp1 {
-	status = "okay";
-};
-
-&spi0 {
-	status = "disabled";
-};
-
 &pmu_io_domains {
 	/* PMU GRF Register Voltage select control */
 	status = "okay";
@@ -698,12 +669,23 @@
 	pmuio2-supply = <&vcc3v3_pmu>;
 };
 
+/* RG351P Motor PWM */
 &pwm0 {
 	status = "okay";
+	label = "rumble-pwm";
 };
 
 /* LCD Backlight PWM */
 &pwm1 {
+	status = "okay";
+};
+
+&route_dsi {
+	connect = <&vopb_out_dsi>;
+	status = "okay";
+};
+
+&rkisp1 {
 	status = "okay";
 };
 
@@ -714,6 +696,16 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
+};
+
+
+&sfc {
+	status = "disabled";
+};
+
+
+&spi0 {
+	status = "disabled";
 };
 
 &saradc {
@@ -735,6 +727,18 @@
 	sd-uhs-sdr104;
 	vqmmc-supply = <&vccio_sd>;
 	vmmc-supply = <&vcc_sd>;
+	status = "okay";
+};
+
+&sdio {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	disable-wp;
+	supports-sdio;
+	ignore-pm-notify;
+	keep-power-in-suspend;
+	/* non-removable; */
 	status = "okay";
 };
 
@@ -761,10 +765,6 @@
 	status = "okay";
 };
 
-/*
-	EXT Header(P2) UART :
-	2(RXD:GPIO1.C0),3(TXD:GPIO1.C1),4(CTS:GPIO1.C2),5(RTS:GPIO1.C3)
-*/
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_xfer &uart1_cts>;
@@ -788,24 +788,14 @@
 };
 
 &pinctrl {
-/*
-	headphone {
-		//High : HeadPhone remove, Low : HeadPhone insert
-		hp_det: hp-det {
-			rockchip,pins = <2 RK_PC6 RK_FUNC_GPIO &pcfg_pull_down>;
-		};
-	};
-*/
 
 	pmic {
-		/* ODROID-GO2 : PMIC_INT(GPIO0.PB2) */
 		pmic_int: pmic_int {
 			rockchip,pins =
 				<0 RK_PB2 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
-		/* ODROID-GO2 : PMIC_SLEEP(GPIO0.PA4) */
 		soc_slppin_gpio: soc_slppin_gpio {
 			rockchip,pins =
 				<0 RK_PA4 RK_FUNC_GPIO &pcfg_output_low>;
