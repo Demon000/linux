@@ -38,6 +38,9 @@
 #include <linux/timer.h>
 #include <linux/wakelock.h>
 #include <linux/workqueue.h>
+#ifdef CONFIG_ARCH_ROCKCHIP_ODROIDGOA
+#include <linux/reboot.h>
+#endif
 
 static int dbg_enable;
 
@@ -129,7 +132,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define DEFAULT_FB_TEMP			TEMP_115C
 #define DEFAULT_ENERGY_MODE		0
 #define DEFAULT_ZERO_RESERVE_DSOC	10
-#define DEFAULT_SAMPLE_RES		10
+#define DEFAULT_SAMPLE_RES		20
 
 /* sample resistor and division */
 #define SAMPLE_RES_10MR			10
@@ -169,8 +172,6 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SIMULATE_CHRG_CURR		400
 #define SIMULATE_CHRG_K			1500
 #define FULL_CHRG_K			400
-//#define __BATTERY_DEBUG__
-int low_battery_percent=0;
 
 enum work_mode {
 	MODE_ZERO = 0,
@@ -2017,202 +2018,13 @@ static int rk817_bat_get_charge_state(struct rk817_battery_device *battery)
 
 	return (battery->usb_in || battery->ac_in);
 }
-int get_battery_percent(int tempVoltageNow)
-{
-	int mBatteryLevel=0;
-	if(tempVoltageNow<3165000)
-	{
-		mBatteryLevel=0;
-	}
-	else if(tempVoltageNow>=3165000 && tempVoltageNow<3220000)
-	{
-		mBatteryLevel=5;
-	}
-	else if(tempVoltageNow>=3220000 && tempVoltageNow<3280000)
-	{
-		mBatteryLevel=10;
-	}
-	else if(tempVoltageNow>=3280000 && tempVoltageNow<3330000)
-	{
-		mBatteryLevel=15;
-	}
-	else if(tempVoltageNow>=3330000 && tempVoltageNow<3380000)
-	{
-		mBatteryLevel=20;
-	}
-	else if(tempVoltageNow>=3380000 && tempVoltageNow<3430000)
-	{
-		mBatteryLevel=25;
-	}
-	else if(tempVoltageNow>=3430000 && tempVoltageNow<3480000)
-	{
-		mBatteryLevel=30;
-	}
-	else if(tempVoltageNow>=3480000 && tempVoltageNow<3530000)
-	{
-		mBatteryLevel=35;
-	}
-	else if(tempVoltageNow>=3530000 && tempVoltageNow<3580000)
-	{
-		mBatteryLevel=40;
-	}
-	else if(tempVoltageNow>=3580000 && tempVoltageNow<3630000)
-	{
-		mBatteryLevel=45;
-	}
-	else if(tempVoltageNow>=3630000 && tempVoltageNow<3670000)
-	{
-		mBatteryLevel=50;
-	}
-	else if(tempVoltageNow>=3670000 && tempVoltageNow<3710000)
-	{
-		mBatteryLevel=55;
-	}
-	else if(tempVoltageNow>=3710000 && tempVoltageNow<3750000)
-	{
-		mBatteryLevel=60;
-	}
-	else if(tempVoltageNow>=3750000 && tempVoltageNow<3790000)
-	{
-		mBatteryLevel=65;
-	}
-	else if(tempVoltageNow>=3790000 && tempVoltageNow<3830000)
-	{
-		mBatteryLevel=70;
-	}
-	else if(tempVoltageNow>=3830000 && tempVoltageNow<3870000)
-	{
-		mBatteryLevel=75;
-	}
-	else if(tempVoltageNow>=3870000 && tempVoltageNow<3910000)
-	{
-		mBatteryLevel=80;
-	}
-	else if(tempVoltageNow>=3910000 && tempVoltageNow<3950000)
-	{
-		mBatteryLevel=85;
-	}
-	else if(tempVoltageNow>=3950000 && tempVoltageNow<3990000)
-	{
-		mBatteryLevel=90;
-	}
-	else if(tempVoltageNow>=3990000 && tempVoltageNow<4030000)
-	{
-		mBatteryLevel=95;
-	}
-	else
-	{
-		mBatteryLevel=100;
-	}
-	return mBatteryLevel;
-}
-int get_charge_battery_percent(int tempVoltageNow)
-{
-	int mBatteryLevel=0;
-	int chargeVoltageIncrease=200000;
-	if(tempVoltageNow<(3165000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=0;
-	}
-	else if(tempVoltageNow>=(3165000+chargeVoltageIncrease) && tempVoltageNow<(3220000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=5;
-	}
-	else if(tempVoltageNow>=(3220000+chargeVoltageIncrease) && tempVoltageNow<(3280000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=10;
-	}
-	else if(tempVoltageNow>=(3280000+chargeVoltageIncrease) && tempVoltageNow<(3330000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=15;
-	}
-	else if(tempVoltageNow>=(3330000+chargeVoltageIncrease) && tempVoltageNow<(3380000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=20;
-	}
-	else if(tempVoltageNow>=(3380000+chargeVoltageIncrease) && tempVoltageNow<(3430000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=25;
-	}
-	else if(tempVoltageNow>=(3430000+chargeVoltageIncrease) && tempVoltageNow<(3480000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=30;
-	}
-	else if(tempVoltageNow>=(3480000+chargeVoltageIncrease) && tempVoltageNow<(3530000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=35;
-	}
-	else if(tempVoltageNow>=(3530000+chargeVoltageIncrease) && tempVoltageNow<(3580000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=40;
-	}
-	else if(tempVoltageNow>=(3580000+chargeVoltageIncrease) && tempVoltageNow<(3630000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=45;
-	}
-	else if(tempVoltageNow>=(3630000+chargeVoltageIncrease) && tempVoltageNow<(3670000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=50;
-	}
-	else if(tempVoltageNow>=(3670000+chargeVoltageIncrease) && tempVoltageNow<(3710000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=55;
-	}
-	else if(tempVoltageNow>=(3710000+chargeVoltageIncrease) && tempVoltageNow<(3750000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=60;
-	}
-	else if(tempVoltageNow>=(3750000+chargeVoltageIncrease) && tempVoltageNow<(3790000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=65;
-	}
-	else if(tempVoltageNow>=(3790000+chargeVoltageIncrease) && tempVoltageNow<(3830000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=70;
-	}
-	else if(tempVoltageNow>=(3830000+chargeVoltageIncrease) && tempVoltageNow<(3870000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=75;
-	}
-	else if(tempVoltageNow>=(3870000+chargeVoltageIncrease) && tempVoltageNow<(3910000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=80;
-	}
-	else if(tempVoltageNow>=(3910000+chargeVoltageIncrease) && tempVoltageNow<(3950000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=85;
-	}
-	else if(tempVoltageNow>=(3950000+chargeVoltageIncrease) && tempVoltageNow<(3990000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=90;
-	}
-	else if(tempVoltageNow>=(3990000+chargeVoltageIncrease) && tempVoltageNow<(4030000+chargeVoltageIncrease))
-	{
-		mBatteryLevel=95;
-	}
-	else
-	{
-		mBatteryLevel=100;
-	}
-	return mBatteryLevel;
-}
-//#define AVG_AGAIN
-#ifdef AVG_AGAIN
-int sample_count=0;
-int sample_total=0;
-#endif
-#define VOLTAGE_ALGORITHM
-#ifdef VOLTAGE_ALGORITHM
-int sample_count=0;
-int sample_total=0;
-int old_percent=0;
-#endif
+
 static int rk817_battery_get_property(struct power_supply *psy,
 				      enum power_supply_property psp,
 				      union power_supply_propval *val)
 {
 	struct rk817_battery_device *battery = power_supply_get_drvdata(psy);
-	int tempVoltage=0,batteryLevel=0;
+
 	switch (psp) {
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		val->intval = battery->current_avg * 1000;/*uA*/
@@ -2226,203 +2038,8 @@ static int rk817_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = (battery->dsoc  + 500) / 1000;
-		tempVoltage = battery->voltage_avg * 1000;
-		#if 0
-			if(tempVoltage>=4050000)
-			{
-				val->intval=100;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-				#endif
-			}
-			else
-			{
-				#ifdef AVG_AGAIN
-				sample_count++;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,sample_count);
-				#endif
-				sample_total=sample_total+tempVoltage;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,sample_total);
-				#endif
-				if(sample_count==10)
-				{
-					tempVoltage=sample_total/10;
-					#ifdef __BATTERY_DEBUG__
-					printk("%s-------%s %d %d %d\n",__FILE__,__func__,__LINE__,sample_count,sample_total);
-					#endif
-					if (((battery->chip_id != RK809_ID) && rk817_bat_get_charge_state(battery))||((battery->chip_id == RK809_ID && battery->plugin_trigger)))
-					{
-						batteryLevel=get_charge_battery_percent(tempVoltage);
-						if((batteryLevel-val->intval)>=20||(val->intval-batteryLevel)>=20)
-						{
-							val->intval=batteryLevel;
-							#ifdef __BATTERY_DEBUG__
-							printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-							#endif
-						}
-					}
-					else
-					{
-						batteryLevel=get_battery_percent(tempVoltage);
-						if((batteryLevel-val->intval)>=20||(val->intval-batteryLevel)>=20)
-						{
-							val->intval=batteryLevel;
-							#ifdef __BATTERY_DEBUG__
-							printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-							#endif
-						}
-					}
-					sample_count=0;	
-					sample_total=0;			
-				}
-				#else
-				if (((battery->chip_id != RK809_ID) && rk817_bat_get_charge_state(battery))||((battery->chip_id == RK809_ID && battery->plugin_trigger)))
-				{
-					batteryLevel=get_charge_battery_percent(tempVoltage);
-					if((batteryLevel-val->intval)>=20||(val->intval-batteryLevel)>=20)
-					{
-						val->intval=batteryLevel;
-						#ifdef __BATTERY_DEBUG__
-						printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-						#endif
-					}
-				}
-				else
-				{
-					batteryLevel=get_battery_percent(tempVoltage);
-					if((batteryLevel-val->intval)>=20||(val->intval-batteryLevel)>=20)
-					{
-						val->intval=batteryLevel;
-						#ifdef __BATTERY_DEBUG__
-						printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-						#endif
-					}
-				}
-				#endif			
-			}
-			//if(val->intval<=10)
-			if(tempVoltage<=3330000)
-			{
-				low_battery_percent=1;
-			}
-			else
-			{
-				low_battery_percent=0;
-			}
-		#elif defined(VOLTAGE_ALGORITHM)
-			if(tempVoltage>=4050000)
-			{
-				val->intval=100;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-				#endif
-			}
-			else if(tempVoltage<=3330000)
-			{
-				val->intval=0;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-				#endif
-			}
-			else
-			{
-				if(old_percent!=0)
-				{
-					val->intval=old_percent;
-					#ifdef __BATTERY_DEBUG__
-					printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,old_percent);
-					#endif
-				}
-				sample_count++;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,sample_count);
-				#endif
-				sample_total=sample_total+tempVoltage;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,sample_total);
-				#endif
-				if(sample_count==10)
-				{
-					tempVoltage=sample_total/10;
-					#ifdef __BATTERY_DEBUG__
-					printk("%s-------%s %d %d %d\n",__FILE__,__func__,__LINE__,sample_count,sample_total);
-					#endif
-					if (((battery->chip_id != RK809_ID) && rk817_bat_get_charge_state(battery))||((battery->chip_id == RK809_ID && battery->plugin_trigger)))
-					{
-						batteryLevel=get_charge_battery_percent(tempVoltage);
-						val->intval=batteryLevel;
-						old_percent=batteryLevel;
-						#ifdef __BATTERY_DEBUG__
-						printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-						#endif
-					}
-					else
-					{
-						batteryLevel=get_battery_percent(tempVoltage);
-						val->intval=batteryLevel;
-						old_percent=batteryLevel;
-						#ifdef __BATTERY_DEBUG__
-						printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-						#endif
-					}
-					sample_count=0;	
-					sample_total=0;			
-				}				
-			}
-			if(tempVoltage<=3330000)
-			{
-				low_battery_percent=1;
-			}
-			else
-			{
-				low_battery_percent=0;
-			}
-		#else
-			#ifdef __BATTERY_DEBUG__
-			printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,val->intval);
-			#endif
-			tempVoltage = battery->voltage_avg * 1000;
-			#ifdef __BATTERY_DEBUG__
-			printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-			#endif
-			if (((battery->chip_id != RK809_ID) && rk817_bat_get_charge_state(battery))||((battery->chip_id == RK809_ID && battery->plugin_trigger)))
-			{
-				tempVoltage=tempVoltage-200000;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,tempVoltage);
-				#endif
-			}
-			if(tempVoltage<=3300000)
-			{
-				val->intval=0;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,val->intval);
-				#endif
-			}
-			else if(tempVoltage>=4100000)
-			{
-				val->intval=100;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,val->intval);
-				#endif	
-			}
-			else
-			{
-				val->intval = (int)(((tempVoltage-3300000)*10)/(4100000-3300000)) * 10;
-				#ifdef __BATTERY_DEBUG__
-				printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,val->intval);
-				#endif
-			}
-		#endif
 		if (battery->pdata->bat_mode == MODE_VIRTUAL)
-		{
-			#ifdef __BATTERY_DEBUG__
-			printk("%s-------%s %d %d\n",__FILE__,__func__,__LINE__,val->intval);
-			#endif
 			val->intval = VIRTUAL_SOC;
-		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = POWER_SUPPLY_HEALTH_GOOD;
@@ -2687,6 +2304,11 @@ static void rk817_bat_lowpwr_check(struct rk817_battery_device *battery)
 				battery->dsoc -= 1000;
 			DBG("low power, soc=%d, current=%d\n",
 			    battery->dsoc, battery->current_avg);
+#ifdef CONFIG_ARCH_ROCKCHIP_ODROIDGOA
+			pr_info("battery voltage is under %dmV, voltage_avg=%dmV, power off!\n",
+				pwr_off_thresd, battery->voltage_avg);
+			orderly_poweroff(false);
+#endif
 		}
 	} else {
 		time = 0;

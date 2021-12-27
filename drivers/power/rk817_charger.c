@@ -34,7 +34,6 @@
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
-extern int low_battery_percent;
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
 
@@ -68,14 +67,7 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define SAMPLE_RES_DIV1		1
 #define SAMPLE_RES_DIV2		2
 
-//#define CHARGE_CUR
-#define __CLOSE_CHARGE_LED__//关闭充电灯
-#define __BATTERY_LOW__//低电提示
-#if defined(CHARGE_CUR)
-#define INPUT_450MA		3000
-#else
 #define INPUT_450MA		450
-#endif
 #define INPUT_1500MA	1500
 
 #define CURRENT_TO_ADC(current, samp_res)	\
@@ -282,14 +274,8 @@ struct charger_platform_data {
 	int dc_det_pin;
 	bool support_dc_det;
 #if defined(CONFIG_ARCH_ROCKCHIP_ODROIDGOA)
-#if !defined(__CLOSE_CHARGE_LED__)
 	int chg_led_pin;
 	bool chg_led_on;
-#endif
-#endif
-#ifdef __BATTERY_LOW__
-	int bat_low_pin;
-	bool bat_low_on;
 #endif
 	int virtual_power;
 	int sample_res;
@@ -664,11 +650,8 @@ static void rk817_charge_set_input_voltage(struct rk817_charger *charge,
 
 	if (input_voltage < 4000)
 		dev_err(charge->dev, "the input voltage is error.\n");
-#if defined(CHARGE_CUR)
-	voltage = INPUT_VOL_4700MV + (input_voltage - 4000) / 100;
-#else
+
 	voltage = INPUT_VOL_4000MV + (input_voltage - 4000) / 100;
-#endif
 
 	rk817_charge_field_write(charge, USB_VLIM_SEL, voltage);
 	rk817_charge_vlimit_enable(charge);
@@ -934,7 +917,6 @@ static void rk817_charge_led_worker(struct work_struct *work)
 			struct rk817_charger, led_work.work);
 
 	/* battery status check */
-	#ifndef __CLOSE_CHARGE_LED__
 	if (rk817_charge_online(charge)) {
 		if ((rk817_charge_get_dsoc(charge) == 100) &&
 		    (charge->prop_status != POWER_SUPPLY_STATUS_FULL))
@@ -951,36 +933,9 @@ static void rk817_charge_led_worker(struct work_struct *work)
 	else
 		gpio_set_value(charge->pdata->chg_led_pin,
 				!charge->pdata->chg_led_on);
-	#else
-	#ifdef __BATTERY_LOW__
-	if (rk817_charge_online(charge)) {
-		if ((rk817_charge_get_dsoc(charge) == 100) &&
-		    (charge->prop_status != POWER_SUPPLY_STATUS_FULL))
-			queue_delayed_work(charge->dc_charger_wq, &charge->dc_work,
-					msecs_to_jiffies(2000));
-	}
-	//if (rk817_charge_get_dsoc(charge) >= 10)
-	if (low_battery_percent == 0)
-	{
-		if(gpio_get_value(charge->pdata->bat_low_pin)==1)
-		{
-			gpio_set_value(charge->pdata->bat_low_pin,
-					!gpio_get_value(charge->pdata->bat_low_pin));
-		}
-	}
-	else
-	{
-		if(gpio_get_value(charge->pdata->bat_low_pin)==0)
-		{
-			gpio_set_value(charge->pdata->bat_low_pin,
-					charge->pdata->bat_low_on);
-		}
-	}
-	#endif
-	#endif
 
 	queue_delayed_work(charge->led_wq, &charge->led_work,
-		msecs_to_jiffies(1000*60));
+		msecs_to_jiffies(1000));
 }
 #endif
 
@@ -1035,7 +990,6 @@ static int rk817_charge_init_dc(struct rk817_charger *charge)
 	}
 
 #if defined(CONFIG_ARCH_ROCKCHIP_ODROIDGOA)
-	#ifndef __CLOSE_CHARGE_LED__
 	if (charge->pdata->chg_led_pin) {
 		ret = devm_gpio_request(charge->dev,
 					charge->pdata->chg_led_pin,
@@ -1047,21 +1001,6 @@ static int rk817_charge_init_dc(struct rk817_charger *charge)
 			gpio_direction_output(charge->pdata->chg_led_pin,
 					     !charge->pdata->chg_led_on);
 	}
-	#else
-	#ifdef __BATTERY_LOW__
-	if (charge->pdata->bat_low_pin) {
-		ret = devm_gpio_request(charge->dev,
-					charge->pdata->bat_low_pin,
-					"rk817_bat_low");
-		if (ret < 0)
-			dev_err(charge->dev, "failed to request gpio %d\n",
-				charge->pdata->bat_low_pin);
-		else
-			gpio_direction_output(charge->pdata->bat_low_pin,
-					     !charge->pdata->bat_low_on);
-	}
-	#endif
-	#endif
 
 	charge->led_wq = alloc_ordered_workqueue("%s",
 				WQ_MEM_RECLAIM | WQ_FREEZABLE,
@@ -1514,7 +1453,6 @@ static int rk817_charge_parse_dt(struct rk817_charger *charge)
 			return -EINVAL;
 		}
 #if defined(CONFIG_ARCH_ROCKCHIP_ODROIDGOA)
-		#ifndef __CLOSE_CHARGE_LED__
 		if (!of_find_property(np, "chg_led_gpio", &ret)) {
 			DBG("not support charge led\n");
 			pdata->chg_led_pin = 0;
@@ -1528,23 +1466,6 @@ static int rk817_charge_parse_dt(struct rk817_charger *charge)
 					(flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
 			}
 		}
-		#else
-		#ifdef __BATTERY_LOW__
-		if (!of_find_property(np, "bat_low_gpio", &ret)) {
-			DBG("not support battery low\n");
-			pdata->bat_low_pin = 0;
-		} else {
-			pdata->bat_low_pin = of_get_named_gpio_flags(np,
-							"bat_low_gpio",
-							0, &flags);
-			if (gpio_is_valid(pdata->bat_low_pin)) {
-				DBG("support charge led\n");
-				pdata->bat_low_on =
-					(flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
-			}
-		}
-		#endif		
-		#endif
 #endif
 	}
 
