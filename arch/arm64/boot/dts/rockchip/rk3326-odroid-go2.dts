@@ -444,3 +444,11 @@
 		};
 	};
 };
+
+&gpio3 {
+	wlan_en_hog {
+		gpio-hog;
+		gpios = <RK_PB6 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+};
