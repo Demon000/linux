@@ -384,6 +384,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &sdmmc {
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
