@@ -31,7 +31,7 @@
 	battery_cell: battery-cell {
 		compatible = "simple-battery";
 		charge-full-design-microamp-hours = <3380000>;
-		charge-term-current-microamp = <52000>;
+		charge-term-current-microamp = <150000>;
 		constant-charge-current-max-microamp = <2000000>;
 		constant-charge-voltage-max-microvolt = <4200000>;
 		factory-internal-resistance-micro-ohms = <100000>;
