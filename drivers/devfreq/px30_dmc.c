@@ -20,7 +20,7 @@
 #include <linux/rwsem.h>
 #include <linux/suspend.h>
 
-#include <soc/rockchip/rk3399_grf.h>
+#include <soc/rockchip/px30_grf.h>
 #include <soc/rockchip/rockchip_sip.h>
 
 struct dram_timing {
@@ -55,7 +55,7 @@ struct dram_timing {
 	unsigned int phy_lpddr4_odt;
 };
 
-struct rk3399_dmcfreq {
+struct px30_dmcfreq {
 	struct device *dev;
 	struct devfreq *devfreq;
 	struct devfreq_simple_ondemand_data ondemand_data;
@@ -71,10 +71,10 @@ struct rk3399_dmcfreq {
 	int odt_pd_arg0, odt_pd_arg1;
 };
 
-static int rk3399_dmcfreq_target(struct device *dev, unsigned long *freq,
-				 u32 flags)
+static int px30_dmcfreq_target(struct device *dev, unsigned long *freq,
+			       u32 flags)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
 	unsigned long old_clk_rate = dmcfreq->rate;
 	unsigned long target_volt, target_rate;
@@ -162,10 +162,10 @@ out:
 	return err;
 }
 
-static int rk3399_dmcfreq_get_dev_status(struct device *dev,
-					 struct devfreq_dev_status *stat)
+static int px30_dmcfreq_get_dev_status(struct device *dev,
+				       struct devfreq_dev_status *stat)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	struct devfreq_event_data edata;
 	int ret = 0;
 
@@ -180,25 +180,25 @@ static int rk3399_dmcfreq_get_dev_status(struct device *dev,
 	return ret;
 }
 
-static int rk3399_dmcfreq_get_cur_freq(struct device *dev, unsigned long *freq)
+static int px30_dmcfreq_get_cur_freq(struct device *dev, unsigned long *freq)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 
 	*freq = dmcfreq->rate;
 
 	return 0;
 }
 
-static struct devfreq_dev_profile rk3399_devfreq_dmc_profile = {
+static struct devfreq_dev_profile px30_devfreq_dmc_profile = {
 	.polling_ms	= 200,
-	.target		= rk3399_dmcfreq_target,
-	.get_dev_status	= rk3399_dmcfreq_get_dev_status,
-	.get_cur_freq	= rk3399_dmcfreq_get_cur_freq,
+	.target		= px30_dmcfreq_target,
+	.get_dev_status	= px30_dmcfreq_get_dev_status,
+	.get_cur_freq	= px30_dmcfreq_get_cur_freq,
 };
 
-static __maybe_unused int rk3399_dmcfreq_suspend(struct device *dev)
+static __maybe_unused int px30_dmcfreq_suspend(struct device *dev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
 	ret = devfreq_event_disable_edev(dmcfreq->edev);
@@ -216,9 +216,9 @@ static __maybe_unused int rk3399_dmcfreq_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
+static __maybe_unused int px30_dmcfreq_resume(struct device *dev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(dev);
 	int ret = 0;
 
 	ret = devfreq_event_enable_edev(dmcfreq->edev);
@@ -235,8 +235,8 @@ static __maybe_unused int rk3399_dmcfreq_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(rk3399_dmcfreq_pm, rk3399_dmcfreq_suspend,
-			 rk3399_dmcfreq_resume);
+static SIMPLE_DEV_PM_OPS(px30_dmcfreq_pm, px30_dmcfreq_suspend,
+			 px30_dmcfreq_resume);
 
 static int of_get_ddr_timings(struct dram_timing *timing,
 			      struct device_node *np)
@@ -305,19 +305,19 @@ static int of_get_ddr_timings(struct dram_timing *timing,
 	return ret;
 }
 
-static int rk3399_dmcfreq_probe(struct platform_device *pdev)
+static int px30_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = pdev->dev.of_node, *node;
-	struct rk3399_dmcfreq *data;
+	struct px30_dmcfreq *data;
 	int ret, index, size;
 	uint32_t *timing;
 	struct dev_pm_opp *opp;
 	u32 ddr_type;
 	u32 val;
 
-	data = devm_kzalloc(dev, sizeof(struct rk3399_dmcfreq), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct px30_dmcfreq), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -375,18 +375,18 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		goto err_edev;
 	}
 
-	regmap_read(data->regmap_pmu, RK3399_PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> RK3399_PMUGRF_DDRTYPE_SHIFT) &
-		    RK3399_PMUGRF_DDRTYPE_MASK;
+	regmap_read(data->regmap_pmu, PX30_PMUGRF_OS_REG2, &val);
+	ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
+		    PX30_PMUGRF_DDRTYPE_MASK;
 
 	switch (ddr_type) {
-	case RK3399_PMUGRF_DDRTYPE_DDR3:
+	case PX30_PMUGRF_DDRTYPE_DDR3:
 		data->odt_dis_freq = data->timing.ddr3_odt_dis_freq;
 		break;
-	case RK3399_PMUGRF_DDRTYPE_LPDDR3:
+	case PX30_PMUGRF_DDRTYPE_LPDDR3:
 		data->odt_dis_freq = data->timing.lpddr3_odt_dis_freq;
 		break;
-	case RK3399_PMUGRF_DDRTYPE_LPDDR4:
+	case PX30_PMUGRF_DDRTYPE_LPDDR4:
 		data->odt_dis_freq = data->timing.lpddr4_odt_dis_freq;
 		break;
 	default:
@@ -447,10 +447,10 @@ no_pmu:
 	data->volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	rk3399_devfreq_dmc_profile.initial_freq = data->rate;
+	px30_devfreq_dmc_profile.initial_freq = data->rate;
 
 	data->devfreq = devm_devfreq_add_device(dev,
-					   &rk3399_devfreq_dmc_profile,
+					   &px30_devfreq_dmc_profile,
 					   DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					   &data->ondemand_data);
 	if (IS_ERR(data->devfreq)) {
@@ -473,9 +473,9 @@ err_edev:
 	return ret;
 }
 
-static int rk3399_dmcfreq_remove(struct platform_device *pdev)
+static int px30_dmcfreq_remove(struct platform_device *pdev)
 {
-	struct rk3399_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
+	struct px30_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
 
 	/*
 	 * Before remove the opp table we need to unregister the opp notifier.
@@ -486,23 +486,23 @@ static int rk3399_dmcfreq_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rk3399dmc_devfreq_of_match[] = {
-	{ .compatible = "rockchip,rk3399-dmc" },
+static const struct of_device_id px30dmc_devfreq_of_match[] = {
+	{ .compatible = "rockchip,px30-dmc" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, rk3399dmc_devfreq_of_match);
+MODULE_DEVICE_TABLE(of, px30dmc_devfreq_of_match);
 
-static struct platform_driver rk3399_dmcfreq_driver = {
-	.probe	= rk3399_dmcfreq_probe,
-	.remove = rk3399_dmcfreq_remove,
+static struct platform_driver px30_dmcfreq_driver = {
+	.probe	= px30_dmcfreq_probe,
+	.remove = px30_dmcfreq_remove,
 	.driver = {
-		.name	= "rk3399-dmc-freq",
-		.pm	= &rk3399_dmcfreq_pm,
-		.of_match_table = rk3399dmc_devfreq_of_match,
+		.name	= "px30-dmc-freq",
+		.pm	= &px30_dmcfreq_pm,
+		.of_match_table = px30dmc_devfreq_of_match,
 	},
 };
-module_platform_driver(rk3399_dmcfreq_driver);
+module_platform_driver(px30_dmcfreq_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Lin Huang <hl@rock-chips.com>");
-MODULE_DESCRIPTION("RK3399 dmcfreq driver with devfreq framework");
+MODULE_DESCRIPTION("PX30 dmcfreq driver with devfreq framework");
