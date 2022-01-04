@@ -23,9 +23,10 @@
 /* DDRMON_CTRL */
 #define DDRMON_CTRL	0x04
 #define CLR_DDRMON_CTRL	(0x1f0000 << 0)
+#define DDR4_EN		(0x10001 << 5)
 #define LPDDR4_EN	(0x10001 << 4)
 #define HARDWARE_EN	(0x10001 << 3)
-#define LPDDR3_EN	(0x10001 << 2)
+#define LPDDR2_3_EN	(0x10001 << 2)
 #define SOFTWARE_EN	(0x10001 << 1)
 #define SOFTWARE_DIS	(0x10000 << 1)
 #define TIME_CNT_EN	(0x10001 << 0)
@@ -70,10 +71,13 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
 
 	/* set ddr type to dfi */
-	if (ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR3)
-		writel_relaxed(LPDDR3_EN, dfi_regs + DDRMON_CTRL);
+	if (ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR3 ||
+		ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR2)
+		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
 	else if (ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR4)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
+	else if (ddr_type == PX30_PMUGRF_DDRTYPE_DDR4)
+		writel_relaxed(DDR4_EN, dfi_regs + DDRMON_CTRL);
 
 	/* enable count, use software mode */
 	writel_relaxed(SOFTWARE_EN, dfi_regs + DDRMON_CTRL);
