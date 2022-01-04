@@ -218,8 +218,6 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 		return PTR_ERR(data->edev);
 	}
 
-	platform_set_drvdata(pdev, data);
-
 	return 0;
 }
 
