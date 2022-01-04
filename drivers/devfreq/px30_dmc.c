@@ -64,11 +64,8 @@ struct px30_dmcfreq {
 	struct mutex lock;
 	struct dram_timing timing;
 	struct regulator *vdd_center;
-	struct regmap *regmap_pmu;
 	unsigned long rate, target_rate;
 	unsigned long volt, target_volt;
-	unsigned int odt_dis_freq;
-	int odt_pd_arg0, odt_pd_arg1;
 };
 
 static int px30_dmcfreq_target(struct device *dev, unsigned long *freq,
@@ -94,21 +91,6 @@ static int px30_dmcfreq_target(struct device *dev, unsigned long *freq,
 		return 0;
 
 	mutex_lock(&dmcfreq->lock);
-
-	if (dmcfreq->regmap_pmu) {
-		if (target_rate >= dmcfreq->odt_dis_freq)
-			odt_enable = true;
-
-		/*
-		 * This makes a SMC call to the TF-A to set the DDR PD
-		 * (power-down) timings and to enable or disable the
-		 * ODT (on-die termination) resistors.
-		 */
-		arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, dmcfreq->odt_pd_arg0,
-			      dmcfreq->odt_pd_arg1,
-			      ROCKCHIP_SIP_CONFIG_DRAM_SET_ODT_PD,
-			      odt_enable, 0, 0, 0, &res);
-	}
 
 	/*
 	 * If frequency scaling from low to high, adjust voltage first.
@@ -309,13 +291,11 @@ static int px30_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct arm_smccc_res res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node, *node;
+	struct device_node *np = pdev->dev.of_node;
 	struct px30_dmcfreq *data;
 	int ret, index, size;
 	uint32_t *timing;
 	struct dev_pm_opp *opp;
-	u32 ddr_type;
-	u32 val;
 
 	data = devm_kzalloc(dev, sizeof(struct px30_dmcfreq), GFP_KERNEL);
 	if (!data)
@@ -364,37 +344,6 @@ static int px30_dmcfreq_probe(struct platform_device *pdev)
 		}
 	}
 
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
-	if (!node)
-		goto no_pmu;
-
-	data->regmap_pmu = syscon_node_to_regmap(node);
-	of_node_put(node);
-	if (IS_ERR(data->regmap_pmu)) {
-		ret = PTR_ERR(data->regmap_pmu);
-		goto err_edev;
-	}
-
-	regmap_read(data->regmap_pmu, PX30_PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
-		    PX30_PMUGRF_DDRTYPE_MASK;
-
-	switch (ddr_type) {
-	case PX30_PMUGRF_DDRTYPE_DDR3:
-		data->odt_dis_freq = data->timing.ddr3_odt_dis_freq;
-		break;
-	case PX30_PMUGRF_DDRTYPE_LPDDR3:
-		data->odt_dis_freq = data->timing.lpddr3_odt_dis_freq;
-		break;
-	case PX30_PMUGRF_DDRTYPE_LPDDR4:
-		data->odt_dis_freq = data->timing.lpddr4_odt_dis_freq;
-		break;
-	default:
-		ret = -EINVAL;
-		goto err_edev;
-	}
-
-no_pmu:
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
 		      0, 0, 0, 0, &res);
