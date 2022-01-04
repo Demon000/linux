@@ -31,15 +31,8 @@
 #define SOFTWARE_DIS	(0x10000 << 1)
 #define TIME_CNT_EN	(0x10001 << 0)
 
-#define DDRMON_CH0_COUNT_NUM		0x28
-#define DDRMON_CH0_DFI_ACCESS_NUM	0x2c
-#define DDRMON_CH1_COUNT_NUM		0x3c
-#define DDRMON_CH1_DFI_ACCESS_NUM	0x40
-
-struct dmc_usage {
-	u32 access;
-	u32 total;
-};
+#define DDRMON_COUNT_NUM	0x28
+#define DDRMON_ACCESS_NUM	0x2c
 
 /*
  * The dfi controller can monitor DDR load. It has an upper and lower threshold
@@ -49,7 +42,6 @@ struct dmc_usage {
 struct rockchip_dfi {
 	struct devfreq_event_dev *edev;
 	struct devfreq_event_desc *desc;
-	struct dmc_usage ch_usage[PX30_DMC_NUM_CH];
 	void __iomem *regs;
 	u32 ddr_type;
 };
@@ -84,32 +76,6 @@ static void rockchip_dfi_stop_hardware_counter(struct devfreq_event_dev *edev)
 	writel_relaxed(SOFTWARE_DIS, dfi_regs + DDRMON_CTRL);
 }
 
-static int rockchip_dfi_get_busier_ch(struct devfreq_event_dev *edev)
-{
-	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
-	u32 tmp, max = 0;
-	u32 i, busier_ch = 0;
-	void __iomem *dfi_regs = info->regs;
-
-	rockchip_dfi_stop_hardware_counter(edev);
-
-	/* Find out which channel is busier */
-	for (i = 0; i < PX30_DMC_NUM_CH; i++) {
-		info->ch_usage[i].access = readl_relaxed(dfi_regs +
-				DDRMON_CH0_DFI_ACCESS_NUM + i * 20) * 4;
-		info->ch_usage[i].total = readl_relaxed(dfi_regs +
-				DDRMON_CH0_COUNT_NUM + i * 20);
-		tmp = info->ch_usage[i].access;
-		if (tmp > max) {
-			busier_ch = i;
-			max = tmp;
-		}
-	}
-	rockchip_dfi_start_hardware_counter(edev);
-
-	return busier_ch;
-}
-
 static int rockchip_dfi_disable(struct devfreq_event_dev *edev)
 {
 	rockchip_dfi_stop_hardware_counter(edev);
@@ -133,12 +99,20 @@ static int rockchip_dfi_get_event(struct devfreq_event_dev *edev,
 				  struct devfreq_event_data *edata)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
-	int busier_ch;
+	void __iomem *dfi_regs = info->regs;
 
-	busier_ch = rockchip_dfi_get_busier_ch(edev);
+	rockchip_dfi_stop_hardware_counter(edev);
 
-	edata->load_count = info->ch_usage[busier_ch].access;
-	edata->total_count = info->ch_usage[busier_ch].total;
+	edata->load_count = readl_relaxed(dfi_regs + DDRMON_ACCESS_NUM);
+
+	if (info->ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR4)
+		edata->load_count *= 8;
+	else
+		edata->load_count *= 4;
+
+	edata->total_count = readl_relaxed(dfi_regs + DDRMON_COUNT_NUM);
+
+	rockchip_dfi_start_hardware_counter(edev);
 
 	return 0;
 }
