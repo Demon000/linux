@@ -456,3 +456,8 @@
 		output-high;
 	};
 };
+
+&gpu_opp_table {
+	/delete-node/ opp-200000000;
+	/delete-node/ opp-300000000;
+};
