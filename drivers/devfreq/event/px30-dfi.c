@@ -51,7 +51,7 @@ struct rockchip_dfi {
 	struct dmc_usage ch_usage[PX30_DMC_NUM_CH];
 	struct device *dev;
 	void __iomem *regs;
-	struct regmap *regmap_pmu;
+	struct regmap *regmap_pmugrf;
 };
 
 static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
@@ -62,7 +62,7 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	u32 ddr_type;
 
 	/* get ddr type */
-	regmap_read(info->regmap_pmu, PX30_PMUGRF_OS_REG2, &val);
+	regmap_read(info->regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
 	ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
 		    PX30_PMUGRF_DDRTYPE_MASK;
 
@@ -175,12 +175,12 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 		return PTR_ERR(data->regs);
 
 	/* try to find the optional reference to the pmu syscon */
-	node = of_parse_phandle(np, "rockchip,pmu", 0);
+	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
 	if (node) {
-		data->regmap_pmu = syscon_node_to_regmap(node);
+		data->regmap_pmugrf = syscon_node_to_regmap(node);
 		of_node_put(node);
-		if (IS_ERR(data->regmap_pmu))
-			return PTR_ERR(data->regmap_pmu);
+		if (IS_ERR(data->regmap_pmugrf))
+			return PTR_ERR(data->regmap_pmugrf);
 	}
 	data->dev = dev;
 
