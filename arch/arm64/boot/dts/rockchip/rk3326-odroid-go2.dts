@@ -174,6 +174,11 @@
 	status = "okay";
 };
 
+&gpu_opp_table {
+	/delete-node/ opp-200000000;
+	/delete-node/ opp-300000000;
+};
+
 &gpu {
 	mali-supply = <&vdd_logic>;
 	status = "okay";
@@ -455,9 +460,4 @@
 		gpios = <RK_PB6 GPIO_ACTIVE_HIGH>;
 		output-high;
 	};
-};
-
-&gpu_opp_table {
-	/delete-node/ opp-200000000;
-	/delete-node/ opp-300000000;
 };
