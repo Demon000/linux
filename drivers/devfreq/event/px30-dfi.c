@@ -50,7 +50,6 @@ struct rockchip_dfi {
 	struct devfreq_event_dev *edev;
 	struct devfreq_event_desc *desc;
 	struct dmc_usage ch_usage[PX30_DMC_NUM_CH];
-	struct device *dev;
 	void __iomem *regs;
 	u32 ddr_type;
 };
@@ -181,7 +180,6 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 		if (IS_ERR(regmap_pmugrf))
 			return PTR_ERR(regmap_pmugrf);
 	}
-	data->dev = dev;
 
 	/* get ddr type */
 	regmap_read(regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
