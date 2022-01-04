@@ -1330,6 +1330,13 @@
 		reg = <0x0 0xff558080 0x0 0x20>;
 	};
 
+	dfi: dfi@ff610000 {
+		reg = <0x00 0xff610000 0x00 0x400>;
+		compatible = "rockchip,px30-dfi";
+		rockchip,pmugrf = <&pmugrf>;
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,px30-pinctrl";
 		rockchip,grf = <&grf>;
