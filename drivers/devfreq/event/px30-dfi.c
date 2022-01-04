@@ -52,7 +52,7 @@ struct rockchip_dfi {
 	struct dmc_usage ch_usage[PX30_DMC_NUM_CH];
 	struct device *dev;
 	void __iomem *regs;
-	struct regmap *regmap_pmugrf;
+	u32 ddr_type;
 };
 
 static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
@@ -60,23 +60,17 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
 	u32 val;
-	u32 ddr_type;
-
-	/* get ddr type */
-	regmap_read(info->regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
-		    PX30_PMUGRF_DDRTYPE_MASK;
 
 	/* clear DDRMON_CTRL setting */
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
 
 	/* set ddr type to dfi */
-	if (ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR3 ||
-		ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR2)
+	if (info->ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR3 ||
+		info->ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR2)
 		writel_relaxed(LPDDR2_3_EN, dfi_regs + DDRMON_CTRL);
-	else if (ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR4)
+	else if (info->ddr_type == PX30_PMUGRF_DDRTYPE_LPDDR4)
 		writel_relaxed(LPDDR4_EN, dfi_regs + DDRMON_CTRL);
-	else if (ddr_type == PX30_PMUGRF_DDRTYPE_DDR4)
+	else if (info->ddr_type == PX30_PMUGRF_DDRTYPE_DDR4)
 		writel_relaxed(DDR4_EN, dfi_regs + DDRMON_CTRL);
 
 	/* enable count, use software mode */
@@ -169,6 +163,7 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	struct rockchip_dfi *data;
 	struct devfreq_event_desc *desc;
 	struct device_node *np = pdev->dev.of_node, *node;
+	struct regmap *regmap_pmugrf;
 
 	data = devm_kzalloc(dev, sizeof(struct rockchip_dfi), GFP_KERNEL);
 	if (!data)
@@ -181,12 +176,17 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	/* try to find the optional reference to the pmu syscon */
 	node = of_parse_phandle(np, "rockchip,pmugrf", 0);
 	if (node) {
-		data->regmap_pmugrf = syscon_node_to_regmap(node);
+		regmap_pmugrf = syscon_node_to_regmap(node);
 		of_node_put(node);
-		if (IS_ERR(data->regmap_pmugrf))
-			return PTR_ERR(data->regmap_pmugrf);
+		if (IS_ERR(regmap_pmugrf))
+			return PTR_ERR(regmap_pmugrf);
 	}
 	data->dev = dev;
+
+	/* get ddr type */
+	regmap_read(regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
+	data->ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
+			 PX30_PMUGRF_DDRTYPE_MASK;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
