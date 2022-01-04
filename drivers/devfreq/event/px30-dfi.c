@@ -50,7 +50,6 @@ static void rockchip_dfi_start_hardware_counter(struct devfreq_event_dev *edev)
 {
 	struct rockchip_dfi *info = devfreq_event_get_drvdata(edev);
 	void __iomem *dfi_regs = info->regs;
-	u32 val;
 
 	/* clear DDRMON_CTRL setting */
 	writel_relaxed(CLR_DDRMON_CTRL, dfi_regs + DDRMON_CTRL);
@@ -156,9 +155,9 @@ static int rockchip_dfi_probe(struct platform_device *pdev)
 	}
 
 	/* get ddr type */
-	regmap_read(regmap_pmugrf, PX30_PMUGRF_OS_REG2, &val);
-	data->ddr_type = (val >> PX30_PMUGRF_DDRTYPE_SHIFT) &
-			 PX30_PMUGRF_DDRTYPE_MASK;
+	regmap_read(regmap_pmugrf, PX30_PMUGRF_OS_REG2, &data->ddr_type);
+	data->ddr_type >>= PX30_PMUGRF_DDRTYPE_SHIFT;
+	data->ddr_type &= PX30_PMUGRF_DDRTYPE_MASK;
 
 	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
