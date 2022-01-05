@@ -709,6 +709,7 @@ static int px30_dmcfreq_probe(struct platform_device *pdev)
 	}
 
 	data->ddr = ioremap(res.a1, sizeof(*data->ddr));
+	pr_err("%s: received shared memory: %p\n", __func__, data->ddr);
 	if (!data->ddr) {
 		dev_err(dev, "Failed to remap ATF memory\n");
 		return -EINVAL;
