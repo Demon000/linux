@@ -259,6 +259,8 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 
 		ddrclk->share_memory = ioremap(res.a1,
 					       sizeof(*ddrclk->share_memory));
+		pr_err("%s: received shared memory: %p\n", __func__,
+		       ddrclk->share_memory);
 		if (!ddrclk->share_memory) {
 			pr_err("%s: failed to remap ATF memory\n", __func__);
 			kfree(ddrclk);
