@@ -86,6 +86,8 @@ static int rk_drm_get_lcdc_type(void)
 		break;
 	}
 
+	pr_err("%s: lcdc_type: %u\n", __func__, lcdc_type);
+
 	return lcdc_type;
 }
 
@@ -238,6 +240,7 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	case ROCKCHIP_DDRCLK_SIP_V2:
 		arm_smccc_smc(ROCKCHIP_SIP_SHARE_MEM, ATF_NUM_PAGES,
 			      SHARE_PAGE_TYPE_DDR, 0, 0, 0, 0, 0, &res);
+		pr_err("%s: res: a0: %lu, a1: %lu\n", __func__, res.a0, res.a1);
 		if (res.a0) {
 			pr_err("%s: failed to get ATF memory: %lu\n", __func__,
 			       res.a0);
@@ -246,6 +249,8 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 		}
 
 		ddrclk->share_memory = ioremap(res.a1, ATF_NUM_PAGES * PAGE_SIZE);
+		pr_err("%s: received shared memory: %px\n", __func__,
+		       ddrclk->share_memory);
 		if (!ddrclk->share_memory) {
 			pr_err("%s: failed to remap ATF memory\n", __func__);
 			kfree(ddrclk);
