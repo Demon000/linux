@@ -400,6 +400,7 @@ struct clk *rockchip_clk_register_mmc(const char *name,
  * ROCKCHIP_DDRCLK_SIP: use SIP call to bl31 to change ddrclk rate.
  */
 #define ROCKCHIP_DDRCLK_SIP		BIT(0)
+#define ROCKCHIP_DDRCLK_SIP_V2		0x03
 
 struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 const char *const *parent_names,
