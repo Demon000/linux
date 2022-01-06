@@ -1372,6 +1372,10 @@
 			opp-hz = /bits/ 64 <666000000>;
 			opp-microvolt = <1050000>;
 		};
+		opp-786000000 {
+			opp-hz = /bits/ 64 <786000000>;
+			opp-microvolt = <1100000>;
+		};
 	};
 
 	dmc: dmc {
