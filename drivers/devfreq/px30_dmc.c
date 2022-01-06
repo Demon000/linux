@@ -420,14 +420,32 @@ static int px30_dmcfreq_target(struct device *dev, unsigned long *freq,
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 
-	target_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 
-	if (dmcfreq->rate == target_rate)
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
+	if ((long)target_rate <= 0)
+		target_rate = *freq;
+
+	if (dmcfreq->rate == target_rate && dmcfreq->volt == target_volt)
 		return 0;
 
 	mutex_lock(&dmcfreq->lock);
+
+	if (dmcfreq->rate == target_rate) {
+		err = regulator_set_voltage(dmcfreq->vdd_center, target_volt,
+					    INT_MAX);
+		if (err) {
+			dev_err(dev, "Cannot set voltage %lu uV\n",
+				target_volt);
+			return err;
+		}
+
+		dmcfreq->volt = target_volt;
+		return 0;
+	} else if (!dmcfreq->volt) {
+		dmcfreq->volt = regulator_get_voltage(dmcfreq->vdd_center);
+	}
 
 	/*
 	 * If frequency scaling from low to high, adjust voltage first.
