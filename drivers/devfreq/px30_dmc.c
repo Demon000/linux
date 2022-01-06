@@ -24,6 +24,8 @@
 #include <soc/rockchip/rockchip_ddr.h>
 #include <soc/rockchip/rockchip_sip.h>
 
+#define ATF_MIN_VERSION		0x103
+
 static const char * const px30_dts_timing[] = {
 	"rockchip,ddr2_speed_bin",
 	"rockchip,ddr3_speed_bin",
@@ -666,6 +668,15 @@ static int px30_dmcfreq_probe(struct platform_device *pdev)
 	struct px30_dmcfreq *data;
 	struct dev_pm_opp *opp;
 	int ret;
+
+	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, 0, 0,
+		      ROCKCHIP_SIP_CONFIG_DRAM_GET_VERSION,
+		      0, 0, 0, 0, &res);
+	dev_notice(dev, "ATF version 0x%lx!\n", res.a1);
+	if (res.a0 || res.a1 < ATF_MIN_VERSION) {
+		dev_err(dev, "ATF version invalid!\n");
+		return -ENXIO;
+	}
 
 	data = devm_kzalloc(dev, sizeof(struct px30_dmcfreq), GFP_KERNEL);
 	if (!data)
