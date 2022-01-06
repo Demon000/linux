@@ -1019,19 +1019,19 @@
 
 		opp-200000000 {
 			opp-hz = /bits/ 64 <200000000>;
-			opp-microvolt = <950000>;
+			opp-microvolt = <950000 950000 1150000>;
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <975000>;
+			opp-microvolt = <975000 975000 1150000>;
 		};
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
-			opp-microvolt = <1050000>;
+			opp-microvolt = <1050000 1050000 1150000>;
 		};
 		opp-480000000 {
 			opp-hz = /bits/ 64 <480000000>;
-			opp-microvolt = <1125000>;
+			opp-microvolt = <1125000 1125000 1150000>;
 		};
 	};
 
