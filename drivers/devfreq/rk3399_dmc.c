@@ -20,7 +20,7 @@
 #include <linux/rwsem.h>
 #include <linux/suspend.h>
 
-#include <soc/rockchip/rk3399_grf.h>
+#include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rockchip_sip.h>
 
 struct dram_timing {
@@ -375,18 +375,17 @@ static int rk3399_dmcfreq_probe(struct platform_device *pdev)
 		goto err_edev;
 	}
 
-	regmap_read(data->regmap_pmu, RK3399_PMUGRF_OS_REG2, &val);
-	ddr_type = (val >> RK3399_PMUGRF_DDRTYPE_SHIFT) &
-		    RK3399_PMUGRF_DDRTYPE_MASK;
+	regmap_read(data->regmap_pmu, PMUGRF_OS_REG2, &val);
+	ddr_type = (val >> DDRTYPE_SHIFT) & DDRTYPE_MASK;
 
 	switch (ddr_type) {
-	case RK3399_PMUGRF_DDRTYPE_DDR3:
+	case DDR3:
 		data->odt_dis_freq = data->timing.ddr3_odt_dis_freq;
 		break;
-	case RK3399_PMUGRF_DDRTYPE_LPDDR3:
+	case LPDDR3:
 		data->odt_dis_freq = data->timing.lpddr3_odt_dis_freq;
 		break;
-	case RK3399_PMUGRF_DDRTYPE_LPDDR4:
+	case LPDDR4:
 		data->odt_dis_freq = data->timing.lpddr4_odt_dis_freq;
 		break;
 	default:
