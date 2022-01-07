@@ -106,6 +106,9 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 				target_volt);
 			return err;
 		}
+
+		dmcfreq->volt = target_volt;
+		return 0;
 	}
 
 	if (dmcfreq->regmap_pmu) {
