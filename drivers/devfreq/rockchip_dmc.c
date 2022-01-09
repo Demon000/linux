@@ -1072,7 +1072,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	 * We add a devfreq driver to our parent since it has a device tree node
 	 * with operating points.
 	 */
-	if (dev_pm_opp_of_add_table(dev)) {
+	ret = devm_pm_opp_of_add_table(dev);
+	if (ret) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
 		return -EINVAL;
 	}
@@ -1101,21 +1102,14 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 					   &rockchip_devfreq_dmc_profile,
 					   DEVFREQ_GOV_SIMPLE_ONDEMAND,
 					   &data->ondemand_data);
-	if (IS_ERR(data->devfreq)) {
-		ret = PTR_ERR(data->devfreq);
-		goto err_free_opp;
-	}
+	if (IS_ERR(data->devfreq))
+		return PTR_ERR(data->devfreq);
 
 	devm_devfreq_register_opp_notifier(dev, data->devfreq);
 
 	platform_set_drvdata(pdev, data);
 
 	return 0;
-
-err_free_opp:
-	dev_pm_opp_of_remove_table(&pdev->dev);
-
-	return ret;
 }
 
 static int rockchip_dmcfreq_remove(struct platform_device *pdev)
@@ -1127,7 +1121,6 @@ static int rockchip_dmcfreq_remove(struct platform_device *pdev)
 	 * Before remove the opp table we need to unregister the opp notifier.
 	 */
 	devm_devfreq_unregister_opp_notifier(dev, dmcfreq->devfreq);
-	dev_pm_opp_of_remove_table(dev);
 
 	return 0;
 }
