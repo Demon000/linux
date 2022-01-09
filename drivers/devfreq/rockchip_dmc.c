@@ -1015,6 +1015,13 @@ static int px30_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static void rockchip_dmcfreq_disable_edev(void *data)
+{
+	struct devfreq_event_dev *edev = data;
+
+	devfreq_event_disable_edev(edev);
+}
+
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1050,11 +1057,16 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(dev, rockchip_dmcfreq_disable_edev,
+				       data->edev);
+	if (ret)
+		return ret;
+
 	init = device_get_match_data(dev);
-	if (!init) {
-		ret = -EINVAL;
-		goto err_edev;
-	}
+	if (!init)
+		return -EINVAL;
+
+	init(pdev, data);
 
 	/*
 	 * We add a devfreq driver to our parent since it has a device tree node
@@ -1062,8 +1074,7 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	 */
 	if (dev_pm_opp_of_add_table(dev)) {
 		dev_err(dev, "Invalid operating-points in device tree.\n");
-		ret = -EINVAL;
-		goto err_edev;
+		return -EINVAL;
 	}
 
 	of_property_read_u32(np, "upthreshold",
@@ -1103,8 +1114,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 
 err_free_opp:
 	dev_pm_opp_of_remove_table(&pdev->dev);
-err_edev:
-	devfreq_event_disable_edev(data->edev);
 
 	return ret;
 }
