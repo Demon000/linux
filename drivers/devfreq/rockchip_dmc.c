@@ -25,6 +25,8 @@
 #include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rockchip_sip.h>
 
+#define DDR_CLK_FREQ_CHANGE_TIMEOUT	(17 * 5)
+
 static const char * const px30_dts_timing[] = {
 	"rockchip,ddr2_speed_bin",
 	"rockchip,ddr3_speed_bin",
@@ -382,6 +384,8 @@ struct px30_dram_timing {
 	unsigned int ca_skew[15];
 	unsigned int cs0_skew[44];
 	unsigned int cs1_skew[44];
+
+	unsigned int available;
 };
 
 struct de_skew {
@@ -674,6 +678,36 @@ static __maybe_unused int rockchip_dmcfreq_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(rockchip_dmcfreq_pm, rockchip_dmcfreq_suspend,
 			 rockchip_dmcfreq_resume);
 
+struct dmcfreq_wait_ctrl_t {
+	wait_queue_head_t wait_wq;
+	int irq;
+	int wait_flag;
+};
+
+static struct dmcfreq_wait_ctrl_t wait_ctrl;
+
+static irqreturn_t wait_complete_irq(int irqno, void *dev_id)
+{
+	struct dmcfreq_wait_ctrl_t *ctrl = dev_id;
+
+	ctrl->wait_flag = 1;
+	wake_up(&ctrl->wait_wq);
+
+	return IRQ_HANDLED;
+}
+
+int rockchip_dmcfreq_wait_complete(void)
+{
+	wait_ctrl.wait_flag = 0;
+
+	enable_irq(wait_ctrl.irq);
+	wait_event_timeout(wait_ctrl.wait_wq, wait_ctrl.wait_flag,
+			   msecs_to_jiffies(DDR_CLK_FREQ_CHANGE_TIMEOUT));
+	disable_irq(wait_ctrl.irq);
+
+	return 0;
+}
+
 static int of_get_rk3399_timings(struct rk3399_dram_timing *timing,
 				 struct device_node *np)
 {
@@ -910,6 +944,8 @@ static int of_get_px30_timings(struct px30_dram_timing *timing,
 	if (!ret)
 		de_skew_set_to_reg(timing, de_skew);
 
+	timing->available = 1;
+
 	kfree(de_skew);
 
 	return ret;
@@ -941,13 +977,31 @@ static int px30_dmc_init(struct platform_device *pdev,
 		return ret;
 	}
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get irq: %d\n", irq);
+		return irq;
+	}
+
+	ret = devm_request_irq(&pdev->dev, irq, wait_complete_irq,
+			       0, dev_name(&pdev->dev), &wait_ctrl);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot request irq: %d\n", ret);
+		return ret;
+	}
+	disable_irq(irq);
+
+	init_waitqueue_head(&wait_ctrl.wait_wq);
+	wait_ctrl.irq = irq;
+
+	params->complete_hwirq = irqd_to_hwirq(irq_get_irq_data(irq));
+
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, SHARE_PAGE_TYPE_DDR, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
 		      0, 0, 0, 0, &res);
 
 	return 0;
 }
-
 
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {

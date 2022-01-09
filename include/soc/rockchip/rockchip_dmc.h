@@ -18,6 +18,7 @@
 #ifdef CONFIG_ARM_ROCKCHIP_DMC_DEVFREQ
 void rockchip_dmcfreq_lock(void);
 void rockchip_dmcfreq_unlock(void);
+int rockchip_dmcfreq_wait_complete(void);
 #else
 static inline void rockchip_dmcfreq_lock(void)
 {
@@ -25,6 +26,11 @@ static inline void rockchip_dmcfreq_lock(void)
 
 static inline void rockchip_dmcfreq_unlock(void)
 {
+}
+
+static inline int rockchip_dmcfreq_wait_complete(void)
+{
+	return 0;
 }
 
 #endif
