@@ -25,6 +25,371 @@
 #include <soc/rockchip/rockchip_grf.h>
 #include <soc/rockchip/rockchip_sip.h>
 
+static const char * const px30_dts_timing[] = {
+	"rockchip,ddr2_speed_bin",
+	"rockchip,ddr3_speed_bin",
+	"rockchip,ddr4_speed_bin",
+	"rockchip,pd_idle",
+	"rockchip,sr_idle",
+	"rockchip,sr_mc_gate_idle",
+	"rockchip,srpd_lite_idle",
+	"rockchip,standby_idle",
+
+	"rockchip,auto_pd_dis_freq",
+	"rockchip,auto_sr_dis_freq",
+	"rockchip,ddr2_dll_dis_freq",
+	"rockchip,ddr3_dll_dis_freq",
+	"rockchip,ddr4_dll_dis_freq",
+	"rockchip,phy_dll_dis_freq",
+
+	"rockchip,ddr2_odt_dis_freq",
+	"rockchip,phy_ddr2_odt_dis_freq",
+	"rockchip,ddr2_drv",
+	"rockchip,ddr2_odt",
+	"rockchip,phy_ddr2_ca_drv",
+	"rockchip,phy_ddr2_ck_drv",
+	"rockchip,phy_ddr2_dq_drv",
+	"rockchip,phy_ddr2_odt",
+
+	"rockchip,ddr3_odt_dis_freq",
+	"rockchip,phy_ddr3_odt_dis_freq",
+	"rockchip,ddr3_drv",
+	"rockchip,ddr3_odt",
+	"rockchip,phy_ddr3_ca_drv",
+	"rockchip,phy_ddr3_ck_drv",
+	"rockchip,phy_ddr3_dq_drv",
+	"rockchip,phy_ddr3_odt",
+
+	"rockchip,phy_lpddr2_odt_dis_freq",
+	"rockchip,lpddr2_drv",
+	"rockchip,phy_lpddr2_ca_drv",
+	"rockchip,phy_lpddr2_ck_drv",
+	"rockchip,phy_lpddr2_dq_drv",
+	"rockchip,phy_lpddr2_odt",
+
+	"rockchip,lpddr3_odt_dis_freq",
+	"rockchip,phy_lpddr3_odt_dis_freq",
+	"rockchip,lpddr3_drv",
+	"rockchip,lpddr3_odt",
+	"rockchip,phy_lpddr3_ca_drv",
+	"rockchip,phy_lpddr3_ck_drv",
+	"rockchip,phy_lpddr3_dq_drv",
+	"rockchip,phy_lpddr3_odt",
+
+	"rockchip,lpddr4_odt_dis_freq",
+	"rockchip,phy_lpddr4_odt_dis_freq",
+	"rockchip,lpddr4_drv",
+	"rockchip,lpddr4_dq_odt",
+	"rockchip,lpddr4_ca_odt",
+	"rockchip,phy_lpddr4_ca_drv",
+	"rockchip,phy_lpddr4_ck_cs_drv",
+	"rockchip,phy_lpddr4_dq_drv",
+	"rockchip,phy_lpddr4_odt",
+
+	"rockchip,ddr4_odt_dis_freq",
+	"rockchip,phy_ddr4_odt_dis_freq",
+	"rockchip,ddr4_drv",
+	"rockchip,ddr4_odt",
+	"rockchip,phy_ddr4_ca_drv",
+	"rockchip,phy_ddr4_ck_drv",
+	"rockchip,phy_ddr4_dq_drv",
+	"rockchip,phy_ddr4_odt",
+};
+
+static const char * const rk3328_dts_ca_timing[] = {
+	"rockchip,ddr3a1_ddr4a9_de-skew",
+	"rockchip,ddr3a0_ddr4a10_de-skew",
+	"rockchip,ddr3a3_ddr4a6_de-skew",
+	"rockchip,ddr3a2_ddr4a4_de-skew",
+	"rockchip,ddr3a5_ddr4a8_de-skew",
+	"rockchip,ddr3a4_ddr4a5_de-skew",
+	"rockchip,ddr3a7_ddr4a11_de-skew",
+	"rockchip,ddr3a6_ddr4a7_de-skew",
+	"rockchip,ddr3a9_ddr4a0_de-skew",
+	"rockchip,ddr3a8_ddr4a13_de-skew",
+	"rockchip,ddr3a11_ddr4a3_de-skew",
+	"rockchip,ddr3a10_ddr4cs0_de-skew",
+	"rockchip,ddr3a13_ddr4a2_de-skew",
+	"rockchip,ddr3a12_ddr4ba1_de-skew",
+	"rockchip,ddr3a15_ddr4odt0_de-skew",
+	"rockchip,ddr3a14_ddr4a1_de-skew",
+	"rockchip,ddr3ba1_ddr4a15_de-skew",
+	"rockchip,ddr3ba0_ddr4bg0_de-skew",
+	"rockchip,ddr3ras_ddr4cke_de-skew",
+	"rockchip,ddr3ba2_ddr4ba0_de-skew",
+	"rockchip,ddr3we_ddr4bg1_de-skew",
+	"rockchip,ddr3cas_ddr4a12_de-skew",
+	"rockchip,ddr3ckn_ddr4ckn_de-skew",
+	"rockchip,ddr3ckp_ddr4ckp_de-skew",
+	"rockchip,ddr3cke_ddr4a16_de-skew",
+	"rockchip,ddr3odt0_ddr4a14_de-skew",
+	"rockchip,ddr3cs0_ddr4act_de-skew",
+	"rockchip,ddr3reset_ddr4reset_de-skew",
+	"rockchip,ddr3cs1_ddr4cs1_de-skew",
+	"rockchip,ddr3odt1_ddr4odt1_de-skew",
+};
+
+static const char * const rk3328_dts_cs0_timing[] = {
+	"rockchip,cs0_dm0_rx_de-skew",
+	"rockchip,cs0_dm0_tx_de-skew",
+	"rockchip,cs0_dq0_rx_de-skew",
+	"rockchip,cs0_dq0_tx_de-skew",
+	"rockchip,cs0_dq1_rx_de-skew",
+	"rockchip,cs0_dq1_tx_de-skew",
+	"rockchip,cs0_dq2_rx_de-skew",
+	"rockchip,cs0_dq2_tx_de-skew",
+	"rockchip,cs0_dq3_rx_de-skew",
+	"rockchip,cs0_dq3_tx_de-skew",
+	"rockchip,cs0_dq4_rx_de-skew",
+	"rockchip,cs0_dq4_tx_de-skew",
+	"rockchip,cs0_dq5_rx_de-skew",
+	"rockchip,cs0_dq5_tx_de-skew",
+	"rockchip,cs0_dq6_rx_de-skew",
+	"rockchip,cs0_dq6_tx_de-skew",
+	"rockchip,cs0_dq7_rx_de-skew",
+	"rockchip,cs0_dq7_tx_de-skew",
+	"rockchip,cs0_dqs0_rx_de-skew",
+	"rockchip,cs0_dqs0p_tx_de-skew",
+	"rockchip,cs0_dqs0n_tx_de-skew",
+
+	"rockchip,cs0_dm1_rx_de-skew",
+	"rockchip,cs0_dm1_tx_de-skew",
+	"rockchip,cs0_dq8_rx_de-skew",
+	"rockchip,cs0_dq8_tx_de-skew",
+	"rockchip,cs0_dq9_rx_de-skew",
+	"rockchip,cs0_dq9_tx_de-skew",
+	"rockchip,cs0_dq10_rx_de-skew",
+	"rockchip,cs0_dq10_tx_de-skew",
+	"rockchip,cs0_dq11_rx_de-skew",
+	"rockchip,cs0_dq11_tx_de-skew",
+	"rockchip,cs0_dq12_rx_de-skew",
+	"rockchip,cs0_dq12_tx_de-skew",
+	"rockchip,cs0_dq13_rx_de-skew",
+	"rockchip,cs0_dq13_tx_de-skew",
+	"rockchip,cs0_dq14_rx_de-skew",
+	"rockchip,cs0_dq14_tx_de-skew",
+	"rockchip,cs0_dq15_rx_de-skew",
+	"rockchip,cs0_dq15_tx_de-skew",
+	"rockchip,cs0_dqs1_rx_de-skew",
+	"rockchip,cs0_dqs1p_tx_de-skew",
+	"rockchip,cs0_dqs1n_tx_de-skew",
+
+	"rockchip,cs0_dm2_rx_de-skew",
+	"rockchip,cs0_dm2_tx_de-skew",
+	"rockchip,cs0_dq16_rx_de-skew",
+	"rockchip,cs0_dq16_tx_de-skew",
+	"rockchip,cs0_dq17_rx_de-skew",
+	"rockchip,cs0_dq17_tx_de-skew",
+	"rockchip,cs0_dq18_rx_de-skew",
+	"rockchip,cs0_dq18_tx_de-skew",
+	"rockchip,cs0_dq19_rx_de-skew",
+	"rockchip,cs0_dq19_tx_de-skew",
+	"rockchip,cs0_dq20_rx_de-skew",
+	"rockchip,cs0_dq20_tx_de-skew",
+	"rockchip,cs0_dq21_rx_de-skew",
+	"rockchip,cs0_dq21_tx_de-skew",
+	"rockchip,cs0_dq22_rx_de-skew",
+	"rockchip,cs0_dq22_tx_de-skew",
+	"rockchip,cs0_dq23_rx_de-skew",
+	"rockchip,cs0_dq23_tx_de-skew",
+	"rockchip,cs0_dqs2_rx_de-skew",
+	"rockchip,cs0_dqs2p_tx_de-skew",
+	"rockchip,cs0_dqs2n_tx_de-skew",
+
+	"rockchip,cs0_dm3_rx_de-skew",
+	"rockchip,cs0_dm3_tx_de-skew",
+	"rockchip,cs0_dq24_rx_de-skew",
+	"rockchip,cs0_dq24_tx_de-skew",
+	"rockchip,cs0_dq25_rx_de-skew",
+	"rockchip,cs0_dq25_tx_de-skew",
+	"rockchip,cs0_dq26_rx_de-skew",
+	"rockchip,cs0_dq26_tx_de-skew",
+	"rockchip,cs0_dq27_rx_de-skew",
+	"rockchip,cs0_dq27_tx_de-skew",
+	"rockchip,cs0_dq28_rx_de-skew",
+	"rockchip,cs0_dq28_tx_de-skew",
+	"rockchip,cs0_dq29_rx_de-skew",
+	"rockchip,cs0_dq29_tx_de-skew",
+	"rockchip,cs0_dq30_rx_de-skew",
+	"rockchip,cs0_dq30_tx_de-skew",
+	"rockchip,cs0_dq31_rx_de-skew",
+	"rockchip,cs0_dq31_tx_de-skew",
+	"rockchip,cs0_dqs3_rx_de-skew",
+	"rockchip,cs0_dqs3p_tx_de-skew",
+	"rockchip,cs0_dqs3n_tx_de-skew",
+};
+
+static const char * const rk3328_dts_cs1_timing[] = {
+	"rockchip,cs1_dm0_rx_de-skew",
+	"rockchip,cs1_dm0_tx_de-skew",
+	"rockchip,cs1_dq0_rx_de-skew",
+	"rockchip,cs1_dq0_tx_de-skew",
+	"rockchip,cs1_dq1_rx_de-skew",
+	"rockchip,cs1_dq1_tx_de-skew",
+	"rockchip,cs1_dq2_rx_de-skew",
+	"rockchip,cs1_dq2_tx_de-skew",
+	"rockchip,cs1_dq3_rx_de-skew",
+	"rockchip,cs1_dq3_tx_de-skew",
+	"rockchip,cs1_dq4_rx_de-skew",
+	"rockchip,cs1_dq4_tx_de-skew",
+	"rockchip,cs1_dq5_rx_de-skew",
+	"rockchip,cs1_dq5_tx_de-skew",
+	"rockchip,cs1_dq6_rx_de-skew",
+	"rockchip,cs1_dq6_tx_de-skew",
+	"rockchip,cs1_dq7_rx_de-skew",
+	"rockchip,cs1_dq7_tx_de-skew",
+	"rockchip,cs1_dqs0_rx_de-skew",
+	"rockchip,cs1_dqs0p_tx_de-skew",
+	"rockchip,cs1_dqs0n_tx_de-skew",
+
+	"rockchip,cs1_dm1_rx_de-skew",
+	"rockchip,cs1_dm1_tx_de-skew",
+	"rockchip,cs1_dq8_rx_de-skew",
+	"rockchip,cs1_dq8_tx_de-skew",
+	"rockchip,cs1_dq9_rx_de-skew",
+	"rockchip,cs1_dq9_tx_de-skew",
+	"rockchip,cs1_dq10_rx_de-skew",
+	"rockchip,cs1_dq10_tx_de-skew",
+	"rockchip,cs1_dq11_rx_de-skew",
+	"rockchip,cs1_dq11_tx_de-skew",
+	"rockchip,cs1_dq12_rx_de-skew",
+	"rockchip,cs1_dq12_tx_de-skew",
+	"rockchip,cs1_dq13_rx_de-skew",
+	"rockchip,cs1_dq13_tx_de-skew",
+	"rockchip,cs1_dq14_rx_de-skew",
+	"rockchip,cs1_dq14_tx_de-skew",
+	"rockchip,cs1_dq15_rx_de-skew",
+	"rockchip,cs1_dq15_tx_de-skew",
+	"rockchip,cs1_dqs1_rx_de-skew",
+	"rockchip,cs1_dqs1p_tx_de-skew",
+	"rockchip,cs1_dqs1n_tx_de-skew",
+
+	"rockchip,cs1_dm2_rx_de-skew",
+	"rockchip,cs1_dm2_tx_de-skew",
+	"rockchip,cs1_dq16_rx_de-skew",
+	"rockchip,cs1_dq16_tx_de-skew",
+	"rockchip,cs1_dq17_rx_de-skew",
+	"rockchip,cs1_dq17_tx_de-skew",
+	"rockchip,cs1_dq18_rx_de-skew",
+	"rockchip,cs1_dq18_tx_de-skew",
+	"rockchip,cs1_dq19_rx_de-skew",
+	"rockchip,cs1_dq19_tx_de-skew",
+	"rockchip,cs1_dq20_rx_de-skew",
+	"rockchip,cs1_dq20_tx_de-skew",
+	"rockchip,cs1_dq21_rx_de-skew",
+	"rockchip,cs1_dq21_tx_de-skew",
+	"rockchip,cs1_dq22_rx_de-skew",
+	"rockchip,cs1_dq22_tx_de-skew",
+	"rockchip,cs1_dq23_rx_de-skew",
+	"rockchip,cs1_dq23_tx_de-skew",
+	"rockchip,cs1_dqs2_rx_de-skew",
+	"rockchip,cs1_dqs2p_tx_de-skew",
+	"rockchip,cs1_dqs2n_tx_de-skew",
+
+	"rockchip,cs1_dm3_rx_de-skew",
+	"rockchip,cs1_dm3_tx_de-skew",
+	"rockchip,cs1_dq24_rx_de-skew",
+	"rockchip,cs1_dq24_tx_de-skew",
+	"rockchip,cs1_dq25_rx_de-skew",
+	"rockchip,cs1_dq25_tx_de-skew",
+	"rockchip,cs1_dq26_rx_de-skew",
+	"rockchip,cs1_dq26_tx_de-skew",
+	"rockchip,cs1_dq27_rx_de-skew",
+	"rockchip,cs1_dq27_tx_de-skew",
+	"rockchip,cs1_dq28_rx_de-skew",
+	"rockchip,cs1_dq28_tx_de-skew",
+	"rockchip,cs1_dq29_rx_de-skew",
+	"rockchip,cs1_dq29_tx_de-skew",
+	"rockchip,cs1_dq30_rx_de-skew",
+	"rockchip,cs1_dq30_tx_de-skew",
+	"rockchip,cs1_dq31_rx_de-skew",
+	"rockchip,cs1_dq31_tx_de-skew",
+	"rockchip,cs1_dqs3_rx_de-skew",
+	"rockchip,cs1_dqs3p_tx_de-skew",
+	"rockchip,cs1_dqs3n_tx_de-skew",
+};
+
+struct px30_dram_timing {
+	unsigned int ddr2_speed_bin;
+	unsigned int ddr3_speed_bin;
+	unsigned int ddr4_speed_bin;
+	unsigned int pd_idle;
+	unsigned int sr_idle;
+	unsigned int sr_mc_gate_idle;
+	unsigned int srpd_lite_idle;
+	unsigned int standby_idle;
+
+	unsigned int auto_pd_dis_freq;
+	unsigned int auto_sr_dis_freq;
+	unsigned int ddr2_dll_dis_freq;
+	unsigned int ddr3_dll_dis_freq;
+	unsigned int ddr4_dll_dis_freq;
+	unsigned int phy_dll_dis_freq;
+
+	unsigned int ddr2_odt_dis_freq;
+	unsigned int phy_ddr2_odt_dis_freq;
+	unsigned int ddr2_drv;
+	unsigned int ddr2_odt;
+	unsigned int phy_ddr2_ca_drv;
+	unsigned int phy_ddr2_ck_drv;
+	unsigned int phy_ddr2_dq_drv;
+	unsigned int phy_ddr2_odt;
+
+	unsigned int ddr3_odt_dis_freq;
+	unsigned int phy_ddr3_odt_dis_freq;
+	unsigned int ddr3_drv;
+	unsigned int ddr3_odt;
+	unsigned int phy_ddr3_ca_drv;
+	unsigned int phy_ddr3_ck_drv;
+	unsigned int phy_ddr3_dq_drv;
+	unsigned int phy_ddr3_odt;
+
+	unsigned int phy_lpddr2_odt_dis_freq;
+	unsigned int lpddr2_drv;
+	unsigned int phy_lpddr2_ca_drv;
+	unsigned int phy_lpddr2_ck_drv;
+	unsigned int phy_lpddr2_dq_drv;
+	unsigned int phy_lpddr2_odt;
+
+	unsigned int lpddr3_odt_dis_freq;
+	unsigned int phy_lpddr3_odt_dis_freq;
+	unsigned int lpddr3_drv;
+	unsigned int lpddr3_odt;
+	unsigned int phy_lpddr3_ca_drv;
+	unsigned int phy_lpddr3_ck_drv;
+	unsigned int phy_lpddr3_dq_drv;
+	unsigned int phy_lpddr3_odt;
+
+	unsigned int lpddr4_odt_dis_freq;
+	unsigned int phy_lpddr4_odt_dis_freq;
+	unsigned int lpddr4_drv;
+	unsigned int lpddr4_dq_odt;
+	unsigned int lpddr4_ca_odt;
+	unsigned int phy_lpddr4_ca_drv;
+	unsigned int phy_lpddr4_ck_cs_drv;
+	unsigned int phy_lpddr4_dq_drv;
+	unsigned int phy_lpddr4_odt;
+
+	unsigned int ddr4_odt_dis_freq;
+	unsigned int phy_ddr4_odt_dis_freq;
+	unsigned int ddr4_drv;
+	unsigned int ddr4_odt;
+	unsigned int phy_ddr4_ca_drv;
+	unsigned int phy_ddr4_ck_drv;
+	unsigned int phy_ddr4_dq_drv;
+	unsigned int phy_ddr4_odt;
+
+	unsigned int ca_skew[15];
+	unsigned int cs0_skew[44];
+	unsigned int cs1_skew[44];
+};
+
+struct de_skew {
+	unsigned int ca_de_skew[30];
+	unsigned int cs0_de_skew[84];
+	unsigned int cs1_de_skew[84];
+};
+
 struct rk3399_dram_timing {
 	unsigned int ddr3_speed_bin;
 	unsigned int pd_idle;
@@ -467,6 +832,123 @@ static int rk3399_dmc_init(struct platform_device *pdev,
 	return 0;
 }
 
+static void de_skew_set_to_reg(struct px30_dram_timing *timing,
+			       struct de_skew *de_skew)
+{
+	u32 n;
+	u32 offset;
+	u32 shift;
+
+	memset_io(timing->ca_skew, 0, sizeof(timing->ca_skew));
+	memset_io(timing->cs0_skew, 0, sizeof(timing->cs0_skew));
+	memset_io(timing->cs1_skew, 0, sizeof(timing->cs1_skew));
+
+	/* CA de-skew */
+	for (n = 0; n < ARRAY_SIZE(de_skew->ca_de_skew); n++) {
+		offset = n / 2;
+		shift = n % 2;
+		/* 0 => 4; 1 => 0 */
+		shift = (shift == 0) ? 4 : 0;
+		timing->ca_skew[offset] &= ~(0xf << shift);
+		timing->ca_skew[offset] |= (de_skew->ca_de_skew[n] << shift);
+	}
+
+	/* CS0 data de-skew */
+	for (n = 0; n < ARRAY_SIZE(de_skew->cs0_de_skew); n++) {
+		offset = ((n / 21) * 11) + ((n % 21) / 2);
+		shift = ((n % 21) % 2);
+		if ((n % 21) == 20)
+			shift = 0;
+		else
+			/* 0 => 4; 1 => 0 */
+			shift = (shift == 0) ? 4 : 0;
+		timing->cs0_skew[offset] &= ~(0xf << shift);
+		timing->cs0_skew[offset] |= (de_skew->cs0_de_skew[n] << shift);
+	}
+
+	/* CS1 data de-skew */
+	for (n = 0; n < ARRAY_SIZE(de_skew->cs1_de_skew); n++) {
+		offset = ((n / 21) * 11) + ((n % 21) / 2);
+		shift = ((n % 21) % 2);
+		if ((n % 21) == 20)
+			shift = 0;
+		else
+			/* 0 => 4; 1 => 0 */
+			shift = (shift == 0) ? 4 : 0;
+		timing->cs1_skew[offset] &= ~(0xf << shift);
+		timing->cs1_skew[offset] |= (de_skew->cs1_de_skew[n] << shift);
+	}
+}
+
+static int of_get_px30_timings(struct px30_dram_timing *timing,
+			       struct device_node *np)
+{
+	struct de_skew *de_skew;
+	int ret = 0;
+	u32 i;
+
+	de_skew = kmalloc(sizeof(*de_skew), GFP_KERNEL);
+	if (!de_skew)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(px30_dts_timing); i++)
+		ret |= of_property_read_u32(np, px30_dts_timing[i],
+					((u32 *)timing) + i);
+
+	for (i = 0; i < ARRAY_SIZE(rk3328_dts_ca_timing); i++)
+		ret |= of_property_read_u32(np, rk3328_dts_ca_timing[i],
+					de_skew->ca_de_skew + i);
+
+	for (i = 0; i < ARRAY_SIZE(rk3328_dts_cs0_timing); i++)
+		ret |= of_property_read_u32(np, rk3328_dts_cs0_timing[i],
+					de_skew->cs0_de_skew + i);
+
+	for (i = 0; i < ARRAY_SIZE(rk3328_dts_cs1_timing); i++)
+		ret |= of_property_read_u32(np, rk3328_dts_cs1_timing[i],
+					de_skew->cs1_de_skew + i);
+
+	if (!ret)
+		de_skew_set_to_reg(timing, de_skew);
+
+	kfree(de_skew);
+
+	return ret;
+}
+
+static int px30_dmc_init(struct platform_device *pdev,
+			 struct rockchip_dmcfreq *data)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct px30_dram_timing *timings;
+	struct share_params *params;
+	struct arm_smccc_res res;
+	void __iomem *mem;
+	int irq;
+	int ret;
+
+	mem = rockchip_ddr_clk_get_atf_mem(data->dmc_clk);
+	if (!mem) {
+		dev_err(dev, "Failed to get ATF memory\n");
+		return -EINVAL;
+	}
+
+	params = mem;
+	timings = mem + PAGE_SIZE;
+	ret = of_get_px30_timings(timings, np);
+	if (ret) {
+		dev_err(dev, "Failed to get timings\n");
+		return ret;
+	}
+
+	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, SHARE_PAGE_TYPE_DDR, 0,
+		      ROCKCHIP_SIP_CONFIG_DRAM_INIT,
+		      0, 0, 0, 0, &res);
+
+	return 0;
+}
+
+
 static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -565,6 +1047,7 @@ static int rockchip_dmcfreq_remove(struct platform_device *pdev)
 
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
+	{ .compatible = "rockchip,px30-dmc", .data = px30_dmc_init },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
