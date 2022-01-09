@@ -13,6 +13,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <soc/rockchip/rockchip_sip.h>
+#include <soc/rockchip/rockchip_dmc.h>
 
 #include "clk.h"
 
@@ -158,12 +159,14 @@ static int rockchip_ddrclk_sip_set_rate_v2(struct clk_hw *hw,
 
 	ddrclk->share_memory->hz = drate;
 	ddrclk->share_memory->lcdc_type = rk_drm_get_lcdc_type();
+	ddrclk->share_memory->wait_flag1 = 1;
+	ddrclk->share_memory->wait_flag0 = 1;
 
 	arm_smccc_smc(ROCKCHIP_SIP_DRAM_FREQ, SHARE_PAGE_TYPE_DDR, 0,
 		      ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE, 0, 0, 0, 0, &res);
 
 	if ((int)res.a1 == SIP_RET_SET_RATE_TIMEOUT)
-		pr_err("%s: timeout setting rate\n", __func__);
+		rockchip_dmcfreq_wait_complete();
 
 	return 0;
 }
