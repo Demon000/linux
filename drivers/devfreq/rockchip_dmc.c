@@ -1020,6 +1020,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	struct rockchip_dmcfreq *data;
+	unsigned long opp_rate;
+	struct dev_pm_opp *opp;
 	int (*init)(struct platform_device *pdev,
 		    struct rockchip_dmcfreq *data);
 	int ret;
@@ -1072,7 +1074,15 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	data->rate = clk_get_rate(data->dmc_clk);
 	data->volt = regulator_get_voltage(data->vdd_center);
 
-	rockchip_devfreq_dmc_profile.initial_freq = data->rate;
+	opp_rate = data->rate;
+	opp = devfreq_recommended_opp(dev, &opp_rate, 0);
+	if (IS_ERR(opp)) {
+		dev_err(dev, "Failed to find opp for %lu Hz\n", opp_rate);
+		return PTR_ERR(opp);
+	}
+	dev_pm_opp_put(opp);
+
+	rockchip_devfreq_dmc_profile.initial_freq = opp_rate;
 
 	cpu_latency_qos_add_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
 
