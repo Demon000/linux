@@ -276,3 +276,12 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 	return clk;
 }
 EXPORT_SYMBOL_GPL(rockchip_clk_register_ddrclk);
+
+void __iomem *rockchip_ddr_clk_get_atf_mem(struct clk *clk)
+{
+	struct clk_hw *hw = __clk_get_hw(clk);
+	struct rockchip_ddrclk *ddrclk = to_rockchip_ddrclk_hw(hw);
+
+	return ddrclk->share_memory;
+}
+EXPORT_SYMBOL_GPL(rockchip_ddr_clk_get_atf_mem);

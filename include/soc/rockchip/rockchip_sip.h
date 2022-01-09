@@ -41,4 +41,6 @@ struct share_params {
 	 /* if need, add parameter after */
 };
 
+void __iomem *rockchip_ddr_clk_get_atf_mem(struct clk *clk);
+
 #endif
