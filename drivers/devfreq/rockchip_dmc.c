@@ -1037,6 +1037,8 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, data);
+
 	data->vdd_center = devm_regulator_get_optional(dev, "center");
 	if (IS_ERR(data->vdd_center))
 		return dev_err_probe(dev, PTR_ERR(data->vdd_center),
@@ -1108,8 +1110,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	ret = devm_devfreq_register_opp_notifier(dev, data->devfreq);
 	if (ret)
 		return ret;
-
-	platform_set_drvdata(pdev, data);
 
 	return 0;
 }
