@@ -1114,19 +1114,6 @@ static int rockchip_dmcfreq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rockchip_dmcfreq_remove(struct platform_device *pdev)
-{
-	struct rockchip_dmcfreq *dmcfreq = dev_get_drvdata(&pdev->dev);
-	struct device *dev = &pdev->dev;
-
-	/*
-	 * Before remove the opp table we need to unregister the opp notifier.
-	 */
-	devm_devfreq_unregister_opp_notifier(dev, dmcfreq->devfreq);
-
-	return 0;
-}
-
 static const struct of_device_id rockchip_dmcfreq_of_match[] = {
 	{ .compatible = "rockchip,rk3399-dmc", .data = rk3399_dmc_init },
 	{ .compatible = "rockchip,px30-dmc", .data = px30_dmc_init },
@@ -1136,7 +1123,6 @@ MODULE_DEVICE_TABLE(of, rockchip_dmcfreq_of_match);
 
 static struct platform_driver rockchip_dmcfreq_driver = {
 	.probe	= rockchip_dmcfreq_probe,
-	.remove = rockchip_dmcfreq_remove,
 	.driver = {
 		.name	= "rockchip-dmc",
 		.pm	= &rockchip_dmcfreq_pm,
