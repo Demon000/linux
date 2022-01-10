@@ -209,44 +209,6 @@ static const struct clk_ops rockchip_ddrclk_sip_ops_v2 = {
 	.get_parent = rockchip_ddrclk_get_parent,
 };
 
-static void *sip_map(phys_addr_t start, size_t size)
-{
-	struct page **pages;
-	phys_addr_t page_start;
-	unsigned int page_count;
-	pgprot_t prot;
-	unsigned int i;
-	void *vaddr;
-
-	if (!pfn_valid(__phys_to_pfn(start)))
-		return ioremap(start, size);
-
-	page_start = start - offset_in_page(start);
-	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
-
-	prot = pgprot_noncached(PAGE_KERNEL);
-
-	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
-	if (!pages) {
-		pr_err("%s: Failed to allocate array for %u pages\n",
-		       __func__, page_count);
-		return NULL;
-	}
-
-	for (i = 0; i < page_count; i++)
-		pages[i] = phys_to_page(page_start + i * PAGE_SIZE);
-
-	vaddr = vmap(pages, page_count, VM_MAP, prot);
-	kfree(pages);
-
-	/*
-	 * Since vmap() uses page granularity, we must add the offset
-	 * into the page here, to get the byte granularity address
-	 * into the mapping to represent the actual "start" location.
-	 */
-	return vaddr + offset_in_page(start);
-}
-
 struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 					 const char *const *parent_names,
 					 u8 num_parents, int mux_offset,
@@ -285,7 +247,7 @@ struct clk *rockchip_clk_register_ddrclk(const char *name, int flags,
 			return ERR_PTR(-EINVAL);
 		}
 
-		ddrclk->share_memory = sip_map(res.a1, ATF_NUM_PAGES * PAGE_SIZE);
+		ddrclk->share_memory = ioremap(res.a1, ATF_NUM_PAGES * PAGE_SIZE);
 		if (!ddrclk->share_memory) {
 			pr_err("%s: failed to remap ATF memory\n", __func__);
 			kfree(ddrclk);
