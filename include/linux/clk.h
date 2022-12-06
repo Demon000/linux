@@ -72,6 +72,8 @@ struct clk_notifier_data {
 	struct clk		*clk;
 	unsigned long		old_rate;
 	unsigned long		new_rate;
+	u64			old_rate_64;
+	u64			new_rate_64;
 };
 
 /**
@@ -680,6 +682,7 @@ void clk_bulk_disable(int num_clks, const struct clk_bulk_data *clks);
  * @clk: clock source
  */
 unsigned long clk_get_rate(struct clk *clk);
+u64 clk_get_rate_64(struct clk *clk);
 
 /**
  * clk_put	- "free" the clock source
@@ -759,6 +762,7 @@ void devm_clk_put(struct device *dev, struct clk *clk);
  * Returns rounded clock rate in Hz, or negative errno.
  */
 long clk_round_rate(struct clk *clk, unsigned long rate);
+s64 clk_round_rate_64(struct clk *clk, u64 rate);
 
 /**
  * clk_set_rate - set the clock rate for a clock source
@@ -771,6 +775,7 @@ long clk_round_rate(struct clk *clk, unsigned long rate);
  * Returns success (0) or negative errno.
  */
 int clk_set_rate(struct clk *clk, unsigned long rate);
+int clk_set_rate_64(struct clk *clk, u64 rate);
 
 /**
  * clk_set_rate_exclusive- set the clock rate and claim exclusivity over
@@ -788,6 +793,7 @@ int clk_set_rate(struct clk *clk, unsigned long rate);
  * Returns success (0) or negative errno.
  */
 int clk_set_rate_exclusive(struct clk *clk, unsigned long rate);
+int clk_set_rate_exclusive_64(struct clk *clk, u64 rate);
 
 /**
  * clk_has_parent - check if a clock is a possible parent for another
@@ -810,6 +816,7 @@ bool clk_has_parent(const struct clk *clk, const struct clk *parent);
  * Returns success (0) or negative errno.
  */
 int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max);
+int clk_set_rate_range_64(struct clk *clk, u64 min, u64 max);
 
 /**
  * clk_set_min_rate - set a minimum clock rate for a clock source
@@ -819,6 +826,7 @@ int clk_set_rate_range(struct clk *clk, unsigned long min, unsigned long max);
  * Returns success (0) or negative errno.
  */
 int clk_set_min_rate(struct clk *clk, unsigned long rate);
+int clk_set_min_rate_64(struct clk *clk, u64 rate);
 
 /**
  * clk_set_max_rate - set a maximum clock rate for a clock source
@@ -828,6 +836,7 @@ int clk_set_min_rate(struct clk *clk, unsigned long rate);
  * Returns success (0) or negative errno.
  */
 int clk_set_max_rate(struct clk *clk, unsigned long rate);
+int clk_set_max_rate_64(struct clk *clk, u64 rate);
 
 /**
  * clk_set_parent - set the parent clock source for this clock
@@ -1004,7 +1013,17 @@ static inline unsigned long clk_get_rate(struct clk *clk)
 	return 0;
 }
 
+static inline u64 clk_get_rate_64(struct clk *clk)
+{
+	return 0;
+}
+
 static inline int clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int clk_set_rate_64(struct clk *clk, u64 rate)
 {
 	return 0;
 }
@@ -1014,7 +1033,17 @@ static inline int clk_set_rate_exclusive(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static inline int clk_set_rate_exclusive_64(struct clk *clk, u64 rate)
+{
+	return 0;
+}
+
 static inline long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+static inline s64 clk_round_rate_64(struct clk *clk, u64 rate)
 {
 	return 0;
 }
@@ -1030,12 +1059,27 @@ static inline int clk_set_rate_range(struct clk *clk, unsigned long min,
 	return 0;
 }
 
+static inline int clk_set_rate_range_64(struct clk *clk, u64 min, u64 max)
+{
+	return 0;
+}
+
 static inline int clk_set_min_rate(struct clk *clk, unsigned long rate)
 {
 	return 0;
 }
 
+static inline int clk_set_min_rate_64(struct clk *clk, u64 rate)
+{
+	return 0;
+}
+
 static inline int clk_set_max_rate(struct clk *clk, unsigned long rate)
+{
+	return 0;
+}
+
+static inline int clk_set_max_rate_64(struct clk *clk, u64 rate)
 {
 	return 0;
 }

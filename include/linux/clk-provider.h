@@ -62,14 +62,54 @@ struct clk_rate_request {
 	struct clk_hw *best_parent_hw;
 };
 
+struct clk_rate_request_64 {
+	u64 rate;
+	u64 min_rate;
+	u64 max_rate;
+	u64 best_parent_rate;
+	struct clk_hw *best_parent_hw;
+};
+
+static inline void clk_rate_req_to_64(const struct clk_rate_request *req,
+				      struct clk_rate_request_64 *req_64)
+{
+	if (WARN_ON(!req || !req_64))
+		return;
+
+	req_64->rate = req->rate;
+	req_64->min_rate = req->min_rate;
+	req_64->best_parent_rate = req->best_parent_rate;
+	req_64->best_parent_hw = req->best_parent_hw;
+}
+
+static inline void clk_rate_req_from_64(struct clk_rate_request *req,
+					const struct clk_rate_request_64 *req_64)
+{
+	if (WARN_ON(!req || !req_64))
+		return;
+
+	req->rate = req_64->rate;
+	req->min_rate = req_64->min_rate;
+	req->best_parent_rate = req_64->best_parent_rate;
+	req->best_parent_hw = req_64->best_parent_hw;
+}
+
 void clk_hw_init_rate_request(const struct clk_hw *hw,
 			      struct clk_rate_request *req,
 			      unsigned long rate);
+void clk_hw_init_rate_request_64(const struct clk_hw *hw,
+				 struct clk_rate_request_64 *req,
+				 u64 rate);
 void clk_hw_forward_rate_request(const struct clk_hw *core,
 				 const struct clk_rate_request *old_req,
 				 const struct clk_hw *parent,
 				 struct clk_rate_request *req,
 				 unsigned long parent_rate);
+void clk_hw_forward_rate_request_64(const struct clk_hw *core,
+				    const struct clk_rate_request_64 *old_req,
+				    const struct clk_hw *parent,
+				    struct clk_rate_request_64 *req,
+				    u64 parent_rate);
 
 /**
  * struct clk_duty - Struture encoding the duty cycle ratio of a clock
@@ -266,6 +306,42 @@ struct clk_ops {
 	void		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
 };
 
+struct clk_ops_64 {
+	int		(*prepare)(struct clk_hw *hw);
+	void		(*unprepare)(struct clk_hw *hw);
+	int		(*is_prepared)(struct clk_hw *hw);
+	void		(*unprepare_unused)(struct clk_hw *hw);
+	int		(*enable)(struct clk_hw *hw);
+	void		(*disable)(struct clk_hw *hw);
+	int		(*is_enabled)(struct clk_hw *hw);
+	void		(*disable_unused)(struct clk_hw *hw);
+	int		(*save_context)(struct clk_hw *hw);
+	void		(*restore_context)(struct clk_hw *hw);
+	u64		(*recalc_rate)(struct clk_hw *hw, u64 parent_rate);
+	s64		(*round_rate)(struct clk_hw *hw, u64 rate,
+				      u64 *parent_rate);
+	int		(*determine_rate)(struct clk_hw *hw,
+					  struct clk_rate_request_64 *req);
+	int		(*set_parent)(struct clk_hw *hw, u8 index);
+	u8		(*get_parent)(struct clk_hw *hw);
+	int		(*set_rate)(struct clk_hw *hw, u64 rate,
+				    u64 parent_rate);
+	int		(*set_rate_and_parent)(struct clk_hw *hw,
+					       u64 rate,
+					       u64 parent_rate, u8 index);
+	unsigned long	(*recalc_accuracy)(struct clk_hw *hw,
+					   unsigned long parent_accuracy);
+	int		(*get_phase)(struct clk_hw *hw);
+	int		(*set_phase)(struct clk_hw *hw, int degrees);
+	int		(*get_duty_cycle)(struct clk_hw *hw,
+					  struct clk_duty *duty);
+	int		(*set_duty_cycle)(struct clk_hw *hw,
+					  struct clk_duty *duty);
+	int		(*init)(struct clk_hw *hw);
+	void		(*terminate)(struct clk_hw *hw);
+	void		(*debug_init)(struct clk_hw *hw, struct dentry *dentry);
+};
+
 /**
  * struct clk_parent_data - clk parent information
  * @hw: parent clk_hw pointer (used for clk providers with internal clks)
@@ -297,6 +373,7 @@ struct clk_parent_data {
 struct clk_init_data {
 	const char		*name;
 	const struct clk_ops	*ops;
+	const struct clk_ops_64	*ops_64;
 	/* Only one of the following three should be assigned */
 	const char		* const *parent_names;
 	const struct clk_parent_data	*parent_data;
@@ -1297,6 +1374,7 @@ int clk_hw_get_parent_index(struct clk_hw *hw);
 int clk_hw_set_parent(struct clk_hw *hw, struct clk_hw *new_parent);
 unsigned int __clk_get_enable_count(struct clk *clk);
 unsigned long clk_hw_get_rate(const struct clk_hw *hw);
+u64 clk_hw_get_rate_64(const struct clk_hw *hw);
 unsigned long clk_hw_get_flags(const struct clk_hw *hw);
 #define clk_hw_can_set_rate_parent(hw) \
 	(clk_hw_get_flags((hw)) & CLK_SET_RATE_PARENT)
@@ -1308,17 +1386,28 @@ bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 int __clk_mux_determine_rate(struct clk_hw *hw,
 			     struct clk_rate_request *req);
+int __clk_mux_determine_rate_64(struct clk_hw *hw,
+				struct clk_rate_request_64 *req);
 int __clk_determine_rate(struct clk_hw *core, struct clk_rate_request *req);
+int __clk_determine_rate_64(struct clk_hw *core,
+			    struct clk_rate_request_64 *req);
 int __clk_mux_determine_rate_closest(struct clk_hw *hw,
 				     struct clk_rate_request *req);
+int __clk_mux_determine_rate_closest_64(struct clk_hw *hw,
+					struct clk_rate_request_64 *req);
 int clk_mux_determine_rate_flags(struct clk_hw *hw,
 				 struct clk_rate_request *req,
 				 unsigned long flags);
+int clk_mux_determine_rate_flags_64(struct clk_hw *hw,
+				    struct clk_rate_request_64 *req,
+				    unsigned long flags);
 void clk_hw_reparent(struct clk_hw *hw, struct clk_hw *new_parent);
 void clk_hw_get_rate_range(struct clk_hw *hw, unsigned long *min_rate,
 			   unsigned long *max_rate);
+void clk_hw_get_rate_range_64(struct clk_hw *hw, u64 *min_rate, u64 *max_rate);
 void clk_hw_set_rate_range(struct clk_hw *hw, unsigned long min_rate,
 			   unsigned long max_rate);
+void clk_hw_set_rate_range_64(struct clk_hw *hw, u64 min_rate, u64 max_rate);
 
 static inline void __clk_hw_set_clk(struct clk_hw *dst, struct clk_hw *src)
 {
@@ -1350,6 +1439,7 @@ static inline long divider_ro_round_rate(struct clk_hw *hw, unsigned long rate,
  * FIXME clock api without lock protection
  */
 unsigned long clk_hw_round_rate(struct clk_hw *hw, unsigned long rate);
+u64 clk_hw_round_rate_64(struct clk_hw *hw, u64 rate);
 
 struct clk_onecell_data {
 	struct clk **clks;
