@@ -39,6 +39,7 @@ struct max96712_priv {
 	enum max96712_pattern pattern;
 };
 
+#if 0
 static int max96712_read(struct max96712_priv *priv, int reg)
 {
 	int ret, val;
@@ -51,6 +52,7 @@ static int max96712_read(struct max96712_priv *priv, int reg)
 
 	return val;
 }
+#endif
 
 static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 {
@@ -393,8 +395,10 @@ static int max96712_probe(struct i2c_client *client)
 	if (priv->gpiod_pwdn)
 		usleep_range(4000, 5000);
 
+#if 0
 	if (max96712_read(priv, 0x4a) != MAX96712_ID)
 		return -ENODEV;
+#endif
 
 	max96712_reset(priv);
 
