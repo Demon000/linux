@@ -378,6 +378,7 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 
 		if (!child) {
 			for_each_child_of_node(mux_node, child) {
+				dev_err(&parent->dev, "child node %pfw\n", of_fwnode_handle(child));
 				ret = of_property_read_u32(child, "reg", &reg);
 				if (ret)
 					continue;
@@ -387,6 +388,7 @@ int i2c_mux_add_adapter(struct i2c_mux_core *muxc,
 		}
 
 		priv->adap.dev.of_node = child;
+		dev_err(&parent->dev, "found child node %pfw\n", of_fwnode_handle(child));
 		of_node_put(mux_node);
 	}
 
