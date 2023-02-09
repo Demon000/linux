@@ -424,6 +424,7 @@ static int max96712_remove(struct i2c_client *client)
 
 static const struct of_device_id max96712_of_table[] = {
 	{ .compatible = "maxim,max96712" },
+	{ .compatible = "maxim,max96724" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, max96712_of_table);
