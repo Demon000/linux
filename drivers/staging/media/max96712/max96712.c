@@ -20,6 +20,9 @@
 
 #define MAX96712_DPLL_FREQ 1000
 
+#define MAX96712_PORT_START	4
+#define MAX96712_PORT_NUM	4
+
 enum max96712_pattern {
 	MAX96712_PATTERN_CHECKERBOARD = 0,
 	MAX96712_PATTERN_GRADIENT,
@@ -30,7 +33,9 @@ struct max96712_priv {
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
 
-	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	unsigned int lane_config;
+	struct v4l2_fwnode_bus_mipi_csi2 mipi[MAX96712_PORT_NUM];
+	bool mipi_en[MAX96712_PORT_NUM];
 
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
@@ -119,39 +124,79 @@ static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 	}
 }
 
+static void max96712_mipi_configure_phy(struct max96712_priv *priv, unsigned int index)
+{
+	unsigned int num_data_lanes = priv->mipi[index].num_data_lanes;
+	unsigned int reg, val, shift, mask, clk_bit;
+	unsigned int i;
+
+	/* Configure a lane count. */
+	/* TODO: Add support for 1-lane configurations. */
+	/* TODO: Add support CPHY mode. */
+	if (num_data_lanes == 4)
+		val = 0xc0;
+	else
+		val = 0x40;
+
+	max96712_update_bits(priv, 0x90a + 0x40 * index, 0xc0, val);
+
+	if (num_data_lanes == 4) {
+		mask = 0xff;
+		val = 0xe4;
+		shift = 0;
+	} else {
+		mask = 0xf;
+		val = 0x4;
+		shift = 4 * (index % 2);
+	}
+
+	reg = 0x8a3 + index / 2;
+
+	/* Configure lane mapping. */
+	/* TODO: Add support for lane swapping. */
+	max96712_update_bits(priv, reg, mask << shift, val << shift);
+
+	if (num_data_lanes == 4) {
+		mask = 0x3f;
+		clk_bit = 5;
+		shift = 0;
+	} else {
+		mask = 0x7;
+		clk_bit = 2;
+		shift = 4 * (index % 2);
+	}
+
+	reg = 0x8a5 + index / 2;
+
+	/* Configure lane polarity. */
+	for (i = 0; i < num_data_lanes + 1; i++)
+		if (priv->mipi[index].lane_polarities[i])
+			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
+	max96712_update_bits(priv, reg, mask << shift, val << shift);
+
+	/* Set link frequency. */
+	max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
+			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+
+	/* Enable. */
+	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
+}
+
 static void max96712_mipi_configure(struct max96712_priv *priv)
 {
 	unsigned int i;
-	u8 phy5 = 0;
 
 	max96712_mipi_enable(priv, false);
 
-	/* Select 2x4 mode. */
-	max96712_write(priv, 0x8a0, 0x04);
+	/* Select 2x4 or 4x2 mode. */
+	max96712_update_bits(priv, 0x8a0, 0x1f, 0x1 << priv->lane_config);
 
-	/* Configure a 4-lane DPHY using PHY0 and PHY1. */
-	/* TODO: Add support for 2-lane and 1-lane configurations. */
-	/* TODO: Add support CPHY mode. */
-	max96712_write(priv, 0x94a, 0xc0);
+	for (i = 0; i < MAX96712_PORT_NUM; i++) {
+		if (!priv->mipi_en[i])
+			continue;
 
-	/* Configure lane mapping for PHY0 and PHY1. */
-	/* TODO: Add support for lane swapping. */
-	max96712_write(priv, 0x8a3, 0xe4);
-
-	/* Configure lane polarity for PHY0 and PHY1. */
-	for (i = 0; i < priv->mipi.num_data_lanes + 1; i++)
-		if (priv->mipi.lane_polarities[i])
-			phy5 |= BIT(i == 0 ? 5 : i < 3 ? i - 1 : i);
-	max96712_write(priv, 0x8a5, phy5);
-
-	/* Set link frequency for PHY0 and PHY1. */
-	max96712_update_bits(priv, 0x415, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-	max96712_update_bits(priv, 0x418, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
-
-	/* Enable PHY0 and PHY1 */
-	max96712_update_bits(priv, 0x8a2, 0xf0, 0x30);
+		max96712_mipi_configure_phy(priv, i);
+	}
 }
 
 static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
@@ -296,7 +341,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	 * TODO: Once V4L2_CID_LINK_FREQ is changed from a menu control to an
 	 * INT64 control it should be used here instead of V4L2_CID_PIXEL_RATE.
 	 */
-	pixel_rate = MAX96712_DPLL_FREQ / priv->mipi.num_data_lanes * 1000000;
+	pixel_rate = MAX96712_DPLL_FREQ / priv->mipi[0].num_data_lanes * 1000000;
 	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_PIXEL_RATE,
 			  pixel_rate, pixel_rate, 1, pixel_rate);
 
@@ -330,7 +375,8 @@ error:
 	return ret;
 }
 
-static int max96712_parse_dt(struct max96712_priv *priv)
+static int max96712_parse_dt_endpoint(struct max96712_priv *priv, unsigned int index,
+				      unsigned int port_index)
 {
 	struct fwnode_handle *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
@@ -338,7 +384,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev), 4,
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev), port_index,
 					     0, 0);
 	if (!ep) {
 		dev_err(&priv->client->dev, "Not connected to subdevice\n");
@@ -352,12 +398,52 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		return -EINVAL;
 	}
 
-	if (v4l2_ep.bus.mipi_csi2.num_data_lanes != 4) {
-		dev_err(&priv->client->dev, "Only 4 data lanes supported\n");
+	priv->mipi[index] = v4l2_ep.bus.mipi_csi2;
+	priv->mipi_en[index] = true;
+
+	return 0;
+}
+
+static const unsigned int max96712_lane_configs[][MAX96712_PORT_NUM] = {
+	{ 2, 2, 2, 2 },
+	{ 0, 0, 0, 0 },
+	{ 0, 4, 0, 4 },
+	{ 0, 4, 2, 2 },
+	{ 2, 2, 0, 4 },
+};
+
+static int max96712_parse_dt(struct max96712_priv *priv)
+{
+	unsigned int i, j;
+	int ret;
+
+	for (i = 0; i < MAX96712_PORT_NUM; i++) {
+		ret = max96712_parse_dt_endpoint(priv, i, i + MAX96712_PORT_START);
+		if (ret < 0)
+			continue;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
+		bool matching = true;
+
+		for (j = 0; j < MAX96712_PORT_NUM; j++) {
+			if (priv->mipi_en[j] && priv->mipi[j].num_data_lanes !=
+			    max96712_lane_configs[i][j]) {
+				matching = false;
+				break;
+			}
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(max96712_lane_configs)) {
+		dev_err(&priv->client->dev, "Invalid lane configuration\n");
 		return -EINVAL;
 	}
 
-	priv->mipi = v4l2_ep.bus.mipi_csi2;
+	priv->lane_config = i;
 
 	return 0;
 }
