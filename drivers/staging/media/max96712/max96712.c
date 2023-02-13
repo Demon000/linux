@@ -419,7 +419,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 
 	for (i = 0; i < MAX96712_PORT_NUM; i++) {
 		ret = max96712_parse_dt_endpoint(priv, i, i + MAX96712_PORT_START);
-		if (ret < 0)
+		if (ret)
 			continue;
 	}
 
