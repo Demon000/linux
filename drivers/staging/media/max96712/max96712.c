@@ -189,7 +189,7 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	max96712_mipi_enable(priv, false);
 
 	/* Select 2x4 or 4x2 mode. */
-	max96712_update_bits(priv, 0x8a0, 0x1f, 0x1 << priv->lane_config);
+	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
 	for (i = 0; i < MAX96712_PORT_NUM; i++) {
 		if (!priv->mipi_en[i])
