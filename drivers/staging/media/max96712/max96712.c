@@ -169,6 +169,7 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv, unsigned int
 	reg = 0x8a5 + index / 2;
 
 	/* Configure lane polarity. */
+	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
 		if (priv->mipi[index].lane_polarities[i])
 			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
