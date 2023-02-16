@@ -20,8 +20,14 @@
 
 #define MAX96712_DPLL_FREQ 1000
 
-#define MAX96712_PORT_START	4
-#define MAX96712_PORT_NUM	4
+#define MAX96712_SINK_PAD_START		0
+#define MAX96712_SINK_PAD_NUM		4
+
+#define MAX96712_SRC_PAD_START		4
+#define MAX96712_SRC_PAD_NUM		4
+
+#define MAX96712_PAD_NUM		(MAX96712_SINK_PAD_NUM + \
+					 MAX96712_SRC_PAD_NUM)
 
 enum max96712_pattern {
 	MAX96712_PATTERN_CHECKERBOARD = 0,
@@ -34,12 +40,12 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	unsigned int lane_config;
-	struct v4l2_fwnode_bus_mipi_csi2 mipi[MAX96712_PORT_NUM];
-	bool mipi_en[MAX96712_PORT_NUM];
+	struct v4l2_fwnode_bus_mipi_csi2 mipi[MAX96712_SRC_PAD_NUM];
+	bool mipi_en[MAX96712_SRC_PAD_NUM];
 
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct media_pad pads[1];
+	struct media_pad pads[MAX96712_PAD_NUM];
 
 	enum max96712_pattern pattern;
 };
@@ -192,7 +198,7 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
-	for (i = 0; i < MAX96712_PORT_NUM; i++) {
+	for (i = 0; i < MAX96712_SRC_PAD_NUM; i++) {
 		if (!priv->mipi_en[i])
 			continue;
 
@@ -405,7 +411,7 @@ static int max96712_parse_dt_endpoint(struct max96712_priv *priv, unsigned int i
 	return 0;
 }
 
-static const unsigned int max96712_lane_configs[][MAX96712_PORT_NUM] = {
+static const unsigned int max96712_lane_configs[][MAX96712_SRC_PAD_NUM] = {
 	{ 2, 2, 2, 2 },
 	{ 0, 0, 0, 0 },
 	{ 0, 4, 0, 4 },
@@ -418,8 +424,8 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	unsigned int i, j;
 	int ret;
 
-	for (i = 0; i < MAX96712_PORT_NUM; i++) {
-		ret = max96712_parse_dt_endpoint(priv, i, i + MAX96712_PORT_START);
+	for (i = 0; i < MAX96712_SRC_PAD_NUM; i++) {
+		ret = max96712_parse_dt_endpoint(priv, i, i + MAX96712_SRC_PAD_START);
 		if (ret)
 			continue;
 	}
@@ -427,7 +433,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
 		bool matching = true;
 
-		for (j = 0; j < MAX96712_PORT_NUM; j++) {
+		for (j = 0; j < MAX96712_SRC_PAD_NUM; j++) {
 			if (priv->mipi_en[j] && priv->mipi[j].num_data_lanes !=
 			    max96712_lane_configs[i][j]) {
 				matching = false;
