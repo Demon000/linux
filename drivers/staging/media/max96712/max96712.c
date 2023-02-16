@@ -55,18 +55,46 @@ struct max96712_priv {
 
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX96712_PAD_NUM];
 	struct max96712_source sources[MAX96712_SINK_PAD_NUM];
 
 	unsigned int nsources;
 	unsigned int source_mask;
+	unsigned int bound_sources;
 
 	enum max96712_pattern pattern;
 };
 
+static struct max96712_source *next_source(struct max96712_priv *priv,
+					   struct max96712_source *source)
+{
+	if (!source)
+		source = &priv->sources[0];
+	else
+		source++;
+
+	for (; source < &priv->sources[MAX96712_SINK_PAD_NUM]; source++) {
+		if (source->fwnode)
+			return source;
+	}
+
+	return NULL;
+}
+
+#define for_each_source(priv, source) \
+	for ((source) = NULL; ((source) = next_source((priv), (source))); )
+
+#define to_index(priv, source) ((source) - &(priv)->sources[0])
+
 static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
 {
 	return container_of(asd, struct max96712_asd, base);
+}
+
+static inline struct max96712_priv *sd_to_max96712(struct v4l2_subdev *sd)
+{
+	return container_of(sd, struct max96712_priv, sd);
 }
 
 #if 0
@@ -287,6 +315,150 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 	}
 }
 
+static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
+				struct v4l2_subdev *subdev,
+				struct v4l2_async_subdev *asd)
+{
+	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
+	struct max96712_source *source = to_max96712_asd(asd)->source;
+	unsigned int index = to_index(priv, source);
+	unsigned int src_pad;
+	int ret;
+
+	ret = media_entity_get_fwnode_pad(&subdev->entity,
+					  source->fwnode,
+					  MEDIA_PAD_FL_SOURCE);
+	if (ret < 0) {
+		dev_err(&priv->client->dev,
+			"Failed to find pad for %s\n", subdev->name);
+		return ret;
+	}
+
+	priv->bound_sources |= BIT(index);
+	source->sd = subdev;
+	src_pad = ret;
+
+	ret = media_create_pad_link(&source->sd->entity, src_pad,
+				    &priv->sd.entity, index,
+				    MEDIA_LNK_FL_ENABLED |
+				    MEDIA_LNK_FL_IMMUTABLE);
+	if (ret) {
+		dev_err(&priv->client->dev,
+			"Unable to link %s:%u -> %s:%u\n",
+			source->sd->name, src_pad, priv->sd.name, index);
+		return ret;
+	}
+
+	dev_dbg(&priv->client->dev, "Bound %s pad: %u on index %u\n",
+		subdev->name, src_pad, index);
+
+	/*
+	 * As we register a subdev notifiers we won't get a .complete() callback
+	 * here, so we have to use bound_sources to identify when all remote
+	 * serializers have probed.
+	 */
+	if (priv->bound_sources != priv->source_mask)
+		return 0;
+
+	/*
+	 * Once all cameras have probed, increase the channel amplitude
+	 * to compensate for the remote noise immunity threshold and call
+	 * the camera post_register operation to complete initialization with
+	 * noise immunity enabled.
+	 */
+	// max96712_reverse_channel_setup(priv, max96712_REV_AMP_HIGH);
+	for_each_source(priv, source) {
+		ret = v4l2_subdev_call(source->sd, core, post_register);
+		if (ret) {
+			dev_err(&priv->client->dev,
+					"Failed to initialize camera device %u\n",
+					index);
+			return ret;
+		}
+	}
+
+	/*
+	 * All enabled sources have probed and enabled their reverse control
+	 * channels:
+	 *
+	 * - Verify all configuration links are properly detected
+	 * - Disable auto-ack as communication on the control channel are now
+	 *   stable.
+	 */
+	// max96712_check_config_link(priv, priv->source_mask);
+	// max96712_configure_i2c(priv, false);
+
+	return 0;
+}
+
+static void max96712_notify_unbind(struct v4l2_async_notifier *notifier,
+				  struct v4l2_subdev *subdev,
+				  struct v4l2_async_subdev *asd)
+{
+	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
+	struct max96712_source *source = to_max96712_asd(asd)->source;
+	unsigned int index = to_index(priv, source);
+
+	source->sd = NULL;
+	priv->bound_sources &= ~BIT(index);
+}
+
+static const struct v4l2_async_notifier_operations max96712_notify_ops = {
+	.bound = max96712_notify_bound,
+	.unbind = max96712_notify_unbind,
+};
+
+static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
+{
+	struct device *dev = &priv->client->dev;
+	struct max96712_source *source = NULL;
+	int ret;
+
+	if (!priv->nsources)
+		return 0;
+
+	v4l2_async_notifier_init(&priv->notifier);
+
+	for_each_source(priv, source) {
+		unsigned int i = to_index(priv, source);
+		struct max96712_asd *mas;
+
+		mas = (struct max96712_asd *)
+		      v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
+							    source->fwnode,
+							    sizeof(struct max96712_asd));
+		if (IS_ERR(mas)) {
+			dev_err(dev, "Failed to add subdev for source %u: %ld",
+				i, PTR_ERR(mas));
+			v4l2_async_notifier_cleanup(&priv->notifier);
+			return PTR_ERR(mas);
+		}
+
+		mas->source = source;
+	}
+
+	priv->notifier.ops = &max96712_notify_ops;
+	priv->notifier.flags |= V4L2_ASYNC_NOTIFIER_SKIP_POST_REGISTER;
+
+	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
+	if (ret) {
+		dev_err(dev, "Failed to register subdev_notifier");
+		v4l2_async_notifier_cleanup(&priv->notifier);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void max96712_v4l2_notifier_unregister(struct max96712_priv *priv)
+{
+	if (!priv->nsources)
+		return;
+
+	v4l2_async_notifier_unregister(&priv->notifier);
+	v4l2_async_notifier_cleanup(&priv->notifier);
+}
+
 static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
@@ -358,6 +530,13 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	unsigned int i;
 	int ret;
 
+	/* Register v4l2 async notifiers for connected Camera subdevices */
+	ret = max96712_v4l2_notifier_register(priv);
+	if (ret) {
+		dev_err(&priv->client->dev, "Unable to register V4L2 async notifiers\n");
+		return ret;
+	}
+
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
@@ -401,6 +580,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	return 0;
 error:
 	v4l2_ctrl_handler_free(&priv->ctrl_handler);
+	max96712_v4l2_notifier_unregister(priv);
 
 	return ret;
 }
