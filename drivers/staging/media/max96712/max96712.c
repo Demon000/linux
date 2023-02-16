@@ -585,6 +585,12 @@ error:
 	return ret;
 }
 
+static void max96712_v4l2_unregister(struct max96712_priv *priv)
+{
+	max96712_v4l2_notifier_unregister(priv);
+	v4l2_async_unregister_subdev(&priv->sd);
+}
+
 static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
 					  unsigned int index,
 					  unsigned int port_index)
@@ -745,7 +751,7 @@ static int max96712_remove(struct i2c_client *client)
 {
 	struct max96712_priv *priv = i2c_get_clientdata(client);
 
-	v4l2_async_unregister_subdev(&priv->sd);
+	max96712_v4l2_unregister(priv);
 
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 
