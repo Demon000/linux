@@ -336,6 +336,7 @@ static const struct v4l2_ctrl_ops max96712_ctrl_ops = {
 static int max96712_v4l2_register(struct max96712_priv *priv)
 {
 	long pixel_rate;
+	unsigned int i;
 	int ret;
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
@@ -362,8 +363,11 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	if (ret)
 		goto error;
 
-	priv->pads[0].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_pads_init(&priv->sd.entity, 1, priv->pads);
+	for (i = 0; i < MAX96712_PAD_NUM; i++)
+		priv->pads[i].flags = i < MAX96712_SRC_PAD_START ? MEDIA_PAD_FL_SINK
+								 : MEDIA_PAD_FL_SOURCE;
+
+	ret = media_entity_pads_init(&priv->sd.entity, MAX96712_PAD_NUM, priv->pads);
 	if (ret)
 		goto error;
 
