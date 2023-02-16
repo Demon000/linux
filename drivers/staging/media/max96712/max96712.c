@@ -29,6 +29,16 @@
 #define MAX96712_PAD_NUM		(MAX96712_SINK_PAD_NUM + \
 					 MAX96712_SRC_PAD_NUM)
 
+struct max96712_source {
+	struct v4l2_subdev *sd;
+	struct fwnode_handle *fwnode;
+};
+
+struct max96712_asd {
+	struct v4l2_async_subdev base;
+	struct max96712_source *source;
+};
+
 enum max96712_pattern {
 	MAX96712_PATTERN_CHECKERBOARD = 0,
 	MAX96712_PATTERN_GRADIENT,
@@ -46,9 +56,18 @@ struct max96712_priv {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct media_pad pads[MAX96712_PAD_NUM];
+	struct max96712_source sources[MAX96712_SINK_PAD_NUM];
+
+	unsigned int nsources;
+	unsigned int source_mask;
 
 	enum max96712_pattern pattern;
 };
+
+static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
+{
+	return container_of(asd, struct max96712_asd, base);
+}
 
 #if 0
 static int max96712_read(struct max96712_priv *priv, int reg)
@@ -386,8 +405,9 @@ error:
 	return ret;
 }
 
-static int max96712_parse_dt_endpoint(struct max96712_priv *priv, unsigned int index,
-				      unsigned int port_index)
+static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
+					  unsigned int index,
+					  unsigned int port_index)
 {
 	struct fwnode_handle *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
@@ -395,8 +415,8 @@ static int max96712_parse_dt_endpoint(struct max96712_priv *priv, unsigned int i
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev), port_index,
-					     0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev),
+					     port_index, 0, 0);
 	if (!ep) {
 		dev_err(&priv->client->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -415,6 +435,33 @@ static int max96712_parse_dt_endpoint(struct max96712_priv *priv, unsigned int i
 	return 0;
 }
 
+static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
+					   unsigned int index)
+{
+	struct max96712_source *source;
+	struct fwnode_handle *ep;
+
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev),
+					     index, 0, 0);
+	if (!ep) {
+		dev_err(&priv->client->dev, "Not connected to subdevice\n");
+		return -EINVAL;
+	}
+
+	source = &priv->sources[index];
+	source->fwnode = fwnode_graph_get_remote_endpoint(ep);
+	if (!source->fwnode) {
+		dev_err(&priv->client->dev, "Not connected to remote endpoint\n");
+
+		return -EINVAL;
+	}
+
+	priv->source_mask |= BIT(index);
+	priv->nsources++;
+
+	return 0;
+}
+
 static const unsigned int max96712_lane_configs[][MAX96712_SRC_PAD_NUM] = {
 	{ 2, 2, 2, 2 },
 	{ 0, 0, 0, 0 },
@@ -428,8 +475,14 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	unsigned int i, j;
 	int ret;
 
+	for (i = 0; i < MAX96712_SINK_PAD_NUM; i++) {
+		ret = max96712_parse_sink_dt_endpoint(priv, i);
+		if (ret)
+			continue;
+	}
+
 	for (i = 0; i < MAX96712_SRC_PAD_NUM; i++) {
-		ret = max96712_parse_dt_endpoint(priv, i, i + MAX96712_SRC_PAD_START);
+		ret = max96712_parse_src_dt_endpoint(priv, i, i + MAX96712_SRC_PAD_START);
 		if (ret)
 			continue;
 	}
