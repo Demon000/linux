@@ -585,7 +585,7 @@ error:
 	return ret;
 }
 
-static void max96712_v4l2_unregister(struct max9286_priv *priv)
+static void max96712_v4l2_unregister(struct max96712_priv *priv)
 {
 	max96712_v4l2_notifier_unregister(priv);
 	v4l2_async_unregister_subdev(&priv->sd);
