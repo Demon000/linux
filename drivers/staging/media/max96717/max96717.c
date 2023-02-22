@@ -118,7 +118,7 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max96717_device *max96717 = sd_to_max96717(sd);
@@ -128,7 +128,7 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int max96717_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
 	struct max96717_device *max96717 = sd_to_max96717(sd);
@@ -138,7 +138,7 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int max96717_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
 	struct max96717_device *max96717 = sd_to_max96717(sd);
@@ -325,7 +325,7 @@ static int max96717_parse_dt(struct max96717_device *max96717)
 
 	v4l2_async_notifier_init(&max96717->notifier);
 	max96717->asd = v4l2_async_notifier_add_fwnode_subdev(&max96717->notifier,
-					      remote, struct v4l2_async_subdev);
+					      remote, sizeof(struct v4l2_async_subdev));
 	fwnode_handle_put(remote);
 	if (IS_ERR(max96717->asd))
 		return PTR_ERR(max96717->asd);
