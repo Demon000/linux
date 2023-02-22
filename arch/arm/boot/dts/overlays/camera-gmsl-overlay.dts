@@ -15,7 +15,7 @@
 			#size-cells = <0>;
 			status = "okay";
 
-			gmsl0: gmsl-deserializer@27 {
+			gmsl_deserializer: gmsl-deserializer@27 {
 				compatible = "maxim,max96712";
 				reg = <0x27>;
 
