@@ -612,7 +612,7 @@ static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
 	fwnode_handle_put(ep);
 	if (ret) {
 		dev_err(&priv->client->dev, "Could not parse v4l2 endpoint\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	priv->mipi[index] = v4l2_ep.bus.mipi_csi2;
