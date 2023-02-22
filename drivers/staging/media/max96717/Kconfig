@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_MAX96717
+	tristate "Maxim MAX96712 GMSL2 Serializer support"
+	depends on I2C
+	depends on OF_GPIO
+	depends on VIDEO_V4L2
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	help
+	  This driver supports the Maxim MAX96717 GMSL2 Seserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96717.
