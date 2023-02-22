@@ -108,291 +108,13 @@ static inline struct max96717_device *notifier_to_max96717(
 	return container_of(nf, struct max96717_device, notifier);
 }
 
-/* --- MAX96717 hardware operations --- */
-
-static int max96717_read(struct max96717_device *dev, u8 reg)
-{
-	int ret;
-
-	dev_dbg(&dev->client->dev, "%s(0x%02x)\n", __func__, reg);
-
-	ret = i2c_smbus_read_byte_data(dev->client, reg);
-	if (ret < 0)
-		dev_dbg(&dev->client->dev,
-			"%s: register 0x%02x read failed (%d)\n",
-			__func__, reg, ret);
-
-	return ret;
-}
-
-static int max96717_write(struct max96717_device *dev, u8 reg, u8 val)
-{
-	int ret;
-
-	dev_dbg(&dev->client->dev, "%s(0x%02x, 0x%02x)\n", __func__, reg, val);
-
-	ret = i2c_smbus_write_byte_data(dev->client, reg, val);
-	if (ret < 0)
-		dev_err(&dev->client->dev,
-			"%s: register 0x%02x write failed (%d)\n",
-			__func__, reg, ret);
-
-	return ret;
-}
-
-/*
- * max96717_pclk_detect() - Detect valid pixel clock from image sensor
- *
- * Wait up to 10ms for a valid pixel clock.
- *
- * Returns 0 for success, < 0 for pixel clock not properly detected
- */
-static int max96717_pclk_detect(struct max96717_device *dev)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < 100; i++) {
-		ret = max96717_read(dev, 0x15);
-		if (ret < 0)
-			return ret;
-
-		if (ret & MAX96717_PCLKDET)
-			return 0;
-
-		usleep_range(50, 100);
-	}
-
-	dev_err(&dev->client->dev, "Unable to detect valid pixel clock\n");
-
-	return -EIO;
-}
-*/
-
-static void max96717_wake_up(struct max96717_device *dev)
-{
-	/*
-	 * Use the chip default address as this function has to be called
-	 * before any other one.
-	 */
-	dev->client->addr = MAX96717_DEFAULT_ADDR;
-	i2c_smbus_read_byte(dev->client);
-	usleep_range(5000, 8000);
-}
-
-static int max96717_set_serial_link(struct max96717_device *dev, bool enable)
-{
-	int ret;
-	u8 val = MAX96717_REVCCEN | MAX96717_FWDCCEN;
-
-	if (enable) {
-		ret = max96717_pclk_detect(dev);
-		if (ret)
-			return ret;
-
-		val |= MAX96717_SEREN;
-	} else {
-		val |= MAX96717_CLINKEN;
-	}
-
-	/*
-	 * The serializer temporarily disables the reverse control channel for
-	 * 350µs after starting/stopping the forward serial link, but the
-	 * deserializer synchronization time isn't clearly documented.
-	 *
-	 * According to the serializer datasheet we should wait 3ms, while
-	 * according to the deserializer datasheet we should wait 5ms.
-	 *
-	 * Short delays here appear to show bit-errors in the writes following.
-	 * Therefore a conservative delay seems best here.
-	 */
-	ret = max96717_write(dev, 0x04, val);
-	if (ret < 0)
-		return ret;
-
-	usleep_range(5000, 8000);
-
-	return 0;
-}
-
-static int max96717_configure_i2c(struct max96717_device *dev, u8 i2c_config)
-{
-	int ret;
-
-	ret = max96717_write(dev, 0x0d, i2c_config);
-	if (ret < 0)
-		return ret;
-
-	/* The delay required after an I2C bus configuration change is not
-	 * characterized in the serializer manual. Sleep up to 5msec to
-	 * stay safe.
-	 */
-	usleep_range(3500, 5000);
-
-	return 0;
-}
-
-static int max96717_set_high_threshold(struct max96717_device *dev, bool enable)
-{
-	int ret;
-
-	ret = max96717_read(dev, 0x08);
-	if (ret < 0)
-		return ret;
-
-	/*
-	 * Enable or disable reverse channel high threshold to increase
-	 * immunity to power supply noise.
-	 */
-	ret = max96717_write(dev, 0x08, enable ? ret | BIT(0) : ret & ~BIT(0));
-	if (ret < 0)
-		return ret;
-
-	usleep_range(2000, 2500);
-
-	return 0;
-}
-
-static int max96717_configure_gmsl_link(struct max96717_device *dev)
-{
-	int ret;
-
-	/*
-	 * Configure the GMSL link:
-	 *
-	 * - Double input mode, high data rate, 24-bit mode
-	 * - Latch input data on PCLKIN rising edge
-	 * - Enable HS/VS encoding
-	 * - 1-bit parity error detection
-	 *
-	 * TODO: Make the GMSL link configuration parametric.
-	 */
-	ret = max96717_write(dev, 0x07, MAX96717_DBL | MAX96717_HVEN |
-			    MAX96717_EDC_1BIT_PARITY);
-	if (ret < 0)
-		return ret;
-
-	usleep_range(5000, 8000);
-
-	/*
-	 * Adjust spread spectrum to +4% and auto-detect pixel clock
-	 * and serial link rate.
-	 */
-	ret = max96717_write(dev, 0x02,
-			    MAX96717_SPREAD_SPECT_4 | MAX96717_R02_RES |
-			    MAX96717_PCLK_AUTODETECT |
-			    MAX96717_SERIAL_AUTODETECT);
-	if (ret < 0)
-		return ret;
-
-	usleep_range(5000, 8000);
-
-	return 0;
-}
-
-static int max96717_set_gpios(struct max96717_device *dev, u8 gpio_mask)
-{
-	int ret;
-
-	ret = max96717_read(dev, 0x0f);
-	if (ret < 0)
-		return 0;
-
-	ret |= gpio_mask;
-	ret = max96717_write(dev, 0x0f, ret);
-	if (ret < 0) {
-		dev_err(&dev->client->dev, "Failed to set gpio (%d)\n", ret);
-		return ret;
-	}
-
-	usleep_range(3500, 5000);
-
-	return 0;
-}
-
-static int max96717_clear_gpios(struct max96717_device *dev, u8 gpio_mask)
-{
-	int ret;
-
-	ret = max96717_read(dev, 0x0f);
-	if (ret < 0)
-		return 0;
-
-	ret &= ~gpio_mask;
-	ret = max96717_write(dev, 0x0f, ret);
-	if (ret < 0) {
-		dev_err(&dev->client->dev, "Failed to clear gpio (%d)\n", ret);
-		return ret;
-	}
-
-	usleep_range(3500, 5000);
-
-	return 0;
-}
-
-static int max96717_enable_gpios(struct max96717_device *dev, u8 gpio_mask)
-{
-	int ret;
-
-	ret = max96717_read(dev, 0x0e);
-	if (ret < 0)
-		return 0;
-
-	/* BIT(0) reserved: GPO is always enabled. */
-	ret |= (gpio_mask & ~BIT(0));
-	ret = max96717_write(dev, 0x0e, ret);
-	if (ret < 0) {
-		dev_err(&dev->client->dev, "Failed to enable gpio (%d)\n", ret);
-		return ret;
-	}
-
-	usleep_range(3500, 5000);
-
-	return 0;
-}
-
-static int max96717_verify_id(struct max96717_device *dev)
-{
-	int ret;
-
-	ret = max96717_read(dev, 0x1e);
-	if (ret < 0) {
-		dev_err(&dev->client->dev, "MAX96717 ID read failed (%d)\n",
-			ret);
-		return ret;
-	}
-
-	if (ret != MAX96717_ID) {
-		dev_err(&dev->client->dev, "MAX96717 ID mismatch (0x%02x)\n",
-			ret);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
-static int max96717_set_address(struct max96717_device *dev, u8 addr)
-{
-	int ret;
-
-	ret = max96717_write(dev, 0x00, addr << 1);
-	if (ret < 0) {
-		dev_err(&dev->client->dev,
-			"MAX96717 I2C address change failed (%d)\n", ret);
-		return ret;
-	}
-	usleep_range(3500, 5000);
-
-	return 0;
-}
-
-/* --- V4L2 Subdev Ops --- */
-
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct max96717_device *max96717 = sd_to_max96717(sd);
+	// struct max96717_device *max96717 = sd_to_max96717(sd);
 
-	return max96717_set_serial_link(max96717, enable);
+	// return max96717_set_serial_link(max96717, enable);
+
+	return 0;
 }
 
 static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
@@ -427,20 +149,20 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 
 static int max96717_post_register(struct v4l2_subdev *sd)
 {
-	struct max96717_device *max96717 = sd_to_max96717(sd);
-	int ret;
+	// struct max96717_device *max96717 = sd_to_max96717(sd);
+	// int ret;
 
-	ret = max96717_verify_id(max96717);
-	if (ret < 0)
-		return ret;
+	// ret = max96717_verify_id(max96717);
+	// if (ret < 0)
+	// 	return ret;
 
-	ret = max96717_enable_gpios(max96717, MAX96717_GPIO1OUT);
-	if (ret)
-		return ret;
+	// ret = max96717_enable_gpios(max96717, MAX96717_GPIO1OUT);
+	// if (ret)
+	// 	return ret;
 
-	ret = max96717_configure_gmsl_link(max96717);
-	if (ret)
-		return ret;
+	// ret = max96717_configure_gmsl_link(max96717);
+	// if (ret)
+	// 	return ret;
 
 	return 0;
 }
@@ -517,20 +239,20 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	 * Hold OV10635 in reset during max96717 configuration. The reset signal
 	 * has to be asserted for at least 200 microseconds.
 	 */
-	ret = max96717_clear_gpios(max96717, MAX96717_GPIO1OUT);
-	if (ret)
-		return ret;
-	usleep_range(200, 500);
+	// ret = max96717_clear_gpios(max96717, MAX96717_GPIO1OUT);
+	// if (ret)
+	// 	return ret;
+	// usleep_range(200, 500);
 
 	/*
 	 * Release ov10635 from reset and initialize it. The image sensor
 	 * requires at least 2048 XVCLK cycles (85 micro-seconds at 24MHz)
 	 * before being available. Stay safe and wait up to 500 micro-seconds.
 	 */
-	ret = max96717_set_gpios(max96717, MAX96717_GPIO1OUT);
-	if (ret)
-		return ret;
-	usleep_range(100, 500);
+	// ret = max96717_set_gpios(max96717, MAX96717_GPIO1OUT);
+	// if (ret)
+	// 	return ret;
+	// usleep_range(100, 500);
 
 	/*
 	 * Call the sensor post_register operation to complete its
@@ -622,33 +344,33 @@ static int max96717_parse_dt(struct max96717_device *max96717)
 
 static int max96717_init(struct max96717_device *max96717)
 {
-	int ret;
-	u8 addr;
+	// int ret;
+	// u8 addr;
 
-	max96717_wake_up(max96717);
+	// max96717_wake_up(max96717);
 
 	/* Re-program the chip address. */
-	addr = max96717->client->addr;
-	max96717->client->addr = MAX96717_DEFAULT_ADDR;
-	ret = max96717_set_address(max96717, addr);
-	if (ret < 0)
-		return ret;
-	max96717->client->addr = addr;
+	// addr = max96717->client->addr;
+	// max96717->client->addr = MAX96717_DEFAULT_ADDR;
+	// ret = max96717_set_address(max96717, addr);
+	// if (ret < 0)
+	// 	return ret;
+	// max96717->client->addr = addr;
 
 	/* Serial link disabled during conf as it needs a valid pixel clock. */
-	ret = max96717_set_serial_link(max96717, false);
-	if (ret)
-		return ret;
+	// ret = max96717_set_serial_link(max96717, false);
+	// if (ret)
+	// 	return ret;
 
 	/*
 	 *  Ensure that we have a good link configuration before attempting to
 	 *  identify the device.
 	 */
-	ret = max96717_configure_i2c(max96717, MAX96717_I2CSLVSH_469NS_234NS |
-					     MAX96717_I2CSLVTO_1024US |
-					     MAX96717_I2CMSTBT_105KBPS);
-	if (ret)
-		return ret;
+	// ret = max96717_configure_i2c(max96717, MAX96717_I2CSLVSH_469NS_234NS |
+	// 				     MAX96717_I2CSLVTO_1024US |
+	// 				     MAX96717_I2CMSTBT_105KBPS);
+	// if (ret)
+	// 	return ret;
 
 	/*
 	 * Set reverse channel high threshold to increase noise immunity.
@@ -656,7 +378,9 @@ static int max96717_init(struct max96717_device *max96717)
 	 * This should be compensated by increasing the reverse channel
 	 * amplitude on the remote deserializer side.
 	 */
-	return max96717_set_high_threshold(max96717, true);
+	// return max96717_set_high_threshold(max96717, true);
+
+	return 0;
 }
 
 static int max96717_probe(struct i2c_client *client)
