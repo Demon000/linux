@@ -435,7 +435,6 @@ static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
 
 	priv->notifier.ops = &max96712_notify_ops;
 	priv->notifier.flags |= V4L2_ASYNC_NOTIFIER_DEFER_POST_REGISTER;
-
 	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
 	if (ret) {
 		dev_err(priv->dev, "Failed to register subdev_notifier");
