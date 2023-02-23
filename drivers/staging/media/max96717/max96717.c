@@ -35,8 +35,7 @@ static inline struct max96717_priv *i2c_to_max96717(struct i2c_client *client)
 	return sd_to_max96717(i2c_get_clientdata(client));
 }
 
-static inline struct max96717_priv *notifier_to_max96717(
-						struct v4l2_async_notifier *nf)
+static inline struct max96717_priv *notifier_to_max96717(struct v4l2_async_notifier *nf)
 {
 	return container_of(nf, struct max96717_priv, notifier);
 }
@@ -47,33 +46,30 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_pad_config *cfg,
-				  struct v4l2_subdev_mbus_code_enum *code)
+				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, NULL,
-				code);
+	return v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, NULL, code);
 }
 
 static int max96717_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *format)
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL,
-				format);
+	return v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL, format);
 }
 
 static int max96717_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_pad_config *cfg,
-			   struct v4l2_subdev_format *format)
+			    struct v4l2_subdev_pad_config *cfg,
+			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL,
-				format);
+	return v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL, format);
 }
 
 static int max96717_post_register(struct v4l2_subdev *sd)
@@ -102,8 +98,8 @@ static const struct v4l2_subdev_ops max96717_subdev_ops = {
 };
 
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
-				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				 struct v4l2_subdev *subdev,
+				 struct v4l2_async_subdev *asd)
 {
 	struct max96717_priv *priv = notifier_to_max96717(notifier);
 	int ret, pad;
@@ -171,8 +167,8 @@ error_free_handler:
 }
 
 static void max96717_notify_unbind(struct v4l2_async_notifier *notifier,
-				  struct v4l2_subdev *subdev,
-				  struct v4l2_async_subdev *asd)
+				   struct v4l2_subdev *subdev,
+				   struct v4l2_async_subdev *asd)
 {
 	struct max96717_priv *priv = notifier_to_max96717(notifier);
 
