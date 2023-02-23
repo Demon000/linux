@@ -55,7 +55,7 @@
 					#size-cells = <0>;
 
 					port@0 {
-						reg = <6>;
+						reg = <0>;
 						max96717_out0: endpoint {
 							remote-endpoint = <&max96712_in0>;
 							clock-lanes = <0>;
