@@ -1361,6 +1361,8 @@ static int imx219_post_register(struct v4l2_subdev *sd)
 	struct device *dev = &client->dev;
 	int ret;
 
+	dev_err(dev, "Called post_register\n");
+
 	/*
 	 * The sensor must be powered for imx219_identify_module()
 	 * to be able to read the CHIP_ID register
