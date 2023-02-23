@@ -12,73 +12,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define MAX96717_DEFAULT_ADDR	0x40
-
-/* Register 0x02 */
-#define MAX96717_SPREAD_SPECT_0		(0 << 5)
-#define MAX96717_SPREAD_SPECT_05		(1 << 5)
-#define MAX96717_SPREAD_SPECT_15		(2 << 5)
-#define MAX96717_SPREAD_SPECT_1		(5 << 5)
-#define MAX96717_SPREAD_SPECT_2		(3 << 5)
-#define MAX96717_SPREAD_SPECT_3		(6 << 5)
-#define MAX96717_SPREAD_SPECT_4		(7 << 5)
-#define MAX96717_R02_RES			BIT(4)
-#define MAX96717_PCLK_AUTODETECT		(3 << 2)
-#define MAX96717_SERIAL_AUTODETECT	(0x03)
-/* Register 0x04 */
-#define MAX96717_SEREN			BIT(7)
-#define MAX96717_CLINKEN			BIT(6)
-#define MAX96717_PRBSEN			BIT(5)
-#define MAX96717_SLEEP			BIT(4)
-#define MAX96717_INTTYPE_I2C		(0 << 2)
-#define MAX96717_INTTYPE_UART		(1 << 2)
-#define MAX96717_INTTYPE_NONE		(2 << 2)
-#define MAX96717_REVCCEN			BIT(1)
-#define MAX96717_FWDCCEN			BIT(0)
-/* Register 0x07 */
-#define MAX96717_DBL			BIT(7)
-#define MAX96717_DRS			BIT(6)
-#define MAX96717_BWS			BIT(5)
-#define MAX96717_ES			BIT(4)
-#define MAX96717_HVEN			BIT(2)
-#define MAX96717_EDC_1BIT_PARITY		(0 << 0)
-#define MAX96717_EDC_6BIT_CRC		(1 << 0)
-#define MAX96717_EDC_6BIT_HAMMING	(2 << 0)
-/* Register 0x08 */
-#define MAX96717_INVVS			BIT(7)
-#define MAX96717_INVHS			BIT(6)
-#define MAX96717_REV_LOGAIN		BIT(3)
-#define MAX96717_REV_HIVTH		BIT(0)
-/* Register 0x09 */
-#define MAX96717_ID			0x09
-/* Register 0x0d */
-#define MAX96717_I2CLOCACK		BIT(7)
-#define MAX96717_I2CSLVSH_1046NS_469NS	(3 << 5)
-#define MAX96717_I2CSLVSH_938NS_352NS	(2 << 5)
-#define MAX96717_I2CSLVSH_469NS_234NS	(1 << 5)
-#define MAX96717_I2CSLVSH_352NS_117NS	(0 << 5)
-#define MAX96717_I2CMSTBT_837KBPS	(7 << 2)
-#define MAX96717_I2CMSTBT_533KBPS	(6 << 2)
-#define MAX96717_I2CMSTBT_339KBPS	(5 << 2)
-#define MAX96717_I2CMSTBT_173KBPS	(4 << 2)
-#define MAX96717_I2CMSTBT_105KBPS	(3 << 2)
-#define MAX96717_I2CMSTBT_84KBPS		(2 << 2)
-#define MAX96717_I2CMSTBT_28KBPS		(1 << 2)
-#define MAX96717_I2CMSTBT_8KBPS		(0 << 2)
-#define MAX96717_I2CSLVTO_NONE		(3 << 0)
-#define MAX96717_I2CSLVTO_1024US		(2 << 0)
-#define MAX96717_I2CSLVTO_256US		(1 << 0)
-#define MAX96717_I2CSLVTO_64US		(0 << 0)
-/* Register 0x0f */
-#define MAX96717_GPIO5OUT		BIT(5)
-#define MAX96717_GPIO4OUT		BIT(4)
-#define MAX96717_GPIO3OUT		BIT(3)
-#define MAX96717_GPIO2OUT		BIT(2)
-#define MAX96717_GPIO1OUT		BIT(1)
-#define MAX96717_GPO			BIT(0)
-/* Register 0x15 */
-#define MAX96717_PCLKDET			BIT(0)
-
 struct max96717_device {
 	struct device			*dev;
 	struct i2c_client		*client;
@@ -110,10 +43,6 @@ static inline struct max96717_device *notifier_to_max96717(
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	// struct max96717_device *max96717 = sd_to_max96717(sd);
-
-	// return max96717_set_serial_link(max96717, enable);
-
 	return 0;
 }
 
@@ -149,21 +78,6 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 
 static int max96717_post_register(struct v4l2_subdev *sd)
 {
-	// struct max96717_device *max96717 = sd_to_max96717(sd);
-	// int ret;
-
-	// ret = max96717_verify_id(max96717);
-	// if (ret < 0)
-	// 	return ret;
-
-	// ret = max96717_enable_gpios(max96717, MAX96717_GPIO1OUT);
-	// if (ret)
-	// 	return ret;
-
-	// ret = max96717_configure_gmsl_link(max96717);
-	// if (ret)
-	// 	return ret;
-
 	return 0;
 }
 
@@ -186,8 +100,6 @@ static const struct v4l2_subdev_ops max96717_subdev_ops = {
 	.video		= &max96717_video_ops,
 	.pad		= &max96717_subdev_pad_ops,
 };
-
-/* --- V4L2 Async Notifier --- */
 
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
@@ -234,25 +146,6 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 		goto error_free_handler;
 
 	max96717->sensor = subdev;
-
-	/*
-	 * Hold OV10635 in reset during max96717 configuration. The reset signal
-	 * has to be asserted for at least 200 microseconds.
-	 */
-	// ret = max96717_clear_gpios(max96717, MAX96717_GPIO1OUT);
-	// if (ret)
-	// 	return ret;
-	// usleep_range(200, 500);
-
-	/*
-	 * Release ov10635 from reset and initialize it. The image sensor
-	 * requires at least 2048 XVCLK cycles (85 micro-seconds at 24MHz)
-	 * before being available. Stay safe and wait up to 500 micro-seconds.
-	 */
-	// ret = max96717_set_gpios(max96717, MAX96717_GPIO1OUT);
-	// if (ret)
-	// 	return ret;
-	// usleep_range(100, 500);
 
 	/*
 	 * Call the sensor post_register operation to complete its
@@ -344,42 +237,6 @@ static int max96717_parse_dt(struct max96717_device *max96717)
 
 static int max96717_init(struct max96717_device *max96717)
 {
-	// int ret;
-	// u8 addr;
-
-	// max96717_wake_up(max96717);
-
-	/* Re-program the chip address. */
-	// addr = max96717->client->addr;
-	// max96717->client->addr = MAX96717_DEFAULT_ADDR;
-	// ret = max96717_set_address(max96717, addr);
-	// if (ret < 0)
-	// 	return ret;
-	// max96717->client->addr = addr;
-
-	/* Serial link disabled during conf as it needs a valid pixel clock. */
-	// ret = max96717_set_serial_link(max96717, false);
-	// if (ret)
-	// 	return ret;
-
-	/*
-	 *  Ensure that we have a good link configuration before attempting to
-	 *  identify the device.
-	 */
-	// ret = max96717_configure_i2c(max96717, MAX96717_I2CSLVSH_469NS_234NS |
-	// 				     MAX96717_I2CSLVTO_1024US |
-	// 				     MAX96717_I2CMSTBT_105KBPS);
-	// if (ret)
-	// 	return ret;
-
-	/*
-	 * Set reverse channel high threshold to increase noise immunity.
-	 *
-	 * This should be compensated by increasing the reverse channel
-	 * amplitude on the remote deserializer side.
-	 */
-	// return max96717_set_high_threshold(max96717, true);
-
 	return 0;
 }
 
