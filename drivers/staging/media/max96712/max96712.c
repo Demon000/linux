@@ -375,6 +375,7 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	 * the camera post_register operation to complete initialization with
 	 * noise immunity enabled.
 	 */
+	dev_err(priv->dev, "Calling post_register\n");
 	for_each_source(priv, source) {
 		ret = v4l2_subdev_call(source->sd, core, post_register);
 		if (ret) {
