@@ -281,6 +281,10 @@ static int max96717_probe(struct i2c_client *client)
 	priv->dev = &client->dev;
 	priv->client = client;
 
+	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
+
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&priv->sd, client, &max96717_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -303,10 +307,6 @@ static int max96717_probe(struct i2c_client *client)
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret)
 		goto error_put_node;
-
-	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
 
 	ret = max96717_parse_dt(priv);
 	if (ret)
