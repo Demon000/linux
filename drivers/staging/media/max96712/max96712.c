@@ -325,8 +325,8 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 }
 
 static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
-				struct v4l2_subdev *subdev,
-				struct v4l2_async_subdev *asd)
+				 struct v4l2_subdev *subdev,
+				 struct v4l2_async_subdev *asd)
 {
 	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
 	struct max96712_source *source = to_max96712_asd(asd)->source;
@@ -389,8 +389,8 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 }
 
 static void max96712_notify_unbind(struct v4l2_async_notifier *notifier,
-				  struct v4l2_subdev *subdev,
-				  struct v4l2_async_subdev *asd)
+				   struct v4l2_subdev *subdev,
+				   struct v4l2_async_subdev *asd)
 {
 	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
 	struct max96712_source *source = to_max96712_asd(asd)->source;
