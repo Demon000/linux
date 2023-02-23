@@ -285,6 +285,15 @@ static int max96717_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
+	/*
+	 * Enable forwarding of GPIO 0.
+	 */
+
+	/* GPIO_A GPIO_RX_EN 1 */
+	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
+	/* GPIO_A GPIO_OUT_DIS 0 */
+	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
+
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&priv->sd, client, &max96717_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
