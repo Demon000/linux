@@ -301,6 +301,7 @@ static int max96717_probe(struct i2c_client *client)
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	priv->pads[MAX96717_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	priv->pads[MAX96717_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
+	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 	ret = media_entity_pads_init(&priv->sd.entity, 2, priv->pads);
 	if (ret < 0)
