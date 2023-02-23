@@ -28,9 +28,6 @@
 
 						max96712_in0: endpoint {
 							remote-endpoint = <&max96717_out0>;
-							clock-lanes = <0>;
-							data-lanes = <1 2>;
-							clock-noncontinuous;
 						};
 					};
 
@@ -58,9 +55,6 @@
 						reg = <0>;
 						max96717_out0: endpoint {
 							remote-endpoint = <&max96712_in0>;
-							clock-lanes = <0>;
-							data-lanes = <1 2>;
-							clock-noncontinuous;
 						};
 					};
 
@@ -68,9 +62,6 @@
 						reg = <1>;
 						max96717_in0: endpoint {
 							remote-endpoint = <&imx219_0>;
-							clock-lanes = <0>;
-							data-lanes = <1 2>;
-							clock-noncontinuous;
 						};
 					};
 				};
