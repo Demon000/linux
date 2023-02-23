@@ -13,18 +13,19 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-struct max96717_priv {
-	struct device			*dev;
-	struct i2c_client		*client;
-	struct regmap			*regmap;
-	struct v4l2_subdev		sd;
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
-	struct media_pad		pads[2];
-	struct v4l2_async_notifier	notifier;
-	struct v4l2_async_subdev	*asd;
-	struct v4l2_ctrl_handler	ctrls;
-	struct v4l2_subdev		*sensor;
+
+struct max96717_priv {
+	struct device *dev;
+	struct i2c_client *client;
+	struct regmap *regmap;
+	struct v4l2_subdev sd;
+	struct media_pad pads[2];
+	struct v4l2_async_notifier notifier;
+	struct v4l2_async_subdev *asd;
+	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_subdev *sensor;
 };
 
 static inline struct max96717_priv *sd_to_max96717(struct v4l2_subdev *sd)
