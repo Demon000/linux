@@ -6,6 +6,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/property.h>
+#include <linux/regmap.h>
 
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -15,6 +16,7 @@
 struct max96717_priv {
 	struct device			*dev;
 	struct i2c_client		*client;
+	struct regmap			*regmap;
 	struct v4l2_subdev		sd;
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
@@ -38,6 +40,30 @@ static inline struct max96717_priv *i2c_to_max96717(struct i2c_client *client)
 static inline struct max96717_priv *notifier_to_max96717(struct v4l2_async_notifier *nf)
 {
 	return container_of(nf, struct max96717_priv, notifier);
+}
+
+
+static int max96717_write(struct max96717_priv *priv, unsigned int reg, u8 val)
+{
+	int ret;
+
+	ret = regmap_write(priv->regmap, reg, val);
+	if (ret)
+		dev_err(priv->dev, "write 0x%04x failed\n", reg);
+
+	return ret;
+}
+
+static int max96717_update_bits(struct max96717_priv *priv, unsigned int reg,
+				u8 mask, u8 val)
+{
+	int ret;
+
+	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	if (ret)
+		dev_err(priv->dev, "update 0x%04x failed\n", reg);
+
+	return ret;
 }
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
@@ -236,6 +262,12 @@ static int max96717_init(struct max96717_priv *priv)
 	return 0;
 }
 
+static const struct regmap_config max96712_i2c_regmap = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x1f00,
+};
+
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -270,6 +302,10 @@ static int max96717_probe(struct i2c_client *client)
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret)
 		goto error_put_node;
+
+	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
+	if (IS_ERR(priv->regmap))
+		return PTR_ERR(priv->regmap);
 
 	ret = max96717_parse_dt(priv);
 	if (ret)
