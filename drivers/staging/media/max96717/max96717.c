@@ -12,7 +12,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-struct max96717_device {
+struct max96717_priv {
 	struct device			*dev;
 	struct i2c_client		*client;
 	struct v4l2_subdev		sd;
@@ -25,20 +25,20 @@ struct max96717_device {
 	struct v4l2_subdev		*sensor;
 };
 
-static inline struct max96717_device *sd_to_max96717(struct v4l2_subdev *sd)
+static inline struct max96717_priv *sd_to_max96717(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct max96717_device, sd);
+	return container_of(sd, struct max96717_priv, sd);
 }
 
-static inline struct max96717_device *i2c_to_max96717(struct i2c_client *client)
+static inline struct max96717_priv *i2c_to_max96717(struct i2c_client *client)
 {
 	return sd_to_max96717(i2c_get_clientdata(client));
 }
 
-static inline struct max96717_device *notifier_to_max96717(
+static inline struct max96717_priv *notifier_to_max96717(
 						struct v4l2_async_notifier *nf)
 {
-	return container_of(nf, struct max96717_device, notifier);
+	return container_of(nf, struct max96717_priv, notifier);
 }
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
@@ -50,7 +50,7 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct max96717_device *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *max96717 = sd_to_max96717(sd);
 
 	return v4l2_subdev_call(max96717->sensor, pad, enum_mbus_code, NULL,
 				code);
@@ -60,7 +60,7 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
-	struct max96717_device *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *max96717 = sd_to_max96717(sd);
 
 	return v4l2_subdev_call(max96717->sensor, pad, get_fmt, NULL,
 				format);
@@ -70,7 +70,7 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
-	struct max96717_device *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *max96717 = sd_to_max96717(sd);
 
 	return v4l2_subdev_call(max96717->sensor, pad, set_fmt, NULL,
 				format);
@@ -105,7 +105,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_subdev *asd)
 {
-	struct max96717_device *max96717 = notifier_to_max96717(notifier);
+	struct max96717_priv *max96717 = notifier_to_max96717(notifier);
 	int ret, pad;
 
 	/*
@@ -174,7 +174,7 @@ static void max96717_notify_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_subdev *asd)
 {
-	struct max96717_device *max96717 = notifier_to_max96717(notifier);
+	struct max96717_priv *max96717 = notifier_to_max96717(notifier);
 
 	media_entity_remove_links(&max96717->sd.entity);
 	max96717->sensor = NULL;
@@ -185,7 +185,7 @@ static const struct v4l2_async_notifier_operations max96717_notifier_ops = {
 	.unbind = max96717_notify_unbind,
 };
 
-static int max96717_parse_dt(struct max96717_device *max96717)
+static int max96717_parse_dt(struct max96717_priv *max96717)
 {
 	struct fwnode_handle *ep, *remote;
 	struct v4l2_fwnode_endpoint vep = {
@@ -235,14 +235,14 @@ static int max96717_parse_dt(struct max96717_device *max96717)
 	return 0;
 }
 
-static int max96717_init(struct max96717_device *max96717)
+static int max96717_init(struct max96717_priv *max96717)
 {
 	return 0;
 }
 
 static int max96717_probe(struct i2c_client *client)
 {
-	struct max96717_device *max96717;
+	struct max96717_priv *max96717;
 	struct fwnode_handle *ep;
 	int ret;
 
@@ -297,7 +297,7 @@ error_media_entity:
 
 static int max96717_remove(struct i2c_client *client)
 {
-	struct max96717_device *max96717 = i2c_to_max96717(client);
+	struct max96717_priv *max96717 = i2c_to_max96717(client);
 
 	v4l2_ctrl_handler_free(&max96717->ctrls);
 	v4l2_async_notifier_cleanup(&max96717->notifier);
