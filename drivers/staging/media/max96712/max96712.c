@@ -251,6 +251,15 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 
 		max96712_mipi_configure_phy(priv, i);
 	}
+
+	/*
+	 * Enable forwarding of GPIO 0.
+	 */
+
+	/* GPIO_A GPIO_TX_EN 1 */
+	max96712_update_bits(priv, 0x300, 0x02, 0x02);
+	/* GPIO_A GPIO_OUT_DIS 0 */
+	max96712_update_bits(priv, 0x300, 0x01, 0x00);
 }
 
 static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
