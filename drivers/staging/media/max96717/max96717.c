@@ -263,7 +263,7 @@ static int max96717_init(struct max96717_priv *priv)
 	return 0;
 }
 
-static const struct regmap_config max96712_i2c_regmap = {
+static const struct regmap_config max96717_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x1f00,
