@@ -170,6 +170,8 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 
 	priv->sensor = subdev;
 
+	dev_err(priv->dev, "Calling post_register\n");
+
 	/*
 	 * Call the sensor post_register operation to complete its
 	 * initialization.
