@@ -48,7 +48,7 @@
 
 			gmsl_serializer: gmsl-serializer@40 {
 				compatible = "maxim,max96717";
-				reg = <0x27>;
+				reg = <0x40>;
 
 				ports {
 					#address-cells = <1>;
