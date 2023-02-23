@@ -375,7 +375,6 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	 * the camera post_register operation to complete initialization with
 	 * noise immunity enabled.
 	 */
-	// max96712_reverse_channel_setup(priv, max96712_REV_AMP_HIGH);
 	for_each_source(priv, source) {
 		ret = v4l2_subdev_call(source->sd, core, post_register);
 		if (ret) {
@@ -385,17 +384,6 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 			return ret;
 		}
 	}
-
-	/*
-	 * All enabled sources have probed and enabled their reverse control
-	 * channels:
-	 *
-	 * - Verify all configuration links are properly detected
-	 * - Disable auto-ack as communication on the control channel are now
-	 *   stable.
-	 */
-	// max96712_check_config_link(priv, priv->source_mask);
-	// max96712_configure_i2c(priv, false);
 
 	return 0;
 }
