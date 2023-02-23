@@ -50,9 +50,9 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_pad_config *cfg,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct max96717_priv *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(max96717->sensor, pad, enum_mbus_code, NULL,
+	return v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, NULL,
 				code);
 }
 
@@ -60,9 +60,9 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
-	struct max96717_priv *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(max96717->sensor, pad, get_fmt, NULL,
+	return v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL,
 				format);
 }
 
@@ -70,9 +70,9 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_pad_config *cfg,
 			   struct v4l2_subdev_format *format)
 {
-	struct max96717_priv *max96717 = sd_to_max96717(sd);
+	struct max96717_priv *priv = sd_to_max96717(sd);
 
-	return v4l2_subdev_call(max96717->sensor, pad, set_fmt, NULL,
+	return v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL,
 				format);
 }
 
@@ -105,67 +105,67 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				struct v4l2_subdev *subdev,
 				struct v4l2_async_subdev *asd)
 {
-	struct max96717_priv *max96717 = notifier_to_max96717(notifier);
+	struct max96717_priv *priv = notifier_to_max96717(notifier);
 	int ret, pad;
 
 	/*
 	 * Reserve more space than necessary for controls inherited by the
 	 * remote subdev.
 	 */
-	ret = v4l2_ctrl_handler_init(&max96717->ctrls, 16);
+	ret = v4l2_ctrl_handler_init(&priv->ctrls, 16);
 	if (ret < 0) {
-		dev_err(max96717->dev,
+		dev_err(priv->dev,
 			"Unable to initialize control handler: %d\n", ret);
 		return ret;
 	}
 
-	ret = v4l2_ctrl_add_handler(&max96717->ctrls, subdev->ctrl_handler,
+	ret = v4l2_ctrl_add_handler(&priv->ctrls, subdev->ctrl_handler,
 				    NULL, true);
 	if (ret < 0) {
-		dev_err(max96717->dev,
+		dev_err(priv->dev,
 			"Unable to add subdev control handler: %d\n", ret);
 		goto error_free_handler;
 	}
-	max96717->sd.ctrl_handler = &max96717->ctrls;
+	priv->sd.ctrl_handler = &priv->ctrls;
 
 	/* Create media link with the remote sensor source pad. */
 	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
-		dev_err(max96717->dev,
+		dev_err(priv->dev,
 			"Failed to find source pad for %s\n", subdev->name);
 		ret = pad;
 		goto error_free_handler;
 	}
 
 	ret = media_create_pad_link(&subdev->entity, pad,
-				    &max96717->sd.entity, MAX96717_SINK_PAD,
+				    &priv->sd.entity, MAX96717_SINK_PAD,
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret)
 		goto error_free_handler;
 
-	max96717->sensor = subdev;
+	priv->sensor = subdev;
 
 	/*
 	 * Call the sensor post_register operation to complete its
 	 * initialization.
 	 */
-	ret = v4l2_subdev_call(max96717->sensor, core, post_register);
+	ret = v4l2_subdev_call(priv->sensor, core, post_register);
 	if (ret) {
-		dev_err(max96717->dev, "Failed to initialize sensor %u\n", ret);
+		dev_err(priv->dev, "Failed to initialize sensor %u\n", ret);
 		goto error_remove_link;
 	}
 
 	return 0;
 
 error_remove_link:
-	media_entity_remove_links(&max96717->sd.entity);
-	max96717->sensor = NULL;
+	media_entity_remove_links(&priv->sd.entity);
+	priv->sensor = NULL;
 
 error_free_handler:
-	v4l2_ctrl_handler_free(&max96717->ctrls);
-	max96717->sd.ctrl_handler = NULL;
+	v4l2_ctrl_handler_free(&priv->ctrls);
+	priv->sd.ctrl_handler = NULL;
 
 	return ret;
 }
@@ -174,10 +174,10 @@ static void max96717_notify_unbind(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_subdev *asd)
 {
-	struct max96717_priv *max96717 = notifier_to_max96717(notifier);
+	struct max96717_priv *priv = notifier_to_max96717(notifier);
 
-	media_entity_remove_links(&max96717->sd.entity);
-	max96717->sensor = NULL;
+	media_entity_remove_links(&priv->sd.entity);
+	priv->sensor = NULL;
 }
 
 static const struct v4l2_async_notifier_operations max96717_notifier_ops = {
@@ -185,7 +185,7 @@ static const struct v4l2_async_notifier_operations max96717_notifier_ops = {
 	.unbind = max96717_notify_unbind,
 };
 
-static int max96717_parse_dt(struct max96717_priv *max96717)
+static int max96717_parse_dt(struct max96717_priv *priv)
 {
 	struct fwnode_handle *ep, *remote;
 	struct v4l2_fwnode_endpoint vep = {
@@ -193,17 +193,17 @@ static int max96717_parse_dt(struct max96717_priv *max96717)
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(max96717->dev), 1, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 1, 0, 0);
 	if (!ep) {
-		dev_err(max96717->dev, "Unable to get sensor endpoint: %pOF\n",
-			max96717->dev->of_node);
+		dev_err(priv->dev, "Unable to get sensor endpoint: %pOF\n",
+			priv->dev->of_node);
 		return -ENOENT;
 	}
 
 	remote = fwnode_graph_get_remote_endpoint(ep);
 	if (!remote) {
-		dev_err(max96717->dev, "Unable to get remote endpoint: %pOF\n",
-			max96717->dev->of_node);
+		dev_err(priv->dev, "Unable to get remote endpoint: %pOF\n",
+			priv->dev->of_node);
 		return -ENOENT;
 	}
 
@@ -211,105 +211,105 @@ static int max96717_parse_dt(struct max96717_priv *max96717)
 	fwnode_handle_put(ep);
 	if (ret) {
 		fwnode_handle_put(remote);
-		dev_err(max96717->dev, "Unable to parse endpoint: %pOF\n",
+		dev_err(priv->dev, "Unable to parse endpoint: %pOF\n",
 			to_of_node(ep));
 		return ret;
 	}
 
-	v4l2_async_notifier_init(&max96717->notifier);
-	max96717->asd = v4l2_async_notifier_add_fwnode_subdev(&max96717->notifier,
+	v4l2_async_notifier_init(&priv->notifier);
+	priv->asd = v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
 					      remote, sizeof(struct v4l2_async_subdev));
 	fwnode_handle_put(remote);
-	if (IS_ERR(max96717->asd))
-		return PTR_ERR(max96717->asd);
+	if (IS_ERR(priv->asd))
+		return PTR_ERR(priv->asd);
 
-	max96717->notifier.ops = &max96717_notifier_ops;
-	max96717->notifier.flags = V4L2_ASYNC_NOTIFIER_DEFER_POST_REGISTER;
-	ret = v4l2_async_subdev_notifier_register(&max96717->sd,
-						  &max96717->notifier);
+	priv->notifier.ops = &max96717_notifier_ops;
+	priv->notifier.flags = V4L2_ASYNC_NOTIFIER_DEFER_POST_REGISTER;
+	ret = v4l2_async_subdev_notifier_register(&priv->sd,
+						  &priv->notifier);
 	if (ret < 0) {
-		v4l2_async_notifier_cleanup(&max96717->notifier);
+		v4l2_async_notifier_cleanup(&priv->notifier);
 		return ret;
 	}
 
 	return 0;
 }
 
-static int max96717_init(struct max96717_priv *max96717)
+static int max96717_init(struct max96717_priv *priv)
 {
 	return 0;
 }
 
 static int max96717_probe(struct i2c_client *client)
 {
-	struct max96717_priv *max96717;
+	struct max96717_priv *priv;
 	struct fwnode_handle *ep;
 	int ret;
 
-	max96717 = devm_kzalloc(&client->dev, sizeof(*max96717), GFP_KERNEL);
-	if (!max96717)
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
 		return -ENOMEM;
-	max96717->dev = &client->dev;
-	max96717->client = client;
+	priv->dev = &client->dev;
+	priv->client = client;
 
 	/* Initialize and register the subdevice. */
-	v4l2_i2c_subdev_init(&max96717->sd, client, &max96717_subdev_ops);
-	max96717->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	max96717->pads[MAX96717_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
-	max96717->pads[MAX96717_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
-	max96717->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
-	ret = media_entity_pads_init(&max96717->sd.entity, 2, max96717->pads);
+	v4l2_i2c_subdev_init(&priv->sd, client, &max96717_subdev_ops);
+	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	priv->pads[MAX96717_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
+	priv->pads[MAX96717_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
+	priv->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
+	ret = media_entity_pads_init(&priv->sd.entity, 2, priv->pads);
 	if (ret < 0)
 		return ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(max96717->dev), 0, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 0, 0, 0);
 	if (!ep) {
-		dev_err(max96717->dev, "Unable to get endpoint 0: %pOF\n",
-			max96717->dev->of_node);
+		dev_err(priv->dev, "Unable to get endpoint 0: %pOF\n",
+			priv->dev->of_node);
 		ret = -ENODEV;
 		goto error_media_entity;
 	}
 
-	max96717->sd.fwnode = ep;
-	ret = v4l2_async_register_subdev(&max96717->sd);
+	priv->sd.fwnode = ep;
+	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret)
 		goto error_put_node;
 
-	ret = max96717_parse_dt(max96717);
+	ret = max96717_parse_dt(priv);
 	if (ret)
 		goto error_unregister_subdev;
 
-	ret = max96717_init(max96717);
+	ret = max96717_init(priv);
 	if (ret)
 		goto error_unregister_subdev;
 
 	return 0;
 
 error_unregister_subdev:
-	v4l2_async_unregister_subdev(&max96717->sd);
+	v4l2_async_unregister_subdev(&priv->sd);
 error_put_node:
-	fwnode_handle_put(max96717->sd.fwnode);
+	fwnode_handle_put(priv->sd.fwnode);
 error_media_entity:
-	media_entity_cleanup(&max96717->sd.entity);
+	media_entity_cleanup(&priv->sd.entity);
 
 	return ret;
 }
 
 static int max96717_remove(struct i2c_client *client)
 {
-	struct max96717_priv *max96717 = i2c_to_max96717(client);
+	struct max96717_priv *priv = i2c_to_max96717(client);
 
-	v4l2_ctrl_handler_free(&max96717->ctrls);
-	v4l2_async_notifier_cleanup(&max96717->notifier);
-	v4l2_async_unregister_subdev(&max96717->sd);
-	fwnode_handle_put(max96717->sd.fwnode);
-	media_entity_cleanup(&max96717->sd.entity);
+	v4l2_ctrl_handler_free(&priv->ctrls);
+	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_unregister_subdev(&priv->sd);
+	fwnode_handle_put(priv->sd.fwnode);
+	media_entity_cleanup(&priv->sd.entity);
 
 	return 0;
 }
 
 static const struct of_device_id max96717_of_ids[] = {
-	{ .compatible = "imi,max96717", },
+	{ .compatible = "maxim,max96717", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96717_of_ids);
