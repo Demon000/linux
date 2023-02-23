@@ -358,7 +358,7 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 	}
 
-	dev_dbg(&priv->client->dev, "Bound %s pad: %u on index %u\n",
+	dev_err(&priv->client->dev, "Bound %s pad: %u on index %u\n",
 		subdev->name, src_pad, index);
 
 	/*
