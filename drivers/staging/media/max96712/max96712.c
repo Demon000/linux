@@ -45,6 +45,7 @@ enum max96712_pattern {
 };
 
 struct max96712_priv {
+	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
@@ -104,7 +105,7 @@ static int max96712_read(struct max96712_priv *priv, int reg)
 
 	ret = regmap_read(priv->regmap, reg, &val);
 	if (ret) {
-		dev_err(&priv->client->dev, "read 0x%04x failed\n", reg);
+		dev_err(priv->dev, "read 0x%04x failed\n", reg);
 		return ret;
 	}
 
@@ -118,7 +119,7 @@ static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 
 	ret = regmap_write(priv->regmap, reg, val);
 	if (ret)
-		dev_err(&priv->client->dev, "write 0x%04x failed\n", reg);
+		dev_err(priv->dev, "write 0x%04x failed\n", reg);
 
 	return ret;
 }
@@ -130,7 +131,7 @@ static int max96712_update_bits(struct max96712_priv *priv, unsigned int reg,
 
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
 	if (ret)
-		dev_err(&priv->client->dev, "update 0x%04x failed\n", reg);
+		dev_err(priv->dev, "update 0x%04x failed\n", reg);
 
 	return ret;
 }
@@ -142,7 +143,7 @@ static int max96712_write_bulk(struct max96712_priv *priv, unsigned int reg,
 
 	ret = regmap_bulk_write(priv->regmap, reg, val, val_count);
 	if (ret)
-		dev_err(&priv->client->dev, "bulk write 0x%04x failed\n", reg);
+		dev_err(priv->dev, "bulk write 0x%04x failed\n", reg);
 
 	return ret;
 }
@@ -338,8 +339,7 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 					  source->fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
-		dev_err(&priv->client->dev,
-			"Failed to find pad for %s\n", subdev->name);
+		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
 		return ret;
 	}
 
@@ -352,13 +352,13 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret) {
-		dev_err(&priv->client->dev,
+		dev_err(priv->dev,
 			"Unable to link %s:%u -> %s:%u\n",
 			source->sd->name, src_pad, priv->sd.name, index);
 		return ret;
 	}
 
-	dev_err(&priv->client->dev, "Bound %s pad: %u on index %u\n",
+	dev_err(priv->dev, "Bound %s pad: %u on index %u\n",
 		subdev->name, src_pad, index);
 
 	/*
@@ -378,9 +378,8 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	for_each_source(priv, source) {
 		ret = v4l2_subdev_call(source->sd, core, post_register);
 		if (ret) {
-			dev_err(&priv->client->dev,
-					"Failed to initialize camera device %u\n",
-					index);
+			dev_err(priv->dev, "Failed to initialize camera device %u\n",
+				index);
 			return ret;
 		}
 	}
@@ -407,7 +406,6 @@ static const struct v4l2_async_notifier_operations max96712_notify_ops = {
 
 static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
 {
-	struct device *dev = &priv->client->dev;
 	struct max96712_source *source = NULL;
 	int ret;
 
@@ -425,7 +423,7 @@ static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
 							    source->fwnode,
 							    sizeof(struct max96712_asd));
 		if (IS_ERR(mas)) {
-			dev_err(dev, "Failed to add subdev for source %u: %ld",
+			dev_err(priv->dev, "Failed to add subdev for source %u: %ld",
 				i, PTR_ERR(mas));
 			v4l2_async_notifier_cleanup(&priv->notifier);
 			return PTR_ERR(mas);
@@ -439,7 +437,7 @@ static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
 
 	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
 	if (ret) {
-		dev_err(dev, "Failed to register subdev_notifier");
+		dev_err(priv->dev, "Failed to register subdev_notifier");
 		v4l2_async_notifier_cleanup(&priv->notifier);
 		return ret;
 	}
@@ -530,7 +528,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	/* Register v4l2 async notifiers for connected Camera subdevices */
 	ret = max96712_v4l2_notifier_register(priv);
 	if (ret) {
-		dev_err(&priv->client->dev, "Unable to register V4L2 async notifiers\n");
+		dev_err(priv->dev, "Unable to register V4L2 async notifiers\n");
 		return ret;
 	}
 
@@ -570,7 +568,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret < 0) {
-		dev_err(&priv->client->dev, "Unable to register subdevice\n");
+		dev_err(priv->dev, "Unable to register subdevice\n");
 		goto error;
 	}
 
@@ -598,17 +596,17 @@ static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev),
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
 					     port_index, 0, 0);
 	if (!ep) {
-		dev_err(&priv->client->dev, "Not connected to subdevice\n");
+		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	fwnode_handle_put(ep);
 	if (ret) {
-		dev_err(&priv->client->dev, "Could not parse v4l2 endpoint\n");
+		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
 		return ret;
 	}
 
@@ -624,17 +622,17 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
 	struct max96712_source *source;
 	struct fwnode_handle *ep;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev),
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
 					     index, 0, 0);
 	if (!ep) {
-		dev_err(&priv->client->dev, "Not connected to subdevice\n");
+		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
 
 	source = &priv->sources[index];
 	source->fwnode = fwnode_graph_get_remote_endpoint(ep);
 	if (!source->fwnode) {
-		dev_err(&priv->client->dev, "Not connected to remote endpoint\n");
+		dev_err(priv->dev, "Not connected to remote endpoint\n");
 
 		return -EINVAL;
 	}
@@ -686,7 +684,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	}
 
 	if (i == ARRAY_SIZE(max96712_lane_configs)) {
-		dev_err(&priv->client->dev, "Invalid lane configuration\n");
+		dev_err(priv->dev, "Invalid lane configuration\n");
 		return -EINVAL;
 	}
 
@@ -710,6 +708,7 @@ static int max96712_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = &client->dev;
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
