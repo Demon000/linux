@@ -540,6 +540,7 @@ struct unicam_device {
 	bool sensor_embedded_data;
 
 	struct unicam_node node[MAX_NODES];
+	unsigned int source_pads;
 	struct v4l2_ctrl_handler ctrl_handler;
 
 	bool mc_api;
@@ -2763,6 +2764,9 @@ unicam_async_bound(struct v4l2_async_notifier *notifier,
 		   struct v4l2_async_subdev *asd)
 {
 	struct unicam_device *unicam = to_unicam_device(notifier->v4l2_dev);
+	unsigned int i;
+	int pad;
+	int ret;
 
 	if (unicam->sensor) {
 		unicam_info(unicam, "Rejecting subdev %s (Already set!!)",
@@ -2772,6 +2776,39 @@ unicam_async_bound(struct v4l2_async_notifier *notifier,
 
 	unicam->sensor = subdev;
 	unicam_err(unicam, "Using sensor %s for capture\n", subdev->name);
+
+	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
+					  MEDIA_PAD_FL_SOURCE);
+	if (pad < 0) {
+		unicam_err(unicam, "Failed to find pad for %s\n", subdev->name);
+		return pad;
+	}
+
+	unicam_err(unicam, "Found pad %u for %s\n", pad, subdev->name);
+
+	unicam->node[unicam->source_pads++].src_pad_id = pad;
+
+	for (i = pad; i < subdev->entity.num_pads; i++) {
+		struct v4l2_subdev_mbus_code_enum mbus_code = {
+			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+			.pad = i,
+		};
+
+		if (!(subdev->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE))
+			continue;
+
+		ret = v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL,
+				       &mbus_code);
+		if (ret < 0)
+			continue;
+
+		if (mbus_code.code == MEDIA_BUS_FMT_SENSOR_DATA) {
+			unicam_err(unicam, "Found metadata pad %u for %s\n", i,
+				   subdev->name);
+			unicam->node[unicam->source_pads++].src_pad_id = i;
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -3123,7 +3160,6 @@ static void unregister_nodes(struct unicam_device *unicam)
 static int unicam_async_complete(struct v4l2_async_notifier *notifier)
 {
 	struct unicam_device *unicam = to_unicam_device(notifier->v4l2_dev);
-	unsigned int i, source_pads = 0;
 	int ret;
 
 	unicam->v4l2_dev.notify = unicam_notify;
@@ -3132,17 +3168,7 @@ static int unicam_async_complete(struct v4l2_async_notifier *notifier)
 	if (!unicam->sensor_state)
 		return -ENOMEM;
 
-	for (i = 0; i < unicam->sensor->entity.num_pads; i++) {
-		if (unicam->sensor->entity.pads[i].flags & MEDIA_PAD_FL_SOURCE) {
-			if (source_pads < MAX_NODES) {
-				unicam->node[source_pads].src_pad_id = i;
-				unicam_dbg(3, unicam, "source pad %u is index %u\n",
-					   source_pads, i);
-			}
-			source_pads++;
-		}
-	}
-	if (!source_pads) {
+	if (!unicam->source_pads) {
 		unicam_err(unicam, "No source pads on sensor.\n");
 		ret = -ENODEV;
 		goto unregister;
@@ -3157,7 +3183,7 @@ static int unicam_async_complete(struct v4l2_async_notifier *notifier)
 	}
 
 	unicam_err(unicam, "register metadata video device.\n");
-	if (source_pads >= 2) {
+	if (unicam->source_pads >= 2) {
 		unicam->sensor_embedded_data = true;
 
 		ret = register_node(unicam, &unicam->node[METADATA_PAD],
