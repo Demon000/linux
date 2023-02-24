@@ -2771,7 +2771,7 @@ unicam_async_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	unicam->sensor = subdev;
-	unicam_dbg(1, unicam, "Using sensor %s for capture\n", subdev->name);
+	unicam_err(unicam, "Using sensor %s for capture\n", subdev->name);
 
 	return 0;
 }
@@ -3084,6 +3084,8 @@ static int register_node(struct unicam_device *unicam, struct unicam_node *node,
 	unicam_get(unicam);
 	node->registered = true;
 
+	printk("%s:%u %s source_pad: %u, %s sink_pad: %u\n", __func__, __LINE__, unicam->sensor->entity.name, pad_id, node->video_dev.entity.name, 0);
+
 	if (pad_id != METADATA_PAD || unicam->sensor_embedded_data) {
 		ret = media_create_pad_link(&unicam->sensor->entity,
 					    node->src_pad_id,
@@ -3146,6 +3148,7 @@ static int unicam_async_complete(struct v4l2_async_notifier *notifier)
 		goto unregister;
 	}
 
+	unicam_err(unicam, "register image video device.\n");
 	ret = register_node(unicam, &unicam->node[IMAGE_PAD],
 			    V4L2_BUF_TYPE_VIDEO_CAPTURE, IMAGE_PAD);
 	if (ret) {
@@ -3153,6 +3156,7 @@ static int unicam_async_complete(struct v4l2_async_notifier *notifier)
 		goto unregister;
 	}
 
+	unicam_err(unicam, "register metadata video device.\n");
 	if (source_pads >= 2) {
 		unicam->sensor_embedded_data = true;
 
