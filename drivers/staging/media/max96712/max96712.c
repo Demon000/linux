@@ -474,7 +474,7 @@ static const struct v4l2_subdev_video_ops max96712_video_ops = {
 };
 
 static int max96712_get_pad_format(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
+				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *format)
 {
 	format->format.width = 1920;
