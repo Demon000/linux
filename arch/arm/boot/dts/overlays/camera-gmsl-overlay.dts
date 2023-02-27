@@ -164,7 +164,7 @@
 
 #if defined(GMSL_CAMERA)
 	fragment@4 {
-		target-path="/";
+		target-path = "/";
 
 		__overlay__ {
 			imx219_vdig: fixedregulator@1 {
@@ -173,6 +173,7 @@
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 			};
+
 			imx219_vddl: fixedregulator@2 {
 				compatible = "regulator-fixed";
 				regulator-name = "imx219_vddl";
