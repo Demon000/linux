@@ -105,10 +105,10 @@
 
 				port {
 					imx219_0: endpoint {
-#if defined(GMSL_CAMERA)
-						remote-endpoint = <&csi1_ep>;
-#elif defined(GMSL_SERIALIZER)
+#if defined(GMSL_SERIALIZER)
 						remote-endpoint = <&max96717_in0>;
+#elif defined(GMSL_CAMERA)
+						remote-endpoint = <&csi1_ep>;
 #else
 #error
 #endif
@@ -131,10 +131,10 @@
 
 			port {
 				csi1_ep: endpoint {
-#if defined(GMSL_CAMERA)
-					remote-endpoint = <&imx219_0>;
-#elif defined(GMSL_DESERIALIZER)
+#if defined(GMSL_DESERIALIZER)
 					remote-endpoint = <&max96712_out0>;
+#elif defined(GMSL_CAMERA)
+					remote-endpoint = <&imx219_0>;
 #else
 #error
 #endif
