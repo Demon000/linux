@@ -421,8 +421,7 @@ static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
 
 		mas = (struct max96712_asd *)
 		      v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
-							    source->fwnode,
-							    sizeof(struct max96712_asd));
+							    source->fwnode, struct max96712_asd);
 		if (IS_ERR(mas)) {
 			dev_err(priv->dev, "Failed to add subdev for source %u: %ld",
 				i, PTR_ERR(mas));
