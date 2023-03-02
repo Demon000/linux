@@ -40,7 +40,8 @@ struct max96712_asd {
 };
 
 enum max96712_pattern {
-	MAX96712_PATTERN_CHECKERBOARD = 0,
+	MAX96712_PATTERN_NONE = 0,
+	MAX96712_PATTERN_CHECKERBOARD,
 	MAX96712_PATTERN_GRADIENT,
 };
 
@@ -277,7 +278,7 @@ static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
 	const u32 v_bp = 36;
 	const u32 v_tot = v_active + v_fp + v_sw + v_bp;
 
-	if (!enable) {
+	if (!enable || priv->pattern == MAX96712_PATTERN_NONE) {
 		max96712_write(priv, 0x1051, 0x00);
 		return;
 	}
@@ -495,6 +496,7 @@ static const struct v4l2_subdev_ops max96712_subdev_ops = {
 };
 
 static const char * const max96712_test_pattern[] = {
+	"None",
 	"Checkerboard",
 	"Gradient",
 };
@@ -506,9 +508,7 @@ static int max96712_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_TEST_PATTERN:
-		priv->pattern = ctrl->val ?
-			MAX96712_PATTERN_GRADIENT :
-			MAX96712_PATTERN_CHECKERBOARD;
+		priv->pattern = ctrl->val;
 		break;
 	}
 	return 0;
