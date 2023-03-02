@@ -5,6 +5,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
+// #define MEDIA_CONTROLLER
 #define GMSL_DESERIALIZER
 // #define GMSL_SERIALIZER
 // #define GMSL_CAMERA
@@ -143,7 +144,9 @@
 		__overlay__ {
 			status = "okay";
 
+#if defined(MEDIA_CONTROLLER)
 			brcm,media-controller;
+#endif
 
 			port {
 				csi1_ep: endpoint {
