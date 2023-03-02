@@ -178,7 +178,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	 */
 	ret = v4l2_subdev_call(priv->sensor, core, post_register);
 	if (ret) {
-		dev_err(priv->dev, "Failed to initialize sensor %u\n", ret);
+		dev_err(priv->dev, "Failed to initialize sensor %d\n", ret);
 		goto error_remove_link;
 	}
 
