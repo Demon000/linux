@@ -64,7 +64,7 @@
 	};
 #endif
 
-#ifdef GMSL_SERIALIZER
+#if defined(GMSL_SERIALIZER)
 	fragment@1 {
 		target = <&i2c_csi_dsi>;
 		__overlay__ {
