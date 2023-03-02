@@ -2777,6 +2777,8 @@ unicam_async_bound(struct v4l2_async_notifier *notifier,
 	unicam->sensor = subdev;
 	unicam_err(unicam, "Using sensor %s for capture\n", subdev->name);
 
+	unicam_err(unicam, "%s:%u: asd match fwnode: %pfw\n", __func__, __LINE__, asd->match.fwnode);
+
 	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
@@ -3246,6 +3248,8 @@ static int of_unicam_connect_subdevs(struct unicam_device *dev)
 
 	unicam_dbg(3, dev, "ep_node is %pOF\n", ep_node);
 
+	unicam_err(dev, "%s:%u: ep_node: %pfw\n", __func__, __LINE__, of_fwnode_handle(ep_node));
+
 	sensor_node = of_graph_get_remote_port_parent(ep_node);
 	if (!sensor_node) {
 		unicam_dbg(3, dev, "can't get remote parent\n");
@@ -3323,6 +3327,8 @@ static int of_unicam_connect_subdevs(struct unicam_device *dev)
 	/* Initialize and register the async notifier. */
 	v4l2_async_notifier_init(&dev->notifier);
 	dev->notifier.ops = &unicam_async_ops;
+
+	unicam_err(dev, "%s:%u: remote ep_node: %pfw\n", __func__, __LINE__, fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep_node)));
 
 	dev->asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
 	dev->asd.match.fwnode = fwnode_graph_get_remote_endpoint(of_fwnode_handle(ep_node));
