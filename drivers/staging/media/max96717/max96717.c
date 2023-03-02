@@ -69,6 +69,10 @@ static int max96717_update_bits(struct max96717_priv *priv, unsigned int reg,
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
+	struct max96717_priv *priv = sd_to_max96717(sd);
+
+	dev_err(priv->dev, "s_stream: %u\n", enable);
+
 	return 0;
 }
 
