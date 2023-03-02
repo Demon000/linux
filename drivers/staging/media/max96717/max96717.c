@@ -91,15 +91,6 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_mbus_code_enum *code)
-{
-	struct max96717_priv *priv = sd_to_max96717(sd);
-
-	return v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, NULL, code);
-}
-
 static int max96717_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
@@ -150,7 +141,6 @@ static const struct v4l2_subdev_video_ops max96717_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops max96717_subdev_pad_ops = {
-	.enum_mbus_code = max96717_enum_mbus_code,
 	.get_fmt	= max96717_get_fmt,
 	.set_fmt	= max96717_set_fmt,
 };
