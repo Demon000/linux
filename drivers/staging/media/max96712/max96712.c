@@ -264,6 +264,8 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	 * Enable forwarding of GPIO 0.
 	 */
 
+	dev_err(priv->dev, "enable forwarding gpio 0\n");
+
 	/* GPIO_A GPIO_TX_EN 1 */
 	max96712_update_bits(priv, 0x300, 0x02, 0x02);
 	/* GPIO_A GPIO_OUT_DIS 0 */
