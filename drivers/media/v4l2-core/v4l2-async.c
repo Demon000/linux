@@ -302,11 +302,14 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 	int ret;
 
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
-	if (ret < 0)
+	if (ret < 0) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return ret;
+	}
 
 	ret = v4l2_async_notifier_call_bound(notifier, sd, asd);
 	if (ret < 0) {
+		printk("%s:%u\n", __func__, __LINE__);
 		v4l2_device_unregister_subdev(sd);
 		return ret;
 	}
@@ -319,6 +322,7 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 	 */
 	ret = v4l2_async_create_ancillary_links(notifier, sd);
 	if (ret) {
+		printk("%s:%u\n", __func__, __LINE__);
 		v4l2_async_notifier_call_unbind(notifier, sd, asd);
 		v4l2_device_unregister_subdev(sd);
 		return ret;
@@ -328,6 +332,7 @@ static int v4l2_async_match_notify(struct v4l2_async_notifier *notifier,
 	    sd->ops->core && sd->ops->core->post_register) {
 		ret = sd->ops->core->post_register(sd);
 		if (ret) {
+			printk("%s:%u\n", __func__, __LINE__);
 			v4l2_async_notifier_call_unbind(notifier, sd, sd->asd);
 			v4l2_device_unregister_subdev(sd);
 			return ret;
@@ -380,8 +385,10 @@ again:
 			continue;
 
 		ret = v4l2_async_match_notify(notifier, v4l2_dev, sd, asd);
-		if (ret < 0)
+		if (ret < 0) {
+			printk("%s:%u\n", __func__, __LINE__);
 			return ret;
+		}
 
 		/*
 		 * v4l2_async_match_notify() may lead to registering a
@@ -540,8 +547,10 @@ static int __v4l2_async_notifier_register(struct v4l2_async_notifier *notifier)
 		goto err_unbind;
 
 	ret = v4l2_async_notifier_try_complete(notifier);
-	if (ret < 0)
+	if (ret < 0) {
+		printk("%s:%u\n", __func__, __LINE__);
 		goto err_unbind;
+	}
 
 	/* Keep also completed notifiers on the list */
 	list_add(&notifier->list, &notifier_list);
@@ -778,12 +787,16 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 			continue;
 
 		ret = v4l2_async_match_notify(notifier, v4l2_dev, sd, asd);
-		if (ret)
+		if (ret) {
+			printk("%s:%u\n", __func__, __LINE__);
 			goto err_unbind;
+		}
 
 		ret = v4l2_async_notifier_try_complete(notifier);
-		if (ret)
+		if (ret) {
+			printk("%s:%u\n", __func__, __LINE__);
 			goto err_unbind;
+		}
 
 		goto out_unlock;
 	}
