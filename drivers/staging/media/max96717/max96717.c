@@ -299,6 +299,8 @@ static int max96717_probe(struct i2c_client *client)
 	 * Enable forwarding of GPIO 0.
 	 */
 
+	dev_err(priv->dev, "enable forwarding gpio 0\n");
+
 	/* GPIO_A GPIO_RX_EN 1 */
 	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
 	/* GPIO_A GPIO_OUT_DIS 0 */
