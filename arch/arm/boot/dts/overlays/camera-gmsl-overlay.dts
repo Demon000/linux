@@ -22,6 +22,7 @@
 / {
 	compatible = "brcm,bcm2835";
 
+#if defined(GMSL_DESERIALIZER)
 	fragment@0 {
 		target = <&i2c_csi_dsi>;
 		__overlay__ {
@@ -29,7 +30,6 @@
 			#size-cells = <0>;
 			status = "okay";
 
-#if defined(GMSL_DESERIALIZER)
 			gmsl_deserializer: gmsl-deserializer@27 {
 				compatible = "maxim,max96712";
 				reg = <0x27>;
@@ -59,9 +59,18 @@
 					};
 				};
 			};
+		};
+	};
 #endif
 
 #ifdef GMSL_SERIALIZER
+	fragment@1 {
+		target = <&i2c_csi_dsi>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
 			gmsl_serializer: gmsl-serializer@40 {
 				compatible = "maxim,max96717";
 				reg = <0x40>;
@@ -85,9 +94,14 @@
 					};
 				};
 			};
+		};
+	};
 #endif
 
 #if defined(GMSL_CAMERA)
+	fragment@2 {
+		target = <&i2c_csi_dsi>;
+		__overlay__ {
 			imx219: imx219@10 {
 				compatible = "sony,imx219";
 				reg = <0x10>;
@@ -124,7 +138,7 @@
 	};
 #endif
 
-	fragment@1 {
+	fragment@3 {
 		target = <&csi1>;
 		__overlay__ {
 			status = "okay";
@@ -148,14 +162,14 @@
 		};
 	};
 
-	fragment@2 {
+	fragment@4 {
 		target = <&i2c0if>;
 		__overlay__ {
 			status = "okay";
 		};
 	};
 
-	fragment@3 {
+	fragment@5 {
 		target = <&i2c0mux>;
 		__overlay__ {
 			status = "okay";
@@ -163,7 +177,7 @@
 	};
 
 #if defined(GMSL_CAMERA)
-	fragment@4 {
+	fragment@6 {
 		target-path = "/";
 
 		__overlay__ {
@@ -189,7 +203,7 @@
 		};
 	};
 
-	fragment@5 {
+	fragment@7 {
 		target = <&cam1_reg>;
 
 		__overlay__ {
