@@ -463,6 +463,14 @@ static void max96712_v4l2_notifier_unregister(struct max96712_priv *priv)
 static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_source *source = NULL;
+	int ret;
+
+	for_each_source(priv, source) {
+		ret = v4l2_subdev_call(source->sd, video, s_stream, enable);
+		if (ret)
+			dev_err(priv->dev, "Failed to initialize camera device\n");
+	}
 
 	if (enable) {
 		max96712_pattern_enable(priv, true);
