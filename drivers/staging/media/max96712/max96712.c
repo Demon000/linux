@@ -471,9 +471,11 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 	dev_err(priv->dev, "s_stream: %u\n", enable);
 
 	for_each_source(priv, source) {
+		unsigned int index = to_index(priv, source);
+
 		ret = v4l2_subdev_call(source->sd, video, s_stream, enable);
 		if (ret)
-			dev_err(priv->dev, "Failed to initialize camera device\n");
+			dev_err(priv->dev, "Failed to start stream for camera device %u\n", index);
 	}
 
 	if (enable) {
