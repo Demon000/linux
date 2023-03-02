@@ -255,6 +255,12 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	}
 
 	/*
+	 * Wait for 2ms to allow the link to resynchronize after the
+	 * configuration change.
+	 */
+	usleep_range(2000, 5000);
+
+	/*
 	 * Enable forwarding of GPIO 0.
 	 */
 
