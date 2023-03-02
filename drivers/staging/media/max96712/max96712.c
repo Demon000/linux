@@ -549,6 +549,10 @@ static const struct v4l2_subdev_ops max96712_subdev_ops = {
 	.pad = &max96712_pad_ops,
 };
 
+static const struct media_entity_operations max96712_entity_ops = {
+	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+};
+
 static const char * const max96712_test_pattern[] = {
 	"None",
 	"Checkerboard",
@@ -588,6 +592,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	priv->sd.entity.ops = &max96712_entity_ops;
 
 	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
 
