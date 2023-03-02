@@ -7,8 +7,8 @@
 
 // #define MEDIA_CONTROLLER
 #define GMSL_DESERIALIZER
-// #define GMSL_SERIALIZER
-// #define GMSL_CAMERA
+#define GMSL_SERIALIZER
+#define GMSL_CAMERA
 
 #if defined(GMSL_CAMERA)
 // camera only
