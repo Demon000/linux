@@ -91,11 +91,20 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+
 static int max96717_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+
+	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		format->format.width = 1920;
+		format->format.height = 1080;
+		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
+		format->format.field = V4L2_FIELD_NONE;
+		return 0;
+	}
 
 	return v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL, format);
 }
@@ -105,6 +114,14 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+
+	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		format->format.width = 1920;
+		format->format.height = 1080;
+		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
+		format->format.field = V4L2_FIELD_NONE;
+		return 0;
+	}
 
 	return v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL, format);
 }
