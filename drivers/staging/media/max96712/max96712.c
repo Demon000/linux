@@ -495,17 +495,51 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_format *format)
 {
-	format->format.width = 1920;
-	format->format.height = 1080;
-	format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-	format->format.field = V4L2_FIELD_NONE;
+	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_source *source;
 
-	return 0;
+	if (priv->pattern != MAX96712_PATTERN_NONE) {
+		format->format.width = 1920;
+		format->format.height = 1080;
+		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
+		format->format.field = V4L2_FIELD_NONE;
+		return 0;
+	}
+
+	if (format->pad >= MAX96712_SRC_PAD_START)
+		return -EINVAL;
+
+	source = &priv->sources[format->pad];
+
+	return v4l2_subdev_call(source->sd, pad, get_fmt, sd_state, format);
+}
+
+static int max96712_set_pad_format(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_format *format)
+{
+	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_source *source;
+
+	if (priv->pattern != MAX96712_PATTERN_NONE) {
+		format->format.width = 1920;
+		format->format.height = 1080;
+		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
+		format->format.field = V4L2_FIELD_NONE;
+		return 0;
+	}
+
+	if (format->pad >= MAX96712_SRC_PAD_START)
+		return -EINVAL;
+
+	source = &priv->sources[format->pad];
+
+	return v4l2_subdev_call(source->sd, pad, set_fmt, sd_state, format);
 }
 
 static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
 	.get_fmt = max96712_get_pad_format,
-	.set_fmt = max96712_get_pad_format,
+	.set_fmt = max96712_set_pad_format,
 };
 
 static const struct v4l2_subdev_ops max96712_subdev_ops = {
