@@ -16,6 +16,11 @@
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
 
+enum max96717_pattern {
+	MAX96717_PATTERN_NONE = 0,
+	MAX96717_PATTERN_CHECKERBOARD,
+};
+
 struct max96717_priv {
 	struct device *dev;
 	struct i2c_client *client;
@@ -25,7 +30,10 @@ struct max96717_priv {
 	struct v4l2_async_notifier notifier;
 	struct v4l2_async_subdev *asd;
 	struct v4l2_ctrl_handler ctrls;
+	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_subdev *sensor;
+
+	enum max96717_pattern pattern;
 };
 
 static inline struct max96717_priv *sd_to_max96717(struct v4l2_subdev *sd)
@@ -114,6 +122,28 @@ static int max96717_post_register(struct v4l2_subdev *sd)
 {
 	return 0;
 }
+
+static const char * const max96717_test_pattern[] = {
+	"None",
+	"Checkerboard",
+};
+
+static int max96717_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max96717_priv *priv =
+		container_of(ctrl->handler, struct max96717_priv, ctrl_handler);
+
+	switch (ctrl->id) {
+	case V4L2_CID_TEST_PATTERN:
+		priv->pattern = ctrl->val;
+		break;
+	}
+	return 0;
+}
+
+static const struct v4l2_ctrl_ops max96717_ctrl_ops = {
+	.s_ctrl = max96717_s_ctrl,
+};
 
 static const struct v4l2_subdev_video_ops max96717_video_ops = {
 	.s_stream	= max96717_s_stream,
@@ -320,9 +350,22 @@ static int max96717_probe(struct i2c_client *client)
 	priv->pads[MAX96717_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
+
+	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
+
+	v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler, &max96717_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(max96717_test_pattern) - 1,
+				     0, 0, max96717_test_pattern);
+
+	priv->sd.ctrl_handler = &priv->ctrl_handler;
+	ret = priv->ctrl_handler.error;
+	if (ret)
+		return ret;
+
 	ret = media_entity_pads_init(&priv->sd.entity, 2, priv->pads);
 	if (ret < 0)
-		return ret;
+		goto error_handler_free;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 0, 0, 0);
 	if (!ep) {
@@ -355,6 +398,8 @@ error_put_node:
 	fwnode_handle_put(priv->sd.fwnode);
 error_media_entity:
 	media_entity_cleanup(&priv->sd.entity);
+error_handler_free:
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
