@@ -466,6 +466,8 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 	struct max96712_source *source = NULL;
 	int ret;
 
+	dev_err(priv->dev, "s_stream: %u\n", enable);
+
 	for_each_source(priv, source) {
 		ret = v4l2_subdev_call(source->sd, video, s_stream, enable);
 		if (ret)
