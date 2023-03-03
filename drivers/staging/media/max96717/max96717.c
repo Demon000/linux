@@ -276,26 +276,6 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	struct max96717_priv *priv = notifier_to_max96717(notifier);
 	int ret, pad;
 
-	/*
-	 * Reserve more space than necessary for controls inherited by the
-	 * remote subdev.
-	 */
-	ret = v4l2_ctrl_handler_init(&priv->ctrls, 16);
-	if (ret < 0) {
-		dev_err(priv->dev,
-			"Unable to initialize control handler: %d\n", ret);
-		return ret;
-	}
-
-	ret = v4l2_ctrl_add_handler(&priv->ctrls, subdev->ctrl_handler,
-				    NULL, true);
-	if (ret < 0) {
-		dev_err(priv->dev,
-			"Unable to add subdev control handler: %d\n", ret);
-		goto error_free_handler;
-	}
-	priv->sd.ctrl_handler = &priv->ctrls;
-
 	/* Create media link with the remote sensor source pad. */
 	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
