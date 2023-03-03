@@ -169,8 +169,11 @@ static void max96717_pattern_enable(struct max96717_priv *priv, bool enable)
 		max96717_update_bits(priv, 0x026b, 0x03, 0x2);
 	}
 
-	// max96717_update_bits(priv, 0x0110, 0x08, 0x00);
-	// max96717_update_bits(priv, 0x0383, 0x80, 0x00);
+	/* Disable Auto BPP mode. */
+	max96717_update_bits(priv, 0x0110, 0x08, 0x00);
+
+	/* Select pixel mode. */
+	max96717_update_bits(priv, 0x0383, 0x80, 0x00);
 }
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
