@@ -1140,6 +1140,8 @@ static int imx219_start_streaming(struct imx219 *imx219)
 	const struct imx219_reg_list *reg_list;
 	int ret;
 
+	dev_err(&client->dev, "s_stream\n");
+
 	ret = pm_runtime_get_sync(&client->dev);
 	if (ret < 0) {
 		pm_runtime_put_noidle(&client->dev);
