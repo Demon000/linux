@@ -419,6 +419,27 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 
 static int max96717_init(struct max96717_priv *priv)
 {
+	int ret;
+
+	/*
+	 * Enable forwarding of GPIO 0.
+	 */
+
+	dev_err(priv->dev, "enable forwarding gpio 0\n");
+
+	/* GPIO_A GPIO_RX_EN 1 */
+	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
+	/* GPIO_A GPIO_OUT_DIS 0 */
+	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
+
+	ret = max96717_update_bits(priv, 0x0302, 0x70, 0x10);
+	if (ret)
+		return ret;
+
+	ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -455,17 +476,6 @@ static int max96717_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	/*
-	 * Enable forwarding of GPIO 0.
-	 */
-
-	dev_err(priv->dev, "enable forwarding gpio 0\n");
-
-	/* GPIO_A GPIO_RX_EN 1 */
-	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
-	/* GPIO_A GPIO_OUT_DIS 0 */
-	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
-
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&priv->sd, client, &max96717_subdev_ops);
 	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -497,11 +507,11 @@ static int max96717_probe(struct i2c_client *client)
 
 	dev_err(priv->dev, "%s:%u: endpoint: %pfw\n", __func__, __LINE__, ep);
 
-	ret = max96717_parse_dt(priv);
+	ret = max96717_init(priv);
 	if (ret)
 		goto error_put_node;
 
-	ret = max96717_init(priv);
+	ret = max96717_parse_dt(priv);
 	if (ret)
 		goto error_put_node;
 
