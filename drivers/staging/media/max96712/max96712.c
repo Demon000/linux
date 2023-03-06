@@ -40,7 +40,7 @@ struct max96712_asd {
 };
 
 enum max96712_ctrls {
-	MAX96712_TEST_PATTERN_CTRL,
+	MAX96712_TEST_PATTERN_CTRL = V4L2_CTRL_CLASS_IMAGE_PROC | 0x1101,
 };
 
 enum max96712_pattern {
@@ -598,10 +598,9 @@ static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
 	.ops = &max96712_ctrl_ops,
 	.id = MAX96712_TEST_PATTERN_CTRL,
 	.name = "Deserializer test pattern",
-	.type = V4L2_CTRL_TYPE_INTEGER,
+	.type = V4L2_CTRL_TYPE_MENU,
 	.min = 0,
 	.max = ARRAY_SIZE(max96712_test_pattern) - 1,
-	.step = 1,
 	.def = 0,
 	.qmenu = max96712_test_pattern,
 };
