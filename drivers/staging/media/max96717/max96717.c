@@ -172,24 +172,39 @@ static void max96717_pattern_enable(struct max96717_priv *priv, bool enable)
 		/* Generate gradient pattern. */
 		max96717_update_bits(priv, 0x026b, 0x03, 0x2);
 	}
+}
 
-	/* Disable Auto BPP mode. */
-	max96717_update_bits(priv, 0x0110, 0x08, 0x00);
+static void max96717_tunnel_enable(struct max96717_priv *priv, bool enable)
+{
+	if (enable && priv->pattern == MAX96717_PATTERN_NONE) {
+		/* Select tunnel mode. */
+		max96717_update_bits(priv, 0x0383, 0x80, 0x80);
+	} else {
+		/* Disable Auto BPP mode. */
+		max96717_update_bits(priv, 0x0110, 0x08, 0x00);
 
-	/* Select pixel mode. */
-	max96717_update_bits(priv, 0x0383, 0x80, 0x00);
+		/* Select pixel mode. */
+		max96717_update_bits(priv, 0x0383, 0x80, 0x00);
+	}
 }
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+	int ret;
 
 	dev_err(priv->dev, "s_stream: %u\n", enable);
 
-	if (enable)
-		max96717_pattern_enable(priv, true);
-	else
-		max96717_pattern_enable(priv, false);
+	max96717_pattern_enable(priv, enable);
+	max96717_tunnel_enable(priv, enable);
+
+	if (priv->pattern == MAX96717_PATTERN_NONE) {
+		ret = v4l2_subdev_call(priv->sensor, video, s_stream, enable);
+		if (ret)
+			dev_err(priv->dev, "Failed to start stream for camera device %d\n", ret);
+
+		return ret;
+	}
 
 	return 0;
 }
