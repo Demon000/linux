@@ -16,6 +16,10 @@
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
 
+enum max96717_ctrls {
+	MAX96717_TEST_PATTERN_CTRL,
+};
+
 enum max96717_pattern {
 	MAX96717_PATTERN_NONE = 0,
 	MAX96717_PATTERN_CHECKERBOARD,
@@ -242,7 +246,7 @@ static int max96717_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct max96717_priv, ctrl_handler);
 
 	switch (ctrl->id) {
-	case V4L2_CID_TEST_PATTERN:
+	case MAX96717_TEST_PATTERN_CTRL:
 		priv->pattern = ctrl->val;
 		break;
 	}
@@ -407,6 +411,18 @@ static const struct regmap_config max96717_i2c_regmap = {
 	.max_register = 0x1f00,
 };
 
+static const struct v4l2_ctrl_config max96717_test_pattern_ctrl = {
+	.ops = &max96717_ctrl_ops,
+	.id = MAX96717_TEST_PATTERN_CTRL,
+	.name = "Serializer test pattern",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = ARRAY_SIZE(max96717_test_pattern) - 1,
+	.step = 1,
+	.def = 0,
+	.qmenu = max96717_test_pattern,
+};
+
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -444,10 +460,7 @@ static int max96717_probe(struct i2c_client *client)
 
 	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
 
-	v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler, &max96717_ctrl_ops,
-				     V4L2_CID_TEST_PATTERN,
-				     ARRAY_SIZE(max96717_test_pattern) - 1,
-				     0, 0, max96717_test_pattern);
+	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96717_test_pattern_ctrl, NULL);
 
 	priv->sd.ctrl_handler = &priv->ctrl_handler;
 	ret = priv->ctrl_handler.error;
