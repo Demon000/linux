@@ -392,6 +392,16 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 				index);
 			return ret;
 		}
+
+		/* Add controls from the subdevice */
+		ret = v4l2_ctrl_add_handler(&priv->ctrl_handler,
+					    source->sd->ctrl_handler,
+					    NULL, true);
+		if (ret) {
+			dev_err(priv->dev, "Failed to add subdevice %u controls %d\n",
+				index, ret);
+			return ret;
+		}
 	}
 
 	return 0;
