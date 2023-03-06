@@ -512,7 +512,7 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
+	if (true || priv->pattern != MAX96712_PATTERN_NONE) {
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -537,7 +537,7 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
+	if (true || priv->pattern != MAX96712_PATTERN_NONE) {
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
