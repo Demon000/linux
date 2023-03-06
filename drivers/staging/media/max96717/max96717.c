@@ -76,6 +76,7 @@ retry:
 
 	if (ret && retry != 0) {
 		retry--;
+		udelay(1000);
 		goto retry;
 	}
 
