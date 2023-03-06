@@ -500,6 +500,8 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
 	struct max96712_source *source;
 
+	dev_err(priv->dev, "format->pad: %u\n", format->pad);
+
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
 		format->format.width = 1920;
 		format->format.height = 1080;
@@ -508,10 +510,10 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (format->pad >= MAX96712_SRC_PAD_START)
+	if (format->pad < MAX96712_SRC_PAD_START)
 		return -EINVAL;
 
-	source = &priv->sources[format->pad];
+	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
 
 	return v4l2_subdev_call(source->sd, pad, get_fmt, sd_state, format);
 }
@@ -523,6 +525,8 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
 	struct max96712_source *source;
 
+	dev_err(priv->dev, "format->pad: %u\n", format->pad);
+
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
 		format->format.width = 1920;
 		format->format.height = 1080;
@@ -531,10 +535,10 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (format->pad >= MAX96712_SRC_PAD_START)
+	if (format->pad < MAX96712_SRC_PAD_START)
 		return -EINVAL;
 
-	source = &priv->sources[format->pad];
+	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
 
 	return v4l2_subdev_call(source->sd, pad, set_fmt, sd_state, format);
 }
