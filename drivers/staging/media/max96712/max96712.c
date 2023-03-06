@@ -39,6 +39,10 @@ struct max96712_asd {
 	struct max96712_source *source;
 };
 
+enum max96712_ctrls {
+	MAX96712_TEST_PATTERN_CTRL,
+};
+
 enum max96712_pattern {
 	MAX96712_PATTERN_NONE = 0,
 	MAX96712_PATTERN_CHECKERBOARD,
@@ -579,7 +583,7 @@ static int max96712_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct max96712_priv, ctrl_handler);
 
 	switch (ctrl->id) {
-	case V4L2_CID_TEST_PATTERN:
+	case MAX96712_TEST_PATTERN_CTRL:
 		priv->pattern = ctrl->val;
 		break;
 	}
@@ -588,6 +592,18 @@ static int max96712_s_ctrl(struct v4l2_ctrl *ctrl)
 
 static const struct v4l2_ctrl_ops max96712_ctrl_ops = {
 	.s_ctrl = max96712_s_ctrl,
+};
+
+static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
+	.ops = &max96712_ctrl_ops,
+	.id = MAX96712_TEST_PATTERN_CTRL,
+	.name = "Deserializer test pattern",
+	.type = V4L2_CTRL_TYPE_INTEGER,
+	.min = 0,
+	.max = ARRAY_SIZE(max96712_test_pattern) - 1,
+	.step = 1,
+	.def = 0,
+	.qmenu = max96712_test_pattern,
 };
 
 static int max96712_v4l2_register(struct max96712_priv *priv)
@@ -618,10 +634,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_PIXEL_RATE,
 			  pixel_rate, pixel_rate, 1, pixel_rate);
 
-	v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler, &max96712_ctrl_ops,
-				     V4L2_CID_TEST_PATTERN,
-				     ARRAY_SIZE(max96712_test_pattern) - 1,
-				     0, 0, max96712_test_pattern);
+	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96712_test_pattern_ctrl, NULL);
 
 	priv->sd.ctrl_handler = &priv->ctrl_handler;
 	ret = priv->ctrl_handler.error;
