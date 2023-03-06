@@ -458,7 +458,7 @@ static int max96717_probe(struct i2c_client *client)
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 
-	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
+	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
 
 	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96717_test_pattern_ctrl, NULL);
 
