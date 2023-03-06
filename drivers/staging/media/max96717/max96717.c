@@ -497,23 +497,21 @@ static int max96717_probe(struct i2c_client *client)
 
 	dev_err(priv->dev, "%s:%u: endpoint: %pfw\n", __func__, __LINE__, ep);
 
+	ret = max96717_parse_dt(priv);
+	if (ret)
+		goto error_put_node;
+
+	ret = max96717_init(priv);
+	if (ret)
+		goto error_put_node;
+
 	priv->sd.fwnode = ep;
 	ret = v4l2_async_register_subdev(&priv->sd);
 	if (ret)
 		goto error_put_node;
 
-	ret = max96717_parse_dt(priv);
-	if (ret)
-		goto error_unregister_subdev;
-
-	ret = max96717_init(priv);
-	if (ret)
-		goto error_unregister_subdev;
-
 	return 0;
 
-error_unregister_subdev:
-	v4l2_async_unregister_subdev(&priv->sd);
 error_put_node:
 	fwnode_handle_put(priv->sd.fwnode);
 error_media_entity:
