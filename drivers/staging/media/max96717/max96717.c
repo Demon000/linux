@@ -30,7 +30,6 @@ struct max96717_priv {
 	struct media_pad pads[2];
 	struct v4l2_async_notifier notifier;
 	struct v4l2_async_subdev *asd;
-	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_subdev *sensor;
 
@@ -285,8 +284,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	if (pad < 0) {
 		dev_err(priv->dev,
 			"Failed to find source pad for %s\n", subdev->name);
-		ret = pad;
-		goto error_free_handler;
+		return pad;
 	}
 
 	ret = media_create_pad_link(&subdev->entity, pad,
@@ -294,7 +292,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret)
-		goto error_free_handler;
+		return ret;
 
 	priv->sensor = subdev;
 
@@ -315,10 +313,6 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 error_remove_link:
 	media_entity_remove_links(&priv->sd.entity);
 	priv->sensor = NULL;
-
-error_free_handler:
-	v4l2_ctrl_handler_free(&priv->ctrls);
-	priv->sd.ctrl_handler = NULL;
 
 	return ret;
 }
@@ -495,7 +489,6 @@ static int max96717_remove(struct i2c_client *client)
 {
 	struct max96717_priv *priv = i2c_to_max96717(client);
 
-	v4l2_ctrl_handler_free(&priv->ctrls);
 	v4l2_async_notifier_cleanup(&priv->notifier);
 	v4l2_async_unregister_subdev(&priv->sd);
 	fwnode_handle_put(priv->sd.fwnode);
