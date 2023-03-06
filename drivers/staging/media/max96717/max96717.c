@@ -17,7 +17,7 @@
 #define MAX96717_SINK_PAD	1
 
 enum max96717_ctrls {
-	MAX96717_TEST_PATTERN_CTRL,
+	MAX96717_TEST_PATTERN_CTRL = V4L2_CTRL_CLASS_IMAGE_PROC | 0x1201,
 };
 
 enum max96717_pattern {
@@ -415,7 +415,7 @@ static const struct v4l2_ctrl_config max96717_test_pattern_ctrl = {
 	.ops = &max96717_ctrl_ops,
 	.id = MAX96717_TEST_PATTERN_CTRL,
 	.name = "Serializer test pattern",
-	.type = V4L2_CTRL_TYPE_INTEGER,
+	.type = V4L2_CTRL_TYPE_MENU,
 	.min = 0,
 	.max = ARRAY_SIZE(max96717_test_pattern) - 1,
 	.step = 1,
