@@ -1373,6 +1373,8 @@ static int imx219_post_register(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
+	pm_runtime_set_active(dev);
+
 	ret = imx219_identify_module(imx219);
 	if (ret)
 		goto error_power_off;
@@ -1674,7 +1676,6 @@ static int imx219_probe(struct i2c_client *client)
 	}
 
 	/* Enable runtime PM and turn off the device */
-	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
