@@ -418,7 +418,6 @@ static const struct v4l2_ctrl_config max96717_test_pattern_ctrl = {
 	.type = V4L2_CTRL_TYPE_MENU,
 	.min = 0,
 	.max = ARRAY_SIZE(max96717_test_pattern) - 1,
-	.step = 1,
 	.def = 0,
 	.qmenu = max96717_test_pattern,
 };
