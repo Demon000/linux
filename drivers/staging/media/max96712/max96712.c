@@ -608,7 +608,6 @@ static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
 
 static int max96712_v4l2_register(struct max96712_priv *priv)
 {
-	long pixel_rate;
 	unsigned int i;
 	int ret;
 
@@ -624,15 +623,7 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.ops = &max96712_entity_ops;
 
-	v4l2_ctrl_handler_init(&priv->ctrl_handler, 2);
-
-	/*
-	 * TODO: Once V4L2_CID_LINK_FREQ is changed from a menu control to an
-	 * INT64 control it should be used here instead of V4L2_CID_PIXEL_RATE.
-	 */
-	pixel_rate = MAX96712_DPLL_FREQ / priv->mipi[0].num_data_lanes * 1000000;
-	v4l2_ctrl_new_std(&priv->ctrl_handler, NULL, V4L2_CID_PIXEL_RATE,
-			  pixel_rate, pixel_rate, 1, pixel_rate);
+	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
 
 	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96712_test_pattern_ctrl, NULL);
 
