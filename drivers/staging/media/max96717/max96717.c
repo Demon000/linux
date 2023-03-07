@@ -421,6 +421,14 @@ static int max96717_init(struct max96717_priv *priv)
 {
 	int ret;
 
+	ret = max96717_update_bits(priv, 0x0302, 0x70, 0x10);
+	if (ret)
+		return ret;
+
+	ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
+	if (ret)
+		return ret;
+
 	/*
 	 * Enable forwarding of GPIO 0.
 	 */
@@ -431,14 +439,6 @@ static int max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
 	/* GPIO_A GPIO_OUT_DIS 0 */
 	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
-
-	ret = max96717_update_bits(priv, 0x0302, 0x70, 0x10);
-	if (ret)
-		return ret;
-
-	ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
-	if (ret)
-		return ret;
 
 	return 0;
 }
