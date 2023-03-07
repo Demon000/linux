@@ -36,6 +36,7 @@ struct max96717_priv {
 	struct v4l2_async_subdev *asd;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_subdev *sensor;
+	unsigned int sensor_pad_id;
 
 	enum max96717_pattern pattern;
 };
@@ -217,8 +218,11 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct v4l2_subdev_format sd_format;
+	int ret;
 
 	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		dev_err(priv->dev, "using pattern get_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -226,7 +230,20 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	return v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL, format);
+	sd_format.which = format->which;
+	sd_format.pad = priv->sensor_pad_id;
+
+	dev_err(priv->dev, "using subdev get_fmt\n");
+
+	ret = v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL, &sd_format);
+	if (ret) {
+		dev_err(priv->dev, "Failed to get format for camera device %d\n", ret);
+		return ret;
+	}
+
+	format->format = sd_format.format;
+
+	return 0;
 }
 
 static int max96717_set_fmt(struct v4l2_subdev *sd,
@@ -234,8 +251,11 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct v4l2_subdev_format sd_format;
+	int ret;
 
 	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		dev_err(priv->dev, "using pattern set_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -243,7 +263,19 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	return v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL, format);
+	sd_format.which = format->which;
+	sd_format.format = format->format;
+	sd_format.pad = priv->sensor_pad_id;
+
+	dev_err(priv->dev, "using subdev set_fmt\n");
+
+	ret = v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL, &sd_format);
+	if (ret) {
+		dev_err(priv->dev, "Failed to set format for camera device %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int max96717_post_register(struct v4l2_subdev *sd)
@@ -316,6 +348,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	if (ret)
 		return ret;
 
+	priv->sensor_pad_id = pad;
 	priv->sensor = subdev;
 
 	dev_err(priv->dev, "Calling post_register\n");
