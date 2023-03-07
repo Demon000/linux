@@ -32,6 +32,7 @@
 struct max96712_source {
 	struct v4l2_subdev *sd;
 	struct fwnode_handle *fwnode;
+	unsigned int src_pad_id;
 };
 
 struct max96712_asd {
@@ -345,7 +346,6 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
 	struct max96712_source *source = to_max96712_asd(asd)->source;
 	unsigned int index = to_index(priv, source);
-	unsigned int src_pad;
 	int ret;
 
 	ret = media_entity_get_fwnode_pad(&subdev->entity,
@@ -358,21 +358,21 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 
 	priv->bound_sources |= BIT(index);
 	source->sd = subdev;
-	src_pad = ret;
+	source->src_pad_id = ret;
 
-	ret = media_create_pad_link(&source->sd->entity, src_pad,
+	ret = media_create_pad_link(&source->sd->entity, source->src_pad_id,
 				    &priv->sd.entity, index,
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to link %s:%u -> %s:%u\n",
-			source->sd->name, src_pad, priv->sd.name, index);
+			source->sd->name, source->src_pad_id, priv->sd.name, index);
 		return ret;
 	}
 
 	dev_err(priv->dev, "Bound %s pad: %u on index %u\n",
-		subdev->name, src_pad, index);
+		subdev->name, source->src_pad_id, index);
 
 	/*
 	 * As we register a subdev notifiers we won't get a .complete() callback
@@ -514,11 +514,20 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_format *format)
 {
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev_format sd_format;
 	struct max96712_source *source;
+	int ret;
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (true || priv->pattern != MAX96712_PATTERN_NONE) {
+	if (format->pad == 0)
+		dump_stack();
+
+	if (format->pad < MAX96712_SRC_PAD_START)
+		return -EINVAL;
+
+	if (priv->pattern != MAX96712_PATTERN_NONE) {
+		dev_err(priv->dev, "using pattern format\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -526,12 +535,20 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (format->pad < MAX96712_SRC_PAD_START)
-		return -EINVAL;
-
 	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
 
-	return v4l2_subdev_call(source->sd, pad, get_fmt, sd_state, format);
+	sd_format.which = format->which;
+	sd_format.pad = source->src_pad_id;
+
+	ret = v4l2_subdev_call(source->sd, pad, get_fmt, NULL, &sd_format);
+	if (ret) {
+		dev_err(priv->dev, "Failed to get format for camera device %d\n", ret);
+		return ret;
+	}
+
+	format->format = sd_format.format;
+
+	return 0;
 }
 
 static int max96712_set_pad_format(struct v4l2_subdev *sd,
@@ -539,11 +556,20 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_format *format)
 {
 	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev_format sd_format;
 	struct max96712_source *source;
+	int ret;
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (true || priv->pattern != MAX96712_PATTERN_NONE) {
+	if (format->pad == 0)
+		dump_stack();
+
+	if (format->pad < MAX96712_SRC_PAD_START)
+		return -EINVAL;
+
+	if (priv->pattern != MAX96712_PATTERN_NONE) {
+		dev_err(priv->dev, "using pattern format\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -551,12 +577,19 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	if (format->pad < MAX96712_SRC_PAD_START)
-		return -EINVAL;
-
 	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
 
-	return v4l2_subdev_call(source->sd, pad, set_fmt, sd_state, format);
+	sd_format.which = format->which;
+	sd_format.format = format->format;
+	sd_format.pad = source->src_pad_id;
+
+	ret = v4l2_subdev_call(source->sd, pad, set_fmt, NULL, &sd_format);
+	if (ret) {
+		dev_err(priv->dev, "Failed to set format for camera device %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
