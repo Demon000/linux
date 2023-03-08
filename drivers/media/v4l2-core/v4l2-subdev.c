@@ -143,7 +143,6 @@ static inline int check_pad(struct v4l2_subdev *sd, u32 pad)
 			printk("%s:%u\n", __func__, __LINE__);
 			return -EINVAL;
 		}
-		printk("%s:%u\n", __func__, __LINE__);
 		return 0;
 	}
 #endif
