@@ -520,14 +520,11 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (format->pad == 0)
-		dump_stack();
-
 	if (format->pad < MAX96712_SRC_PAD_START)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		dev_err(priv->dev, "using pattern format\n");
+		dev_err(priv->dev, "using pattern get_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -539,6 +536,8 @@ static int max96712_get_pad_format(struct v4l2_subdev *sd,
 
 	sd_format.which = format->which;
 	sd_format.pad = source->src_pad_id;
+
+	dev_err(priv->dev, "using subdev get_fmt\n");
 
 	ret = v4l2_subdev_call(source->sd, pad, get_fmt, NULL, &sd_format);
 	if (ret) {
@@ -562,14 +561,11 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 
 	dev_err(priv->dev, "format->pad: %u\n", format->pad);
 
-	if (format->pad == 0)
-		dump_stack();
-
 	if (format->pad < MAX96712_SRC_PAD_START)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		dev_err(priv->dev, "using pattern format\n");
+		dev_err(priv->dev, "using pattern set_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
@@ -582,6 +578,8 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 	sd_format.which = format->which;
 	sd_format.format = format->format;
 	sd_format.pad = source->src_pad_id;
+
+	dev_err(priv->dev, "using subdev set_fmt\n");
 
 	ret = v4l2_subdev_call(source->sd, pad, set_fmt, NULL, &sd_format);
 	if (ret) {
