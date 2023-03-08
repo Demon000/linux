@@ -127,8 +127,10 @@ static int subdev_close(struct file *file)
 static inline int check_which(u32 which)
 {
 	if (which != V4L2_SUBDEV_FORMAT_TRY &&
-	    which != V4L2_SUBDEV_FORMAT_ACTIVE)
+	    which != V4L2_SUBDEV_FORMAT_ACTIVE) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -137,21 +139,28 @@ static inline int check_pad(struct v4l2_subdev *sd, u32 pad)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	if (sd->entity.num_pads) {
-		if (pad >= sd->entity.num_pads)
+		if (pad >= sd->entity.num_pads) {
+			printk("%s:%u\n", __func__, __LINE__);
 			return -EINVAL;
+		}
+		printk("%s:%u\n", __func__, __LINE__);
 		return 0;
 	}
 #endif
 	/* allow pad 0 on subdevices not registered as media entities */
-	if (pad > 0)
+	if (pad > 0) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 	return 0;
 }
 
 static int check_state_pads(u32 which, struct v4l2_subdev_state *state)
 {
-	if (which == V4L2_SUBDEV_FORMAT_TRY && (!state || !state->pads))
+	if (which == V4L2_SUBDEV_FORMAT_TRY && (!state || !state->pads)) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -160,8 +169,10 @@ static inline int check_format(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
 			       struct v4l2_subdev_format *format)
 {
-	if (!format)
+	if (!format) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 
 	return check_which(format->which) ? : check_pad(sd, format->pad) ? :
 	       check_state_pads(format->which, state);
