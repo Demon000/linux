@@ -36,6 +36,7 @@ struct max96717_priv {
 	struct v4l2_async_subdev *asd;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_subdev *sensor;
+	struct v4l2_subdev_state *sensor_state;
 	unsigned int sensor_pad_id;
 
 	enum max96717_pattern pattern;
@@ -212,34 +213,51 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static int max96717_get_selection(struct v4l2_subdev *sd,
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_selection *sel)
+{
+	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct v4l2_subdev_selection sd_sel = *sel;
+	int ret;
+
+	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		return 0;
+	}
+
+	sd_sel.pad = priv->sensor_pad_id;
+
+	ret = v4l2_subdev_call(priv->sensor, pad, get_selection, priv->sensor_state, &sd_sel);
+	if (ret)
+		return ret;
+
+	sel->r = sd_sel.r;
+
+	return 0;
+}
 
 static int max96717_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
-	struct v4l2_subdev_format sd_format;
+	struct v4l2_subdev_format sd_format = *format;
 	int ret;
 
 	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		dev_err(priv->dev, "using pattern get_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
 		format->format.field = V4L2_FIELD_NONE;
+
 		return 0;
 	}
 
-	sd_format.which = format->which;
 	sd_format.pad = priv->sensor_pad_id;
 
-	dev_err(priv->dev, "using subdev get_fmt\n");
-
-	ret = v4l2_subdev_call(priv->sensor, pad, get_fmt, NULL, &sd_format);
-	if (ret) {
-		dev_err(priv->dev, "Failed to get format for camera device %d\n", ret);
+	ret = v4l2_subdev_call(priv->sensor, pad, get_fmt, priv->sensor_state, &sd_format);
+	if (ret)
 		return ret;
-	}
 
 	format->format = sd_format.format;
 
@@ -251,29 +269,77 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
-	struct v4l2_subdev_format sd_format;
+	struct v4l2_subdev_format sd_format = *format;
 	int ret;
 
 	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		dev_err(priv->dev, "using pattern set_fmt\n");
 		format->format.width = 1920;
 		format->format.height = 1080;
 		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
 		format->format.field = V4L2_FIELD_NONE;
+
 		return 0;
 	}
 
-	sd_format.which = format->which;
-	sd_format.format = format->format;
 	sd_format.pad = priv->sensor_pad_id;
 
-	dev_err(priv->dev, "using subdev set_fmt\n");
-
-	ret = v4l2_subdev_call(priv->sensor, pad, set_fmt, NULL, &sd_format);
-	if (ret) {
-		dev_err(priv->dev, "Failed to set format for camera device %d\n", ret);
+	ret = v4l2_subdev_call(priv->sensor, pad, set_fmt, priv->sensor_state, &sd_format);
+	if (ret)
 		return ret;
+
+	return 0;
+}
+
+static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_mbus_code_enum *code)
+{
+	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct v4l2_subdev_mbus_code_enum sd_code = *code;
+	int ret;
+
+	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		code->code = MEDIA_BUS_FMT_RGB888_1X24;
+
+		return 0;
 	}
+
+	sd_code.pad = priv->sensor_pad_id;
+
+	ret = v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, priv->sensor_state, &sd_code);
+	if (ret)
+		return ret;
+
+	code->code = sd_code.code;
+
+	return 0;
+}
+
+static int max96717_enum_frame_size(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *sd_state,
+				    struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
+	int ret;
+
+	if (priv->pattern != MAX96717_PATTERN_NONE) {
+		fse->code = MEDIA_BUS_FMT_RGB888_1X24;
+
+		return 0;
+	}
+
+	sd_fse.pad = priv->sensor_pad_id;
+
+	ret = v4l2_subdev_call(priv->sensor, pad, enum_frame_size, priv->sensor_state, &sd_fse);
+	if (ret)
+		return ret;
+
+	fse->code = sd_fse.code;
+	fse->min_width = sd_fse.min_width;
+	fse->max_width = sd_fse.max_width;
+	fse->min_height = sd_fse.min_height;
+	fse->max_height = sd_fse.max_height;
 
 	return 0;
 }
@@ -310,9 +376,12 @@ static const struct v4l2_subdev_video_ops max96717_video_ops = {
 	.s_stream	= max96717_s_stream,
 };
 
-static const struct v4l2_subdev_pad_ops max96717_subdev_pad_ops = {
-	.get_fmt	= max96717_get_fmt,
-	.set_fmt	= max96717_set_fmt,
+static const struct v4l2_subdev_pad_ops max96717_pad_ops = {
+	.get_selection = max96717_get_selection,
+	.get_fmt = max96717_get_fmt,
+	.set_fmt = max96717_set_fmt,
+	.enum_mbus_code = max96717_enum_mbus_code,
+	.enum_frame_size = max96717_enum_frame_size,
 };
 
 static const struct v4l2_subdev_core_ops max96717_core_ops = {
@@ -322,7 +391,7 @@ static const struct v4l2_subdev_core_ops max96717_core_ops = {
 static const struct v4l2_subdev_ops max96717_subdev_ops = {
 	.core		= &max96717_core_ops,
 	.video		= &max96717_video_ops,
-	.pad		= &max96717_subdev_pad_ops,
+	.pad		= &max96717_pad_ops,
 };
 
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
@@ -350,6 +419,10 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 
 	priv->sensor_pad_id = pad;
 	priv->sensor = subdev;
+
+	priv->sensor_state = v4l2_subdev_alloc_state(subdev);
+	if (IS_ERR(priv->sensor_state))
+		return PTR_ERR(priv->sensor_state);
 
 	dev_err(priv->dev, "Calling post_register\n");
 
@@ -389,6 +462,7 @@ static void max96717_notify_unbind(struct v4l2_async_notifier *notifier,
 
 	media_entity_remove_links(&priv->sd.entity);
 	priv->sensor = NULL;
+	v4l2_subdev_free_state(priv->sensor_state);
 }
 
 static const struct v4l2_async_notifier_operations max96717_notifier_ops = {
