@@ -575,7 +575,7 @@ static int max96712_set_pad_format(struct v4l2_subdev *sd,
 
 	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
 
-	sd_format.which = format->which;
+	sd_format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sd_format.format = format->format;
 	sd_format.pad = source->src_pad_id;
 
