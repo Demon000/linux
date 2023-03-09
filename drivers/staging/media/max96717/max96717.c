@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/fwnode.h>
 #include <linux/init.h>
@@ -28,6 +29,7 @@ enum max96717_pattern {
 
 struct max96717_priv {
 	struct device *dev;
+	struct dentry *debugfs_root;
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct v4l2_subdev sd;
@@ -57,6 +59,18 @@ static inline struct max96717_priv *notifier_to_max96717(struct v4l2_async_notif
 	return container_of(nf, struct max96717_priv, notifier);
 }
 
+static int max96717_read(struct max96717_priv *priv, int reg)
+{
+	int ret, val;
+
+	ret = regmap_read(priv->regmap, reg, &val);
+	if (ret) {
+		dev_err(priv->dev, "read 0x%04x failed\n", reg);
+		return ret;
+	}
+
+	return val;
+}
 
 static int max96717_write(struct max96717_priv *priv, unsigned int reg, u8 val)
 {
@@ -567,6 +581,42 @@ static const struct v4l2_ctrl_config max96717_test_pattern_ctrl = {
 	.qmenu = max96717_test_pattern,
 };
 
+static int max96717_dump_regs(struct max96717_priv *priv)
+{
+	static const struct {
+		u32 offset;
+		u32 mask;
+		const char * const name;
+	} registers[] = {
+		{ 0x0, GENMASK(7, 1), "DEV_ADDR" },
+		{ 0x112, BIT(7), "PCLKDET" },
+	};
+	unsigned int i;
+	u32 cfg;
+
+	dev_info(priv->dev, "--- REGISTERS ---\n");
+
+	for (i = 0; i < ARRAY_SIZE(registers); i++) {
+		cfg = max96717_read(priv, registers[i].offset);
+		if (cfg < 0)
+			return -EINVAL;
+
+		dev_info(priv->dev, "0x%04x: 0x%02x\n", registers[i].offset, cfg);
+		cfg = (cfg & registers[i].mask) >> __ffs(registers[i].mask);
+		dev_info(priv->dev, "%14s: 0x%02x\n", registers[i].name, cfg);
+	}
+
+	return 0;
+}
+
+static int max96717_dump_regs_show(struct seq_file *m, void *private)
+{
+	struct max96717_priv *priv = m->private;
+
+	return max96717_dump_regs(priv);
+}
+DEFINE_SHOW_ATTRIBUTE(max96717_dump_regs);
+
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -576,12 +626,17 @@ static int max96717_probe(struct i2c_client *client)
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
 	priv->dev = &client->dev;
 	priv->client = client;
 
 	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
+	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
+			    &max96717_dump_regs_fops);
 
 	/* Initialize and register the subdevice. */
 	v4l2_i2c_subdev_init(&priv->sd, client, &max96717_subdev_ops);
