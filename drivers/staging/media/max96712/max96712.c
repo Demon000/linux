@@ -6,6 +6,7 @@
  * Copyright (C) 2021 Niklas Söderlund
  */
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -53,6 +54,7 @@ enum max96712_pattern {
 
 struct max96712_priv {
 	struct device *dev;
+	struct dentry *debugfs_root;
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
@@ -105,7 +107,6 @@ static inline struct max96712_priv *sd_to_max96712(struct v4l2_subdev *sd)
 	return container_of(sd, struct max96712_priv, sd);
 }
 
-#if 0
 static int max96712_read(struct max96712_priv *priv, int reg)
 {
 	int ret, val;
@@ -118,7 +119,6 @@ static int max96712_read(struct max96712_priv *priv, int reg)
 
 	return val;
 }
-#endif
 
 static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 {
@@ -902,6 +902,53 @@ static const struct regmap_config max96712_i2c_regmap = {
 	.max_register = 0x1f00,
 };
 
+static int max96712_dump_regs(struct max96712_priv *priv)
+{
+	static const struct {
+		u32 offset;
+		u32 mask;
+		const char * const name;
+	} registers[] = {
+		{ 0x0, GENMASK(7, 1), "DEV_ADDR" },
+		{ 0x1dc, BIT(0), "VIDEO_LOCK 0" },
+		{ 0x1fc, BIT(0), "VIDEO_LOCK 1" },
+		{ 0x21c, BIT(0), "VIDEO_LOCK 2" },
+		{ 0x23c, BIT(0), "VIDEO_LOCK 3" },
+		{ 0x8d0, GENMASK(3, 0), "csi2_tx0_pkt_cnt" },
+		{ 0x8d0, GENMASK(7, 4), "csi2_tx1_pkt_cnt" },
+		{ 0x8d1, GENMASK(3, 0), "csi2_tx2_pkt_cnt" },
+		{ 0x8d1, GENMASK(7, 4), "csi2_tx3_pkt_cnt" },
+		{ 0x8d2, GENMASK(3, 0), "phy0_pkt_cnt" },
+		{ 0x8d2, GENMASK(7, 4), "phy1_pkt_cnt" },
+		{ 0x8d3, GENMASK(3, 0), "phy2_pkt_cnt" },
+		{ 0x8d3, GENMASK(7, 4), "phy3_pkt_cnt" },
+	};
+	unsigned int i;
+	u32 cfg;
+
+	dev_info(priv->dev, "--- REGISTERS ---\n");
+
+	for (i = 0; i < ARRAY_SIZE(registers); i++) {
+		cfg = max96712_read(priv, registers[i].offset);
+		if (cfg < 0)
+			return -EINVAL;
+
+		dev_info(priv->dev, "0x%04x: 0x%02x\n", registers[i].offset, cfg);
+		cfg = (cfg & registers[i].mask) >> __ffs(registers[i].mask);
+		dev_info(priv->dev, "%14s: 0x%08x\n", registers[i].name, cfg);
+	}
+
+	return 0;
+}
+
+static int max96712_dump_regs_show(struct seq_file *m, void *private)
+{
+	struct max96712_priv *priv = m->private;
+
+	return max96712_dump_regs(priv);
+}
+DEFINE_SHOW_ATTRIBUTE(max96712_dump_regs);
+
 static int max96712_probe(struct i2c_client *client)
 {
 	struct max96712_priv *priv;
@@ -918,6 +965,10 @@ static int max96712_probe(struct i2c_client *client)
 	priv->regmap = devm_regmap_init_i2c(client, &max96712_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
+	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
+			    &max96712_dump_regs_fops);
 
 	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
 						   GPIOD_OUT_HIGH);
