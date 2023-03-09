@@ -910,6 +910,11 @@ static int max96712_dump_regs(struct max96712_priv *priv)
 		const char * const name;
 	} registers[] = {
 		{ 0x0, GENMASK(7, 1), "DEV_ADDR" },
+		{ 0x8a0, GENMASK(7, 0), "PHY0" },
+		{ 0x8a4, GENMASK(7, 0), "PHY4" },
+		{ 0x98a, GENMASK(7, 0), "TX10_OF_MIPI_TX2" },
+		{ 0x9b6, GENMASK(7, 0), "TX54_OF_MIPI_TX2" },
+		{ 0x9b9, GENMASK(7, 0), "TX57_OF_MIPI_TX2" },
 		{ 0x1dc, BIT(0), "VIDEO_LOCK 0" },
 		{ 0x1fc, BIT(0), "VIDEO_LOCK 1" },
 		{ 0x21c, BIT(0), "VIDEO_LOCK 2" },
