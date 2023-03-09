@@ -237,11 +237,11 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv, unsigned int
 	max96712_update_bits(priv, reg, mask << shift, val << shift);
 
 	/* Set link frequency. */
-	max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+	// max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
+	// 		     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
 
 	/* Enable. */
-	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
+	// max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
 }
 
 static void max96712_mipi_configure(struct max96712_priv *priv)
@@ -249,6 +249,8 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	unsigned int i;
 
 	max96712_mipi_enable(priv, false);
+
+	max96712_write(priv, 0x18, 0xf0);
 
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
@@ -259,6 +261,14 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 
 		max96712_mipi_configure_phy(priv, i);
 	}
+
+	max96712_write(priv, 0x9b6, 0x09);
+	max96712_write(priv, 0x9b9, 0x20);
+
+	max96712_write(priv, 0x6, 0xf4);
+
+	max96712_write(priv, 0x18, 0x00);
+	max96712_write(priv, 0x18, 0x0f);
 
 	/*
 	 * Wait for 2ms to allow the link to resynchronize after the
