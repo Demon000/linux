@@ -129,6 +129,7 @@ static inline int check_which(u32 which)
 	if (which != V4L2_SUBDEV_FORMAT_TRY &&
 	    which != V4L2_SUBDEV_FORMAT_ACTIVE) {
 		printk("%s:%u\n", __func__, __LINE__);
+		dump_stack();
 		return -EINVAL;
 	}
 
