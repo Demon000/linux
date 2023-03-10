@@ -513,7 +513,7 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		return -ENOENT;
 	}
 
-	dev_err(priv->dev, "%s:%u: remote endpoint: %pfw\n", __func__, __LINE__, remote);
+	dev_err(priv->dev, "%s:%u: sensor remote endpoint: %pfw\n", __func__, __LINE__, remote);
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 	fwnode_handle_put(ep);
