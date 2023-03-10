@@ -431,12 +431,16 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	if (ret)
 		return ret;
 
+	dev_err(priv->dev, "bound\n");
+
 	priv->sensor_pad_id = pad;
 	priv->sensor = subdev;
 
 	priv->sensor_state = v4l2_subdev_alloc_state(subdev);
-	if (IS_ERR(priv->sensor_state))
-		return PTR_ERR(priv->sensor_state);
+	if (IS_ERR(priv->sensor_state)) {
+		ret = PTR_ERR(priv->sensor_state);
+		goto error_remove_link;
+	}
 
 	dev_err(priv->dev, "Calling post_register\n");
 
@@ -456,10 +460,14 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				    NULL, true);
 	if (ret) {
 		dev_err(priv->dev, "Failed to add subdevice controls %d\n", ret);
-		goto error_remove_link;
+		goto error_free_state;
 	}
 
 	return 0;
+
+error_free_state:
+	v4l2_subdev_free_state(priv->sensor_state);
+	priv->sensor_state = NULL;
 
 error_remove_link:
 	media_entity_remove_links(&priv->sd.entity);
@@ -477,6 +485,7 @@ static void max96717_notify_unbind(struct v4l2_async_notifier *notifier,
 	media_entity_remove_links(&priv->sd.entity);
 	priv->sensor = NULL;
 	v4l2_subdev_free_state(priv->sensor_state);
+	priv->sensor_state = NULL;
 }
 
 static const struct v4l2_async_notifier_operations max96717_notifier_ops = {
