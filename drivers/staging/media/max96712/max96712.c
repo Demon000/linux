@@ -800,6 +800,7 @@ error:
 static void max96712_v4l2_unregister(struct max96712_priv *priv)
 {
 	max96712_v4l2_notifier_unregister(priv);
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 	v4l2_async_unregister_subdev(&priv->sd);
 }
 
