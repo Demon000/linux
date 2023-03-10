@@ -89,9 +89,9 @@ module_param(media_controller, int, 0644);
 MODULE_PARM_DESC(media_controller, "Use media controller API");
 
 #define unicam_dbg(level, dev, fmt, arg...)	\
-		v4l2_dbg(level, debug, &(dev)->v4l2_dev, fmt, ##arg)
+		v4l2_err(&(dev)->v4l2_dev, fmt, ##arg)
 #define unicam_info(dev, fmt, arg...)	\
-		v4l2_info(&(dev)->v4l2_dev, fmt, ##arg)
+		v4l2_err(&(dev)->v4l2_dev, fmt, ##arg)
 #define unicam_err(dev, fmt, arg...)	\
 		v4l2_err(&(dev)->v4l2_dev, fmt, ##arg)
 
