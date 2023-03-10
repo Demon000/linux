@@ -192,7 +192,10 @@ static void max96717_pattern_enable(struct max96717_priv *priv, bool enable)
 
 static void max96717_tunnel_enable(struct max96717_priv *priv, bool enable)
 {
-	if (enable && priv->pattern == MAX96717_PATTERN_NONE) {
+	if (!enable)
+		return;
+
+	if (priv->pattern == MAX96717_PATTERN_NONE) {
 		dev_err(priv->dev, "configure tunnel\n");
 		/* Select tunnel mode. */
 		max96717_update_bits(priv, 0x0383, 0x80, 0x80);
