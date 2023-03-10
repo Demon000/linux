@@ -304,6 +304,8 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
+	format->format = sd_format.format;
+
 	return 0;
 }
 
