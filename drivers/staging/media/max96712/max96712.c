@@ -21,25 +21,15 @@
 
 #define MAX96712_DPLL_FREQ 1000
 
-#define MAX96712_SINK_PAD_START		0
-#define MAX96712_SINK_PAD_NUM		4
+#define MAX96712_SOURCE_PAD	0
+#define MAX96712_SINK_PAD	1
+#define MAX96712_PAD_NUM	2
 
-#define MAX96712_SRC_PAD_START		4
-#define MAX96712_SRC_PAD_NUM		4
-
-#define MAX96712_PAD_NUM		(MAX96712_SINK_PAD_NUM + \
-					 MAX96712_SRC_PAD_NUM)
-
-struct max96712_source {
-	struct v4l2_subdev *sd;
-	struct v4l2_subdev_state *sd_state;
-	struct fwnode_handle *fwnode;
-	unsigned int src_pad_id;
-};
+#define MAX96712_SUBDEVS_NUM	4
 
 struct max96712_asd {
 	struct v4l2_async_subdev base;
-	struct max96712_source *source;
+	struct max96712_subdev_priv *sd_priv;
 };
 
 enum max96712_ctrls {
@@ -52,6 +42,26 @@ enum max96712_pattern {
 	MAX96712_PATTERN_GRADIENT,
 };
 
+struct max96712_subdev_priv {
+	struct v4l2_subdev sd;
+	unsigned int index;
+	struct fwnode_handle *fwnode;
+
+	struct max96712_priv *priv;
+
+	struct v4l2_subdev *slave_sd;
+	struct fwnode_handle *slave_fwnode;
+	struct v4l2_subdev_state *slave_sd_state;
+	unsigned int slave_sd_pad_id;
+
+	struct v4l2_ctrl_handler ctrl_handler;
+	struct v4l2_async_notifier notifier;
+	struct media_pad pads[MAX96712_PAD_NUM];
+
+
+	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+};
+
 struct max96712_priv {
 	struct device *dev;
 	struct dentry *debugfs_root;
@@ -60,51 +70,23 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	unsigned int lane_config;
-	struct v4l2_fwnode_bus_mipi_csi2 mipi[MAX96712_SRC_PAD_NUM];
-	bool mipi_en[MAX96712_SRC_PAD_NUM];
+	bool mipi_en[MAX96712_SUBDEVS_NUM];
 
-	struct v4l2_subdev sd;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_async_notifier notifier;
-	struct media_pad pads[MAX96712_PAD_NUM];
-	struct max96712_source sources[MAX96712_SINK_PAD_NUM];
-
-	unsigned int nsources;
-	unsigned int source_mask;
-	unsigned int bound_sources;
+	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 
 	enum max96712_pattern pattern;
 };
 
-static struct max96712_source *next_source(struct max96712_priv *priv,
-					   struct max96712_source *source)
-{
-	if (!source)
-		source = &priv->sources[0];
-	else
-		source++;
-
-	for (; source < &priv->sources[MAX96712_SINK_PAD_NUM]; source++) {
-		if (source->fwnode)
-			return source;
-	}
-
-	return NULL;
-}
-
-#define for_each_source(priv, source) \
-	for ((source) = NULL; ((source) = next_source((priv), (source))); )
-
-#define to_index(priv, source) ((source) - &(priv)->sources[0])
+#define to_index(priv, sd_priv) ((sd_priv) - &(priv)->sd_privs[0])
 
 static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
 {
 	return container_of(asd, struct max96712_asd, base);
 }
 
-static inline struct max96712_priv *sd_to_max96712(struct v4l2_subdev *sd)
+static inline struct max96712_subdev_priv *sd_to_max96712(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct max96712_priv, sd);
+	return container_of(sd, struct max96712_subdev_priv, sd);
 }
 
 static int max96712_read(struct max96712_priv *priv, int reg)
@@ -193,9 +175,11 @@ static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 	}
 }
 
-static void max96712_mipi_configure_phy(struct max96712_priv *priv, unsigned int index)
+static void max96712_mipi_configure_phy(struct max96712_priv *priv,
+					struct max96712_subdev_priv *sd_priv)
 {
-	unsigned int num_data_lanes = priv->mipi[index].num_data_lanes;
+	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
+	unsigned int index = to_index(priv, sd_priv);
 	unsigned int reg, val, shift, mask, clk_bit;
 	unsigned int i;
 
@@ -240,7 +224,7 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv, unsigned int
 	/* Configure lane polarity. */
 	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
-		if (priv->mipi[index].lane_polarities[i])
+		if (sd_priv->mipi.lane_polarities[i])
 			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
 	max96712_update_bits(priv, reg, mask << shift, val << shift);
 
@@ -263,11 +247,13 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
-	for (i = 0; i < MAX96712_SRC_PAD_NUM; i++) {
-		if (!priv->mipi_en[i])
+	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
+		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
+
+		if (!sd_priv->fwnode)
 			continue;
 
-		max96712_mipi_configure_phy(priv, i);
+		max96712_mipi_configure_phy(priv, sd_priv);
 	}
 
 	max96712_write(priv, 0x9b6, 0x09);
@@ -362,48 +348,46 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
 {
-	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
-	struct max96712_source *source = to_max96712_asd(asd)->source;
-	unsigned int index = to_index(priv, source);
+	struct max96712_subdev_priv *sd_priv = sd_to_max96712(notifier->sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	int ret;
 
 	ret = media_entity_get_fwnode_pad(&subdev->entity,
-					  source->fwnode,
+					  sd_priv->slave_fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
 		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
 		return ret;
 	}
 
-	priv->bound_sources |= BIT(index);
-	source->sd = subdev;
-	source->src_pad_id = ret;
+	sd_priv->slave_sd = subdev;
+	sd_priv->slave_sd_pad_id = ret;
 
-	ret = media_create_pad_link(&source->sd->entity, source->src_pad_id,
-				    &priv->sd.entity, index,
+	ret = media_create_pad_link(&sd_priv->slave_sd->entity,
+				    sd_priv->slave_sd_pad_id,
+				    &sd_priv->sd.entity,
+				    MAX96712_SINK_PAD,
 				    MEDIA_LNK_FL_ENABLED |
 				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to link %s:%u -> %s:%u\n",
-			source->sd->name, source->src_pad_id, priv->sd.name, index);
+			sd_priv->slave_sd->name,
+			sd_priv->slave_sd_pad_id,
+			sd_priv->sd.name,
+			MAX96712_SINK_PAD);
 		return ret;
 	}
 
-	dev_err(priv->dev, "Bound %s pad: %u on index %u\n",
-		subdev->name, source->src_pad_id, index);
+	dev_err(priv->dev, "Bound %s:%u on %s:%u\n",
+		sd_priv->slave_sd->name,
+		sd_priv->slave_sd_pad_id,
+		sd_priv->sd.name,
+		MAX96712_SINK_PAD);
 
-	source->sd_state = v4l2_subdev_alloc_state(subdev);
-	if (IS_ERR(source->sd_state))
-		return PTR_ERR(source->sd_state);
-
-	/*
-	 * As we register a subdev notifiers we won't get a .complete() callback
-	 * here, so we have to use bound_sources to identify when all remote
-	 * serializers have probed.
-	 */
-	if (priv->bound_sources != priv->source_mask)
-		return 0;
+	sd_priv->slave_sd_state = v4l2_subdev_alloc_state(subdev);
+	if (IS_ERR(sd_priv->slave_sd_state))
+		return PTR_ERR(sd_priv->slave_sd_state);
 
 	/*
 	 * Once all cameras have probed, increase the channel amplitude
@@ -412,13 +396,12 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	 * noise immunity enabled.
 	 */
 	dev_err(priv->dev, "Calling post_register\n");
-	for_each_source(priv, source) {
-		ret = v4l2_subdev_call(source->sd, core, post_register);
-		if (ret) {
-			dev_err(priv->dev, "Failed to initialize camera device %u\n",
-				index);
-			return ret;
-		}
+	ret = v4l2_subdev_call(sd_priv->slave_sd, core, post_register);
+	if (ret) {
+		dev_err(priv->dev,
+			"Failed to call post register for subdev %s: %d\n",
+			sd_priv->sd.name, ret);
+		return ret;
 	}
 
 	return 0;
@@ -428,13 +411,11 @@ static void max96712_notify_unbind(struct v4l2_async_notifier *notifier,
 				   struct v4l2_subdev *subdev,
 				   struct v4l2_async_subdev *asd)
 {
-	struct max96712_priv *priv = sd_to_max96712(notifier->sd);
-	struct max96712_source *source = to_max96712_asd(asd)->source;
-	unsigned int index = to_index(priv, source);
+	struct max96712_subdev_priv *sd_priv = sd_to_max96712(notifier->sd);
 
-	source->sd = NULL;
-	v4l2_subdev_free_state(source->sd_state);
-	priv->bound_sources &= ~BIT(index);
+	sd_priv->slave_sd = NULL;
+	v4l2_subdev_free_state(sd_priv->slave_sd_state);
+	sd_priv->slave_sd_state = NULL;
 }
 
 static const struct v4l2_async_notifier_operations max96712_notify_ops = {
@@ -442,70 +423,64 @@ static const struct v4l2_async_notifier_operations max96712_notify_ops = {
 	.unbind = max96712_notify_unbind,
 };
 
-static int max96712_v4l2_notifier_register(struct max96712_priv *priv)
+static int max96712_v4l2_notifier_register(struct max96712_subdev_priv *sd_priv)
 {
-	struct max96712_source *source = NULL;
+	struct max96712_priv *priv = sd_priv->priv;
+	struct max96712_asd *mas;
 	int ret;
 
-	if (!priv->nsources)
-		return 0;
+	v4l2_async_notifier_init(&sd_priv->notifier);
 
-	v4l2_async_notifier_init(&priv->notifier);
-
-	for_each_source(priv, source) {
-		unsigned int i = to_index(priv, source);
-		struct max96712_asd *mas;
-
-		mas = (struct max96712_asd *)
-		      v4l2_async_notifier_add_fwnode_subdev(&priv->notifier,
-							    source->fwnode, struct max96712_asd);
-		if (IS_ERR(mas)) {
-			dev_err(priv->dev, "Failed to add subdev for source %u: %ld",
-				i, PTR_ERR(mas));
-			v4l2_async_notifier_cleanup(&priv->notifier);
-			return PTR_ERR(mas);
-		}
-
-		mas->source = source;
+	mas = (struct max96712_asd *)
+	      v4l2_async_notifier_add_fwnode_subdev(&sd_priv->notifier,
+						    sd_priv->slave_fwnode, struct max96712_asd);
+	if (IS_ERR(mas)) {
+		ret = PTR_ERR(mas);
+		dev_err(priv->dev,
+			"Failed to add subdev notifier for subdev %s: %d\n",
+			sd_priv->sd.name, ret);
+		goto error_cleanup_notifier;
 	}
 
-	priv->notifier.ops = &max96712_notify_ops;
-	priv->notifier.flags |= V4L2_ASYNC_NOTIFIER_DEFER_POST_REGISTER;
-	ret = v4l2_async_subdev_notifier_register(&priv->sd, &priv->notifier);
+	mas->sd_priv = sd_priv;
+
+	sd_priv->notifier.ops = &max96712_notify_ops;
+	sd_priv->notifier.flags |= V4L2_ASYNC_NOTIFIER_DEFER_POST_REGISTER;
+
+	ret = v4l2_async_subdev_notifier_register(&sd_priv->sd, &sd_priv->notifier);
 	if (ret) {
-		dev_err(priv->dev, "Failed to register subdev_notifier");
-		v4l2_async_notifier_cleanup(&priv->notifier);
-		return ret;
+		dev_err(priv->dev,
+			"Failed to register subdev notifier for subdev %s: %d\n",
+			sd_priv->sd.name, ret);
+		goto error_cleanup_notifier;
 	}
 
 	return 0;
+
+error_cleanup_notifier:
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
+
+	return ret;
 }
 
-static void max96712_v4l2_notifier_unregister(struct max96712_priv *priv)
+static void max96712_v4l2_notifier_unregister(struct max96712_subdev_priv *sd_priv)
 {
-	if (!priv->nsources)
-		return;
-
-	v4l2_async_notifier_unregister(&priv->notifier);
-	v4l2_async_notifier_cleanup(&priv->notifier);
+	v4l2_async_notifier_unregister(&sd_priv->notifier);
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
 }
 
 static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
-	struct max96712_source *source = NULL;
+	struct max96712_subdev_priv *sd_priv = sd_to_max96712(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	int ret;
 
-	dev_err(priv->dev, "s_stream: %u\n", enable);
-
 	if (priv->pattern == MAX96712_PATTERN_NONE) {
-		for_each_source(priv, source) {
-			unsigned int index = to_index(priv, source);
-
-			ret = v4l2_subdev_call(source->sd, video, s_stream, enable);
-			if (ret)
-				dev_err(priv->dev, "Failed to start stream for camera device %u\n", index);
-		}
+		ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
+		if (ret)
+			dev_err(priv->dev,
+				"Failed to start stream for subdev %s: %d\n",
+				sd_priv->sd.name, ret);
 	}
 
 	if (enable) {
@@ -527,23 +502,21 @@ static int max96712_get_selection(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state,
 				  struct v4l2_subdev_selection *sel)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_selection sd_sel = *sel;
-	struct max96712_source *source;
 	int ret;
 
-	if (sel->pad < MAX96712_SRC_PAD_START || sel->pad > MAX96712_PAD_NUM)
+	if (sel->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
+	if (priv->pattern != MAX96712_PATTERN_NONE)
 		return 0;
-	}
 
-	source = &priv->sources[sel->pad - MAX96712_SRC_PAD_START];
+	sd_sel.pad = sd_priv->slave_sd_pad_id;
 
-	sd_sel.pad = source->src_pad_id;
-
-	ret = v4l2_subdev_call(source->sd, pad, get_selection, source->sd_state, &sd_sel);
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, get_selection,
+			       sd_priv->slave_sd_state, &sd_sel);
 	if (ret)
 		return ret;
 
@@ -556,12 +529,12 @@ static int max96712_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_format sd_format = *format;
-	struct max96712_source *source;
 	int ret;
 
-	if (format->pad < MAX96712_SRC_PAD_START || format->pad > MAX96712_PAD_NUM)
+	if (format->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
@@ -573,11 +546,10 @@ static int max96712_get_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
+	sd_format.pad = sd_priv->slave_sd_pad_id;
 
-	sd_format.pad = source->src_pad_id;
-
-	ret = v4l2_subdev_call(source->sd, pad, get_fmt, source->sd_state, &sd_format);
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, get_fmt,
+			       sd_priv->slave_sd_state, &sd_format);
 	if (ret)
 		return ret;
 
@@ -590,12 +562,12 @@ static int max96712_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_format sd_format = *format;
-	struct max96712_source *source;
 	int ret;
 
-	if (format->pad < MAX96712_SRC_PAD_START || format->pad > MAX96712_PAD_NUM)
+	if (format->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
@@ -607,11 +579,10 @@ static int max96712_set_fmt(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	source = &priv->sources[format->pad - MAX96712_SRC_PAD_START];
+	sd_format.pad = sd_priv->slave_sd_pad_id;
 
-	sd_format.pad = source->src_pad_id;
-
-	ret = v4l2_subdev_call(source->sd, pad, set_fmt, source->sd_state, &sd_format);
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, set_fmt,
+			       sd_priv->slave_sd_state, &sd_format);
 	if (ret)
 		return ret;
 
@@ -624,12 +595,12 @@ static int max96712_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_state *sd_state,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_mbus_code_enum sd_code = *code;
-	struct max96712_source *source;
 	int ret;
 
-	if (code->pad < MAX96712_SRC_PAD_START || code->pad > MAX96712_PAD_NUM)
+	if (code->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
@@ -638,11 +609,10 @@ static int max96712_enum_mbus_code(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	source = &priv->sources[code->pad - MAX96712_SRC_PAD_START];
+	sd_code.pad = sd_priv->slave_sd_pad_id;
 
-	sd_code.pad = source->src_pad_id;
-
-	ret = v4l2_subdev_call(source->sd, pad, enum_mbus_code, source->sd_state, &sd_code);
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_mbus_code,
+			       sd_priv->slave_sd_state, &sd_code);
 	if (ret)
 		return ret;
 
@@ -655,12 +625,12 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
-	struct max96712_priv *priv = v4l2_get_subdevdata(sd);
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
-	struct max96712_source *source;
 	int ret;
 
-	if (fse->pad < MAX96712_SRC_PAD_START || fse->pad > MAX96712_PAD_NUM)
+	if (fse->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
 	if (priv->pattern != MAX96712_PATTERN_NONE) {
@@ -669,11 +639,10 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	source = &priv->sources[fse->pad - MAX96712_SRC_PAD_START];
+	sd_fse.pad = sd_priv->slave_sd_pad_id;
 
-	sd_fse.pad = source->src_pad_id;
-
-	ret = v4l2_subdev_call(source->sd, pad, enum_frame_size, source->sd_state, &sd_fse);
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_size,
+			       sd_priv->slave_sd_state, &sd_fse);
 	if (ret)
 		return ret;
 
@@ -711,14 +680,16 @@ static const char * const max96712_test_pattern[] = {
 
 static int max96712_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct max96712_priv *priv =
-		container_of(ctrl->handler, struct max96712_priv, ctrl_handler);
+	struct max96712_subdev_priv *sd_priv =
+		container_of(ctrl->handler, struct max96712_subdev_priv, ctrl_handler);
+	struct max96712_priv *priv = sd_priv->priv;
 
 	switch (ctrl->id) {
 	case MAX96712_TEST_PATTERN_CTRL:
 		priv->pattern = ctrl->val;
 		break;
 	}
+
 	return 0;
 }
 
@@ -737,75 +708,108 @@ static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
 	.qmenu = max96712_test_pattern,
 };
 
+static const char *max96712_subdev_names[] = {
+	"0", "1", "2", "3"
+};
+
+static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int index = to_index(priv, sd_priv);
+	int ret;
+
+	if (index >= ARRAY_SIZE(max96712_subdev_names))
+		return -EINVAL;
+
+	ret = max96712_v4l2_notifier_register(sd_priv);
+	if (ret)
+		return ret;
+
+	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96712_subdev_ops);
+	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96712_subdev_names[index]);
+	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	sd_priv->sd.entity.ops = &max96712_entity_ops;
+	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd_priv->sd.fwnode = sd_priv->fwnode;
+
+	v4l2_ctrl_handler_init(&sd_priv->ctrl_handler, 1);
+
+	v4l2_ctrl_new_custom(&sd_priv->ctrl_handler, &max96712_test_pattern_ctrl, NULL);
+
+	sd_priv->sd.ctrl_handler = &sd_priv->ctrl_handler;
+	ret = sd_priv->ctrl_handler.error;
+	if (ret)
+		goto error;
+
+	sd_priv->pads[MAX96712_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
+	sd_priv->pads[MAX96712_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
+
+	ret = media_entity_pads_init(&sd_priv->sd.entity, MAX96712_PAD_NUM, sd_priv->pads);
+	if (ret)
+		goto error;
+
+	v4l2_set_subdevdata(&sd_priv->sd, sd_priv);
+
+	return v4l2_async_register_subdev(&sd_priv->sd);
+
+error:
+	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
+	max96712_v4l2_notifier_unregister(sd_priv);
+
+	return ret;
+}
+
+static void max96712_v4l2_unregister_sd(struct max96712_subdev_priv *sd_priv)
+{
+	max96712_v4l2_notifier_unregister(sd_priv);
+	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
+	v4l2_async_unregister_subdev(&sd_priv->sd);
+}
+
 static int max96712_v4l2_register(struct max96712_priv *priv)
 {
 	unsigned int i;
 	int ret;
 
-	/* Register v4l2 async notifiers for connected Camera subdevices */
-	ret = max96712_v4l2_notifier_register(priv);
-	if (ret) {
-		dev_err(priv->dev, "Unable to register V4L2 async notifiers\n");
-		return ret;
-	}
+	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
+		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
 
-	v4l2_i2c_subdev_init(&priv->sd, priv->client, &max96712_subdev_ops);
-	priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	priv->sd.entity.ops = &max96712_entity_ops;
+		if (!sd_priv->fwnode)
+			continue;
 
-	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
-
-	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96712_test_pattern_ctrl, NULL);
-
-	priv->sd.ctrl_handler = &priv->ctrl_handler;
-	ret = priv->ctrl_handler.error;
-	if (ret)
-		goto error;
-
-	for (i = 0; i < MAX96712_PAD_NUM; i++)
-		priv->pads[i].flags = i < MAX96712_SRC_PAD_START ? MEDIA_PAD_FL_SINK
-								 : MEDIA_PAD_FL_SOURCE;
-
-	ret = media_entity_pads_init(&priv->sd.entity, MAX96712_PAD_NUM, priv->pads);
-	if (ret)
-		goto error;
-
-	v4l2_set_subdevdata(&priv->sd, priv);
-
-	ret = v4l2_async_register_subdev(&priv->sd);
-	if (ret < 0) {
-		dev_err(priv->dev, "Unable to register subdevice\n");
-		goto error;
+		ret = max96712_v4l2_register_sd(sd_priv);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
-error:
-	v4l2_ctrl_handler_free(&priv->ctrl_handler);
-	max96712_v4l2_notifier_unregister(priv);
-
-	return ret;
 }
 
 static void max96712_v4l2_unregister(struct max96712_priv *priv)
 {
-	max96712_v4l2_notifier_unregister(priv);
-	v4l2_ctrl_handler_free(&priv->ctrl_handler);
-	v4l2_async_unregister_subdev(&priv->sd);
+	unsigned int i;
+
+	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
+		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
+
+		if (!sd_priv->fwnode)
+			continue;
+
+		max96712_v4l2_unregister_sd(sd_priv);
+	}
 }
 
-static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
-					  unsigned int index,
-					  unsigned int port_index)
+static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
+					  struct fwnode_handle *fwnode)
 {
-	struct fwnode_handle *ep;
+	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
+	struct fwnode_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
-					     port_index, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96712_SOURCE_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -820,20 +824,19 @@ static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
 		return ret;
 	}
 
-	priv->mipi[index] = v4l2_ep.bus.mipi_csi2;
-	priv->mipi_en[index] = true;
+	sd_priv->mipi = v4l2_ep.bus.mipi_csi2;
+	sd_priv->fwnode = fwnode_graph_get_remote_endpoint(ep);
 
 	return 0;
 }
 
-static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
-					   unsigned int index)
+static int max96712_parse_sink_dt_endpoint(struct max96712_subdev_priv *sd_priv,
+					   struct fwnode_handle *fwnode)
 {
-	struct max96712_source *source;
+	struct max96712_priv *priv = sd_priv->priv;
 	struct fwnode_handle *ep;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
-					     index, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96712_SINK_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -841,23 +844,19 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
 
 	dev_err(priv->dev, "%s:%u: subdevice: %pfw\n", __func__, __LINE__, ep);
 
-	source = &priv->sources[index];
-	source->fwnode = fwnode_graph_get_remote_endpoint(ep);
-	if (!source->fwnode) {
+	sd_priv->slave_fwnode = fwnode_graph_get_remote_endpoint(ep);
+	if (!sd_priv->slave_fwnode) {
 		dev_err(priv->dev, "Not connected to remote endpoint\n");
 
 		return -EINVAL;
 	}
 
-	dev_err(priv->dev, "%s:%u: subdevice remote ep: %pfw\n", __func__, __LINE__, source->fwnode);
-
-	priv->source_mask |= BIT(index);
-	priv->nsources++;
+	dev_err(priv->dev, "%s:%u: subdevice remote ep: %pfw\n", __func__, __LINE__, sd_priv->slave_fwnode);
 
 	return 0;
 }
 
-static const unsigned int max96712_lane_configs[][MAX96712_SRC_PAD_NUM] = {
+static const unsigned int max96712_lane_configs[][MAX96712_SUBDEVS_NUM] = {
 	{ 2, 2, 2, 2 },
 	{ 0, 0, 0, 0 },
 	{ 0, 4, 0, 4 },
@@ -867,17 +866,30 @@ static const unsigned int max96712_lane_configs[][MAX96712_SRC_PAD_NUM] = {
 
 static int max96712_parse_dt(struct max96712_priv *priv)
 {
+	struct max96712_subdev_priv *sd_priv;
+	struct fwnode_handle *fwnode = NULL;
 	unsigned int i, j;
 	int ret;
 
-	for (i = 0; i < MAX96712_SINK_PAD_NUM; i++) {
-		ret = max96712_parse_sink_dt_endpoint(priv, i);
+	device_for_each_child_node(priv->dev, fwnode) {
+		u32 index;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret)
+			return ret;
+
+		if (index >= MAX96712_SUBDEVS_NUM)
+			return -EINVAL;
+
+		sd_priv = &priv->sd_privs[index];
+		sd_priv->priv = priv;
+		sd_priv->index = index;
+
+		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
-	}
 
-	for (i = 0; i < MAX96712_SRC_PAD_NUM; i++) {
-		ret = max96712_parse_src_dt_endpoint(priv, i, i + MAX96712_SRC_PAD_START);
+		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 	}
@@ -885,8 +897,10 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
 		bool matching = true;
 
-		for (j = 0; j < MAX96712_SRC_PAD_NUM; j++) {
-			if (priv->mipi_en[j] && priv->mipi[j].num_data_lanes !=
+		for (j = 0; j < MAX96712_SUBDEVS_NUM; j++) {
+			sd_priv = &priv->sd_privs[j];
+
+			if (sd_priv->fwnode && sd_priv->mipi.num_data_lanes !=
 			    max96712_lane_configs[i][j]) {
 				matching = false;
 				break;
