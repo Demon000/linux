@@ -218,4 +218,11 @@
 	};
 #endif
 
+	fragment@8 {
+		target = <&cma>;
+
+		__overlay__ {
+			size = <0x20000000>;
+		};
+	};
 };
