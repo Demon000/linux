@@ -5,7 +5,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 
-// #define MEDIA_CONTROLLER
+#define MEDIA_CONTROLLER
 #define GMSL_DESERIALIZER
 #define GMSL_SERIALIZER
 #define GMSL_CAMERA
