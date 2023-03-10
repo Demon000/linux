@@ -134,11 +134,19 @@ static int max96712_write(struct max96712_priv *priv, unsigned int reg, u8 val)
 static int max96712_update_bits(struct max96712_priv *priv, unsigned int reg,
 				u8 mask, u8 val)
 {
+	unsigned int retry = 100;
 	int ret;
 
+retry:
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
 	if (ret)
 		dev_err(priv->dev, "update 0x%04x failed\n", reg);
+
+	if (ret && retry != 0) {
+		retry--;
+		udelay(1000);
+		goto retry;
+	}
 
 	return ret;
 }
