@@ -1095,8 +1095,11 @@ fwnode_graph_get_port_parent(const struct fwnode_handle *endpoint)
 {
 	struct fwnode_handle *port, *parent;
 
+	printk("%s:%u: fwnode: %pfw\n", __func__, __LINE__, endpoint);
 	port = fwnode_get_parent(endpoint);
+	printk("%s:%u: fwnode: %pfw\n", __func__, __LINE__, port);
 	parent = fwnode_call_ptr_op(port, graph_get_port_parent);
+	printk("%s:%u: fwnode: %pfw\n", __func__, __LINE__, parent);
 
 	fwnode_handle_put(port);
 

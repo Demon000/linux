@@ -755,12 +755,16 @@ struct device_node *of_graph_get_port_parent(struct device_node *node)
 	 */
 	of_node_get(node);
 
+	printk("%s:%u: fwnode: %pOF\n", __func__, __LINE__, node);
+
 	/* Walk 3 levels up only if there is 'ports' node. */
 	for (depth = 3; depth && node; depth--) {
 		node = of_get_next_parent(node);
+		printk("%s:%u: fwnode: %pOF\n", __func__, __LINE__, node);
 		if (depth == 2 && !of_node_name_eq(node, "ports"))
 			break;
 	}
+	printk("%s:%u: fwnode: %pOF\n", __func__, __LINE__, node);
 	return node;
 }
 EXPORT_SYMBOL(of_graph_get_port_parent);
