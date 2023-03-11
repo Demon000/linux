@@ -356,7 +356,8 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 					  sd_priv->slave_fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (ret < 0) {
-		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
+		dev_err(priv->dev,
+			"Failed to find pad for %s: %d\n", subdev->name, ret);
 		return ret;
 	}
 
