@@ -1331,7 +1331,7 @@ static int imx219_get_regulators(struct imx219 *imx219)
 }
 
 /* Verify chip ID */
-static int imx219_identify_module(struct imx219 *imx219)
+static int _imx219_identify_module(struct imx219 *imx219)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&imx219->sd);
 	int ret;
@@ -1352,6 +1352,22 @@ static int imx219_identify_module(struct imx219 *imx219)
 	}
 
 	return 0;
+}
+
+static int imx219_identify_module(struct imx219 *imx219)
+{
+	unsigned int retry = 100;
+	int ret;
+
+retry:
+	ret = _imx219_identify_module(imx219);
+	if (ret && retry) {
+		retry--;
+		udelay(1000);
+		goto retry;
+	}
+
+	return ret;
 }
 
 static int imx219_post_register(struct v4l2_subdev *sd)
