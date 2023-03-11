@@ -273,9 +273,6 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	/*
 	 * Enable forwarding of GPIO 0.
 	 */
-
-	dev_err(priv->dev, "enable forwarding gpio 0\n");
-
 	/* GPIO_A GPIO_TX_EN 1 */
 	max96712_update_bits(priv, 0x300, 0x02, 0x02);
 	/* GPIO_A GPIO_OUT_DIS 0 */
@@ -396,7 +393,6 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	 * the camera post_register operation to complete initialization with
 	 * noise immunity enabled.
 	 */
-	dev_err(priv->dev, "Calling post_register\n");
 	ret = v4l2_subdev_call(sd_priv->slave_sd, core, post_register);
 	if (ret) {
 		dev_err(priv->dev,
@@ -800,14 +796,8 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
 		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
 
-		dev_err(priv->dev, "%s:%u\n", __func__, __LINE__);
-
-		if (!sd_priv->fwnode) {
-			dev_err(priv->dev, "%s:%u\n", __func__, __LINE__);
+		if (!sd_priv->fwnode)
 			continue;
-		}
-
-		dev_err(priv->dev, "%s:%u\n", __func__, __LINE__);
 
 		max96712_v4l2_unregister_sd(sd_priv);
 	}
@@ -829,8 +819,6 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
-
-	dev_err(priv->dev, "%s:%u: subdevice: %pfw\n", __func__, __LINE__, ep);
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	fwnode_handle_put(ep);
@@ -858,16 +846,12 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 		return -EINVAL;
 	}
 
-	dev_err(priv->dev, "%s:%u: subdevice: %pfw\n", __func__, __LINE__, ep);
-
 	sd_priv->slave_fwnode = fwnode_graph_get_remote_endpoint(ep);
 	if (!sd_priv->slave_fwnode) {
 		dev_err(priv->dev, "Not connected to remote endpoint\n");
 
 		return -EINVAL;
 	}
-
-	dev_err(priv->dev, "%s:%u: subdevice remote ep: %pfw\n", __func__, __LINE__, sd_priv->slave_fwnode);
 
 	return 0;
 }
