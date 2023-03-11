@@ -234,6 +234,7 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv,
 
 	/* Enable. */
 	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
+	max96712_update_bits(priv, 0x6, 0x1 << index, 0x1 << index);
 }
 
 static void max96712_mipi_configure(struct max96712_priv *priv)
@@ -258,8 +259,6 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 
 	max96712_write(priv, 0x9b6, 0x09);
 	max96712_write(priv, 0x9b9, 0x20);
-
-	max96712_write(priv, 0x6, 0xf4);
 
 	max96712_write(priv, 0x18, 0x00);
 	max96712_write(priv, 0x18, 0x0f);
