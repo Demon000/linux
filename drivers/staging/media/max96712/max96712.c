@@ -233,7 +233,7 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv,
 	// 		     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
 
 	/* Enable. */
-	// max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
+	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
 }
 
 static void max96712_mipi_configure(struct max96712_priv *priv)
