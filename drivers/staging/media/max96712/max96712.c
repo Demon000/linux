@@ -258,8 +258,8 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 		max96712_mipi_configure_phy(priv, sd_priv);
 	}
 
-	max96712_write(priv, 0x9b6, 0x09);
-	max96712_write(priv, 0x9b9, 0x20);
+	// max96712_write(priv, 0x9b6, 0x09);
+	// max96712_write(priv, 0x9b9, 0x20);
 
 	/* Get all PHYs out of reset. */
 	max96712_write(priv, 0x18, 0x00);
