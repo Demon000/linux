@@ -2783,7 +2783,8 @@ unicam_async_bound(struct v4l2_async_notifier *notifier,
 	pad = media_entity_get_fwnode_pad(&subdev->entity, asd->match.fwnode,
 					  MEDIA_PAD_FL_SOURCE);
 	if (pad < 0) {
-		unicam_err(unicam, "Failed to find pad for %s\n", subdev->name);
+		unicam_err(unicam, "Failed to find pad for %s: %d\n",
+			   subdev->name, pad);
 		return pad;
 	}
 
