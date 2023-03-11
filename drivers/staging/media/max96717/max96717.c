@@ -196,11 +196,9 @@ static void max96717_tunnel_enable(struct max96717_priv *priv, bool enable)
 		return;
 
 	if (priv->pattern == MAX96717_PATTERN_NONE) {
-		dev_err(priv->dev, "configure tunnel\n");
 		/* Select tunnel mode. */
 		max96717_update_bits(priv, 0x0383, 0x80, 0x80);
 	} else {
-		dev_err(priv->dev, "configure pixel\n");
 		/* Disable Auto BPP mode. */
 		max96717_update_bits(priv, 0x0110, 0x08, 0x00);
 
@@ -213,8 +211,6 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
 	int ret;
-
-	dev_err(priv->dev, "s_stream: %u\n", enable);
 
 	max96717_pattern_enable(priv, enable);
 	max96717_tunnel_enable(priv, enable);
@@ -436,8 +432,6 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	if (ret)
 		return ret;
 
-	dev_err(priv->dev, "bound\n");
-
 	priv->sensor_pad_id = pad;
 	priv->sensor = subdev;
 
@@ -446,8 +440,6 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 		ret = PTR_ERR(priv->sensor_state);
 		goto error_remove_link;
 	}
-
-	dev_err(priv->dev, "Calling post_register\n");
 
 	/*
 	 * Call the sensor post_register operation to complete its
@@ -504,16 +496,12 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		return -ENOENT;
 	}
 
-	dev_err(priv->dev, "%s:%u: sensor endpoint: %pfw\n", __func__, __LINE__, ep);
-
 	remote = fwnode_graph_get_remote_endpoint(ep);
 	if (!remote) {
 		dev_err(priv->dev, "Unable to get remote endpoint: %pOF\n",
 			priv->dev->of_node);
 		return -ENOENT;
 	}
-
-	dev_err(priv->dev, "%s:%u: sensor remote endpoint: %pfw\n", __func__, __LINE__, remote);
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 	fwnode_handle_put(ep);
@@ -558,9 +546,6 @@ static int max96717_init(struct max96717_priv *priv)
 	/*
 	 * Enable forwarding of GPIO 0.
 	 */
-
-	dev_err(priv->dev, "enable forwarding gpio 0\n");
-
 	/* GPIO_A GPIO_RX_EN 1 */
 	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
 	/* GPIO_A GPIO_OUT_DIS 0 */
@@ -671,8 +656,6 @@ static int max96717_probe(struct i2c_client *client)
 		ret = -ENODEV;
 		goto error_media_entity;
 	}
-
-	dev_err(priv->dev, "%s:%u: endpoint: %pfw\n", __func__, __LINE__, ep);
 
 	ret = max96717_init(priv);
 	if (ret)
