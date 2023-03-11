@@ -243,6 +243,7 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 
 	max96712_mipi_enable(priv, false);
 
+	/* Reset all PHYs. */
 	max96712_write(priv, 0x18, 0xf0);
 
 	/* Select 2x4 or 4x2 mode. */
@@ -260,7 +261,10 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	max96712_write(priv, 0x9b6, 0x09);
 	max96712_write(priv, 0x9b9, 0x20);
 
+	/* Get all PHYs out of reset. */
 	max96712_write(priv, 0x18, 0x00);
+
+	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
 
 	/*
