@@ -229,8 +229,8 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv,
 	max96712_update_bits(priv, reg, mask << shift, val << shift);
 
 	/* Set link frequency. */
-	// max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
-	// 		     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+	max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
+			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
 
 	/* Enable. */
 	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
