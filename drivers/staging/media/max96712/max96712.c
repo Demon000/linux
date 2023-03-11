@@ -839,7 +839,7 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 	}
 
 	sd_priv->mipi = v4l2_ep.bus.mipi_csi2;
-	sd_priv->fwnode = fwnode_graph_get_remote_endpoint(ep);
+	sd_priv->fwnode = ep;
 
 	return 0;
 }
