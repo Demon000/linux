@@ -881,8 +881,8 @@ static const unsigned int max96712_lane_configs[][MAX96712_SUBDEVS_NUM] = {
 
 static int max96712_parse_dt(struct max96712_priv *priv)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
 	struct max96712_subdev_priv *sd_priv;
-	struct fwnode_handle *fwnode = NULL;
 	unsigned int i, j;
 	int ret;
 
