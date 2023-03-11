@@ -412,14 +412,20 @@ int media_entity_get_fwnode_pad(struct media_entity *entity,
 		return ret;
 
 	ret = entity->ops->get_fwnode_pad(entity, &endpoint);
-	if (ret < 0)
+	if (ret < 0) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return ret;
+	}
 
-	if (ret >= entity->num_pads)
+	if (ret >= entity->num_pads) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -ENXIO;
+	}
 
-	if (!(entity->pads[ret].flags & direction_flags))
+	if (!(entity->pads[ret].flags & direction_flags)) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -ENXIO;
+	}
 
 	return ret;
 }

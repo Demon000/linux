@@ -761,16 +761,22 @@ int v4l2_subdev_get_fwnode_pad_1_to_1(struct media_entity *entity,
 	struct fwnode_handle *fwnode;
 	struct v4l2_subdev *sd;
 
-	if (!is_media_entity_v4l2_subdev(entity))
+	if (!is_media_entity_v4l2_subdev(entity)) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return -EINVAL;
+	}
 
 	sd = media_entity_to_v4l2_subdev(entity);
 
 	fwnode = fwnode_graph_get_port_parent(endpoint->local_fwnode);
 	fwnode_handle_put(fwnode);
 
-	if (dev_fwnode(sd->dev) == fwnode)
+	if (dev_fwnode(sd->dev) == fwnode) {
+		printk("%s:%u\n", __func__, __LINE__);
 		return endpoint->port;
+	}
+
+	printk("%s:%u\n", __func__, __LINE__);
 
 	return -ENXIO;
 }
