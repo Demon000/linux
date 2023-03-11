@@ -716,7 +716,7 @@ static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
 };
 
 static const char *max96712_subdev_names[] = {
-	"0", "1", "2", "3"
+	":0", ":1", ":2", ":3"
 };
 
 static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
