@@ -77,8 +77,6 @@ struct max96712_priv {
 	enum max96712_pattern pattern;
 };
 
-#define to_index(priv, sd_priv) ((sd_priv) - &(priv)->sd_privs[0])
-
 static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
 {
 	return container_of(asd, struct max96712_asd, base);
@@ -179,8 +177,8 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv,
 					struct max96712_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
-	unsigned int index = to_index(priv, sd_priv);
 	unsigned int reg, val, shift, mask, clk_bit;
+	unsigned int index = sd_priv->index;
 	unsigned int i;
 
 	/* Configure a lane count. */
@@ -717,7 +715,7 @@ static const char *max96712_subdev_names[] = {
 static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 {
 	struct max96712_priv *priv = sd_priv->priv;
-	unsigned int index = to_index(priv, sd_priv);
+	unsigned int index = sd_priv->index;
 	int ret;
 
 	if (index >= ARRAY_SIZE(max96712_subdev_names))
