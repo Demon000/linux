@@ -27,6 +27,10 @@
 
 #define MAX96712_SUBDEVS_NUM	4
 
+#define v4l2_subdev_state v4l2_subdev_pad_config
+#define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
+#define v4l2_subdev_free_state v4l2_subdev_free_pad_config
+
 struct max96712_asd {
 	struct v4l2_async_subdev base;
 	struct max96712_subdev_priv *sd_priv;
