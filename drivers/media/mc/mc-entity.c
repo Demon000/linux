@@ -221,9 +221,15 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
 	if (mdev)
 		mutex_lock(&mdev->graph_mutex);
 
+	// dump_stack();
+
 	for (i = 0; i < num_pads; i++) {
 		pads[i].entity = entity;
 		pads[i].index = i;
+		if (pads[i].flags & MEDIA_PAD_FL_SINK)
+			printk("%u sink\n", i);
+		if (pads[i].flags & MEDIA_PAD_FL_SOURCE)
+			printk("%u source\n", i);
 		if (mdev)
 			media_gobj_create(mdev, MEDIA_GRAPH_PAD,
 					&entity->pads[i].graph_obj);
@@ -680,6 +686,8 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 {
 	struct media_link *link;
 	struct media_link *backlink;
+
+	printk("%s:%u %s source_pad: %u, %s sink_pad: %u\n", __func__, __LINE__, source->name, source_pad, sink->name, sink_pad);
 
 	if (WARN_ON(!source || !sink) ||
 	    WARN_ON(source_pad >= source->num_pads) ||
