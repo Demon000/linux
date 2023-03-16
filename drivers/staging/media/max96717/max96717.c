@@ -225,12 +225,16 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		return -ENOENT;
 	}
 
+	dev_err(priv->dev, "%s:%u: sensor endpoint: %pfw\n", __func__, __LINE__, ep);
+
 	remote = fwnode_graph_get_remote_endpoint(ep);
 	if (!remote) {
 		dev_err(priv->dev, "Unable to get remote endpoint: %pOF\n",
 			priv->dev->of_node);
 		return -ENOENT;
 	}
+
+	dev_err(priv->dev, "%s:%u: remote endpoint: %pfw\n", __func__, __LINE__, remote);
 
 	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
 	fwnode_handle_put(ep);
@@ -314,6 +318,8 @@ static int max96717_probe(struct i2c_client *client)
 		ret = -ENODEV;
 		goto error_media_entity;
 	}
+
+	dev_err(priv->dev, "%s:%u: endpoint: %pfw\n", __func__, __LINE__, ep);
 
 	priv->sd.fwnode = ep;
 	ret = v4l2_async_register_subdev(&priv->sd);
