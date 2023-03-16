@@ -17,6 +17,10 @@
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
 
+#define v4l2_subdev_state v4l2_subdev_pad_config
+#define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
+#define v4l2_subdev_free_state v4l2_subdev_free_pad_config
+
 enum max96717_ctrls {
 	MAX96717_TEST_PATTERN_CTRL = V4L2_CTRL_CLASS_IMAGE_PROC | 0x1201,
 };
