@@ -603,6 +603,8 @@ static int max96712_parse_src_dt_endpoint(struct max96712_priv *priv,
 		return -EINVAL;
 	}
 
+	dev_err(priv->dev, "%s:%u: subdevice: %pfw\n", __func__, __LINE__, ep);
+
 	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	fwnode_handle_put(ep);
 	if (ret) {
@@ -629,6 +631,8 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
 		return -EINVAL;
 	}
 
+	dev_err(priv->dev, "%s:%u: subdevice: %pfw\n", __func__, __LINE__, ep);
+
 	source = &priv->sources[index];
 	source->fwnode = fwnode_graph_get_remote_endpoint(ep);
 	if (!source->fwnode) {
@@ -636,6 +640,8 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_priv *priv,
 
 		return -EINVAL;
 	}
+
+	dev_err(priv->dev, "%s:%u: subdevice remote ep: %pfw\n", __func__, __LINE__, source->fwnode);
 
 	priv->source_mask |= BIT(index);
 	priv->nsources++;
