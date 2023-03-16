@@ -449,6 +449,12 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 		goto error_remove_link;
 	}
 
+	dev_err(priv->dev, "Bound %s:%u on %s:%u\n",
+		priv->sensor->name,
+		priv->sensor_pad_id,
+		priv->sd.name,
+		MAX96717_SINK_PAD);
+
 	/*
 	 * Call the sensor post_register operation to complete its
 	 * initialization.
