@@ -507,7 +507,8 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	};
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 1, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
+					     MAX96717_SINK_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Unable to get sensor endpoint: %pOF\n",
 			priv->dev->of_node);
@@ -676,7 +677,8 @@ static int max96717_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto error_handler_free;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev), 0, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
+					     MAX96717_SOURCE_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Unable to get endpoint 0: %pOF\n",
 			priv->dev->of_node);
