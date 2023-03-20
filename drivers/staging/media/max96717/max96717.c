@@ -443,6 +443,10 @@ static void max96717_init(struct max96717_priv *priv)
 {
 	struct max96717_subdev_priv *sd_priv;
 
+	/*
+	 * Set CMU2 PFDDIV to 1.1V for correct functionality of the device,
+	 * as mentioned in the datasheet, under section MANDATORY REGISTER PROGRAMMING.
+	 */
 	max96717_update_bits(priv, 0x302, 0x70, 0x10);
 
 	for_each_subdev(priv, sd_priv)
