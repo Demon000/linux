@@ -78,7 +78,6 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	unsigned int lane_config;
-	bool mipi_en[MAX96712_SUBDEVS_NUM];
 
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 
