@@ -70,6 +70,25 @@ struct max96712_priv {
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 };
 
+static struct max96712_subdev_priv *next_subdev(struct max96712_priv *priv,
+						struct max96712_subdev_priv *sd_priv)
+{
+	if (!sd_priv)
+		sd_priv = &priv->sd_privs[0];
+	else
+		sd_priv++;
+
+	for (; sd_priv < &priv->sd_privs[MAX96712_SUBDEVS_NUM]; sd_priv++) {
+		if (sd_priv->fwnode)
+			return sd_priv;
+	}
+
+	return NULL;
+}
+
+#define for_each_subdev(priv, sd_priv) \
+	for ((sd_priv) = NULL; ((sd_priv) = next_subdev((priv), (sd_priv))); )
+
 static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
 {
 	return container_of(asd, struct max96712_asd, base);
@@ -209,21 +228,15 @@ static void max96712_init_phy(struct max96712_priv *priv,
 
 static void max96712_init(struct max96712_priv *priv)
 {
-	unsigned int i;
+	struct max96712_subdev_priv *sd_priv;
 
 	max96712_mipi_enable(priv, false);
 
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
-	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
-		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
-
-		if (!sd_priv->fwnode)
-			continue;
-
+	for_each_subdev(priv, sd_priv)
 		max96712_init_phy(priv, sd_priv);
-	}
 
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
@@ -575,15 +588,10 @@ static void max96712_v4l2_unregister_sd(struct max96712_subdev_priv *sd_priv)
 
 static int max96712_v4l2_register(struct max96712_priv *priv)
 {
-	unsigned int i;
+	struct max96712_subdev_priv *sd_priv;
 	int ret;
 
-	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
-		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
-
-		if (!sd_priv->fwnode)
-			continue;
-
+	for_each_subdev(priv, sd_priv) {
 		ret = max96712_v4l2_register_sd(sd_priv);
 		if (ret)
 			return ret;
@@ -594,16 +602,10 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 
 static void max96712_v4l2_unregister(struct max96712_priv *priv)
 {
-	unsigned int i;
+	struct max96712_subdev_priv *sd_priv;
 
-	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
-		struct max96712_subdev_priv *sd_priv = &priv->sd_privs[i];
-
-		if (!sd_priv->fwnode)
-			continue;
-
+	for_each_subdev(priv, sd_priv)
 		max96712_v4l2_unregister_sd(sd_priv);
-	}
 }
 
 static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
