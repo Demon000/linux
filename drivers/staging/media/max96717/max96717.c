@@ -452,11 +452,7 @@ static void max96717_init(struct max96717_priv *priv)
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(priv, sd_priv);
 
-	/* Select tunnel mode. */
-	max96717_update_bits(priv, 0x383, 0x80, 0x80);
-
 	max96717_write(priv, 0x330, 0x00);
-	max96717_write(priv, 0x383, 0x80);
 	max96717_write(priv, 0x331, 0x30);
 	max96717_write(priv, 0x332, 0xe0);
 	max96717_write(priv, 0x333, 0x04);
