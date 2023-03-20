@@ -558,12 +558,10 @@ static int max96717_init(struct max96717_priv *priv)
 		return ret;
 
 	/*
-	 * Enable forwarding of GPIO 0.
+	 * Enable GPIO 0.
 	 */
-	/* GPIO_A GPIO_RX_EN 1 */
-	max96717_update_bits(priv, 0x2be, 0x4, 0x4);
-	/* GPIO_A GPIO_OUT_DIS 0 */
-	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
+	max96717_write(priv, 0x2be, 0x90);
+	max96717_write(priv, 0x2bf, 0x60);
 
 	/*
 	 * Enable RCLK output at fastest slew rate on GPIO 4.
