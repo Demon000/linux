@@ -25,16 +25,6 @@
 ((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,    \
                            sizeof(__type)))
 
-enum max96717_ctrls {
-	MAX96717_TEST_PATTERN_CTRL = V4L2_CTRL_CLASS_IMAGE_PROC | 0x1201,
-};
-
-enum max96717_pattern {
-	MAX96717_PATTERN_NONE = 0,
-	MAX96717_PATTERN_CHECKERBOARD,
-	MAX96717_PATTERN_GRADIENT,
-};
-
 struct max96717_priv {
 	struct device *dev;
 	struct dentry *debugfs_root;
@@ -48,8 +38,6 @@ struct max96717_priv {
 	struct v4l2_subdev *sensor;
 	struct v4l2_subdev_state *sensor_state;
 	unsigned int sensor_pad_id;
-
-	enum max96717_pattern pattern;
 };
 
 static inline struct max96717_priv *sd_to_max96717(struct v4l2_subdev *sd)
@@ -136,103 +124,17 @@ static int max96717_write_bulk_value(struct max96717_priv *priv,
 	return max96717_write_bulk(priv, reg, &values, val_count);
 }
 
-static void max96717_pattern_enable(struct max96717_priv *priv, bool enable)
-{
-	const u32 h_active = 1920;
-	const u32 h_fp = 88;
-	const u32 h_sw = 44;
-	const u32 h_bp = 148;
-	const u32 h_tot = h_active + h_fp + h_sw + h_bp;
-
-	const u32 v_active = 1080;
-	const u32 v_fp = 4;
-	const u32 v_sw = 5;
-	const u32 v_bp = 36;
-	const u32 v_tot = v_active + v_fp + v_sw + v_bp;
-
-	if (!enable || priv->pattern == MAX96717_PATTERN_NONE) {
-		max96717_update_bits(priv, 0x026b, 0x03, 0x00);
-		return;
-	}
-
-	/* PCLK 75MHz. */
-	max96717_update_bits(priv, 0x024f, 0x0e, 0x0a);
-
-	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
-	max96717_write_bulk_value(priv, 0x0250, 0, 3);
-	max96717_write_bulk_value(priv, 0x0253, v_sw * h_tot, 3);
-	max96717_write_bulk_value(priv, 0x0256,
-				  (v_active + v_fp + v_bp) * h_tot, 3);
-	max96717_write_bulk_value(priv, 0x0259, 0, 3);
-	max96717_write_bulk_value(priv, 0x025c, h_sw, 2);
-	max96717_write_bulk_value(priv, 0x025e, h_active + h_fp + h_bp, 2);
-	max96717_write_bulk_value(priv, 0x0260, v_tot, 2);
-	max96717_write_bulk_value(priv, 0x0262,
-				  h_tot * (v_sw + v_bp) + (h_sw + h_bp), 3);
-	max96717_write_bulk_value(priv, 0x0265, h_active, 2);
-	max96717_write_bulk_value(priv, 0x0267, h_fp + h_sw + h_bp, 2);
-	max96717_write_bulk_value(priv, 0x0269, v_active, 2);
-
-	/* Generate VS, HS and DE in free-running mode. */
-	max96717_write(priv, 0x024e, 0xf3);
-
-	/* Configure Video Pattern Generator. */
-	if (priv->pattern == MAX96717_PATTERN_CHECKERBOARD) {
-		/* Set checkerboard pattern size. */
-		max96717_write(priv, 0x0273, 0x3c);
-		max96717_write(priv, 0x0274, 0x3c);
-		max96717_write(priv, 0x0275, 0x3c);
-
-		/* Set checkerboard pattern colors. */
-		max96717_write_bulk_value(priv, 0x026d, 0x00df3f, 3);
-		max96717_write_bulk_value(priv, 0x0271, 0x000000, 3);
-
-		/* Generate checkerboard pattern. */
-		max96717_update_bits(priv, 0x026b, 0x03, 0x1);
-	} else {
-		/* Set gradient increment. */
-		max96717_write(priv, 0x026c, 0x10);
-
-		/* Generate gradient pattern. */
-		max96717_update_bits(priv, 0x026b, 0x03, 0x2);
-	}
-}
-
-static void max96717_tunnel_enable(struct max96717_priv *priv, bool enable)
-{
-	if (!enable)
-		return;
-
-	if (priv->pattern == MAX96717_PATTERN_NONE) {
-		/* Select tunnel mode. */
-		max96717_update_bits(priv, 0x0383, 0x80, 0x80);
-	} else {
-		/* Disable Auto BPP mode. */
-		max96717_update_bits(priv, 0x0110, 0x08, 0x00);
-
-		/* Select pixel mode. */
-		max96717_update_bits(priv, 0x0383, 0x80, 0x00);
-	}
-}
-
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
+#if 0
 	struct max96717_priv *priv = sd_to_max96717(sd);
-#if 0
 	int ret;
-#endif
 
-	max96717_pattern_enable(priv, enable);
-	max96717_tunnel_enable(priv, enable);
+	ret = v4l2_subdev_call(priv->sensor, video, s_stream, enable);
+	if (ret)
+		dev_err(priv->dev, "Failed to start stream for camera device %d\n", ret);
 
-#if 0
-	if (priv->pattern == MAX96717_PATTERN_NONE) {
-		ret = v4l2_subdev_call(priv->sensor, video, s_stream, enable);
-		if (ret)
-			dev_err(priv->dev, "Failed to start stream for camera device %d\n", ret);
-
-		return ret;
-	}
+	return ret;
 #endif
 
 	return 0;
@@ -245,10 +147,6 @@ static int max96717_get_selection(struct v4l2_subdev *sd,
 	struct max96717_priv *priv = sd_to_max96717(sd);
 	struct v4l2_subdev_selection sd_sel = *sel;
 	int ret;
-
-	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		return 0;
-	}
 
 	sd_sel.pad = priv->sensor_pad_id;
 
@@ -269,15 +167,6 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_subdev_format sd_format = *format;
 	int ret;
 
-	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		format->format.width = 1920;
-		format->format.height = 1080;
-		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-		format->format.field = V4L2_FIELD_NONE;
-
-		return 0;
-	}
-
 	sd_format.pad = priv->sensor_pad_id;
 
 	ret = v4l2_subdev_call(priv->sensor, pad, get_fmt, priv->sensor_state, &sd_format);
@@ -296,15 +185,6 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 	struct max96717_priv *priv = sd_to_max96717(sd);
 	struct v4l2_subdev_format sd_format = *format;
 	int ret;
-
-	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		format->format.width = 1920;
-		format->format.height = 1080;
-		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-		format->format.field = V4L2_FIELD_NONE;
-
-		return 0;
-	}
 
 	sd_format.pad = priv->sensor_pad_id;
 
@@ -325,12 +205,6 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_subdev_mbus_code_enum sd_code = *code;
 	int ret;
 
-	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		code->code = MEDIA_BUS_FMT_RGB888_1X24;
-
-		return 0;
-	}
-
 	sd_code.pad = priv->sensor_pad_id;
 
 	ret = v4l2_subdev_call(priv->sensor, pad, enum_mbus_code, priv->sensor_state, &sd_code);
@@ -349,12 +223,6 @@ static int max96717_enum_frame_size(struct v4l2_subdev *sd,
 	struct max96717_priv *priv = sd_to_max96717(sd);
 	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
 	int ret;
-
-	if (priv->pattern != MAX96717_PATTERN_NONE) {
-		fse->code = MEDIA_BUS_FMT_RGB888_1X24;
-
-		return 0;
-	}
 
 	sd_fse.pad = priv->sensor_pad_id;
 
@@ -375,29 +243,6 @@ static int max96717_post_register(struct v4l2_subdev *sd)
 {
 	return 0;
 }
-
-static const char * const max96717_test_pattern[] = {
-	"None",
-	"Checkerboard",
-	"Gradient",
-};
-
-static int max96717_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct max96717_priv *priv =
-		container_of(ctrl->handler, struct max96717_priv, ctrl_handler);
-
-	switch (ctrl->id) {
-	case MAX96717_TEST_PATTERN_CTRL:
-		priv->pattern = ctrl->val;
-		break;
-	}
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops max96717_ctrl_ops = {
-	.s_ctrl = max96717_s_ctrl,
-};
 
 static const struct v4l2_subdev_video_ops max96717_video_ops = {
 	.s_stream	= max96717_s_stream,
@@ -558,6 +403,11 @@ static int max96717_init(struct max96717_priv *priv)
 	if (ret)
 		return ret;
 
+	/* Select tunnel mode. */
+	ret = max96717_update_bits(priv, 0x0383, 0x80, 0x80);
+	if (ret)
+		return ret;
+
 	max96717_write(priv, 0x330, 0x00);
 	max96717_write(priv, 0x383, 0x80);
 	max96717_write(priv, 0x331, 0x30);
@@ -601,17 +451,6 @@ static const struct regmap_config max96717_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x1f00,
-};
-
-static const struct v4l2_ctrl_config max96717_test_pattern_ctrl = {
-	.ops = &max96717_ctrl_ops,
-	.id = MAX96717_TEST_PATTERN_CTRL,
-	.name = "Serializer test pattern",
-	.type = V4L2_CTRL_TYPE_MENU,
-	.min = 0,
-	.max = ARRAY_SIZE(max96717_test_pattern) - 1,
-	.def = 0,
-	.qmenu = max96717_test_pattern,
 };
 
 static int max96717_dump_regs(struct max96717_priv *priv)
@@ -679,18 +518,9 @@ static int max96717_probe(struct i2c_client *client)
 	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	priv->sd.entity.flags |= MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER;
 
-	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
-
-	v4l2_ctrl_new_custom(&priv->ctrl_handler, &max96717_test_pattern_ctrl, NULL);
-
-	priv->sd.ctrl_handler = &priv->ctrl_handler;
-	ret = priv->ctrl_handler.error;
-	if (ret)
-		return ret;
-
 	ret = media_entity_pads_init(&priv->sd.entity, 2, priv->pads);
 	if (ret < 0)
-		goto error_handler_free;
+		return ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(priv->dev),
 					     MAX96717_SOURCE_PAD, 0, 0);
@@ -720,8 +550,6 @@ error_put_node:
 	fwnode_handle_put(priv->sd.fwnode);
 error_media_entity:
 	media_entity_cleanup(&priv->sd.entity);
-error_handler_free:
-	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
