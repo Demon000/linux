@@ -124,31 +124,6 @@ retry:
 	return ret;
 }
 
-static int max96712_write_bulk(struct max96712_priv *priv, unsigned int reg,
-			       const void *val, size_t val_count)
-{
-	int ret;
-
-	ret = regmap_bulk_write(priv->regmap, reg, val, val_count);
-	if (ret)
-		dev_err(priv->dev, "bulk write 0x%04x failed\n", reg);
-
-	return ret;
-}
-
-static int max96712_write_bulk_value(struct max96712_priv *priv,
-				     unsigned int reg, unsigned int val,
-				     size_t val_count)
-{
-	unsigned int i;
-	u8 values[4];
-
-	for (i = 1; i <= val_count; i++)
-		values[i - 1] = (val >> ((val_count - i) * 8)) & 0xff;
-
-	return max96712_write_bulk(priv, reg, &values, val_count);
-}
-
 static void max96712_reset(struct max96712_priv *priv)
 {
 	max96712_update_bits(priv, 0x13, 0x40, 0x40);
@@ -413,7 +388,6 @@ static int max96712_get_selection(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_selection *sel)
 {
 	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_selection sd_sel = *sel;
 	int ret;
 
@@ -437,7 +411,6 @@ static int max96712_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_format sd_format = *format;
 	int ret;
 
@@ -461,7 +434,6 @@ static int max96712_set_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_format *format)
 {
 	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_format sd_format = *format;
 	int ret;
 
@@ -485,7 +457,6 @@ static int max96712_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_mbus_code_enum sd_code = *code;
 	int ret;
 
@@ -509,7 +480,6 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
 	int ret;
 
