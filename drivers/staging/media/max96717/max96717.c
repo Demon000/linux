@@ -443,13 +443,13 @@ static void max96717_init(struct max96717_priv *priv)
 {
 	struct max96717_subdev_priv *sd_priv;
 
-	max96717_update_bits(priv, 0x0302, 0x70, 0x10);
+	max96717_update_bits(priv, 0x302, 0x70, 0x10);
 
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(priv, sd_priv);
 
 	/* Select tunnel mode. */
-	max96717_update_bits(priv, 0x0383, 0x80, 0x80);
+	max96717_update_bits(priv, 0x383, 0x80, 0x80);
 
 	max96717_write(priv, 0x330, 0x00);
 	max96717_write(priv, 0x383, 0x80);
@@ -464,7 +464,7 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_write(priv, 0x5b, 0x00);
 
 
-	// ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
+	// ret = max96717_update_bits(priv, 0x331, 0x30, 0x10);
 	// if (ret)
 	// 	return ret;
 
