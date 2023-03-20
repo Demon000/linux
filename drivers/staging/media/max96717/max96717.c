@@ -565,6 +565,17 @@ static int max96717_init(struct max96717_priv *priv)
 	/* GPIO_A GPIO_OUT_DIS 0 */
 	max96717_update_bits(priv, 0x2be, 0x1, 0x0);
 
+	/*
+	 * Enable RCLK output at fastest slew rate on GPIO 4.
+	 */
+	max96717_update_bits(priv, 0x6, BIT(5), BIT(5));
+	max96717_update_bits(priv, 0x570, GENMASK(5, 4),
+						 FIELD_PREP(GENMASK(5, 4), 0b00));
+
+	max96717_update_bits(priv, 0x3f1, BIT(7), BIT(7));
+	max96717_update_bits(priv, 0x3f1, BIT(0), BIT(0));
+	max96717_update_bits(priv, 0x3f1, GENMASK(5, 1), 0x4);
+
 	return 0;
 }
 
