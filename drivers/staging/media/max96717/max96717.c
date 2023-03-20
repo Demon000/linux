@@ -218,11 +218,14 @@ static void max96717_tunnel_enable(struct max96717_priv *priv, bool enable)
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96717_priv *priv = sd_to_max96717(sd);
+#if 0
 	int ret;
+#endif
 
 	max96717_pattern_enable(priv, enable);
 	max96717_tunnel_enable(priv, enable);
 
+#if 0
 	if (priv->pattern == MAX96717_PATTERN_NONE) {
 		ret = v4l2_subdev_call(priv->sensor, video, s_stream, enable);
 		if (ret)
@@ -230,6 +233,7 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 
 		return ret;
 	}
+#endif
 
 	return 0;
 }
