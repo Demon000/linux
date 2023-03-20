@@ -474,6 +474,7 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96712_subdev_priv *sd_priv = sd_to_max96712(sd);
 	struct max96712_priv *priv = sd_priv->priv;
+#if 0
 	int ret;
 
 	if (priv->pattern == MAX96712_PATTERN_NONE) {
@@ -483,6 +484,7 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 				"Failed to start stream for subdev %s: %d\n",
 				sd_priv->sd.name, ret);
 	}
+#endif
 
 	if (enable) {
 		max96712_pattern_enable(priv, true);
