@@ -532,8 +532,8 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-int max96712_get_fwnode_pad(struct media_entity *entity,
-			    struct fwnode_endpoint *endpoint)
+static int max96712_get_fwnode_pad(struct media_entity *entity,
+				   struct fwnode_endpoint *endpoint)
 {
 	return endpoint->port > MAX96712_SUBDEVS_NUM ? MAX96712_SOURCE_PAD
 						     : MAX96712_SINK_PAD;
