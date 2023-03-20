@@ -66,7 +66,6 @@ struct max96712_subdev_priv {
 	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX96712_PAD_NUM];
 
-
 	struct v4l2_fwnode_bus_mipi_csi2 mipi;
 };
 
