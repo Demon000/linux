@@ -558,9 +558,22 @@ static int max96717_init(struct max96717_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
-	if (ret)
-		return ret;
+	max96717_write(priv, 0x330, 0x00);
+	max96717_write(priv, 0x383, 0x80);
+	max96717_write(priv, 0x331, 0x30);
+	max96717_write(priv, 0x332, 0xe0);
+	max96717_write(priv, 0x333, 0x04);
+	max96717_write(priv, 0x334, 0x00);
+	max96717_write(priv, 0x335, 0x00);
+	max96717_write(priv, 0x308, 0x64);
+	max96717_write(priv, 0x311, 0x40);
+	max96717_write(priv, 0x315, 0x00);
+	max96717_write(priv, 0x5b, 0x00);
+
+
+	// ret = max96717_update_bits(priv, 0x0331, 0x30, 0x10);
+	// if (ret)
+	// 	return ret;
 
 	/*
 	 * Enable GPIO 0.
