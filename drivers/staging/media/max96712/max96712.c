@@ -40,16 +40,6 @@ struct max96712_asd {
 	struct max96712_subdev_priv *sd_priv;
 };
 
-enum max96712_ctrls {
-	MAX96712_TEST_PATTERN_CTRL = V4L2_CTRL_CLASS_IMAGE_PROC | 0x1101,
-};
-
-enum max96712_pattern {
-	MAX96712_PATTERN_NONE = 0,
-	MAX96712_PATTERN_CHECKERBOARD,
-	MAX96712_PATTERN_GRADIENT,
-};
-
 struct max96712_subdev_priv {
 	struct v4l2_subdev sd;
 	unsigned int index;
@@ -62,7 +52,6 @@ struct max96712_subdev_priv {
 	struct v4l2_subdev_state *slave_sd_state;
 	unsigned int slave_sd_pad_id;
 
-	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX96712_PAD_NUM];
 
@@ -79,8 +68,6 @@ struct max96712_priv {
 	unsigned int lane_config;
 
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
-
-	enum max96712_pattern pattern;
 };
 
 static inline struct max96712_asd *to_max96712_asd(struct v4l2_async_subdev *asd)
@@ -273,68 +260,6 @@ static void max96712_init(struct max96712_priv *priv)
 	usleep_range(2000, 5000);
 }
 
-static void max96712_pattern_enable(struct max96712_priv *priv, bool enable)
-{
-	const u32 h_active = 1920;
-	const u32 h_fp = 88;
-	const u32 h_sw = 44;
-	const u32 h_bp = 148;
-	const u32 h_tot = h_active + h_fp + h_sw + h_bp;
-
-	const u32 v_active = 1080;
-	const u32 v_fp = 4;
-	const u32 v_sw = 5;
-	const u32 v_bp = 36;
-	const u32 v_tot = v_active + v_fp + v_sw + v_bp;
-
-	if (!enable || priv->pattern == MAX96712_PATTERN_NONE) {
-		max96712_write(priv, 0x1051, 0x00);
-		return;
-	}
-
-	/* PCLK 75MHz. */
-	max96712_write(priv, 0x0009, 0x01);
-
-	/* Configure Video Timing Generator for 1920x1080 @ 30 fps. */
-	max96712_write_bulk_value(priv, 0x1052, 0, 3);
-	max96712_write_bulk_value(priv, 0x1055, v_sw * h_tot, 3);
-	max96712_write_bulk_value(priv, 0x1058,
-				  (v_active + v_fp + v_bp) * h_tot, 3);
-	max96712_write_bulk_value(priv, 0x105b, 0, 3);
-	max96712_write_bulk_value(priv, 0x105e, h_sw, 2);
-	max96712_write_bulk_value(priv, 0x1060, h_active + h_fp + h_bp, 2);
-	max96712_write_bulk_value(priv, 0x1062, v_tot, 2);
-	max96712_write_bulk_value(priv, 0x1064,
-				  h_tot * (v_sw + v_bp) + (h_sw + h_bp), 3);
-	max96712_write_bulk_value(priv, 0x1067, h_active, 2);
-	max96712_write_bulk_value(priv, 0x1069, h_fp + h_sw + h_bp, 2);
-	max96712_write_bulk_value(priv, 0x106b, v_active, 2);
-
-	/* Generate VS, HS and DE in free-running mode. */
-	max96712_write(priv, 0x1050, 0xfb);
-
-	/* Configure Video Pattern Generator. */
-	if (priv->pattern == MAX96712_PATTERN_CHECKERBOARD) {
-		/* Set checkerboard pattern size. */
-		max96712_write(priv, 0x1074, 0x3c);
-		max96712_write(priv, 0x1075, 0x3c);
-		max96712_write(priv, 0x1076, 0x3c);
-
-		/* Set checkerboard pattern colors. */
-		max96712_write_bulk_value(priv, 0x106e, 0xfecc00, 3);
-		max96712_write_bulk_value(priv, 0x1071, 0x006aa7, 3);
-
-		/* Generate checkerboard pattern. */
-		max96712_write(priv, 0x1051, 0x10);
-	} else {
-		/* Set gradient increment. */
-		max96712_write(priv, 0x106d, 0x10);
-
-		/* Generate gradient pattern. */
-		max96712_write(priv, 0x1051, 0x20);
-	}
-}
-
 static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
@@ -467,22 +392,14 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 #if 0
 	int ret;
 
-	if (priv->pattern == MAX96712_PATTERN_NONE) {
-		ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
-		if (ret)
-			dev_err(priv->dev,
-				"Failed to start stream for subdev %s: %d\n",
-				sd_priv->sd.name, ret);
-	}
+	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
+	if (ret)
+		dev_err(priv->dev,
+			"Failed to start stream for subdev %s: %d\n",
+			sd_priv->sd.name, ret);
 #endif
 
-	if (enable) {
-		max96712_pattern_enable(priv, true);
-		max96712_mipi_enable(priv, true);
-	} else {
-		max96712_mipi_enable(priv, false);
-		max96712_pattern_enable(priv, false);
-	}
+	max96712_mipi_enable(priv, enable);
 
 	return 0;
 }
@@ -502,9 +419,6 @@ static int max96712_get_selection(struct v4l2_subdev *sd,
 
 	if (sel->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
-
-	if (priv->pattern != MAX96712_PATTERN_NONE)
-		return 0;
 
 	sd_sel.pad = sd_priv->slave_sd_pad_id;
 
@@ -530,15 +444,6 @@ static int max96712_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		format->format.width = 1920;
-		format->format.height = 1080;
-		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-		format->format.field = V4L2_FIELD_NONE;
-
-		return 0;
-	}
-
 	sd_format.pad = sd_priv->slave_sd_pad_id;
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, get_fmt,
@@ -562,15 +467,6 @@ static int max96712_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
-
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		format->format.width = 1920;
-		format->format.height = 1080;
-		format->format.code = MEDIA_BUS_FMT_RGB888_1X24;
-		format->format.field = V4L2_FIELD_NONE;
-
-		return 0;
-	}
 
 	sd_format.pad = sd_priv->slave_sd_pad_id;
 
@@ -596,12 +492,6 @@ static int max96712_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
 
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		code->code = MEDIA_BUS_FMT_RGB888_1X24;
-
-		return 0;
-	}
-
 	sd_code.pad = sd_priv->slave_sd_pad_id;
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_mbus_code,
@@ -625,12 +515,6 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 
 	if (fse->pad != MAX96712_SOURCE_PAD)
 		return -EINVAL;
-
-	if (priv->pattern != MAX96712_PATTERN_NONE) {
-		fse->code = MEDIA_BUS_FMT_RGB888_1X24;
-
-		return 0;
-	}
 
 	sd_fse.pad = sd_priv->slave_sd_pad_id;
 
@@ -672,42 +556,6 @@ static const struct media_entity_operations max96712_entity_ops = {
 	.get_fwnode_pad = max96712_get_fwnode_pad,
 };
 
-static const char * const max96712_test_pattern[] = {
-	"None",
-	"Checkerboard",
-	"Gradient",
-};
-
-static int max96712_s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct max96712_subdev_priv *sd_priv =
-		container_of(ctrl->handler, struct max96712_subdev_priv, ctrl_handler);
-	struct max96712_priv *priv = sd_priv->priv;
-
-	switch (ctrl->id) {
-	case MAX96712_TEST_PATTERN_CTRL:
-		priv->pattern = ctrl->val;
-		break;
-	}
-
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops max96712_ctrl_ops = {
-	.s_ctrl = max96712_s_ctrl,
-};
-
-static const struct v4l2_ctrl_config max96712_test_pattern_ctrl = {
-	.ops = &max96712_ctrl_ops,
-	.id = MAX96712_TEST_PATTERN_CTRL,
-	.name = "Deserializer test pattern",
-	.type = V4L2_CTRL_TYPE_MENU,
-	.min = 0,
-	.max = ARRAY_SIZE(max96712_test_pattern) - 1,
-	.def = 0,
-	.qmenu = max96712_test_pattern,
-};
-
 static const char *max96712_subdev_names[] = {
 	":0", ":1", ":2", ":3"
 };
@@ -732,15 +580,6 @@ static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd_priv->sd.fwnode = sd_priv->fwnode;
 
-	v4l2_ctrl_handler_init(&sd_priv->ctrl_handler, 1);
-
-	v4l2_ctrl_new_custom(&sd_priv->ctrl_handler, &max96712_test_pattern_ctrl, NULL);
-
-	sd_priv->sd.ctrl_handler = &sd_priv->ctrl_handler;
-	ret = sd_priv->ctrl_handler.error;
-	if (ret)
-		goto error;
-
 	sd_priv->pads[MAX96712_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	sd_priv->pads[MAX96712_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
 
@@ -753,7 +592,6 @@ static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 	return v4l2_async_register_subdev(&sd_priv->sd);
 
 error:
-	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
 	max96712_v4l2_notifier_unregister(sd_priv);
 
 	return ret;
@@ -762,7 +600,6 @@ error:
 static void max96712_v4l2_unregister_sd(struct max96712_subdev_priv *sd_priv)
 {
 	max96712_v4l2_notifier_unregister(sd_priv);
-	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
 	v4l2_async_unregister_subdev(&sd_priv->sd);
 }
 
