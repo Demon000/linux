@@ -179,8 +179,8 @@ static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 	}
 }
 
-static void max96712_mipi_configure_phy(struct max96712_priv *priv,
-					struct max96712_subdev_priv *sd_priv)
+static void max96712_init_phy(struct max96712_priv *priv,
+			      struct max96712_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
@@ -245,7 +245,7 @@ static void max96712_mipi_configure_phy(struct max96712_priv *priv,
 	max96712_update_bits(priv, 0x6, 0x1 << index, 0x1 << index);
 }
 
-static void max96712_mipi_configure(struct max96712_priv *priv)
+static void max96712_init(struct max96712_priv *priv)
 {
 	unsigned int i;
 
@@ -260,7 +260,7 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 		if (!sd_priv->fwnode)
 			continue;
 
-		max96712_mipi_configure_phy(priv, sd_priv);
+		max96712_init_phy(priv, sd_priv);
 	}
 
 	/* One-shot reset all PHYs. */
@@ -1010,7 +1010,7 @@ static int max96712_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	max96712_mipi_configure(priv);
+	max96712_init(priv);
 
 	return max96712_v4l2_register(priv);
 }
