@@ -135,6 +135,9 @@ retry:
 	return ret;
 }
 
+#define max96717_update_bits_prep(priv, reg, mask, val) \
+	max96717_update_bits(priv, reg, mask, ((val << __ffs(mask)) & mask))
+
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
@@ -446,7 +449,7 @@ static void max96717_init(struct max96717_priv *priv)
 	 * Set CMU2 PFDDIV to 1.1V for correct functionality of the device,
 	 * as mentioned in the datasheet, under section MANDATORY REGISTER PROGRAMMING.
 	 */
-	max96717_update_bits(priv, 0x302, 0x70, 0x10);
+	max96717_update_bits_prep(priv, 0x302, GENMASK(6, 4), 0b001);
 
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
