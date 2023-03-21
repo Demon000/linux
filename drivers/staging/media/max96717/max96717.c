@@ -439,6 +439,7 @@ static const struct media_entity_operations max96717_entity_ops = {
 static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
+	struct max96717_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
 	unsigned int reg, val, shift, mask;
 
