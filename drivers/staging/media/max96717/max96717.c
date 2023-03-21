@@ -490,7 +490,6 @@ static void max96717_init(struct max96717_priv *priv)
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
 
-	max96717_write(priv, 0x308, 0x64);
 	max96717_write(priv, 0x311, 0x40);
 	max96717_write(priv, 0x315, 0x00);
 	max96717_write(priv, 0x5b, 0x00);
