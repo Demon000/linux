@@ -441,7 +441,8 @@ static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	struct max96717_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
-	unsigned int reg, val, shift, mask;
+	unsigned int val, shift, mask;
+	unsigned int i;
 
 	if (num_data_lanes == 4)
 		val = 0x3;
