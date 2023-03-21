@@ -151,6 +151,7 @@ static void max96712_reset(struct max96712_priv *priv)
 
 static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 {
+	/* TODO: use a counter to handle multiple active ports. */
 	if (enable) {
 		max96712_update_bits(priv, 0x40b, 0x02, 0x02);
 		max96712_update_bits(priv, 0x8a0, 0x80, 0x80);
