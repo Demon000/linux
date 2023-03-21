@@ -433,8 +433,7 @@ static const struct media_entity_operations max96717_entity_ops = {
 	.get_fwnode_pad = max96717_get_fwnode_pad,
 };
 
-static void max96717_init_phy(struct max96717_priv *priv,
-			      struct max96717_subdev_priv *sd_priv)
+static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 {
 
 }
@@ -450,7 +449,7 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x302, 0x70, 0x10);
 
 	for_each_subdev(priv, sd_priv)
-		max96717_init_phy(priv, sd_priv);
+		max96717_init_phy(sd_priv);
 
 	max96717_write(priv, 0x330, 0x00);
 	max96717_write(priv, 0x331, 0x30);
