@@ -453,6 +453,11 @@ static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 	/* Configure a lane count. */
 	/* TODO: Add support for 1-lane configurations. */
 	max96717_update_bits(priv, 0x331, mask << shift, val << shift);
+
+	/* Configure lane mapping. */
+	/* TODO: Add support for lane swapping. */
+	max96717_update_bits(priv, 0x332, 0xf0, 0xe0);
+	max96717_update_bits(priv, 0x333, 0x0f, 0x04);
 }
 
 static void max96717_init(struct max96717_priv *priv)
