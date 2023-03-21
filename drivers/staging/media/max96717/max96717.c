@@ -458,6 +458,23 @@ static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 	/* TODO: Add support for lane swapping. */
 	max96717_update_bits(priv, 0x332, 0xf0, 0xe0);
 	max96717_update_bits(priv, 0x333, 0x0f, 0x04);
+
+
+	/* Configure lane polarity. */
+	/* Lower two lanes. */
+	val = 0;
+	for (i = 0; i < 3 && i < num_data_lanes + 1; i++)
+		if (sd_priv->mipi.lane_polarities[i])
+			val |= BIT(i == 0 ? 2 : i - 1);
+	max96717_update_bits(priv, 0x335, 0x7, val);
+
+	/* Upper two lanes. */
+	val = 0;
+	shift = 4;
+	for (i = 3; i < num_data_lanes + 1; i++)
+		if (sd_priv->mipi.lane_polarities[i])
+			val |= BIT(i - 3);
+	max96717_update_bits(priv, 0x334, 0x7 << shift, val << shift);
 }
 
 static void max96717_init(struct max96717_priv *priv)
@@ -473,10 +490,6 @@ static void max96717_init(struct max96717_priv *priv)
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
 
-	max96717_write(priv, 0x332, 0xe0);
-	max96717_write(priv, 0x333, 0x04);
-	max96717_write(priv, 0x334, 0x00);
-	max96717_write(priv, 0x335, 0x00);
 	max96717_write(priv, 0x308, 0x64);
 	max96717_write(priv, 0x311, 0x40);
 	max96717_write(priv, 0x315, 0x00);
