@@ -586,7 +586,6 @@ static int max96717_parse_src_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 {
 	struct max96717_priv *priv = sd_priv->priv;
 	struct fwnode_handle *ep;
-	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
 	if (!ep) {
@@ -608,6 +607,7 @@ static int max96717_parse_sink_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
 	struct fwnode_handle *ep, *remote_ep;
+	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
 	if (!ep) {
