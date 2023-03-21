@@ -170,6 +170,7 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 
 	/* Configure a lane count. */
 	/* TODO: Add support for 1-lane configurations. */
+	/* TODO: Add support for 3-lane configurations. */
 	/* TODO: Add support CPHY mode. */
 	if (num_data_lanes == 4)
 		val = 0xc0;
