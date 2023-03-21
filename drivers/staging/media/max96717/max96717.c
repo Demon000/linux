@@ -475,6 +475,10 @@ static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 		if (sd_priv->mipi.lane_polarities[i])
 			val |= BIT(i - 3);
 	max96717_update_bits(priv, 0x334, 0x7 << shift, val << shift);
+
+	/* Set stream ID to 0. */
+	/* TODO: Make this generic by better parsing of chip ports. */
+	max96717_write(priv, 0x5b, 0x00);
 }
 
 static void max96717_init(struct max96717_priv *priv)
@@ -489,15 +493,6 @@ static void max96717_init(struct max96717_priv *priv)
 
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
-
-	max96717_write(priv, 0x311, 0x40);
-	max96717_write(priv, 0x315, 0x00);
-	max96717_write(priv, 0x5b, 0x00);
-
-
-	// ret = max96717_update_bits(priv, 0x331, 0x30, 0x10);
-	// if (ret)
-	// 	return ret;
 
 	/*
 	 * Enable GPIO 0.
