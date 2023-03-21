@@ -160,11 +160,11 @@ static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 	}
 }
 
-static void max96712_init_phy(struct max96712_priv *priv,
-			      struct max96712_subdev_priv *sd_priv)
+static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
+	struct max96712_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
 	unsigned int i;
 
@@ -236,7 +236,7 @@ static void max96712_init(struct max96712_priv *priv)
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
 	for_each_subdev(priv, sd_priv)
-		max96712_init_phy(priv, sd_priv);
+		max96712_init_phy(sd_priv);
 
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
