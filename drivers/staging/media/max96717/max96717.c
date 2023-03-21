@@ -438,7 +438,21 @@ static const struct media_entity_operations max96717_entity_ops = {
 
 static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 {
+	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
+	unsigned int index = sd_priv->index;
+	unsigned int reg, val, shift, mask;
 
+	if (num_data_lanes == 4)
+		val = 0x3;
+	else
+		val = 0x1;
+
+	shift = index * 4;
+	mask = 0x3;
+
+	/* Configure a lane count. */
+	/* TODO: Add support for 1-lane configurations. */
+	max96717_update_bits(priv, 0x331, mask << shift, val << shift);
 }
 
 static void max96717_init(struct max96717_priv *priv)
@@ -454,8 +468,6 @@ static void max96717_init(struct max96717_priv *priv)
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
 
-	max96717_write(priv, 0x330, 0x00);
-	max96717_write(priv, 0x331, 0x30);
 	max96717_write(priv, 0x332, 0xe0);
 	max96717_write(priv, 0x333, 0x04);
 	max96717_write(priv, 0x334, 0x00);
