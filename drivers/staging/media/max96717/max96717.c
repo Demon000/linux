@@ -58,6 +58,7 @@ struct max96717_priv {
 	struct regmap *regmap;
 
 	unsigned int lane_config;
+	bool skip_subdev_s_stream;
 
 	struct max96717_subdev_priv sd_privs[MAX96717_SUBDEVS_NUM];
 };
@@ -265,16 +266,17 @@ static void max96717_v4l2_notifier_unregister(struct max96717_subdev_priv *sd_pr
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
-#if 0
-	struct max96717_priv *priv = sd_to_max96717(sd);
+	struct max96717_subdev_priv *sd_priv = sd_to_max96717(sd);
+	struct max96717_priv *priv = sd_priv->priv;
 	int ret;
 
-	ret = v4l2_subdev_call(priv->sensor, video, s_stream, enable);
-	if (ret)
-		dev_err(priv->dev, "Failed to start stream for camera device %d\n", ret);
+	if (priv->skip_subdev_s_stream)
+		return 0;
 
-	return ret;
-#endif
+	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
+	if (ret)
+		dev_err(priv->dev, "Failed to start stream for %s: %d\n",
+			sd_priv->slave_sd->name, ret);
 
 	return 0;
 }
@@ -650,6 +652,9 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	struct max96717_subdev_priv *sd_priv;
 	unsigned int i, j;
 	int ret;
+
+	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
+			"max,skip-subdev-s-stream");
 
 	for (i = 0; i < MAX96717_SUBDEVS_NUM; i++) {
 		sd_priv = &priv->sd_privs[i];
