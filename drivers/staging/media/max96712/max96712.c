@@ -66,6 +66,7 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	unsigned int lane_config;
+	bool skip_subdev_s_stream;
 
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 };
@@ -379,16 +380,19 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96712_subdev_priv *sd_priv = sd_to_max96712(sd);
 	struct max96712_priv *priv = sd_priv->priv;
-#if 0
 	int ret;
 
-	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
-	if (ret)
-		dev_err(priv->dev,
-			"Failed to start stream for subdev %s: %d\n",
-			sd_priv->sd.name, ret);
-#endif
+	if (priv->skip_subdev_s_stream)
+		goto skip;
 
+	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
+	if (ret) {
+		dev_err(priv->dev, "Failed to start stream for %s: %d\n",
+			sd_priv->slave_sd->name, ret);
+		return ret;
+	}
+
+skip:
 	max96712_mipi_enable(priv, enable);
 
 	return 0;
@@ -677,6 +681,9 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	struct max96712_subdev_priv *sd_priv;
 	unsigned int i, j;
 	int ret;
+
+	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
+			"max,skip-subdev-s-stream");
 
 	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
 		sd_priv = &priv->sd_privs[i];
