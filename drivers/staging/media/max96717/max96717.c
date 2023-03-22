@@ -406,8 +406,8 @@ static int max96717_post_register(struct v4l2_subdev *sd)
 static int max96717_get_fwnode_pad(struct media_entity *entity,
 				   struct fwnode_endpoint *endpoint)
 {
-	return endpoint->port > MAX96717_SUBDEVS_NUM ? MAX96717_SOURCE_PAD
-						     : MAX96717_SINK_PAD;
+	return endpoint->port < MAX96717_SUBDEVS_NUM ? MAX96717_SINK_PAD
+						     : MAX96717_SOURCE_PAD;
 }
 
 static const struct v4l2_subdev_video_ops max96717_video_ops = {
