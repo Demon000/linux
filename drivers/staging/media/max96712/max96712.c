@@ -56,6 +56,8 @@ struct max96712_subdev_priv {
 	struct media_pad pads[MAX96712_PAD_NUM];
 
 	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+
+	bool active;
 };
 
 struct max96712_priv {
@@ -67,6 +69,8 @@ struct max96712_priv {
 
 	unsigned int lane_config;
 	bool skip_subdev_s_stream;
+	struct mutex lock;
+	bool active;
 
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 };
@@ -150,9 +154,20 @@ static void max96712_reset(struct max96712_priv *priv)
 	msleep(20);
 }
 
-static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
+static void __max96712_mipi_update(struct max96712_priv *priv)
 {
-	/* TODO: use a counter to handle multiple active ports. */
+	struct max96712_subdev_priv *sd_priv;
+	bool enable = 0;
+
+	for_each_subdev(priv, sd_priv)
+		if (sd_priv->active)
+			enable = 1;
+
+	if (enable == priv->active)
+		return;
+
+	priv->active = enable;
+
 	if (enable) {
 		max96712_update_bits(priv, 0x40b, 0x02, 0x02);
 		max96712_update_bits(priv, 0x8a0, 0x80, 0x80);
@@ -160,6 +175,23 @@ static void max96712_mipi_enable(struct max96712_priv *priv, bool enable)
 		max96712_update_bits(priv, 0x8a0, 0x80, 0x00);
 		max96712_update_bits(priv, 0x40b, 0x02, 0x00);
 	}
+}
+
+static void max96712_mipi_enable(struct max96712_subdev_priv *sd_priv, bool enable)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+
+	mutex_lock(&priv->lock);
+
+	if (sd_priv->active == enable)
+		goto exit;
+
+	sd_priv->active = enable;
+
+exit:
+	__max96712_mipi_update(priv);
+
+	mutex_unlock(&priv->lock);
 }
 
 static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
@@ -233,7 +265,7 @@ static void max96712_init(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
 
-	max96712_mipi_enable(priv, false);
+	__max96712_mipi_update(priv);
 
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
@@ -393,7 +425,7 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 	}
 
 skip:
-	max96712_mipi_enable(priv, enable);
+	max96712_mipi_enable(sd_priv, enable);
 
 	return 0;
 }
