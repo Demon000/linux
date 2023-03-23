@@ -35,6 +35,12 @@
 ((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,    \
                            sizeof(__type)))
 
+static const struct regmap_config max96712_i2c_regmap = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x1f00,
+};
+
 struct max96712_asd {
 	struct v4l2_async_subdev base;
 	struct max96712_subdev_priv *sd_priv;
@@ -261,17 +267,175 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 	max96712_update_bits(priv, 0x6, 0x1 << index, 0x1 << index);
 }
 
+static int max96712_wait_for_ser(struct max96712_subdev_priv *sd_priv,
+				 struct regmap *regmap)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int i, val;
+	int ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = regmap_read(regmap, 0x0, &val);
+		if (!ret)
+			return 0;
+
+		udelay(1000);
+
+		dev_err(priv->dev, "Retry %u waiting for serializer: %d\n", i, ret);
+	}
+
+	return ret;
+}
+
+static int max96712_init_xlate(struct max96712_subdev_priv *sd_priv,
+			       struct regmap *regmap)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int count, i;
+	char prop_name[32];
+	u32 vals[4];
+	int ret;
+
+	ret = snprintf(prop_name, ARRAY_SIZE(prop_name),
+		       "max,%u-i2c-addr-translate", sd_priv->index);
+	if (ret < 0 || ret >= sizeof(prop_name)) {
+		dev_err(priv->dev,
+			"Failed to format I2C translate prop name: %d\n", ret);
+		return ret < 0 ? ret : -EINVAL;
+	}
+
+	count = device_property_count_u32(priv->dev, prop_name);
+	if (count <= 0)
+		return 0;
+
+	if (count % 2 != 0 || count > ARRAY_SIZE(vals)) {
+		dev_err(priv->dev, "Invalid I2C translate prop value\n");
+		return -EINVAL;
+	}
+
+	ret = device_property_read_u32_array(priv->dev, prop_name, vals, count);
+	if (ret < 0) {
+		dev_err(priv->dev, "Failed to read I2C translate prop\n");
+		return ret;
+	}
+
+	for (i = 0; i < count / 2; i++) {
+		unsigned int addr = 0x42 + 0x2 * i;
+
+		dev_err(priv->dev, "translate: %04x, %02x -> %02x\n", addr, vals[i * 2 + 1], vals[i * 2]);
+
+		regmap_write(regmap, addr, vals[i * 2 + 1] << 1);
+		regmap_write(regmap, addr + 0x1, vals[i * 2] << 1);
+	}
+
+	return 0;
+}
+
+static int max96712_init_ser_xlate(struct max96712_subdev_priv *sd_priv)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	struct i2c_client *client;
+	struct regmap *regmap;
+	char prop_name[32];
+	unsigned int val;
+	u32 vals[2];
+	int ret;
+
+	ret = snprintf(prop_name, ARRAY_SIZE(prop_name),
+		       "max,%u-ser-addr-translate", sd_priv->index);
+	if (ret < 0 || ret >= sizeof(prop_name)) {
+		dev_err(priv->dev,
+			"Failed to format I2C translate prop name: %d\n", ret);
+		return ret < 0 ? ret : -EINVAL;
+	}
+
+	ret = device_property_read_u32_array(priv->dev, prop_name, vals, ARRAY_SIZE(vals));
+	if (ret < 0)
+		return 0;
+
+	dev_err(priv->dev, "translate serializer: %02x -> %02x\n",
+		vals[0], vals[1]);
+
+	client = i2c_new_dummy_device(priv->client->adapter, vals[0]);
+	if (IS_ERR(client)) {
+		ret = PTR_ERR(client);
+		dev_err(priv->dev,
+			"Failed to create I2C client: %d\n", ret);
+		return ret;
+	}
+
+	regmap = regmap_init_i2c(client, &max96712_i2c_regmap);
+	if (IS_ERR(priv->regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(priv->dev,
+			"Failed to create I2C regmap: %d\n", ret);
+		goto err_unregister_client;
+	}
+
+	ret = max96712_read(priv, 0x3);
+	if (ret < 0) {
+		dev_err(priv->dev, "Failed to read original channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	val = ret;
+
+	ret = max96712_write(priv, 0x3, (~BIT(sd_priv->index * 2)) & 0xff);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max96712_wait_for_ser(sd_priv, regmap);
+	if (ret) {
+		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		return ret;
+	}
+
+	ret = max96712_init_xlate(sd_priv, regmap);
+	if (ret) {
+		dev_err(priv->dev, "Failed to init I2C tranlation: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = regmap_write(regmap, 0x0, vals[1] << 1);
+	if (ret) {
+		dev_err(priv->dev, "Failed to change I2C address: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max96712_write(priv, 0x3, val);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write original channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+err_regmap_exit:
+	regmap_exit(regmap);
+
+err_unregister_client:
+	i2c_unregister_device(client);
+
+	return ret;
+}
+
 static void max96712_init(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
+	int ret;
 
 	__max96712_mipi_update(priv);
 
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
-	for_each_subdev(priv, sd_priv)
+	for_each_subdev(priv, sd_priv) {
+		ret = max96712_init_ser_xlate(sd_priv);
+		if (ret)
+			continue;
+
 		max96712_init_phy(sd_priv);
+	}
 
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
@@ -758,12 +922,6 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 
 	return 0;
 }
-
-static const struct regmap_config max96712_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
 
 static int max96712_dump_regs(struct max96712_priv *priv)
 {
