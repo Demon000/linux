@@ -195,7 +195,7 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 	if (ret) {
 		dev_err(priv->dev,
 			"Failed to call post register for subdev %s: %d\n",
-			sd_priv->sd.name, ret);
+			sd_priv->slave_sd->name, ret);
 		return ret;
 	}
 
