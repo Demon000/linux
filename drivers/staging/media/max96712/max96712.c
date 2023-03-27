@@ -735,13 +735,6 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int max96712_get_fwnode_pad(struct media_entity *entity,
-				   struct fwnode_endpoint *endpoint)
-{
-	return endpoint->port < MAX96712_SUBDEVS_NUM ? MAX96712_SINK_PAD
-						     : MAX96712_SOURCE_PAD;
-}
-
 static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
 	.get_selection = max96712_get_selection,
 	.get_fmt = max96712_get_fmt,
@@ -753,10 +746,6 @@ static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
 static const struct v4l2_subdev_ops max96712_subdev_ops = {
 	.video = &max96712_video_ops,
 	.pad = &max96712_pad_ops,
-};
-
-static const struct media_entity_operations max96712_entity_ops = {
-	.get_fwnode_pad = max96712_get_fwnode_pad,
 };
 
 static const char *max96712_subdev_names[] = {
@@ -780,7 +769,6 @@ static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 	/* TODO: format name */
 	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96712_subdev_names[index]);
 	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	sd_priv->sd.entity.ops = &max96712_entity_ops;
 	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd_priv->sd.fwnode = sd_priv->fwnode;
 
@@ -854,7 +842,6 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 	}
 
 	sd_priv->mipi = v4l2_ep.bus.mipi_csi2;
-	sd_priv->fwnode = ep;
 
 	return 0;
 }
@@ -892,25 +879,30 @@ static const unsigned int max96712_lane_configs[][MAX96712_SUBDEVS_NUM] = {
 
 static int max96712_parse_dt(struct max96712_priv *priv)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
 	struct max96712_subdev_priv *sd_priv;
+	struct fwnode_handle *fwnode;
 	unsigned int i, j;
+	u32 index;
 	int ret;
 
 	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
 			"max,skip-subdev-s-stream");
 
-	for (i = 0; i < MAX96712_SUBDEVS_NUM; i++) {
-		sd_priv = &priv->sd_privs[i];
-		sd_priv->priv = priv;
-		sd_priv->index = i;
-
-		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode, i);
+	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
 		if (ret)
 			continue;
 
-		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode,
-						     i + MAX96712_SUBDEVS_NUM);
+		sd_priv = &priv->sd_privs[index];
+		sd_priv->fwnode = fwnode;
+		sd_priv->priv = priv;
+		sd_priv->index = index;
+
+		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode, MAX96712_SINK_PAD);
+		if (ret)
+			continue;
+
+		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode, MAX96712_SOURCE_PAD);
 		if (ret)
 			continue;
 	}
