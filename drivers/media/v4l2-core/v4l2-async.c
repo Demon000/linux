@@ -772,6 +772,9 @@ int v4l2_async_register_subdev(struct v4l2_subdev *sd)
 	if (!sd->fwnode && sd->dev)
 		sd->fwnode = dev_fwnode(sd->dev);
 
+	dev_err(sd->dev, "Register subdev %s %pfw\n",
+			sd->name, sd->fwnode);
+
 	mutex_lock(&list_lock);
 
 	INIT_LIST_HEAD(&sd->async_list);
