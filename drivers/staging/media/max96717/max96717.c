@@ -136,6 +136,24 @@ retry:
 	return ret;
 }
 
+static int max96717_wait_for_device(struct max96717_priv *priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = max96717_read(priv, 0x0);
+		if (ret >= 0)
+			return 0;
+
+		msleep(10);
+
+		dev_err(priv->dev, "Retry %u waiting for serializer: %d\n", i, ret);
+	}
+
+	return ret;
+}
+
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
@@ -756,6 +774,10 @@ static int max96717_probe(struct i2c_client *client)
 	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
 	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
 			    &max96717_dump_regs_fops);
+
+	ret = max96717_wait_for_device(priv);
+	if (ret)
+		return ret;
 
 	ret = max96717_parse_dt(priv);
 	if (ret)
