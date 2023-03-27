@@ -157,7 +157,25 @@ retry:
 static void max96712_reset(struct max96712_priv *priv)
 {
 	max96712_update_bits(priv, 0x13, 0x40, 0x40);
-	msleep(20);
+	msleep(80);
+}
+
+static int max96712_wait_for_device(struct max96712_priv *priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = max96712_read(priv, 0x0);
+		if (ret >= 0)
+			return 0;
+
+		msleep(10);
+
+		dev_err(priv->dev, "Retry %u waiting for deserializer\n", ret);
+	}
+
+	return ret;
 }
 
 static void __max96712_mipi_update(struct max96712_priv *priv)
@@ -1013,6 +1031,10 @@ static int max96712_probe(struct i2c_client *client)
 #endif
 
 	max96712_reset(priv);
+
+	ret = max96712_wait_for_device(priv);
+	if (ret)
+		return ret;
 
 	ret = max96712_parse_dt(priv);
 	if (ret)
