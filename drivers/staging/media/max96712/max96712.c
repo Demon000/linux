@@ -777,6 +777,7 @@ static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 		return ret;
 
 	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96712_subdev_ops);
+	/* TODO: format name */
 	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96712_subdev_names[index]);
 	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd_priv->sd.entity.ops = &max96712_entity_ops;
