@@ -407,7 +407,7 @@ static int max96712_init_ser_xlate(struct max96712_subdev_priv *sd_priv)
 	ret = max96712_wait_for_ser(sd_priv, regmap);
 	if (ret) {
 		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
-		return ret;
+		goto err_regmap_exit;
 	}
 
 	ret = max96712_init_xlate(sd_priv, regmap);
