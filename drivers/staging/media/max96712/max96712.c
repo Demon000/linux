@@ -340,8 +340,6 @@ static int max96712_init_xlate(struct max96712_subdev_priv *sd_priv,
 	for (i = 0; i < count / 2; i++) {
 		unsigned int addr = 0x42 + 0x2 * i;
 
-		dev_err(priv->dev, "translate: %04x, %02x -> %02x\n", addr, vals[i * 2 + 1], vals[i * 2]);
-
 		regmap_write(regmap, addr, vals[i * 2 + 1] << 1);
 		regmap_write(regmap, addr + 0x1, vals[i * 2] << 1);
 	}
@@ -370,9 +368,6 @@ static int max96712_init_ser_xlate(struct max96712_subdev_priv *sd_priv)
 	ret = device_property_read_u32_array(priv->dev, prop_name, vals, ARRAY_SIZE(vals));
 	if (ret < 0)
 		return 0;
-
-	dev_err(priv->dev, "translate serializer: %02x -> %02x\n",
-		vals[0], vals[1]);
 
 	client = i2c_new_dummy_device(priv->client->adapter, vals[0]);
 	if (IS_ERR(client)) {
