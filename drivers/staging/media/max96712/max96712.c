@@ -9,6 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regmap.h>
@@ -72,6 +73,9 @@ struct max96712_priv {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
+
+	struct i2c_mux_core *mux;
+	unsigned int mux_channel;
 
 	unsigned int lane_config;
 	bool skip_subdev_s_stream;
@@ -174,6 +178,58 @@ static int max96712_wait_for_device(struct max96712_priv *priv)
 
 		dev_err(priv->dev, "Retry %u waiting for deserializer\n", ret);
 	}
+
+	return ret;
+}
+
+static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct max96712_priv *priv = i2c_mux_priv(muxc);
+	int ret;
+
+	if (priv->mux_channel == chan)
+		return 0;
+
+	priv->mux_channel = chan;
+
+	ret = max96712_write(priv, 0x3, (~BIT(chan * 2)) & 0xff);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write I2C mux config: %d\n", ret);
+		return ret;
+	}
+
+	usleep_range(3000, 5000);
+
+	return 0;
+}
+
+static int max96712_i2c_mux_init(struct max96712_priv *priv)
+{
+	struct max96712_subdev_priv *sd_priv;
+	int ret;
+
+	if (!i2c_check_functionality(priv->client->adapter,
+				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
+		return -ENODEV;
+
+	priv->mux = i2c_mux_alloc(priv->client->adapter, &priv->client->dev,
+				  MAX96712_SUBDEVS_NUM, 0, I2C_MUX_LOCKED,
+				  max96712_i2c_mux_select, NULL);
+	if (!priv->mux)
+		return -ENOMEM;
+
+	priv->mux->priv = priv;
+
+	for_each_subdev(priv, sd_priv) {
+		ret = i2c_mux_add_adapter(priv->mux, 0, sd_priv->index, 0);
+		if (ret < 0)
+			goto error;
+	}
+
+	return 0;
+
+error:
+	i2c_mux_del_adapters(priv->mux);
 
 	return ret;
 }
@@ -1009,6 +1065,10 @@ static int max96712_probe(struct i2c_client *client)
 		return ret;
 
 	ret = max96712_parse_dt(priv);
+	if (ret)
+		return ret;
+
+	ret = max96712_i2c_mux_init(priv);
 	if (ret)
 		return ret;
 
