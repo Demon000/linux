@@ -308,21 +308,13 @@ static int max96712_wait_for_ser(struct max96712_subdev_priv *sd_priv,
 static int max96712_init_xlate(struct max96712_subdev_priv *sd_priv,
 			       struct regmap *regmap)
 {
+	const char *prop_name = "max,i2c-addr-translate";
 	struct max96712_priv *priv = sd_priv->priv;
 	unsigned int count, i;
-	char prop_name[32];
 	u32 vals[4];
 	int ret;
 
-	ret = snprintf(prop_name, ARRAY_SIZE(prop_name),
-		       "max,%u-i2c-addr-translate", sd_priv->index);
-	if (ret < 0 || ret >= sizeof(prop_name)) {
-		dev_err(priv->dev,
-			"Failed to format I2C translate prop name: %d\n", ret);
-		return ret < 0 ? ret : -EINVAL;
-	}
-
-	count = device_property_count_u32(priv->dev, prop_name);
+	count = fwnode_property_count_u32(sd_priv->fwnode, prop_name);
 	if (count <= 0)
 		return 0;
 
@@ -331,8 +323,8 @@ static int max96712_init_xlate(struct max96712_subdev_priv *sd_priv,
 		return -EINVAL;
 	}
 
-	ret = device_property_read_u32_array(priv->dev, prop_name, vals, count);
-	if (ret < 0) {
+	ret = fwnode_property_read_u32_array(sd_priv->fwnode, prop_name, vals, count);
+	if (ret) {
 		dev_err(priv->dev, "Failed to read I2C translate prop\n");
 		return ret;
 	}
@@ -349,24 +341,16 @@ static int max96712_init_xlate(struct max96712_subdev_priv *sd_priv,
 
 static int max96712_init_ser_xlate(struct max96712_subdev_priv *sd_priv)
 {
+	const char *prop_name = "max,ser-addr-translate";
 	struct max96712_priv *priv = sd_priv->priv;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	char prop_name[32];
 	unsigned int val;
 	u32 vals[2];
 	int ret;
 
-	ret = snprintf(prop_name, ARRAY_SIZE(prop_name),
-		       "max,%u-ser-addr-translate", sd_priv->index);
-	if (ret < 0 || ret >= sizeof(prop_name)) {
-		dev_err(priv->dev,
-			"Failed to format I2C translate prop name: %d\n", ret);
-		return ret < 0 ? ret : -EINVAL;
-	}
-
-	ret = device_property_read_u32_array(priv->dev, prop_name, vals, ARRAY_SIZE(vals));
-	if (ret < 0)
+	ret = fwnode_property_read_u32_array(sd_priv->fwnode, prop_name, vals, ARRAY_SIZE(vals));
+	if (ret)
 		return 0;
 
 	client = i2c_new_dummy_device(priv->client->adapter, vals[0]);
