@@ -924,6 +924,11 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 			"max,skip-subdev-s-stream");
 
 	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, "channel"))
+			continue;
+
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
 		if (ret)
 			continue;
