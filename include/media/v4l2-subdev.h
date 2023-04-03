@@ -1160,11 +1160,14 @@ extern const struct v4l2_subdev_ops v4l2_subdev_call_wrappers;
 		else if (!(__sd->ops->o && __sd->ops->o->f))		\
 			__result = -ENOIOCTLCMD;			\
 		else if (v4l2_subdev_call_wrappers.o &&			\
-			 v4l2_subdev_call_wrappers.o->f)		\
+			 v4l2_subdev_call_wrappers.o->f) {		\
+                        printk("call %s %s %s\n", __sd->name, __stringify(o), __stringify(f)); \
 			__result = v4l2_subdev_call_wrappers.o->f(	\
 							__sd, ##args);	\
-		else							\
+		} else {							\
+                        printk("call %s %s %s\n", __sd->name, __stringify(o), __stringify(f)); \
 			__result = __sd->ops->o->f(__sd, ##args);	\
+                }                                                       \
 		__result;						\
 	})
 
