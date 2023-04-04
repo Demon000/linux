@@ -136,6 +136,12 @@ retry:
 	return ret;
 }
 
+static void max96717_reset(struct max96717_priv *priv)
+{
+	max96717_update_bits(priv, 0x10, 0x80, 0x80);
+	msleep(80);
+}
+
 static int max96717_wait_for_device(struct max96717_priv *priv)
 {
 	unsigned int i;
@@ -850,6 +856,8 @@ static int max96717_probe(struct i2c_client *client)
 	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
 	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
 			    &max96717_dump_regs_fops);
+
+	max96717_reset(priv);
 
 	ret = max96717_wait_for_device(priv);
 	if (ret)
