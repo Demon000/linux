@@ -484,7 +484,6 @@ static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
 	max96717_update_bits(priv, 0x332, 0xf0, 0xe0);
 	max96717_update_bits(priv, 0x333, 0x0f, 0x04);
 
-
 	/* Configure lane polarity. */
 	/* Lower two lanes. */
 	val = 0;
