@@ -61,6 +61,10 @@ struct max96717_priv {
 	bool skip_subdev_s_stream;
 
 	struct max96717_subdev_priv sd_privs[MAX96717_SUBDEVS_NUM];
+
+	unsigned			cached_reg_addr;
+	char				read_buf[20];
+	unsigned int			read_buf_len;
 };
 
 static struct max96717_subdev_priv *next_subdev(struct max96717_priv *priv,
@@ -839,6 +843,72 @@ static int max96717_dump_regs_show(struct seq_file *m, void *private)
 }
 DEFINE_SHOW_ATTRIBUTE(max96717_dump_regs);
 
+static ssize_t max96717_debugfs_read_reg(struct file *file, char __user *userbuf,
+				      size_t count, loff_t *ppos)
+{
+	struct max96717_priv *priv = file->private_data;
+	int ret;
+
+	if (*ppos > 0)
+		return simple_read_from_buffer(userbuf, count, ppos,
+					       priv->read_buf,
+					       priv->read_buf_len);
+
+	ret = max96717_read(priv, priv->cached_reg_addr);
+	if (ret < 0) {
+		dev_err(priv->dev, "%s: read failed\n", __func__);
+		return ret;
+	}
+
+	priv->read_buf_len = snprintf(priv->read_buf,
+				      sizeof(priv->read_buf),
+				      "0x%02X\n", ret);
+
+	return simple_read_from_buffer(userbuf, count, ppos,
+				       priv->read_buf,
+				       priv->read_buf_len);
+}
+
+static ssize_t max96717_debugfs_write_reg(struct file *file,
+				       const char __user *userbuf,
+				       size_t count, loff_t *ppos)
+{
+	struct max96717_priv *priv = file->private_data;
+	unsigned reg, val;
+	char buf[80];
+	int ret;
+
+	count = min_t(size_t, count, (sizeof(buf)-1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+
+	ret = sscanf(buf, "%i %i", &reg, &val);
+
+	if (ret != 1 && ret != 2)
+		return -EINVAL;
+
+	priv->cached_reg_addr = reg;
+
+	if (ret == 1)
+		return count;
+
+	ret = max96717_write(priv, reg, val);
+	if (ret) {
+		dev_err(priv->dev, "%s: write failed\n", __func__);
+		return ret;
+	}
+
+	return count;
+}
+
+static const struct file_operations max96717_reg_fops = {
+	.open = simple_open,
+	.read = max96717_debugfs_read_reg,
+	.write = max96717_debugfs_write_reg,
+};
+
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -858,6 +928,8 @@ static int max96717_probe(struct i2c_client *client)
 	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
 	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
 			    &max96717_dump_regs_fops);
+	debugfs_create_file("reg", 0600, priv->debugfs_root, priv,
+			    &max96717_reg_fops);
 
 	max96717_reset(priv);
 
