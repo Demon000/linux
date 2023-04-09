@@ -65,6 +65,8 @@ struct max96712_subdev_priv {
 	struct v4l2_fwnode_bus_mipi_csi2 mipi;
 
 	bool active;
+
+	unsigned int tun_dest;
 };
 
 struct max96712_priv {
@@ -337,8 +339,11 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
 
 	/* Set destination controller. */
-	/* TODO: Implement arbitrary controller mapping. */
-	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x30, index << 4);
+	shift = index * 2;
+	max96712_update_bits(priv, 0x8ca, 0x3 << shift,
+			     sd_priv->tun_dest << shift);
+	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x30,
+			     sd_priv->tun_dest << 4);
 
 	/* Enable. */
 	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
@@ -719,6 +724,24 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 		max96712_v4l2_unregister_sd(sd_priv);
 }
 
+static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
+				struct fwnode_handle *fwnode)
+{
+	int ret;
+	u32 val;
+
+	sd_priv->tun_dest = sd_priv->index;
+	ret = fwnode_property_read_u32(fwnode, "max,tunnel-destination", &val);
+	if (!ret) {
+		if (val > MAX96712_SUBDEVS_NUM)
+			return -EINVAL;
+
+		sd_priv->tun_dest = val;
+	}
+
+	return 0;
+}
+
 static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
@@ -802,6 +825,10 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
 		sd_priv->index = index;
+
+		ret = max96712_parse_ch_dt(sd_priv, fwnode);
+		if (ret)
+			continue;
 
 		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
