@@ -720,8 +720,7 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 }
 
 static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
-					  struct fwnode_handle *fwnode,
-					  unsigned int port)
+					  struct fwnode_handle *fwnode)
 {
 	struct max96712_priv *priv = sd_priv->priv;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
@@ -730,7 +729,7 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 	struct fwnode_handle *ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96712_SOURCE_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -749,13 +748,12 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 }
 
 static int max96712_parse_sink_dt_endpoint(struct max96712_subdev_priv *sd_priv,
-					   struct fwnode_handle *fwnode,
-					   unsigned int port)
+					   struct fwnode_handle *fwnode)
 {
 	struct max96712_priv *priv = sd_priv->priv;
 	struct fwnode_handle *ep;
 
-	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96712_SINK_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -805,11 +803,11 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		sd_priv->priv = priv;
 		sd_priv->index = index;
 
-		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode, MAX96712_SINK_PAD);
+		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 
-		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode, MAX96712_SOURCE_PAD);
+		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 	}
