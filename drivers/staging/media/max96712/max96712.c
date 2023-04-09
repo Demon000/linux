@@ -243,6 +243,7 @@ error:
 static void __max96712_mipi_update(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
+	unsigned int shift = 1;
 	bool enable = 0;
 
 	for_each_subdev(priv, sd_priv)
@@ -254,13 +255,7 @@ static void __max96712_mipi_update(struct max96712_priv *priv)
 
 	priv->active = enable;
 
-	if (enable) {
-		max96712_update_bits(priv, 0x40b, 0x02, 0x02);
-		max96712_update_bits(priv, 0x8a0, 0x80, 0x80);
-	} else {
-		max96712_update_bits(priv, 0x8a0, 0x80, 0x00);
-		max96712_update_bits(priv, 0x40b, 0x02, 0x00);
-	}
+	max96712_update_bits(priv, 0x40b, 0x1 << shift, enable << shift);
 }
 
 static void max96712_mipi_enable(struct max96712_subdev_priv *sd_priv, bool enable)
