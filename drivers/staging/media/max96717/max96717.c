@@ -293,11 +293,20 @@ static void max96717_v4l2_notifier_unregister(struct max96717_subdev_priv *sd_pr
 	v4l2_async_notifier_cleanup(&sd_priv->notifier);
 }
 
+static int max96717_mipi_enable(struct max96717_priv *priv, bool enable)
+{
+	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6), 0);
+}
+
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max96717_subdev_priv *sd_priv = sd_to_max96717(sd);
 	struct max96717_priv *priv = sd_priv->priv;
 	int ret;
+
+	ret = max96717_mipi_enable(priv, enable);
+	if (ret)
+		return ret;
 
 	if (priv->skip_subdev_s_stream)
 		return 0;
@@ -522,6 +531,8 @@ static void max96717_init(struct max96717_priv *priv)
 	 * as mentioned in the datasheet, under section MANDATORY REGISTER PROGRAMMING.
 	 */
 	max96717_update_bits(priv, 0x302, 0x70, 0x10);
+
+	max96717_mipi_enable(priv, false);
 
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
