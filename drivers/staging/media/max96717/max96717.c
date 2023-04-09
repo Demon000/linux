@@ -295,14 +295,6 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 	struct max96717_priv *priv = sd_priv->priv;
 	int ret;
 
-	ret = max96717_update_bits(priv, 0x330, BIT(3), BIT(3));
-	if (ret)
-		return ret;
-
-	ret = max96717_update_bits(priv, 0x330, BIT(3), 0);
-	if (ret)
-		return ret;
-
 	if (priv->skip_subdev_s_stream)
 		return 0;
 
