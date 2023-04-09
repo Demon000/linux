@@ -295,7 +295,7 @@ static void max96717_v4l2_notifier_unregister(struct max96717_subdev_priv *sd_pr
 
 static int max96717_mipi_enable(struct max96717_priv *priv, bool enable)
 {
-	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6), 0);
+	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6) : 0);
 }
 
 static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
