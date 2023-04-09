@@ -240,7 +240,7 @@ error:
 	return ret;
 }
 
-static void __max96712_mipi_update(struct max96712_priv *priv)
+static int __max96712_mipi_update(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
 	bool enable = 0;
@@ -250,22 +250,35 @@ static void __max96712_mipi_update(struct max96712_priv *priv)
 			enable = 1;
 
 	if (enable == priv->active)
-		return;
+		return 0;
 
 	priv->active = enable;
 
 	if (enable) {
-		max96712_update_bits(priv, 0x40b, 0x02, 0x02);
-		max96712_update_bits(priv, 0x8a0, 0x80, 0x80);
+		ret = max96712_update_bits(priv, 0x40b, 0x02, 0x02);
+		if (ret)
+			return ret;
+
+		ret = max96712_update_bits(priv, 0x8a0, 0x80, 0x80);
+		if (ret)
+			return ret;
 	} else {
-		max96712_update_bits(priv, 0x8a0, 0x80, 0x00);
-		max96712_update_bits(priv, 0x40b, 0x02, 0x00);
+		ret = max96712_update_bits(priv, 0x8a0, 0x80, 0x00);
+		if (ret)
+			return ret;
+
+		ret = max96712_update_bits(priv, 0x40b, 0x02, 0x00);
+		if (ret)
+			return ret;
 	}
+
+	return 0;
 }
 
-static void max96712_mipi_enable(struct max96712_subdev_priv *sd_priv, bool enable)
+static int max96712_mipi_enable(struct max96712_subdev_priv *sd_priv, bool enable)
 {
 	struct max96712_priv *priv = sd_priv->priv;
+	int ret = 0;
 
 	mutex_lock(&priv->lock);
 
@@ -274,10 +287,12 @@ static void max96712_mipi_enable(struct max96712_subdev_priv *sd_priv, bool enab
 
 	sd_priv->active = enable;
 
-exit:
-	__max96712_mipi_update(priv);
+	ret = __max96712_mipi_update(priv);
 
+exit:
 	mutex_unlock(&priv->lock);
+
+	return ret;
 }
 
 static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
@@ -507,8 +522,10 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 	struct max96712_priv *priv = sd_priv->priv;
 	int ret;
 
+	max96712_mipi_enable(sd_priv, enable);
+
 	if (priv->skip_subdev_s_stream)
-		goto skip;
+		return 0;
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
 	if (ret) {
@@ -516,9 +533,6 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 			sd_priv->slave_sd->name, ret);
 		return ret;
 	}
-
-skip:
-	max96712_mipi_enable(sd_priv, enable);
 
 	return 0;
 }
