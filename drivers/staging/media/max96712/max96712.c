@@ -361,6 +361,10 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x30,
 			     sd_priv->tun_dest << 4);
 
+	/* Disable initial and periodic deskew. */
+	max96712_write(priv, 0x903 + 0x40 * index, 0x07);
+	max96712_write(priv, 0x904 + 0x40 * index, 0x01);
+
 	/* Enable. */
 	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
 	max96712_update_bits(priv, 0x6, 0x1 << index, 0x1 << index);
@@ -380,10 +384,6 @@ static void max96712_init(struct max96712_priv *priv)
 
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
-
-	/* Disable initial and periodic deskew. */
-	max96712_write(priv, 0x983, 0x07);
-	max96712_write(priv, 0x984, 0x01);
 
 	/*
 	 * Wait for 2ms to allow the link to resynchronize after the
