@@ -365,6 +365,10 @@ static void max96712_init(struct max96712_priv *priv)
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
 
+	/* Disable initial and periodic deskew. */
+	max96712_write(priv, 0x983, 0x07);
+	max96712_write(priv, 0x984, 0x01);
+
 	/*
 	 * Wait for 2ms to allow the link to resynchronize after the
 	 * configuration change.
