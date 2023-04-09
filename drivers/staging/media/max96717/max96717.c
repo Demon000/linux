@@ -224,6 +224,10 @@ static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 		return ret;
 	}
 
+	ret = max96717_update_bits(priv, 0x10, BIT(5), BIT(5));
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
