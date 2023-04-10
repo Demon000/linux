@@ -533,11 +533,6 @@ static void max96717_init(struct max96717_priv *priv)
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
 
-	/* Enable GPIO 0. */
-	/* TODO: Implement pinctrl. */
-	max96717_write(priv, 0x2be, 0x90);
-	max96717_write(priv, 0x2bf, 0x60);
-
 	/* Enable RCLK output at fastest slew rate on GPIO 4. */
 	max96717_update_bits(priv, 0x6, BIT(5), BIT(5));
 	max96717_update_bits(priv, 0x3, GENMASK(1, 0), 0b00);
@@ -548,6 +543,13 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x3f1, BIT(0), BIT(0));
 	max96717_update_bits(priv, 0x3f1, GENMASK(5, 1),
 						 FIELD_PREP(GENMASK(5, 1), 0x4));
+
+	msleep(20);
+
+	/* Enable GPIO 0. */
+	/* TODO: Implement pinctrl. */
+	max96717_write(priv, 0x2be, 0x90);
+	max96717_write(priv, 0x2bf, 0x60);
 }
 
 static const char *max96717_subdev_names[] = {
