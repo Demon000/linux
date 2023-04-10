@@ -544,7 +544,7 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x3f1, GENMASK(5, 1),
 						 FIELD_PREP(GENMASK(5, 1), 0x4));
 
-	msleep(20);
+	msleep(1000);
 
 	/* Enable GPIO 0. */
 	/* TODO: Implement pinctrl. */
