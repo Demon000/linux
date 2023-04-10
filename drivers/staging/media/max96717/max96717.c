@@ -548,6 +548,8 @@ static void max96717_init(struct max96717_priv *priv)
 
 	/* Enable GPIO 0. */
 	/* TODO: Implement pinctrl. */
+	max96717_write(priv, 0x2be, 0x80);
+	msleep(1000);
 	max96717_write(priv, 0x2be, 0x90);
 	max96717_write(priv, 0x2bf, 0x60);
 }
