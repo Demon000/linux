@@ -283,12 +283,6 @@ error_cleanup_notifier:
 	return ret;
 }
 
-static void max96717_v4l2_notifier_unregister(struct max96717_subdev_priv *sd_priv)
-{
-	v4l2_async_notifier_unregister(&sd_priv->notifier);
-	v4l2_async_notifier_cleanup(&sd_priv->notifier);
-}
-
 static int max96717_mipi_enable(struct max96717_priv *priv, bool enable)
 {
 	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6) : 0);
@@ -578,15 +572,21 @@ static int max96717_v4l2_register_sd(struct max96717_subdev_priv *sd_priv)
 	return v4l2_async_register_subdev(&sd_priv->sd);
 
 error:
-	max96717_v4l2_notifier_unregister(sd_priv);
+	v4l2_async_notifier_unregister(&sd_priv->notifier);
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
+	media_entity_cleanup(&sd_priv->sd.entity);
+	fwnode_handle_put(sd_priv->sd.fwnode);
 
 	return ret;
 }
 
 static void max96717_v4l2_unregister_sd(struct max96717_subdev_priv *sd_priv)
 {
-	max96717_v4l2_notifier_unregister(sd_priv);
+	v4l2_async_notifier_unregister(&sd_priv->notifier);
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
 	v4l2_async_unregister_subdev(&sd_priv->sd);
+	media_entity_cleanup(&sd_priv->sd.entity);
+	fwnode_handle_put(sd_priv->sd.fwnode);
 }
 
 static int max96717_v4l2_register(struct max96717_priv *priv)
