@@ -675,26 +675,21 @@ static const struct v4l2_subdev_ops max96712_subdev_ops = {
 	.pad = &max96712_pad_ops,
 };
 
-static const char *max96712_subdev_names[] = {
-	":0", ":1", ":2", ":3"
-};
-
 static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 {
 	struct max96712_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
+	char postfix[3];
 	int ret;
-
-	if (index >= ARRAY_SIZE(max96712_subdev_names))
-		return -EINVAL;
 
 	ret = max96712_v4l2_notifier_register(sd_priv);
 	if (ret)
 		return ret;
 
+	snprintf(postfix, sizeof(postfix), ":%d", index);
+
 	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96712_subdev_ops);
-	/* TODO: format name */
-	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96712_subdev_names[index]);
+	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, postfix);
 	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd_priv->sd.fwnode = sd_priv->fwnode;
