@@ -439,13 +439,6 @@ static int max96717_post_register(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int max96717_get_fwnode_pad(struct media_entity *entity,
-				   struct fwnode_endpoint *endpoint)
-{
-	return endpoint->port < MAX96717_SUBDEVS_NUM ? MAX96717_SINK_PAD
-						     : MAX96717_SOURCE_PAD;
-}
-
 static const struct v4l2_subdev_video_ops max96717_video_ops = {
 	.s_stream	= max96717_s_stream,
 };
@@ -466,10 +459,6 @@ static const struct v4l2_subdev_ops max96717_subdev_ops = {
 	.core		= &max96717_core_ops,
 	.video		= &max96717_video_ops,
 	.pad		= &max96717_pad_ops,
-};
-
-static const struct media_entity_operations max96717_entity_ops = {
-	.get_fwnode_pad = max96717_get_fwnode_pad,
 };
 
 static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
@@ -574,7 +563,6 @@ static int max96717_v4l2_register_sd(struct max96717_subdev_priv *sd_priv)
 	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96717_subdev_ops);
 	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96717_subdev_names[index]);
 	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	sd_priv->sd.entity.ops = &max96717_entity_ops;
 	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd_priv->sd.fwnode = sd_priv->fwnode;
 
@@ -624,26 +612,22 @@ static void max96717_v4l2_unregister(struct max96717_priv *priv)
 }
 
 static int max96717_parse_src_dt_endpoint(struct max96717_subdev_priv *sd_priv,
-					  struct fwnode_handle *fwnode,
-					  unsigned int port)
+					  struct fwnode_handle *fwnode)
 {
 	struct max96717_priv *priv = sd_priv->priv;
 	struct fwnode_handle *ep;
 
-	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96717_SOURCE_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
 	}
 
-	sd_priv->fwnode = ep;
-
 	return 0;
 }
 
 static int max96717_parse_sink_dt_endpoint(struct max96717_subdev_priv *sd_priv,
-					   struct fwnode_handle *fwnode,
-					   unsigned int port)
+					   struct fwnode_handle *fwnode)
 {
 	struct max96717_priv *priv = sd_priv->priv;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
@@ -652,7 +636,7 @@ static int max96717_parse_sink_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 	struct fwnode_handle *ep, *remote_ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(fwnode, port, 0, 0);
+	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX96717_SINK_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
@@ -687,25 +671,42 @@ static const unsigned int max96717_lane_configs[][MAX96717_SUBDEVS_NUM] = {
 
 static int max96717_parse_dt(struct max96717_priv *priv)
 {
-	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
 	struct max96717_subdev_priv *sd_priv;
+	struct fwnode_handle *fwnode;
 	unsigned int i, j;
+	u32 index;
 	int ret;
 
 	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
 			"max,skip-subdev-s-stream");
 
-	for (i = 0; i < MAX96717_SUBDEVS_NUM; i++) {
-		sd_priv = &priv->sd_privs[i];
-		sd_priv->priv = priv;
-		sd_priv->index = i;
+	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
 
-		ret = max96717_parse_sink_dt_endpoint(sd_priv, fwnode, i);
+		if (!of_node_name_eq(of_node, "channel"))
+			continue;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index >= MAX96717_SUBDEVS_NUM) {
+			dev_err(priv->dev, "Invalid channel number %u\n", index);
+			return -EINVAL;
+		}
+
+		sd_priv = &priv->sd_privs[index];
+		sd_priv->fwnode = fwnode;
+		sd_priv->priv = priv;
+		sd_priv->index = index;
+
+		ret = max96717_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 
-		ret = max96717_parse_src_dt_endpoint(sd_priv, fwnode,
-						     i + MAX96717_SUBDEVS_NUM);
+		ret = max96717_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 	}
