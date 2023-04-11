@@ -849,6 +849,11 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 			continue;
 		}
 
+		if (index >= MAX96712_SUBDEVS_NUM) {
+			dev_err(priv->dev, "Invalid channel number %u\n", index);
+			return -EINVAL;
+		}
+
 		sd_priv = &priv->sd_privs[index];
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
