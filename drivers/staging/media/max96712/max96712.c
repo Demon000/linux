@@ -844,8 +844,10 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 			continue;
 
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret)
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
 			continue;
+		}
 
 		sd_priv = &priv->sd_privs[index];
 		sd_priv->fwnode = fwnode;
