@@ -87,7 +87,6 @@ struct max96712_priv {
 	unsigned int mux_channel;
 
 	unsigned int lane_config;
-	bool skip_subdev_s_stream;
 	struct mutex lock;
 	bool active;
 
@@ -526,9 +525,6 @@ static int max96712_s_stream(struct v4l2_subdev *sd, int enable)
 
 	max96712_mipi_enable(sd_priv, enable);
 
-	if (priv->skip_subdev_s_stream)
-		return 0;
-
 	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
 	if (ret) {
 		dev_err(priv->dev, "Failed to start stream for %s: %d\n",
@@ -828,9 +824,6 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	unsigned int i, j;
 	u32 index;
 	int ret;
-
-	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
-			"max,skip-subdev-s-stream");
 
 	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
