@@ -537,25 +537,21 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_write(priv, 0x2bf, 0x60);
 }
 
-static const char *max96717_subdev_names[] = {
-	":0", ":1"
-};
-
 static int max96717_v4l2_register_sd(struct max96717_subdev_priv *sd_priv)
 {
 	struct max96717_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
+	char postfix[3];
 	int ret;
-
-	if (index >= ARRAY_SIZE(max96717_subdev_names))
-		return -EINVAL;
 
 	ret = max96717_v4l2_notifier_register(sd_priv);
 	if (ret)
 		return ret;
 
+	snprintf(postfix, sizeof(postfix), ":%d", index);
+
 	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96717_subdev_ops);
-	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, max96717_subdev_names[index]);
+	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, postfix);
 	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd_priv->sd.fwnode = sd_priv->fwnode;
