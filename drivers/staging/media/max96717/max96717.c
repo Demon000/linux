@@ -58,7 +58,6 @@ struct max96717_priv {
 	struct regmap *regmap;
 
 	unsigned int lane_config;
-	bool skip_subdev_s_stream;
 
 	struct max96717_subdev_priv sd_privs[MAX96717_SUBDEVS_NUM];
 
@@ -297,9 +296,6 @@ static int max96717_s_stream(struct v4l2_subdev *sd, int enable)
 	ret = max96717_mipi_enable(priv, enable);
 	if (ret)
 		return ret;
-
-	if (priv->skip_subdev_s_stream)
-		return 0;
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
 	if (ret)
@@ -672,9 +668,6 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	unsigned int i, j;
 	u32 index;
 	int ret;
-
-	priv->skip_subdev_s_stream = device_property_read_bool(priv->dev,
-			"max,skip-subdev-s-stream");
 
 	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
