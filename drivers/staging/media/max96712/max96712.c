@@ -73,7 +73,7 @@ struct max96712_subdev_priv {
 
 	bool active;
 
-	unsigned int tun_dest;
+	unsigned int ctrl_dest;
 };
 
 struct max96712_priv {
@@ -363,9 +363,9 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 	/* Set destination controller. */
 	shift = index * 2;
 	max96712_update_bits(priv, 0x8ca, 0x3 << shift,
-			     sd_priv->tun_dest << shift);
+			     sd_priv->ctrl_dest << shift);
 	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x30,
-			     sd_priv->tun_dest << 4);
+			     sd_priv->ctrl_dest << 4);
 
 	/* Disable initial and periodic deskew. */
 	max96712_write(priv, 0x903 + 0x40 * index, 0x07);
@@ -747,13 +747,13 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 	int ret;
 	u32 val;
 
-	sd_priv->tun_dest = sd_priv->index;
-	ret = fwnode_property_read_u32(fwnode, "max,tunnel-destination", &val);
+	sd_priv->ctrl_dest = sd_priv->index;
+	ret = fwnode_property_read_u32(fwnode, "max,controller-destination", &val);
 	if (!ret) {
 		if (val > MAX96712_SUBDEVS_NUM)
 			return -EINVAL;
 
-		sd_priv->tun_dest = val;
+		sd_priv->ctrl_dest = val;
 	}
 
 	return 0;
