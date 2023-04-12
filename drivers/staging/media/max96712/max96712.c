@@ -390,6 +390,9 @@ static void max96712_init(struct max96712_priv *priv)
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
+	/* Disable all PHYs. */
+	max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
+
 	for_each_subdev(priv, sd_priv)
 		max96712_init_phy(sd_priv);
 
