@@ -669,7 +669,7 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	u32 index;
 	int ret;
 
-	fwnode_for_each_child_node(dev_fwnode(priv->dev), fwnode) {
+	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
 		if (!of_node_name_eq(of_node, "channel"))
