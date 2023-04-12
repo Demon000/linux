@@ -360,20 +360,25 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 	max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
 			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
 
-	/* Set destination controller. */
+	/* Set destination PHY. */
 	shift = index * 2;
 	max96712_update_bits(priv, 0x8ca, 0x3 << shift,
 			     sd_priv->dest_phy << shift);
-	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x30,
-			     sd_priv->dest_phy << 4);
+	shift = 4;
+	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
+			     sd_priv->dest_phy << shift);
 
 	/* Disable initial and periodic deskew. */
 	max96712_write(priv, 0x903 + 0x40 * index, 0x07);
 	max96712_write(priv, 0x904 + 0x40 * index, 0x01);
 
-	/* Enable. */
-	max96712_update_bits(priv, 0x8a2, 0x10 << index, 0x10 << index);
-	max96712_update_bits(priv, 0x6, 0x1 << index, 0x1 << index);
+	/* Enable PHY. */
+	val = BIT(sd_priv->dest_phy) << 4;
+	max96712_update_bits(priv, 0x8a2, val, val);
+
+	/* Enable link. */
+	val = BIT(index);
+	max96712_update_bits(priv, 0x6, val, val);
 }
 
 static void max96712_init(struct max96712_priv *priv)
