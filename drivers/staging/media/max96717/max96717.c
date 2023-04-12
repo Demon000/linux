@@ -58,6 +58,7 @@ struct max96717_priv {
 	struct regmap *regmap;
 
 	unsigned int lane_config;
+	bool pixel_mode;
 
 	struct max96717_subdev_priv sd_privs[MAX96717_SUBDEVS_NUM];
 
@@ -509,6 +510,17 @@ static void max96717_init(struct max96717_priv *priv)
 
 	max96717_mipi_enable(priv, false);
 
+	if (priv->pixel_mode) {
+		/* Disable Auto BPP mode. */
+		max96717_update_bits(priv, 0x110, BIT(3), 0x00);
+
+		/* Select pixel mode. */
+		max96717_update_bits(priv, 0x383, BIT(7), 0x00);
+	} else {
+		/* Select tunnel mode. */
+		max96717_update_bits(priv, 0x383, BIT(7), BIT(7));
+	}
+
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
 
@@ -668,6 +680,8 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	unsigned int i, j;
 	u32 index;
 	int ret;
+
+	priv->pixel_mode = device_property_read_bool(priv->dev, "max,pixel-mode");
 
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
