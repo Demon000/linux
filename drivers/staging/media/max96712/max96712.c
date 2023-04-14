@@ -439,7 +439,7 @@ static void max96712_init(struct max96712_priv *priv)
 	max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
 
 	/* Disable all pipes. */
-	max96712_update_bits(priv, 0xf4, GENMASK(4, 0), 0x00);
+	max96712_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
 
 	for_each_subdev(priv, sd_priv)
 		max96712_init_phy(sd_priv);
