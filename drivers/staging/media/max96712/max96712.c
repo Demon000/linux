@@ -714,12 +714,39 @@ static int max96712_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int max96712_enum_frame_interval(struct v4l2_subdev *sd,
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev_frame_interval_enum sd_fie = *fie;
+	int ret;
+
+	if (fie->pad != MAX96712_SOURCE_PAD)
+		return -EINVAL;
+
+	sd_fie.pad = sd_priv->slave_sd_pad_id;
+
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_interval,
+			       sd_priv->slave_sd_state, &sd_fie);
+	if (ret)
+		return ret;
+
+	fie->code = sd_fie.code;
+	fie->width = sd_fie.width;
+	fie->height = sd_fie.height;
+	fie->interval = sd_fie.interval;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops max96712_pad_ops = {
 	.get_selection = max96712_get_selection,
 	.get_fmt = max96712_get_fmt,
 	.set_fmt = max96712_set_fmt,
 	.enum_mbus_code = max96712_enum_mbus_code,
 	.enum_frame_size = max96712_enum_frame_size,
+	.enum_frame_interval = max96712_enum_frame_interval,
 };
 
 static const struct v4l2_subdev_ops max96712_subdev_ops = {
