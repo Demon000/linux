@@ -370,6 +370,11 @@ static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
 			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
 	max96712_update_bits(priv, reg, mask << shift, val << shift);
 
+	/* Disable all remaps. */
+	reg = 0x90b + 0x40 * index;
+	max96712_write(priv, reg + 0, 0x00);
+	max96712_write(priv, reg + 1, 0x00);
+
 	/* Configure remaps. */
 	for (i = 0; i < sd_priv->num_remaps; i++) {
 		struct max96712_dt_vc_remap *remap = &sd_priv->remaps[i];
