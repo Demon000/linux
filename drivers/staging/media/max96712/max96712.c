@@ -435,6 +435,10 @@ static void max96712_init(struct max96712_priv *priv)
 	/* Select 2x4 or 4x2 mode. */
 	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 
+	/* Set alternate memory map mode for 12bpp. */
+	/* TODO: make dynamic. */
+	max96712_write(priv, 0x9b3, 0x01);
+
 	/* Disable all PHYs. */
 	max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
 
