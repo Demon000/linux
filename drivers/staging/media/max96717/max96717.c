@@ -516,6 +516,16 @@ static void max96717_init(struct max96717_priv *priv)
 
 		/* Select pixel mode. */
 		max96717_update_bits(priv, 0x383, BIT(7), 0x00);
+
+		/* Enable double 12bit mode. */
+		max96717_update_bits(priv, 0x313, BIT(6), BIT(6));
+
+		/* Software override BPP. */
+		max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
+				     FIELD_PREP(GENMASK(4, 0), 24));
+
+		/* Enable software override BPP. */
+		max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
 	} else {
 		/* Select tunnel mode. */
 		max96717_update_bits(priv, 0x383, BIT(7), BIT(7));
