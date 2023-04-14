@@ -844,7 +844,7 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 	    count / MAX96712_REMAP_EL_NUM > MAX96712_REMAPS_NUM)
 		return -EINVAL;
 
-	remaps_arr = kcalloc(count, sizeof(u32) * count, GFP_KERNEL);
+	remaps_arr = kcalloc(count, sizeof(u32), GFP_KERNEL);
 	if (!remaps_arr)
 		return -ENOMEM;
 
