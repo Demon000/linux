@@ -5,13 +5,6 @@
  * Copyright (C) 2021 Renesas Electronics Corporation
  * Copyright (C) 2021 Niklas Söderlund
  */
-/*
- * TODO:
- * - implement pixel mode
- * - reimplement test pattern using the same resolution as
- *   the connected camera
- * - implement virtual channels
- */
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
