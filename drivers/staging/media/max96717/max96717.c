@@ -229,6 +229,14 @@ static const struct max96717_format *max96717_format_by_code(u32 code)
 	return NULL;
 }
 
+static const bool max96717_format_valid(struct max96717_priv *priv, u32 code)
+{
+	if (!priv->pixel_mode)
+		return true;
+
+	return max96717_format_by_code(code);
+}
+
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
@@ -455,18 +463,12 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 	sd_code.pad = sd_priv->slave_sd_pad_id;
 
 	while (true) {
-		const struct max96717_format *fmt;
-
 		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_mbus_code,
 				       sd_priv->slave_sd_state, &sd_code);
 		if (ret)
 			return ret;
 
-		if (!priv->pixel_mode)
-			break;
-
-		fmt = max96717_format_by_code(sd_code.code);
-		if (fmt)
+		if (max96717_format_valid(priv, sd_code.code))
 			break;
 
 		sd_code.index++;
@@ -492,18 +494,12 @@ static int max96717_enum_frame_size(struct v4l2_subdev *sd,
 	sd_fse.pad = sd_priv->slave_sd_pad_id;
 
 	while (true) {
-		const struct max96717_format *fmt;
-
 		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_size,
 				       sd_priv->slave_sd_state, &sd_fse);
 		if (ret)
 			return ret;
 
-		if (!priv->pixel_mode)
-			break;
-
-		fmt = max96717_format_by_code(sd_fse.code);
-		if (fmt)
+		if (max96717_format_valid(priv, sd_fse.code))
 			break;
 
 		sd_fse.index++;
@@ -533,18 +529,12 @@ static int max96717_enum_frame_interval(struct v4l2_subdev *sd,
 	sd_fie.pad = sd_priv->slave_sd_pad_id;
 
 	while (true) {
-		const struct max96717_format *fmt;
-
 		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_interval,
 				       sd_priv->slave_sd_state, &sd_fie);
 		if (ret)
 			return ret;
 
-		if (!priv->pixel_mode)
-			break;
-
-		fmt = max96717_format_by_code(sd_fie.code);
-		if (fmt)
+		if (max96717_format_valid(priv, sd_fie.code))
 			break;
 
 		sd_fie.index++;
