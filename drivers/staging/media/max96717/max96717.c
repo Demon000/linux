@@ -20,6 +20,19 @@
 
 #define MAX96717_SUBDEVS_NUM	2
 
+#define MAX96717_DT_EMB8			0x12
+#define MAX96717_DT_YUV422_8B			0x1e
+#define MAX96717_DT_YUV422_10B			0x1f
+#define MAX96717_DT_RGB565			0x22
+#define MAX96717_DT_RGB666			0x23
+#define MAX96717_DT_RGB888			0x24
+#define MAX96717_DT_RAW8			0x2a
+#define MAX96717_DT_RAW10			0x2b
+#define MAX96717_DT_RAW12			0x2c
+#define MAX96717_DT_RAW14			0x2d
+#define MAX96717_DT_RAW16			0x2e
+#define MAX96717_DT_RAW20			0x2f
+
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
 #define v4l2_subdev_free_state v4l2_subdev_free_pad_config
@@ -31,6 +44,12 @@
 struct max96717_asd {
 	struct v4l2_async_subdev base;
 	struct max96717_subdev_priv *sd_priv;
+};
+
+struct max96717_format {
+	u32 code;
+	u32 dt;
+	u8 bpp;
 };
 
 struct max96717_subdev_priv {
@@ -65,6 +84,41 @@ struct max96717_priv {
 	unsigned			cached_reg_addr;
 	char				read_buf[20];
 	unsigned int			read_buf_len;
+};
+
+#define MAX96717_FMT(_code, _dt, _bpp)	\
+{					\
+	.code = (_code),		\
+	.dt = (_dt),			\
+	.bpp = (_bpp),			\
+}
+
+static const struct max96717_format max96717_formats[] = {
+	MAX96717_FMT(MEDIA_BUS_FMT_YUYV8_1X16, MAX96717_DT_YUV422_8B, 8),
+	MAX96717_FMT(MEDIA_BUS_FMT_YUYV10_1X20, MAX96717_DT_YUV422_10B, 10),
+	MAX96717_FMT(MEDIA_BUS_FMT_RGB565_1X16, MAX96717_DT_RGB565, 16),
+	MAX96717_FMT(MEDIA_BUS_FMT_RGB666_1X18, MAX96717_DT_RGB666, 18),
+	MAX96717_FMT(MEDIA_BUS_FMT_RGB888_1X24, MAX96717_DT_RGB888, 24),
+	MAX96717_FMT(MEDIA_BUS_FMT_SBGGR8_1X8, MAX96717_DT_RAW8, 8),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGBRG8_1X8, MAX96717_DT_RAW8, 8),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGRBG8_1X8, MAX96717_DT_RAW8, 8),
+	MAX96717_FMT(MEDIA_BUS_FMT_SRGGB8_1X8, MAX96717_DT_RAW8, 8),
+	MAX96717_FMT(MEDIA_BUS_FMT_SBGGR10_1X10, MAX96717_DT_RAW10, 10),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGBRG10_1X10, MAX96717_DT_RAW10, 10),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGRBG10_1X10, MAX96717_DT_RAW10, 10),
+	MAX96717_FMT(MEDIA_BUS_FMT_SRGGB10_1X10, MAX96717_DT_RAW10, 10),
+	MAX96717_FMT(MEDIA_BUS_FMT_SBGGR12_1X12, MAX96717_DT_RAW12, 12),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGBRG12_1X12, MAX96717_DT_RAW12, 12),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGRBG12_1X12, MAX96717_DT_RAW12, 12),
+	MAX96717_FMT(MEDIA_BUS_FMT_SRGGB12_1X12, MAX96717_DT_RAW12, 12),
+	MAX96717_FMT(MEDIA_BUS_FMT_SBGGR14_1X14, MAX96717_DT_RAW14, 14),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGBRG14_1X14, MAX96717_DT_RAW14, 14),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGRBG14_1X14, MAX96717_DT_RAW14, 14),
+	MAX96717_FMT(MEDIA_BUS_FMT_SRGGB14_1X14, MAX96717_DT_RAW14, 14),
+	MAX96717_FMT(MEDIA_BUS_FMT_SBGGR16_1X16, MAX96717_DT_RAW16, 16),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGBRG16_1X16, MAX96717_DT_RAW16, 16),
+	MAX96717_FMT(MEDIA_BUS_FMT_SGRBG16_1X16, MAX96717_DT_RAW16, 16),
+	MAX96717_FMT(MEDIA_BUS_FMT_SRGGB16_1X16, MAX96717_DT_RAW16, 16),
 };
 
 static struct max96717_subdev_priv *next_subdev(struct max96717_priv *priv,
@@ -162,6 +216,17 @@ static int max96717_wait_for_device(struct max96717_priv *priv)
 	}
 
 	return ret;
+}
+
+static const struct max96717_format *max96717_format_by_code(u32 code)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(max96717_formats); i++)
+		if (max96717_formats[i].code == code)
+			return &max96717_formats[i];
+
+	return NULL;
 }
 
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
@@ -380,6 +445,7 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 				   struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max96717_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96717_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_mbus_code_enum sd_code = *code;
 	int ret;
 
@@ -388,10 +454,23 @@ static int max96717_enum_mbus_code(struct v4l2_subdev *sd,
 
 	sd_code.pad = sd_priv->slave_sd_pad_id;
 
-	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_mbus_code,
-			       sd_priv->slave_sd_state, &sd_code);
-	if (ret)
-		return ret;
+	while (true) {
+		const struct max96717_format *fmt;
+
+		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_mbus_code,
+				       sd_priv->slave_sd_state, &sd_code);
+		if (ret)
+			return ret;
+
+		if (!priv->pixel_mode)
+			break;
+
+		fmt = max96717_format_by_code(sd_code.code);
+		if (fmt)
+			break;
+
+		sd_code.index++;
+	}
 
 	code->code = sd_code.code;
 
@@ -403,6 +482,7 @@ static int max96717_enum_frame_size(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct max96717_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96717_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
 	int ret;
 
@@ -411,10 +491,23 @@ static int max96717_enum_frame_size(struct v4l2_subdev *sd,
 
 	sd_fse.pad = sd_priv->slave_sd_pad_id;
 
-	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_size,
-			       sd_priv->slave_sd_state, &sd_fse);
-	if (ret)
-		return ret;
+	while (true) {
+		const struct max96717_format *fmt;
+
+		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_size,
+				       sd_priv->slave_sd_state, &sd_fse);
+		if (ret)
+			return ret;
+
+		if (!priv->pixel_mode)
+			break;
+
+		fmt = max96717_format_by_code(sd_fse.code);
+		if (fmt)
+			break;
+
+		sd_fse.index++;
+	}
 
 	fse->code = sd_fse.code;
 	fse->min_width = sd_fse.min_width;
@@ -430,6 +523,7 @@ static int max96717_enum_frame_interval(struct v4l2_subdev *sd,
 					struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct max96717_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96717_priv *priv = sd_priv->priv;
 	struct v4l2_subdev_frame_interval_enum sd_fie = *fie;
 	int ret;
 
@@ -438,10 +532,23 @@ static int max96717_enum_frame_interval(struct v4l2_subdev *sd,
 
 	sd_fie.pad = sd_priv->slave_sd_pad_id;
 
-	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_interval,
-			       sd_priv->slave_sd_state, &sd_fie);
-	if (ret)
-		return ret;
+	while (true) {
+		const struct max96717_format *fmt;
+
+		ret = v4l2_subdev_call(sd_priv->slave_sd, pad, enum_frame_interval,
+				       sd_priv->slave_sd_state, &sd_fie);
+		if (ret)
+			return ret;
+
+		if (!priv->pixel_mode)
+			break;
+
+		fmt = max96717_format_by_code(sd_fie.code);
+		if (fmt)
+			break;
+
+		sd_fie.index++;
+	}
 
 	fie->code = sd_fie.code;
 	fie->width = sd_fie.width;
