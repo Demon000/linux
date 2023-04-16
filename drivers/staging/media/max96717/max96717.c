@@ -402,6 +402,51 @@ static int max96717_get_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int max96717_fix_fmt_code(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_format *format)
+{
+	struct v4l2_subdev_mbus_code_enum code = {
+		.pad = MAX96717_SOURCE_PAD,
+		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+	};
+	int ret;
+
+	ret = v4l2_subdev_call(sd, pad, enum_mbus_code, sd_state, &code);
+	if (ret)
+		return ret;
+
+	format->format.code = code.code;
+
+	return 0;
+}
+
+static int max96717_check_fmt_code(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_format *format)
+{
+	struct max96717_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max96717_priv *priv = sd_priv->priv;
+	int ret;
+
+	if (max96717_format_valid(priv, format->format.code))
+		return 0;
+
+	ret = max96717_fix_fmt_code(sd, sd_state, format);
+	if (ret)
+		return ret;
+
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, set_fmt,
+			       sd_priv->slave_sd_state, format);
+	if (ret)
+		return ret;
+
+	if (!max96717_format_valid(priv, format->format.code))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int max96717_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
@@ -417,6 +462,10 @@ static int max96717_get_fmt(struct v4l2_subdev *sd,
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, get_fmt,
 			       sd_priv->slave_sd_state, &sd_format);
+	if (ret)
+		return ret;
+
+	ret = max96717_check_fmt_code(sd, sd_state, &sd_format);
 	if (ret)
 		return ret;
 
@@ -438,8 +487,7 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 
 	sd_format.pad = sd_priv->slave_sd_pad_id;
 
-	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, set_fmt,
-			       sd_priv->slave_sd_state, &sd_format);
+	ret = max96717_check_fmt_code(sd, sd_state, &sd_format);
 	if (ret)
 		return ret;
 
