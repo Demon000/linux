@@ -530,6 +530,11 @@ static int max96717_set_fmt(struct v4l2_subdev *sd,
 
 	sd_format.pad = sd_priv->slave_sd_pad_id;
 
+	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, set_fmt,
+			       sd_priv->slave_sd_state, &sd_format);
+	if (ret)
+		return ret;
+
 	ret = max96717_check_fmt_code(sd, sd_state, &sd_format);
 	if (ret)
 		return ret;
