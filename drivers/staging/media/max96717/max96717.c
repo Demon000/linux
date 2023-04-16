@@ -237,6 +237,45 @@ static const bool max96717_format_valid(struct max96717_priv *priv, u32 code)
 	return max96717_format_by_code(code);
 }
 
+static int max96717_set_dt(struct max96717_priv *priv, u32 code)
+{
+	const struct max96717_format *fmt = max96717_format_by_code(code);
+	int ret;
+
+	if (!fmt)
+		return -EINVAL;
+
+	switch (fmt->dt) {
+	case MAX96717_DT_RAW12:
+		/* Enable double 12bit mode. */
+		ret = max96717_update_bits(priv, 0x313, BIT(6), BIT(6));
+		if (ret)
+			return ret;
+
+		/* Disable Auto BPP mode. */
+		ret = max96717_update_bits(priv, 0x110, BIT(3), 0x00);
+		if (ret)
+			return ret;
+
+		/* Software override BPP. */
+		ret = max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
+					   FIELD_PREP(GENMASK(4, 0), 24));
+		if (ret)
+			return ret;
+
+		/* Enable software override BPP. */
+		ret = max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		dev_err(priv->dev, "Data type %02x not implemented\n", fmt->dt);
+	}
+
+	return 0;
+}
+
 static int max96717_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_subdev *subdev,
 				 struct v4l2_async_subdev *asd)
@@ -430,7 +469,7 @@ static int max96717_check_fmt_code(struct v4l2_subdev *sd,
 	int ret;
 
 	if (max96717_format_valid(priv, format->format.code))
-		return 0;
+		goto set_data_type;
 
 	ret = max96717_fix_fmt_code(sd, sd_state, format);
 	if (ret)
@@ -443,6 +482,11 @@ static int max96717_check_fmt_code(struct v4l2_subdev *sd,
 
 	if (!max96717_format_valid(priv, format->format.code))
 		return -EINVAL;
+
+set_data_type:
+	ret = max96717_set_dt(priv, format->format.code);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -682,26 +726,8 @@ static void max96717_init(struct max96717_priv *priv)
 
 	max96717_mipi_enable(priv, false);
 
-	if (priv->pixel_mode) {
-		/* Disable Auto BPP mode. */
-		max96717_update_bits(priv, 0x110, BIT(3), 0x00);
-
-		/* Select pixel mode. */
-		max96717_update_bits(priv, 0x383, BIT(7), 0x00);
-
-		/* Enable double 12bit mode. */
-		max96717_update_bits(priv, 0x313, BIT(6), BIT(6));
-
-		/* Software override BPP. */
-		max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
-				     FIELD_PREP(GENMASK(4, 0), 24));
-
-		/* Enable software override BPP. */
-		max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
-	} else {
-		/* Select tunnel mode. */
-		max96717_update_bits(priv, 0x383, BIT(7), BIT(7));
-	}
+	/* Select pixel or tunnel mode. */
+	max96717_update_bits(priv, 0x383, BIT(7), priv->pixel_mode ? 0x00 : BIT(7));
 
 	for_each_subdev(priv, sd_priv)
 		max96717_init_phy(sd_priv);
