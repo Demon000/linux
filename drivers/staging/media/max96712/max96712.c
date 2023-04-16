@@ -853,7 +853,7 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 		goto exit;
 
 	for (i = 0; i < count; i += MAX96712_REMAP_EL_NUM) {
-		unsigned int index = count / MAX96712_REMAP_EL_NUM;
+		unsigned int index = i / MAX96712_REMAP_EL_NUM;
 
 		sd_priv->remaps[index].from_dt = remaps_arr[i + 0];
 		sd_priv->remaps[index].from_vc = remaps_arr[i + 1];
