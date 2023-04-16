@@ -1145,11 +1145,6 @@ static int max96712_probe(struct i2c_client *client)
 	if (priv->gpiod_pwdn)
 		usleep_range(4000, 5000);
 
-#if 0
-	if (max96712_read(priv, 0x4a) != MAX96712_ID)
-		return -ENODEV;
-#endif
-
 	max96712_reset(priv);
 
 	ret = max96712_wait_for_device(priv);
