@@ -738,14 +738,15 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x3f1, GENMASK(5, 1),
 			     FIELD_PREP(GENMASK(5, 1), 0x4));
 
-	msleep(1000);
+	msleep(2000);
 
 	/* Enable GPIO 0. */
 	/* TODO: Implement pinctrl. */
 	max96717_write(priv, 0x2be, 0x80);
-	msleep(1000);
+	msleep(2000);
 	max96717_write(priv, 0x2be, 0x90);
 	max96717_write(priv, 0x2bf, 0x60);
+	msleep(2000);
 }
 
 static int max96717_v4l2_register_sd(struct max96717_subdev_priv *sd_priv)
