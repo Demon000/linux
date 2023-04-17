@@ -396,11 +396,6 @@ static int max96712_init_phy(struct max96712_priv *priv,
 	val = BIT(index) << 4;
 	max96712_update_bits(priv, 0x8a2, val, val);
 
-	val = BIT(index);
-	ret = max96712_update_bits(priv, 0x6, val, val);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -486,6 +481,11 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 
 	/* Enable pipe. */
 	ret = max96712_update_bits(priv, 0xf4, BIT(index), BIT(index));
+	if (ret)
+		return ret;
+
+	/* Enable link. */
+	ret = max96712_update_bits(priv, 0x6, BIT(index), BIT(index));
 	if (ret)
 		return ret;
 
