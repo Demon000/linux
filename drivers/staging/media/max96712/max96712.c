@@ -28,6 +28,8 @@
 
 #define MAX96712_SUBDEVS_NUM	4
 #define MAX96712_PHYS_NUM	4
+#define MAX96712_REMAP_EL_NUM	5
+#define MAX96712_REMAPS_NUM	16
 
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
@@ -48,6 +50,16 @@ struct max96712_asd {
 	struct max96712_subdev_priv *sd_priv;
 };
 
+#define MAX96712_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
+
+struct max96712_dt_vc_remap {
+	u8 from_dt;
+	u8 from_vc;
+	u8 to_dt;
+	u8 to_vc;
+	u8 phy;
+};
+
 struct max96712_subdev_priv {
 	struct v4l2_subdev sd;
 	unsigned int index;
@@ -66,6 +78,8 @@ struct max96712_subdev_priv {
 	bool active;
 
 	unsigned int dest_phy;
+	struct max96712_dt_vc_remap remaps[MAX96712_REMAPS_NUM];
+	unsigned int num_remaps;
 };
 
 struct max96712_phy {
@@ -382,6 +396,66 @@ static int max96712_init_phy(struct max96712_priv *priv,
 	return 0;
 }
 
+static int max96712_init_ch_remap(struct max96712_subdev_priv *sd_priv,
+				  struct max96712_dt_vc_remap *remap,
+				  unsigned int i)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int index = sd_priv->index;
+	unsigned int reg, val, shift, mask;
+	int ret;
+
+	/* Set source Data Type and Virtual Channel. */
+	/* TODO: implement extended Virtual Channel. */
+	reg = 0x90d + 0x40 * index + i * 2;
+	ret = max96712_write(priv, reg,
+			     MAX96712_DT_VC(remap->from_dt, remap->from_vc));
+	if (ret)
+		return ret;
+
+	/* Set destination Data Type and Virtual Channel. */
+	/* TODO: implement extended Virtual Channel. */
+	reg = 0x90e + 0x40 * index + i * 2;
+	ret = max96712_write(priv, reg,
+			     MAX96712_DT_VC(remap->to_dt, remap->to_vc));
+	if (ret)
+		return ret;
+
+	/* Set destination PHY. */
+	reg = 0x92d + 0x40 * index + i / 4;
+	shift = (i % 4) * 2;
+	mask = 0x3 << shift;
+	val = (remap->phy & 0x3) << shift;
+	ret = max96712_update_bits(priv, reg, mask, val);
+	if (ret)
+		return ret;
+
+	/* Enable remap. */
+	reg = 0x90b + 0x40 * index + i / 8;
+	val = BIT(i % 8);
+	ret = max96712_update_bits(priv, reg, val, val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int max96712_init_ch_remaps(struct max96712_subdev_priv *sd_priv)
+{
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < sd_priv->num_remaps; i++) {
+		struct max96712_dt_vc_remap *remap = &sd_priv->remaps[i];
+
+		ret = max96712_init_ch_remap(sd_priv, remap, i);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 {
 	struct max96712_priv *priv = sd_priv->priv;
@@ -452,6 +526,10 @@ static int max96712_init(struct max96712_priv *priv)
 
 	for_each_subdev(priv, sd_priv) {
 		ret = max96712_init_ch(sd_priv);
+		if (ret)
+			return ret;
+
+		ret = max96712_init_ch_remaps(sd_priv);
 		if (ret)
 			return ret;
 	}
@@ -834,6 +912,48 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 		max96712_v4l2_unregister_sd(sd_priv);
 }
 
+static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
+				      struct fwnode_handle *fwnode)
+{
+	const char *prop_name = "max,dt-vc-phy-remap";
+	unsigned int i, count;
+	u32 *remaps_arr;
+	int ret;
+
+	count = fwnode_property_count_u32(fwnode, prop_name);
+	if (count <= 0)
+		return 0;
+
+	if (count % MAX96712_REMAP_EL_NUM != 0 ||
+	    count / MAX96712_REMAP_EL_NUM > MAX96712_REMAPS_NUM)
+		return -EINVAL;
+
+	remaps_arr = kcalloc(count, sizeof(u32), GFP_KERNEL);
+	if (!remaps_arr)
+		return -ENOMEM;
+
+	ret = fwnode_property_read_u32_array(fwnode, prop_name, remaps_arr, count);
+	if (ret)
+		goto exit;
+
+	for (i = 0; i < count; i += MAX96712_REMAP_EL_NUM) {
+		unsigned int index = i / MAX96712_REMAP_EL_NUM;
+
+		sd_priv->remaps[index].from_dt = remaps_arr[i + 0];
+		sd_priv->remaps[index].from_vc = remaps_arr[i + 1];
+		sd_priv->remaps[index].to_dt = remaps_arr[i + 2];
+		sd_priv->remaps[index].to_vc = remaps_arr[i + 3];
+		sd_priv->remaps[index].phy = remaps_arr[i + 4];
+
+		sd_priv->num_remaps++;
+	}
+
+exit:
+	kfree(remaps_arr);
+
+	return 0;
+}
+
 static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 				struct fwnode_handle *fwnode)
 {
@@ -954,6 +1074,10 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		sd_priv->index = index;
 
 		ret = max96712_parse_ch_dt(sd_priv, fwnode);
+		if (ret)
+			continue;
+
+		ret = max96712_parse_ch_remap_dt(sd_priv, fwnode);
 		if (ret)
 			continue;
 
