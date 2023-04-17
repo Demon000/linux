@@ -489,12 +489,6 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	if (IS_ERR(sd_priv->slave_sd_state))
 		return PTR_ERR(sd_priv->slave_sd_state);
 
-	/*
-	 * Once all cameras have probed, increase the channel amplitude
-	 * to compensate for the remote noise immunity threshold and call
-	 * the camera post_register operation to complete initialization with
-	 * noise immunity enabled.
-	 */
 	ret = v4l2_subdev_call(sd_priv->slave_sd, core, post_register);
 	if (ret) {
 		dev_err(priv->dev,
