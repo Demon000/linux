@@ -49,7 +49,6 @@ struct max96717_asd {
 struct max96717_format {
 	u32 code;
 	u32 dt;
-	u8 bpp;
 };
 
 struct max96717_subdev_priv {
