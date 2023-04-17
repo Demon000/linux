@@ -27,6 +27,7 @@
 #define MAX96712_PAD_NUM	2
 
 #define MAX96712_SUBDEVS_NUM	4
+#define MAX96712_PHYS_NUM	4
 
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
@@ -62,11 +63,15 @@ struct max96712_subdev_priv {
 	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX96712_PAD_NUM];
 
-	struct v4l2_fwnode_bus_mipi_csi2 mipi;
-
 	bool active;
 
 	unsigned int dest_phy;
+};
+
+struct max96712_phy {
+	unsigned int index;
+	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	bool enabled;
 };
 
 struct max96712_priv {
@@ -83,6 +88,7 @@ struct max96712_priv {
 	struct mutex lock;
 	bool active;
 
+	struct max96712_phy phys[MAX96712_PHYS_NUM];
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 
 	unsigned			cached_reg_addr;
@@ -287,24 +293,21 @@ exit:
 	return ret;
 }
 
-static void max96712_init_ch(struct max96712_subdev_priv *sd_priv)
+static int max96712_init_phy(struct max96712_priv *priv,
+			     struct max96712_phy *phy)
 {
-	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
+	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
-	struct max96712_priv *priv = sd_priv->priv;
-	unsigned int index = sd_priv->index;
+	unsigned int index = phy->index;
 	unsigned int i;
+	int ret;
 
 	/* Configure a lane count. */
-	/* TODO: Add support for 1-lane configurations. */
-	/* TODO: Add support for 3-lane configurations. */
 	/* TODO: Add support CPHY mode. */
-	if (num_data_lanes == 4)
-		val = 0xc0;
-	else
-		val = 0x40;
-
-	max96712_update_bits(priv, 0x90a + 0x40 * index, 0xc0, val);
+	ret = max96712_update_bits(priv, 0x90a + 0x40 * index, GENMASK(7, 6),
+				   FIELD_PREP(GENMASK(7, 6), num_data_lanes - 1));
+	if (ret)
+		return ret;
 
 	if (num_data_lanes == 4) {
 		mask = 0xff;
@@ -320,7 +323,9 @@ static void max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 
 	/* Configure lane mapping. */
 	/* TODO: Add support for lane swapping. */
-	max96712_update_bits(priv, reg, mask << shift, val << shift);
+	ret = max96712_update_bits(priv, reg, mask << shift, val << shift);
+	if (ret)
+		return ret;
 
 	if (num_data_lanes == 4) {
 		mask = 0x3f;
@@ -337,69 +342,132 @@ static void max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 	/* Configure lane polarity. */
 	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
-		if (sd_priv->mipi.lane_polarities[i])
+		if (phy->mipi.lane_polarities[i])
 			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
-	max96712_update_bits(priv, reg, mask << shift, val << shift);
+	ret = max96712_update_bits(priv, reg, mask << shift, val << shift);
+	if (ret)
+		return ret;
 
-	/* Set link frequency. */
-	max96712_update_bits(priv, 0x415 + 0x3 * index, 0x3f,
-			     ((MAX96712_DPLL_FREQ / 100) & 0x1f) | BIT(5));
+	/* Set DPLL frequency. */
+	reg = 0x415 + 0x3 * index;
+	ret = max96712_update_bits(priv, reg, GENMASK(4, 0),
+				   MAX96712_DPLL_FREQ / 100);
+	if (ret)
+		return ret;
+
+	/* Enable DPLL frequency. */
+	ret = max96712_update_bits(priv, reg, BIT(5), BIT(5));
+	if (ret)
+		return ret;
+
+	/* Disable initial deskew. */
+	ret = max96712_write(priv, 0x903 + 0x40 * index, 0x07);
+	if (ret)
+		return ret;
+
+	/* Disable periodic deskeq. */
+	ret = max96712_write(priv, 0x904 + 0x40 * index, 0x01);
+	if (ret)
+		return ret;
+
+	/* Enable PHY. */
+	val = BIT(index) << 4;
+	max96712_update_bits(priv, 0x8a2, val, val);
+
+	val = BIT(index);
+	ret = max96712_update_bits(priv, 0x6, val, val);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int index = sd_priv->index;
+	unsigned int shift;
+	int ret;
 
 	/* Set destination PHY. */
 	shift = index * 2;
-	max96712_update_bits(priv, 0x8ca, 0x3 << shift,
-			     sd_priv->dest_phy << shift);
+	ret = max96712_update_bits(priv, 0x8ca, 0x3 << shift,
+				   sd_priv->dest_phy << shift);
+	if (ret)
+		return ret;
+
 	shift = 4;
-	max96712_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
-			     sd_priv->dest_phy << shift);
-
-	/* Disable initial and periodic deskew. */
-	max96712_write(priv, 0x903 + 0x40 * index, 0x07);
-	max96712_write(priv, 0x904 + 0x40 * index, 0x01);
-
-	/* Enable PHY. */
-	val = BIT(sd_priv->dest_phy) << 4;
-	max96712_update_bits(priv, 0x8a2, val, val);
-
-	/* Enable link. */
-	val = BIT(index);
-	max96712_update_bits(priv, 0x6, val, val);
+	ret = max96712_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
+				   sd_priv->dest_phy << shift);
+	if (ret)
+		return ret;
 
 	/* Enable pipe. */
-	val = BIT(index);
-	max96712_update_bits(priv, 0xf4, val, val);
+	ret = max96712_update_bits(priv, 0xf4, BIT(index), BIT(index));
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
-static void max96712_init(struct max96712_priv *priv)
+static int max96712_init(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
+	unsigned int i;
+	int ret;
 
-	__max96712_mipi_update(priv);
+	ret = __max96712_mipi_update(priv);
+	if (ret)
+		return ret;
 
 	/* Select 2x4 or 4x2 mode. */
-	max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
+	ret = max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
+	if (ret)
+		return ret;
 
 	/* Set alternate memory map mode for 12bpp. */
 	/* TODO: make dynamic. */
-	max96712_write(priv, 0x9b3, 0x01);
+	ret = max96712_write(priv, 0x9b3, 0x01);
+	if (ret)
+		return ret;
 
 	/* Disable all PHYs. */
-	max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
+	ret = max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < MAX96712_PHYS_NUM; i++) {
+		if (!priv->phys[i].enabled)
+			continue;
+
+		ret = max96712_init_phy(priv, &priv->phys[i]);
+		if (ret)
+			return ret;
+	}
 
 	/* Disable all pipes. */
-	max96712_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
+	ret = max96712_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
+	if (ret)
+		return ret;
 
-	for_each_subdev(priv, sd_priv)
-		max96712_init_ch(sd_priv);
+	for_each_subdev(priv, sd_priv) {
+		ret = max96712_init_ch(sd_priv);
+		if (ret)
+			return ret;
+	}
 
 	/* One-shot reset all PHYs. */
-	max96712_write(priv, 0x18, 0x0f);
+	ret = max96712_write(priv, 0x18, 0x0f);
+	if (ret)
+		return ret;
 
 	/*
 	 * Wait for 2ms to allow the link to resynchronize after the
 	 * configuration change.
 	 */
 	usleep_range(2000, 5000);
+
+	return 0;
 }
 
 static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
@@ -769,17 +837,22 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 				struct fwnode_handle *fwnode)
 {
+	struct max96712_priv *priv = sd_priv->priv;
+	struct max96712_phy *phy;
 	int ret;
 	u32 val;
 
 	sd_priv->dest_phy = sd_priv->index;
 	ret = fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
-	if (!ret) {
-		if (val > MAX96712_SUBDEVS_NUM)
-			return -EINVAL;
-
+	if (!ret)
 		sd_priv->dest_phy = val;
-	}
+
+	if (val > MAX96712_PHYS_NUM)
+		return -EINVAL;
+
+	phy = &priv->phys[sd_priv->dest_phy];
+	phy->index = sd_priv->dest_phy;
+	phy->enabled = true;
 
 	return 0;
 }
@@ -788,6 +861,7 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max96712_priv *priv = sd_priv->priv;
+	struct max96712_phy *phy = &priv->phys[sd_priv->dest_phy];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
@@ -807,7 +881,14 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 		return ret;
 	}
 
-	sd_priv->mipi = v4l2_ep.bus.mipi_csi2;
+	/* TODO: check the rest of the MIPI configuration. */
+	if (phy->mipi.num_data_lanes && phy->mipi.num_data_lanes !=
+	    v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+		dev_err(priv->dev, "PHY configured with differing number of data lanes\n");
+		return -EINVAL;
+	}
+
+	phy->mipi = v4l2_ep.bus.mipi_csi2;
 
 	return 0;
 }
@@ -888,10 +969,10 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
 		bool matching = true;
 
-		for (j = 0; j < MAX96712_SUBDEVS_NUM; j++) {
-			sd_priv = &priv->sd_privs[j];
+		for (j = 0; j < MAX96712_PHYS_NUM; j++) {
+			struct max96712_phy *phy = &priv->phys[j];
 
-			if (sd_priv->fwnode && sd_priv->mipi.num_data_lanes !=
+			if (phy->enabled && phy->mipi.num_data_lanes !=
 			    max96712_lane_configs[i][j]) {
 				matching = false;
 				break;
@@ -1058,7 +1139,9 @@ static int max96712_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	max96712_init(priv);
+	ret = max96712_init(priv);
+	if (ret)
+		return ret;
 
 	return max96712_v4l2_register(priv);
 }
