@@ -663,7 +663,7 @@ static const struct v4l2_subdev_ops max96717_subdev_ops = {
 	.pad		= &max96717_pad_ops,
 };
 
-static void max96717_init_phy(struct max96717_subdev_priv *sd_priv)
+static void max96717_init_ch(struct max96717_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	struct max96717_priv *priv = sd_priv->priv;
@@ -725,7 +725,7 @@ static void max96717_init(struct max96717_priv *priv)
 	max96717_update_bits(priv, 0x383, BIT(7), priv->pixel_mode ? 0x00 : BIT(7));
 
 	for_each_subdev(priv, sd_priv)
-		max96717_init_phy(sd_priv);
+		max96717_init_ch(sd_priv);
 
 	/* Enable RCLK output at fastest slew rate on GPIO 4. */
 	max96717_update_bits(priv, 0x6, BIT(5), BIT(5));
