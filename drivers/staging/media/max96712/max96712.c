@@ -301,7 +301,7 @@ exit:
 	return ret;
 }
 
-static void max96712_init_phy(struct max96712_subdev_priv *sd_priv)
+static void max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 {
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
@@ -431,7 +431,7 @@ static void max96712_init(struct max96712_priv *priv)
 	max96712_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
 
 	for_each_subdev(priv, sd_priv)
-		max96712_init_phy(sd_priv);
+		max96712_init_ch(sd_priv);
 
 	/* One-shot reset all PHYs. */
 	max96712_write(priv, 0x18, 0x0f);
