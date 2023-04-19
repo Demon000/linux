@@ -212,7 +212,7 @@ static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 
 	priv->mux_channel = chan;
 
-	ret = max96712_write(priv, 0x3, (~BIT(chan * 2)) & 0xff);
+	ret = max96712_write(priv, 0x3, (~(0b11 << (chan * 2))) & 0xff);
 	if (ret) {
 		dev_err(priv->dev, "Failed to write I2C mux config: %d\n", ret);
 		return ret;
