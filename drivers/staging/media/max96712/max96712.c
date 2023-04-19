@@ -96,7 +96,6 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	struct i2c_mux_core *mux;
-	unsigned int mux_channel;
 
 	unsigned int lane_config;
 	struct mutex lock;
@@ -203,11 +202,6 @@ static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max96712_priv *priv = i2c_mux_priv(muxc);
 	int ret;
-
-	if (priv->mux_channel == chan)
-		return 0;
-
-	priv->mux_channel = chan;
 
 	ret = max96712_write(priv, 0x3, (~BIT(chan * 2)) & 0xff);
 	if (ret) {
