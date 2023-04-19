@@ -206,9 +206,13 @@ static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 	struct max96712_priv *priv = i2c_mux_priv(muxc);
 	int ret;
 
+	dev_err(priv->dev, "select mux channel: %u\n", chan);
+
 	if (priv->mux_channel != MAX96712_MUX_CH_INVALID &&
 	    priv->mux_channel == chan)
 		return 0;
+
+	dev_err(priv->dev, "update mux channel from %d to %u\n", priv->mux_channel, chan);
 
 	priv->mux_channel = chan;
 
