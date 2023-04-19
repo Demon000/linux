@@ -31,6 +31,8 @@
 #define MAX96712_REMAP_EL_NUM	5
 #define MAX96712_REMAPS_NUM	16
 
+#define MAX96712_MUX_CH_INVALID	-1
+
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
 #define v4l2_subdev_free_state v4l2_subdev_free_pad_config
@@ -96,6 +98,7 @@ struct max96712_priv {
 	struct gpio_desc *gpiod_pwdn;
 
 	struct i2c_mux_core *mux;
+	int mux_channel;
 
 	unsigned int lane_config;
 	struct mutex lock;
@@ -203,6 +206,12 @@ static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 	struct max96712_priv *priv = i2c_mux_priv(muxc);
 	int ret;
 
+	if (priv->mux_channel != MAX96712_MUX_CH_INVALID &&
+	    priv->mux_channel == chan)
+		return 0;
+
+	priv->mux_channel = chan;
+
 	ret = max96712_write(priv, 0x3, (~BIT(chan * 2)) & 0xff);
 	if (ret) {
 		dev_err(priv->dev, "Failed to write I2C mux config: %d\n", ret);
@@ -222,6 +231,8 @@ static int max96712_i2c_mux_init(struct max96712_priv *priv)
 	if (!i2c_check_functionality(priv->client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
+
+	priv->mux_channel = MAX96712_MUX_CH_INVALID;
 
 	priv->mux = i2c_mux_alloc(priv->client->adapter, &priv->client->dev,
 				  MAX96712_SUBDEVS_NUM, 0, I2C_MUX_LOCKED,
@@ -485,6 +496,11 @@ static int max96712_init(struct max96712_priv *priv)
 	int ret;
 
 	ret = __max96712_mipi_update(priv);
+	if (ret)
+		return ret;
+
+	/* Disable all remote I2C channels. */
+	ret = max96712_write(priv, 0x3, 0xff);
 	if (ret)
 		return ret;
 
