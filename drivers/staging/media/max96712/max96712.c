@@ -1273,11 +1273,11 @@ static int max96712_probe(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	ret = max96712_i2c_mux_init(priv);
+	ret = max96712_init(priv);
 	if (ret)
 		return ret;
 
-	ret = max96712_init(priv);
+	ret = max96712_i2c_mux_init(priv);
 	if (ret)
 		return ret;
 
