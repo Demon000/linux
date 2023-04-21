@@ -976,13 +976,11 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 {
 	struct max96712_priv *priv = sd_priv->priv;
 	struct max96712_phy *phy;
-	int ret;
 	u32 val;
 
-	sd_priv->dest_phy = sd_priv->index;
-	ret = fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
-	if (!ret)
-		sd_priv->dest_phy = val;
+	val = sd_priv->index;
+	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
+	sd_priv->dest_phy = val;
 
 	if (val > MAX96712_PHYS_NUM)
 		return -EINVAL;
