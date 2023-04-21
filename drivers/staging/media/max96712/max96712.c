@@ -503,11 +503,6 @@ static int max96712_init(struct max96712_priv *priv)
 	if (ret)
 		return ret;
 
-	/* Disable all remote I2C channels. */
-	ret = max96712_write(priv, 0x3, 0xff);
-	if (ret)
-		return ret;
-
 	/* Select 2x4 or 4x2 mode. */
 	ret = max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
 	if (ret)
