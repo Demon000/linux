@@ -18,6 +18,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#define DEBUG printk(KERN_ERR "max96712: %s:%u\n", __func__, __LINE__);
+
 #define MAX96712_ID 0x20
 
 #define MAX96712_DPLL_FREQ 1000
@@ -938,9 +940,13 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 	u32 *remaps_arr;
 	int ret;
 
+	DEBUG
+
 	ret = fwnode_property_count_u32(fwnode, prop_name);
 	if (ret <= 0)
 		return 0;
+
+	DEBUG
 
 	count = ret;
 
@@ -950,13 +956,19 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 		return -EINVAL;
 	}
 
+	DEBUG
+
 	remaps_arr = kcalloc(count, sizeof(u32), GFP_KERNEL);
 	if (!remaps_arr)
 		return -ENOMEM;
 
+	DEBUG
+
 	ret = fwnode_property_read_u32_array(fwnode, prop_name, remaps_arr, count);
 	if (ret)
 		goto exit;
+
+	DEBUG
 
 	for (i = 0; i < count; i += MAX96712_REMAP_EL_NUM) {
 		unsigned int index = i / MAX96712_REMAP_EL_NUM;
@@ -977,6 +989,8 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 		sd_priv->num_remaps++;
 	}
 
+	DEBUG
+
 exit:
 	kfree(remaps_arr);
 
@@ -990,18 +1004,26 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 	struct max96712_phy *phy;
 	u32 val;
 
+	DEBUG
+
 	val = sd_priv->index;
 	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
 	sd_priv->dest_phy = val;
+
+	DEBUG
 
 	if (val > MAX96712_PHYS_NUM) {
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
 
+	DEBUG
+
 	phy = &priv->phys[val];
 	phy->index = val;
 	phy->enabled = true;
+
+	DEBUG
 
 	return 0;
 }
@@ -1083,8 +1105,12 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
+		DEBUG
+
 		if (!of_node_name_eq(of_node, "channel"))
 			continue;
+
+		DEBUG
 
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
 		if (ret) {
@@ -1092,31 +1118,45 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 			continue;
 		}
 
+		DEBUG
+
 		if (index >= MAX96712_SUBDEVS_NUM) {
 			dev_err(priv->dev, "Invalid channel number %u\n", index);
 			return -EINVAL;
 		}
+
+		DEBUG
 
 		sd_priv = &priv->sd_privs[index];
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
 		sd_priv->index = index;
 
+		DEBUG
+
 		ret = max96712_parse_ch_dt(sd_priv, fwnode);
 		if (ret)
 			continue;
+
+		DEBUG
 
 		ret = max96712_parse_ch_remap_dt(sd_priv, fwnode);
 		if (ret)
 			continue;
 
+		DEBUG
+
 		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
 
+		DEBUG
+
 		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			continue;
+
+		DEBUG
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
