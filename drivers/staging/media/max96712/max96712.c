@@ -943,8 +943,10 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 		return 0;
 
 	if (count % MAX96712_REMAP_EL_NUM != 0 ||
-	    count / MAX96712_REMAP_EL_NUM > MAX96712_REMAPS_NUM)
+	    count / MAX96712_REMAP_EL_NUM > MAX96712_REMAPS_NUM) {
+		dev_err(priv->dev, "Invalid remap element number %u\n", count);
 		return -EINVAL;
+	}
 
 	remaps_arr = kcalloc(count, sizeof(u32), GFP_KERNEL);
 	if (!remaps_arr)
