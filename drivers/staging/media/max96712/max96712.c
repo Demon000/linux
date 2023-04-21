@@ -189,7 +189,7 @@ static int max96712_wait_for_device(struct max96712_priv *priv)
 
 		msleep(10);
 
-		dev_err(priv->dev, "Retry %u waiting for deserializer\n", ret);
+		dev_err(priv->dev, "Retry %u waiting for deserializer: %d\n", i, ret);
 	}
 
 	return ret;
