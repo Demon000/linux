@@ -938,9 +938,11 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 	u32 *remaps_arr;
 	int ret;
 
-	count = fwnode_property_count_u32(fwnode, prop_name);
-	if (count <= 0)
+	ret = fwnode_property_count_u32(fwnode, prop_name);
+	if (ret <= 0)
 		return 0;
+
+	count = ret;
 
 	if (count % MAX96712_REMAP_EL_NUM != 0 ||
 	    count / MAX96712_REMAP_EL_NUM > MAX96712_REMAPS_NUM) {
