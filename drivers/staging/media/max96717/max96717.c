@@ -202,7 +202,7 @@ static int max96717_wait_for_device(struct max96717_priv *priv)
 	return ret;
 }
 
-static void max96717_reset(struct max96717_priv *priv)
+static int max96717_reset(struct max96717_priv *priv)
 {
 	int ret;
 
