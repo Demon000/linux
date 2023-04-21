@@ -184,12 +184,6 @@ static int max96717_update_bits(struct max96717_priv *priv, unsigned int reg,
 	return ret;
 }
 
-static void max96717_reset(struct max96717_priv *priv)
-{
-	max96717_update_bits(priv, 0x10, 0x80, 0x80);
-	msleep(80);
-}
-
 static int max96717_wait_for_device(struct max96717_priv *priv)
 {
 	unsigned int i;
@@ -206,6 +200,25 @@ static int max96717_wait_for_device(struct max96717_priv *priv)
 	}
 
 	return ret;
+}
+
+static void max96717_reset(struct max96717_priv *priv)
+{
+	int ret;
+
+	ret = max96717_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	ret = max96717_update_bits(priv, 0x10, 0x80, 0x80);
+	if (ret)
+		return ret;
+
+	ret = max96717_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static const struct max96717_format *max96717_format_by_code(u32 code)
@@ -1151,9 +1164,7 @@ static int max96717_probe(struct i2c_client *client)
 	debugfs_create_file("reg", 0600, priv->debugfs_root, priv,
 			    &max96717_reg_fops);
 
-	max96717_reset(priv);
-
-	ret = max96717_wait_for_device(priv);
+	ret = max96717_reset(priv);
 	if (ret)
 		return ret;
 
