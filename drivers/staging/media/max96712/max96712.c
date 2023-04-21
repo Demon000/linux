@@ -933,6 +933,7 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 				      struct fwnode_handle *fwnode)
 {
 	const char *prop_name = "max,dt-vc-phy-remap";
+	struct max96712_priv *priv = sd_priv->priv;
 	unsigned int i, count;
 	u32 *remaps_arr;
 	int ret;
@@ -962,13 +963,20 @@ static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
 		sd_priv->remaps[index].to_vc = remaps_arr[i + 3];
 		sd_priv->remaps[index].phy = remaps_arr[i + 4];
 
+		if (remaps_arr[i + 4] > MAX96712_PHYS_NUM) {
+			dev_err(priv->dev, "Invalid remap PHY %u\n",
+				remaps_arr[i + 4]);
+			ret = -EINVAL;
+			goto exit;
+		}
+
 		sd_priv->num_remaps++;
 	}
 
 exit:
 	kfree(remaps_arr);
 
-	return 0;
+	return ret;
 }
 
 static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
@@ -982,11 +990,13 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
 	sd_priv->dest_phy = val;
 
-	if (val > MAX96712_PHYS_NUM)
+	if (val > MAX96712_PHYS_NUM) {
+		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
+	}
 
-	phy = &priv->phys[sd_priv->dest_phy];
-	phy->index = sd_priv->dest_phy;
+	phy = &priv->phys[val];
+	phy->index = val;
 	phy->enabled = true;
 
 	return 0;
