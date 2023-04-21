@@ -177,12 +177,6 @@ static int max96712_update_bits(struct max96712_priv *priv, unsigned int reg,
 	return ret;
 }
 
-static void max96712_reset(struct max96712_priv *priv)
-{
-	max96712_update_bits(priv, 0x13, 0x40, 0x40);
-	msleep(80);
-}
-
 static int max96712_wait_for_device(struct max96712_priv *priv)
 {
 	unsigned int i;
@@ -199,6 +193,25 @@ static int max96712_wait_for_device(struct max96712_priv *priv)
 	}
 
 	return ret;
+}
+
+static int max96712_reset(struct max96712_priv *priv)
+{
+	int ret;
+
+	ret = max96712_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	ret = max96712_update_bits(priv, 0x13, 0x40, 0x40);
+	if (ret)
+		return ret;
+
+	ret = max96712_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int max96712_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
@@ -1257,9 +1270,7 @@ static int max96712_probe(struct i2c_client *client)
 	if (priv->gpiod_pwdn)
 		usleep_range(4000, 5000);
 
-	max96712_reset(priv);
-
-	ret = max96712_wait_for_device(priv);
+	ret = max96712_reset(priv);
 	if (ret)
 		return ret;
 
