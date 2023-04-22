@@ -379,6 +379,11 @@ static int max96712_init_phy(struct max96712_priv *priv,
 	if (ret)
 		return ret;
 
+	/* Put DPLL block into reset. */
+	ret = max96712_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x00);
+	if (ret)
+		return ret;
+
 	/* Set DPLL frequency. */
 	reg = 0x415 + 0x3 * index;
 	ret = max96712_update_bits(priv, reg, GENMASK(4, 0),
@@ -388,6 +393,11 @@ static int max96712_init_phy(struct max96712_priv *priv,
 
 	/* Enable DPLL frequency. */
 	ret = max96712_update_bits(priv, reg, BIT(5), BIT(5));
+	if (ret)
+		return ret;
+
+	/* Pull DPLL block out of reset. */
+	ret = max96712_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x01);
 	if (ret)
 		return ret;
 
