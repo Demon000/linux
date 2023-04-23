@@ -240,6 +240,29 @@ static const bool max96717_format_valid(struct max96717_priv *priv, u32 code)
 	return max96717_format_by_code(code);
 }
 
+static int max96717_override_bpp(struct max96717_priv *priv, u8 bpp)
+{
+	int ret;
+
+	/* Disable Auto BPP mode. */
+	ret = max96717_update_bits(priv, 0x110, BIT(3), 0x00);
+	if (ret)
+		return ret;
+
+	/* Software override BPP. */
+	ret = max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
+				   FIELD_PREP(GENMASK(4, 0), bpp));
+	if (ret)
+		return ret;
+
+	/* Enable software override BPP. */
+	ret = max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int max96717_set_dt(struct max96717_priv *priv, u32 code)
 {
 	const struct max96717_format *fmt = max96717_format_by_code(code);
@@ -249,25 +272,35 @@ static int max96717_set_dt(struct max96717_priv *priv, u32 code)
 		return -EINVAL;
 
 	switch (fmt->dt) {
+	case MAX96717_DT_YUV422_8B:
+	case MAX96717_DT_YUV422_10B:
+		break;
+	case MAX96717_DT_RAW8:
+		ret = max96717_update_bits(priv, 0x312, BIT(2), BIT(2));
+		if (ret)
+			return ret;
+
+		ret = max96717_override_bpp(priv, 16);
+		if (ret)
+			return ret;
+
+		break;
+	case MAX96717_DT_RAW10:
+		ret = max96717_update_bits(priv, 0x313, BIT(2), BIT(2));
+		if (ret)
+			return ret;
+
+		ret = max96717_override_bpp(priv, 20);
+		if (ret)
+			return ret;
+
+		break;
 	case MAX96717_DT_RAW12:
-		/* Enable double 12bit mode. */
 		ret = max96717_update_bits(priv, 0x313, BIT(6), BIT(6));
 		if (ret)
 			return ret;
 
-		/* Disable Auto BPP mode. */
-		ret = max96717_update_bits(priv, 0x110, BIT(3), 0x00);
-		if (ret)
-			return ret;
-
-		/* Software override BPP. */
-		ret = max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
-					   FIELD_PREP(GENMASK(4, 0), 24));
-		if (ret)
-			return ret;
-
-		/* Enable software override BPP. */
-		ret = max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
+		ret = max96717_override_bpp(priv, 24);
 		if (ret)
 			return ret;
 
