@@ -271,6 +271,8 @@ static int max96717_set_dt(struct max96717_priv *priv, u32 code)
 	if (!fmt)
 		return -EINVAL;
 
+	/* TODO: implement all other supported formats. */
+
 	switch (fmt->dt) {
 	case MAX96717_DT_YUV422_8B:
 	case MAX96717_DT_YUV422_10B:
