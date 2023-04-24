@@ -904,7 +904,6 @@ static int max96717_parse_sink_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 		return -EINVAL;
 	}
 
-
 	ret = v4l2_fwnode_endpoint_parse(remote_ep, &v4l2_ep);
 	fwnode_handle_put(remote_ep);
 	if (ret) {
