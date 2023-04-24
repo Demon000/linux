@@ -482,7 +482,7 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 {
 	struct max96712_priv *priv = sd_priv->priv;
 	unsigned int index = sd_priv->index;
-	unsigned int val, shift;
+	unsigned int shift;
 	int ret;
 
 	/* Set destination PHY. */
@@ -508,30 +508,6 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 	if (ret)
 		return ret;
 
-	/* Set alternate memory map mode for 8bpp. */
-	ret = max96712_update_bits(priv, 0x933 + 0x40 * index, BIT(1), BIT(1));
-	if (ret)
-		return ret;
-
-	val = BIT(index + 4);
-	ret = max96712_update_bits(priv, 0x414, val, val);
-	if (ret)
-		return ret;
-
-	ret = max96712_update_bits(priv, 0x417, val, val);
-	if (ret)
-		return ret;
-
-	/* Set alternate memory map mode for 10bpp. */
-	ret = max96712_update_bits(priv, 0x933 + 0x40 * index, BIT(2), BIT(2));
-	if (ret)
-		return ret;
-
-	/* Set alternate memory map mode for 12bpp. */
-	ret = max96712_update_bits(priv, 0x933 + 0x40 * index, BIT(0), BIT(0));
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -547,6 +523,12 @@ static int max96712_init(struct max96712_priv *priv)
 
 	/* Select 2x4 or 4x2 mode. */
 	ret = max96712_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
+	if (ret)
+		return ret;
+
+	/* Set alternate memory map mode for 12bpp. */
+	/* TODO: make dynamic. */
+	ret = max96712_write(priv, 0x9b3, 0x01);
 	if (ret)
 		return ret;
 
