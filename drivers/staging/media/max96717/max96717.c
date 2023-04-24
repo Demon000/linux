@@ -899,6 +899,7 @@ static int max96717_parse_sink_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 	}
 
 	remote_ep = fwnode_graph_get_remote_endpoint(ep);
+	fwnode_handle_put(ep);
 	if (!remote_ep) {
 		dev_err(priv->dev, "Not connected to remote endpoint\n");
 		return -EINVAL;
