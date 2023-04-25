@@ -273,6 +273,14 @@ static int max96717_set_dt(struct max96717_priv *priv, u32 code)
 
 	/* TODO: implement all other supported formats. */
 
+	ret = max96717_update_bits(priv, 0x312, BIT(2), 0);
+	if (ret)
+		return ret;
+
+	ret = max96717_update_bits(priv, 0x313, BIT(6) | BIT(2), 0);
+	if (ret)
+		return ret;
+
 	switch (fmt->dt) {
 	case MAX96717_DT_YUV422_8B:
 	case MAX96717_DT_YUV422_10B:
