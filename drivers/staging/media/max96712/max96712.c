@@ -268,7 +268,6 @@ error:
 	return ret;
 }
 
-/* TODO: fix enable bug. */
 static int __max96712_mipi_update(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
