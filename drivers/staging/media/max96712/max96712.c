@@ -1084,9 +1084,9 @@ static int max96712_parse_sink_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 static const unsigned int max96712_lane_configs[][MAX96712_SUBDEVS_NUM] = {
 	{ 2, 2, 2, 2 },
 	{ 0, 0, 0, 0 },
-	{ 0, 4, 0, 4 },
+	{ 0, 4, 4, 0 },
 	{ 0, 4, 2, 2 },
-	{ 2, 2, 0, 4 },
+	{ 2, 2, 4, 0 },
 };
 
 static int max96712_parse_dt(struct max96712_priv *priv)
