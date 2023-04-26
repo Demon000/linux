@@ -28,6 +28,9 @@
 
 #define MAX96712_SUBDEVS_NUM	4
 #define MAX96712_PHYS_NUM	4
+#define MAX96712_PIPES_NUM	4
+#define MAX96712_STREAMS_NUM	4
+#define MAX96712_LINKS_NUM	4
 #define MAX96712_REMAP_EL_NUM	5
 #define MAX96712_REMAPS_NUM	16
 
@@ -78,10 +81,19 @@ struct max96712_subdev_priv {
 	struct media_pad pads[MAX96712_PAD_NUM];
 
 	bool active;
-
-	unsigned int dest_phy;
+	unsigned int pipe_id;
 	struct max96712_dt_vc_remap remaps[MAX96712_REMAPS_NUM];
 	unsigned int num_remaps;
+};
+
+struct max96712_pipe {
+	unsigned int index;
+	unsigned int dest_phy;
+	unsigned int src_stream_id;
+	unsigned int src_gmsl_link;
+	struct max96712_dt_vc_remap remaps[MAX96712_REMAPS_NUM];
+	unsigned int num_remaps;
+	bool enabled;
 };
 
 struct max96712_phy {
@@ -105,6 +117,7 @@ struct max96712_priv {
 	bool active;
 
 	struct max96712_phy phys[MAX96712_PHYS_NUM];
+	struct max96712_pipe pipes[MAX96712_PHYS_NUM];
 	struct max96712_subdev_priv sd_privs[MAX96712_SUBDEVS_NUM];
 
 	unsigned			cached_reg_addr;
@@ -418,12 +431,12 @@ static int max96712_init_phy(struct max96712_priv *priv,
 	return 0;
 }
 
-static int max96712_init_ch_remap(struct max96712_subdev_priv *sd_priv,
-				  struct max96712_dt_vc_remap *remap,
-				  unsigned int i)
+static int max96712_init_pipe_remap(struct max96712_priv *priv,
+				    struct max96712_pipe *pipe,
+				    struct max96712_dt_vc_remap *remap,
+				    unsigned int i)
 {
-	struct max96712_priv *priv = sd_priv->priv;
-	unsigned int index = sd_priv->index;
+	unsigned int index = pipe->index;
 	unsigned int reg, val, shift, mask;
 	int ret;
 
@@ -462,15 +475,16 @@ static int max96712_init_ch_remap(struct max96712_subdev_priv *sd_priv,
 	return 0;
 }
 
-static int max96712_init_ch_remaps(struct max96712_subdev_priv *sd_priv)
+static int max96712_init_pipe_remaps(struct max96712_priv *priv,
+				     struct max96712_pipe *pipe)
 {
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < sd_priv->num_remaps; i++) {
-		struct max96712_dt_vc_remap *remap = &sd_priv->remaps[i];
+	for (i = 0; i < pipe->num_remaps; i++) {
+		struct max96712_dt_vc_remap *remap = &pipe->remaps[i];
 
-		ret = max96712_init_ch_remap(sd_priv, remap, i);
+		ret = max96712_init_pipe_remap(priv, pipe, remap, i);
 		if (ret)
 			return ret;
 	}
@@ -478,23 +492,23 @@ static int max96712_init_ch_remaps(struct max96712_subdev_priv *sd_priv)
 	return 0;
 }
 
-static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
+static int max96712_init_pipe(struct max96712_priv *priv,
+			      struct max96712_pipe *pipe)
 {
-	struct max96712_priv *priv = sd_priv->priv;
-	unsigned int index = sd_priv->index;
-	unsigned int shift;
+	unsigned int index = pipe->index;
+	unsigned int reg, val, shift;
 	int ret;
 
 	/* Set destination PHY. */
 	shift = index * 2;
 	ret = max96712_update_bits(priv, 0x8ca, 0x3 << shift,
-				   sd_priv->dest_phy << shift);
+				   pipe->dest_phy << shift);
 	if (ret)
 		return ret;
 
 	shift = 4;
 	ret = max96712_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
-				   sd_priv->dest_phy << shift);
+				   pipe->dest_phy << shift);
 	if (ret)
 		return ret;
 
@@ -503,8 +517,22 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 	if (ret)
 		return ret;
 
+	/* Set source stream. */
+	reg = 0xf0 + index / 2;
+	shift = 4 * index % 2;
+	ret = max96712_update_bits(priv, reg, 0x3 << shift, pipe->src_stream_id << shift);
+	if (ret)
+		return ret;
+
+	/* Set source link. */
+	shift += 2;
+	ret = max96712_update_bits(priv, reg, 0x3 << shift, pipe->src_gmsl_link << shift);
+	if (ret)
+		return ret;
+
 	/* Enable link. */
-	ret = max96712_update_bits(priv, 0x6, BIT(index), BIT(index));
+	val = BIT(pipe->src_gmsl_link);
+	ret = max96712_update_bits(priv, 0x6, val, val);
 	if (ret)
 		return ret;
 
@@ -513,7 +541,7 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 
 static int max96712_init(struct max96712_priv *priv)
 {
-	struct max96712_subdev_priv *sd_priv;
+	struct max96712_pipe *pipe;
 	struct max96712_phy *phy;
 	unsigned int i;
 	int ret;
@@ -538,6 +566,11 @@ static int max96712_init(struct max96712_priv *priv)
 	if (ret)
 		return ret;
 
+	/* Disable automatic stream select. */
+	ret = max96712_update_bits(priv, 0xf4, BIT(4), 0x00);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < MAX96712_PHYS_NUM; i++) {
 		phy = &priv->phys[i];
 
@@ -554,12 +587,17 @@ static int max96712_init(struct max96712_priv *priv)
 	if (ret)
 		return ret;
 
-	for_each_subdev(priv, sd_priv) {
-		ret = max96712_init_ch(sd_priv);
+	for (i = 0; i < MAX96712_PIPES_NUM; i++) {
+		pipe = &priv->pipes[i];
+
+		if (!priv->pipes[i].enabled)
+			continue;
+
+		ret = max96712_init_pipe(priv, pipe);
 		if (ret)
 			return ret;
 
-		ret = max96712_init_ch_remaps(sd_priv);
+		ret = max96712_init_pipe_remaps(priv, pipe);
 		if (ret)
 			return ret;
 	}
@@ -996,23 +1034,63 @@ exit:
 	return ret;
 }
 
-static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
-				struct fwnode_handle *fwnode)
+static int max96712_parse_pipe_dt(struct max96712_priv *priv,
+				  struct max96712_pipe *pipe,
+				  struct fwnode_handle *fwnode)
 {
-	struct max96712_priv *priv = sd_priv->priv;
-	struct max96712_phy *phy;
 	u32 val;
 
-	val = sd_priv->index;
+	val = pipe->index;
 	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
-	sd_priv->dest_phy = val;
-
 	if (val > MAX96712_PHYS_NUM) {
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
 
-	phy = &priv->phys[val];
+	pipe->dest_phy = val;
+
+	val = pipe->src_stream_id;
+	fwnode_property_read_u32(fwnode, "max,src-stream-id", &val);
+	if (val > MAX96712_STREAMS_NUM) {
+		dev_err(priv->dev, "Invalid source stream %u\n", val);
+		return -EINVAL;
+	}
+
+	pipe->src_stream_id = val;
+
+	val = pipe->src_gmsl_link;
+	fwnode_property_read_u32(fwnode, "max,src-gmsl-link", &val);
+	if (val > MAX96712_LINKS_NUM) {
+		dev_err(priv->dev, "Invalid source link %u\n", val);
+		return -EINVAL;
+	}
+
+	pipe->src_gmsl_link = val;
+
+	return 0;
+}
+
+static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
+				struct fwnode_handle *fwnode)
+{
+	struct max96712_priv *priv = sd_priv->priv;
+	struct max96712_pipe *pipe;
+	struct max96712_phy *phy;
+	u32 val;
+
+	val = sd_priv->index;
+	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
+	if (val > MAX96712_PHYS_NUM) {
+		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
+		return -EINVAL;
+	}
+
+	sd_priv->pipe_id = val;
+
+	pipe = &priv->pipes[val];
+	pipe->enabled = true;
+
+	phy = &priv->phys[pipe->dest_phy];
 	phy->enabled = true;
 
 	return 0;
@@ -1022,7 +1100,8 @@ static int max96712_parse_src_dt_endpoint(struct max96712_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max96712_priv *priv = sd_priv->priv;
-	struct max96712_phy *phy = &priv->phys[sd_priv->dest_phy];
+	struct max96712_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
+	struct max96712_phy *phy = &priv->phys[pipe->dest_phy];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
@@ -1095,6 +1174,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
+	struct max96712_pipe *pipe;
 	struct max96712_phy *phy;
 	unsigned int i, j;
 	u32 index;
@@ -1103,6 +1183,36 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 	for (i = 0; i < MAX96712_PHYS_NUM; i++) {
 		phy = &priv->phys[i];
 		phy->index = i;
+	}
+
+	for (i = 0; i < MAX96712_PIPES_NUM; i++) {
+		pipe = &priv->pipes[i];
+		pipe->index = i;
+		pipe->src_gmsl_link = i;
+	}
+
+	device_for_each_child_node(priv->dev, fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, "pipe"))
+			continue;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index >= MAX96712_PIPES_NUM) {
+			dev_err(priv->dev, "Invalid pipe number %u\n", index);
+			return -EINVAL;
+		}
+
+		pipe = &priv->pipes[index];
+
+		ret = max96712_parse_pipe_dt(priv, pipe, fwnode);
+		if (ret)
+			return ret;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
@@ -1142,6 +1252,19 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
 			return ret;
+	}
+
+	for_each_subdev(priv, sd_priv) {
+		pipe = &priv->pipes[sd_priv->pipe_id];
+
+		for (i = 0; i < sd_priv->num_remaps; i++) {
+			if (pipe->num_remaps == MAX96712_REMAPS_NUM) {
+				dev_err(priv->dev, "Too many remaps\n");
+				return -EINVAL;
+			}
+
+			pipe->remaps[pipe->num_remaps++] = sd_priv->remaps[i];
+		}
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
