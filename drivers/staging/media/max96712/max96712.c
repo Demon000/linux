@@ -1131,6 +1131,14 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 	pipe = &priv->pipes[val];
 	pipe->enabled = true;
 
+	val = pipe->index;
+	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
+	if (val > MAX96712_PHYS_NUM) {
+		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
+		return -EINVAL;
+	}
+	pipe->dest_phy = val;
+
 	phy = &priv->phys[pipe->dest_phy];
 	phy->enabled = true;
 
