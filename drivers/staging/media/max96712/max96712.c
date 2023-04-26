@@ -1126,7 +1126,6 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
-
 	sd_priv->pipe_id = val;
 
 	pipe = &priv->pipes[val];
