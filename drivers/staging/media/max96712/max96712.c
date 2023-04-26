@@ -492,6 +492,51 @@ static int max96712_init_pipe_remaps(struct max96712_priv *priv,
 	return 0;
 }
 
+static int max96712_update_pipe_remaps(struct max96712_priv *priv,
+				       struct max96712_pipe *pipe)
+{
+	struct max96712_subdev_priv *sd_priv;
+	unsigned int i;
+
+	pipe->num_remaps = 0;
+
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->pipe_id != pipe->index)
+			continue;
+
+		for (i = 0; i < sd_priv->num_remaps; i++) {
+			if (pipe->num_remaps == MAX96712_REMAPS_NUM) {
+				dev_err(priv->dev, "Too many remaps\n");
+				return -EINVAL;
+			}
+
+			pipe->remaps[pipe->num_remaps++] = sd_priv->remaps[i];
+		}
+	}
+
+	return 0;
+}
+
+static int max96712_update_pipes_remaps(struct max96712_priv *priv)
+{
+	struct max96712_pipe *pipe;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < MAX96712_PIPES_NUM; i++) {
+		pipe = &priv->pipes[i];
+
+		if (!pipe->enabled)
+			continue;
+
+		ret = max96712_update_pipe_remaps(priv, pipe);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max96712_init_pipe(struct max96712_priv *priv,
 			      struct max96712_pipe *pipe)
 {
@@ -1251,18 +1296,9 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 			return ret;
 	}
 
-	for_each_subdev(priv, sd_priv) {
-		pipe = &priv->pipes[sd_priv->pipe_id];
-
-		for (i = 0; i < sd_priv->num_remaps; i++) {
-			if (pipe->num_remaps == MAX96712_REMAPS_NUM) {
-				dev_err(priv->dev, "Too many remaps\n");
-				return -EINVAL;
-			}
-
-			pipe->remaps[pipe->num_remaps++] = sd_priv->remaps[i];
-		}
-	}
+	ret = max96712_update_pipes_remaps(priv);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
 		bool matching = true;
