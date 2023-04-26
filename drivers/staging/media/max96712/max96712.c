@@ -519,7 +519,7 @@ static int max96712_init_pipe(struct max96712_priv *priv,
 
 	/* Set source stream. */
 	reg = 0xf0 + index / 2;
-	shift = 4 * index % 2;
+	shift = 4 * (index % 2);
 	ret = max96712_update_bits(priv, reg, 0x3 << shift, pipe->src_stream_id << shift);
 	if (ret)
 		return ret;
