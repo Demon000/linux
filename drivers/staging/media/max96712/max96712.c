@@ -1129,19 +1129,19 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 
 		ret = max96712_parse_ch_dt(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 
 		ret = max96712_parse_ch_remap_dt(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 
 		ret = max96712_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 
 		ret = max96712_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96712_lane_configs); i++) {
