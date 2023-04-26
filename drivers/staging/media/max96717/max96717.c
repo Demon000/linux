@@ -967,11 +967,11 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 
 		ret = max96717_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 
 		ret = max96717_parse_src_dt_endpoint(sd_priv, fwnode);
 		if (ret)
-			continue;
+			return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(max96717_lane_configs); i++) {
