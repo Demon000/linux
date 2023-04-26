@@ -19,6 +19,7 @@
 #define MAX96717_PAD_NUM	2
 
 #define MAX96717_SUBDEVS_NUM	2
+#define MAX96717_MAX_STREAM_ID	3
 
 #define MAX96717_DT_EMB8			0x12
 #define MAX96717_DT_YUV422_8B			0x1e
@@ -67,6 +68,7 @@ struct max96717_subdev_priv {
 	struct media_pad pads[MAX96717_PAD_NUM];
 
 	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	unsigned int stream_id;
 };
 
 struct max96717_priv {
@@ -760,9 +762,8 @@ static void max96717_init_ch(struct max96717_subdev_priv *sd_priv)
 			val |= BIT(i - 3);
 	max96717_update_bits(priv, 0x334, 0x7 << shift, val << shift);
 
-	/* Set stream ID to 0. */
-	/* TODO: Make this generic by better parsing of chip ports. */
-	max96717_write(priv, 0x5b, 0x00);
+	/* Set stream ID. */
+	max96717_write(priv, 0x5b, sd_priv->stream_id);
 }
 
 static void max96717_init(struct max96717_priv *priv)
@@ -875,6 +876,23 @@ static void max96717_v4l2_unregister(struct max96717_priv *priv)
 		max96717_v4l2_unregister_sd(sd_priv);
 }
 
+static int max96717_parse_ch_dt(struct max96717_subdev_priv *sd_priv,
+				struct fwnode_handle *fwnode)
+{
+	struct max96717_priv *priv = sd_priv->priv;
+	u32 val;
+
+	val = 0;
+	fwnode_property_read_u32(fwnode, "max,stream-id", &val);
+	if (val > MAX96717_MAX_STREAM_ID) {
+		dev_err(priv->dev, "Invalid stream %u\n", val);
+		return -EINVAL;
+	}
+	sd_priv->stream_id = val;
+
+	return 0;
+}
+
 static int max96717_parse_src_dt_endpoint(struct max96717_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
@@ -964,6 +982,10 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
 		sd_priv->index = index;
+
+		ret = max96717_parse_ch_dt(sd_priv, fwnode);
+		if (ret)
+			return ret;
 
 		ret = max96717_parse_sink_dt_endpoint(sd_priv, fwnode);
 		if (ret)
