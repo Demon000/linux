@@ -1046,7 +1046,6 @@ static int max96712_parse_pipe_dt(struct max96712_priv *priv,
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
-
 	pipe->dest_phy = val;
 
 	val = pipe->src_stream_id;
@@ -1055,7 +1054,6 @@ static int max96712_parse_pipe_dt(struct max96712_priv *priv,
 		dev_err(priv->dev, "Invalid source stream %u\n", val);
 		return -EINVAL;
 	}
-
 	pipe->src_stream_id = val;
 
 	val = pipe->src_gmsl_link;
@@ -1064,7 +1062,6 @@ static int max96712_parse_pipe_dt(struct max96712_priv *priv,
 		dev_err(priv->dev, "Invalid source link %u\n", val);
 		return -EINVAL;
 	}
-
 	pipe->src_gmsl_link = val;
 
 	return 0;
