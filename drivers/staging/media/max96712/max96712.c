@@ -514,6 +514,7 @@ static int max96712_init_ch(struct max96712_subdev_priv *sd_priv)
 static int max96712_init(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
+	struct max96712_phy *phy;
 	unsigned int i;
 	int ret;
 
@@ -538,10 +539,12 @@ static int max96712_init(struct max96712_priv *priv)
 		return ret;
 
 	for (i = 0; i < MAX96712_PHYS_NUM; i++) {
-		if (!priv->phys[i].enabled)
+		phy = &priv->phys[i];
+
+		if (!phy->enabled)
 			continue;
 
-		ret = max96712_init_phy(priv, &priv->phys[i]);
+		ret = max96712_init_phy(priv, phy);
 		if (ret)
 			return ret;
 	}
@@ -1010,7 +1013,6 @@ static int max96712_parse_ch_dt(struct max96712_subdev_priv *sd_priv,
 	}
 
 	phy = &priv->phys[val];
-	phy->index = val;
 	phy->enabled = true;
 
 	return 0;
@@ -1093,9 +1095,15 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
+	struct max96712_phy *phy;
 	unsigned int i, j;
 	u32 index;
 	int ret;
+
+	for (i = 0; i < MAX96712_PHYS_NUM; i++) {
+		phy = &priv->phys[i];
+		phy->index = i;
+	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
@@ -1140,7 +1148,7 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		bool matching = true;
 
 		for (j = 0; j < MAX96712_PHYS_NUM; j++) {
-			struct max96712_phy *phy = &priv->phys[j];
+			phy = &priv->phys[j];
 
 			if (phy->enabled && phy->mipi.num_data_lanes !=
 			    max96712_lane_configs[i][j]) {
