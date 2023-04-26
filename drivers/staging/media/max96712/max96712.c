@@ -590,7 +590,7 @@ static int max96712_init(struct max96712_priv *priv)
 	for (i = 0; i < MAX96712_PIPES_NUM; i++) {
 		pipe = &priv->pipes[i];
 
-		if (!priv->pipes[i].enabled)
+		if (!pipe->enabled)
 			continue;
 
 		ret = max96712_init_pipe(priv, pipe);
