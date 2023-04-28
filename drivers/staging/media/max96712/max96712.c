@@ -36,19 +36,6 @@
 
 #define MAX96712_MUX_CH_INVALID	-1
 
-#define MAX96712_DT_EMB8			0x12
-#define MAX96712_DT_YUV422_8B			0x1e
-#define MAX96712_DT_YUV422_10B			0x1f
-#define MAX96712_DT_RGB565			0x22
-#define MAX96712_DT_RGB666			0x23
-#define MAX96712_DT_RGB888			0x24
-#define MAX96712_DT_RAW8			0x2a
-#define MAX96712_DT_RAW10			0x2b
-#define MAX96712_DT_RAW12			0x2c
-#define MAX96712_DT_RAW14			0x2d
-#define MAX96712_DT_RAW16			0x2e
-#define MAX96712_DT_RAW20			0x2f
-
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
 #define v4l2_subdev_free_state v4l2_subdev_free_pad_config
@@ -76,11 +63,6 @@ struct max96712_dt_vc_remap {
 	u8 to_dt;
 	u8 to_vc;
 	u8 phy;
-};
-
-struct max96712_format {
-	u32 code;
-	u32 dt;
 };
 
 struct max96712_subdev_priv {
@@ -141,40 +123,6 @@ struct max96712_priv {
 	unsigned			cached_reg_addr;
 	char				read_buf[20];
 	unsigned int			read_buf_len;
-};
-
-#define MAX96712_FMT(_code, _dt)	\
-{					\
-	.code = (_code),		\
-	.dt = (_dt),			\
-}
-
-static const struct max96712_format max96712_formats[] = {
-	MAX96712_FMT(MEDIA_BUS_FMT_YUYV8_1X16, MAX96712_DT_YUV422_8B),
-	MAX96712_FMT(MEDIA_BUS_FMT_YUYV10_1X20, MAX96712_DT_YUV422_10B),
-	MAX96712_FMT(MEDIA_BUS_FMT_RGB565_1X16, MAX96712_DT_RGB565),
-	MAX96712_FMT(MEDIA_BUS_FMT_RGB666_1X18, MAX96712_DT_RGB666),
-	MAX96712_FMT(MEDIA_BUS_FMT_RGB888_1X24, MAX96712_DT_RGB888),
-	MAX96712_FMT(MEDIA_BUS_FMT_SBGGR8_1X8, MAX96712_DT_RAW8),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGBRG8_1X8, MAX96712_DT_RAW8),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGRBG8_1X8, MAX96712_DT_RAW8),
-	MAX96712_FMT(MEDIA_BUS_FMT_SRGGB8_1X8, MAX96712_DT_RAW8),
-	MAX96712_FMT(MEDIA_BUS_FMT_SBGGR10_1X10, MAX96712_DT_RAW10),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGBRG10_1X10, MAX96712_DT_RAW10),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGRBG10_1X10, MAX96712_DT_RAW10),
-	MAX96712_FMT(MEDIA_BUS_FMT_SRGGB10_1X10, MAX96712_DT_RAW10),
-	MAX96712_FMT(MEDIA_BUS_FMT_SBGGR12_1X12, MAX96712_DT_RAW12),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGBRG12_1X12, MAX96712_DT_RAW12),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGRBG12_1X12, MAX96712_DT_RAW12),
-	MAX96712_FMT(MEDIA_BUS_FMT_SRGGB12_1X12, MAX96712_DT_RAW12),
-	MAX96712_FMT(MEDIA_BUS_FMT_SBGGR14_1X14, MAX96712_DT_RAW14),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGBRG14_1X14, MAX96712_DT_RAW14),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGRBG14_1X14, MAX96712_DT_RAW14),
-	MAX96712_FMT(MEDIA_BUS_FMT_SRGGB14_1X14, MAX96712_DT_RAW14),
-	MAX96712_FMT(MEDIA_BUS_FMT_SBGGR16_1X16, MAX96712_DT_RAW16),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGBRG16_1X16, MAX96712_DT_RAW16),
-	MAX96712_FMT(MEDIA_BUS_FMT_SGRBG16_1X16, MAX96712_DT_RAW16),
-	MAX96712_FMT(MEDIA_BUS_FMT_SRGGB16_1X16, MAX96712_DT_RAW16),
 };
 
 static struct max96712_subdev_priv *next_subdev(struct max96712_priv *priv,
@@ -275,52 +223,6 @@ static int max96712_reset(struct max96712_priv *priv)
 	ret = max96712_wait_for_device(priv);
 	if (ret)
 		return ret;
-
-	return 0;
-}
-
-static const struct max96712_format *max96712_format_by_code(u32 code)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(max96712_formats); i++)
-		if (max96712_formats[i].code == code)
-			return &max96712_formats[i];
-
-	return NULL;
-}
-
-static const bool max96712_format_valid(struct max96712_subdev_priv *sd_priv, u32 code)
-{
-	return max96712_format_by_code(code);
-}
-
-static int max96712_set_dt(struct max96712_subdev_priv *sd_priv, u32 code)
-{
-	const struct max96712_format *fmt = max96712_format_by_code(code);
-	struct max96712_priv *priv = sd_priv->priv;
-	int ret;
-
-	if (!fmt)
-		return -EINVAL;
-
-	/* TODO: implement all other supported formats. */
-
-	ret = max96712_write(priv, 0x9b3, 0x00);
-	if (ret)
-		return ret;
-
-
-	switch (fmt->dt) {
-	case MAX96712_DT_RAW12:
-		ret = max96712_update_bits(priv, 0x9b3, BIT(1), BIT(1));
-		if (ret)
-			return ret;
-
-		break;
-	default:
-		dev_err(priv->dev, "Data type %02x not implemented\n", fmt->dt);
-	}
 
 	return 0;
 }
@@ -698,6 +600,12 @@ static int max96712_init(struct max96712_priv *priv)
 	if (ret)
 		return ret;
 
+	/* Set alternate memory map mode for 12bpp. */
+	/* TODO: make dynamic. */
+	ret = max96712_write(priv, 0x9b3, 0x01);
+	if (ret)
+		return ret;
+
 	/* Disable all PHYs. */
 	ret = max96712_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
 	if (ret)
@@ -911,23 +819,6 @@ static int max96712_get_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int max96712_check_fmt_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_format *format)
-{
-	struct max96712_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	int ret;
-
-	if (!max96712_format_valid(sd_priv, format->format.code))
-		return -EINVAL;
-
-	ret = max96712_set_dt(sd_priv, format->format.code);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max96712_get_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *format)
@@ -943,10 +834,6 @@ static int max96712_get_fmt(struct v4l2_subdev *sd,
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, get_fmt,
 			       sd_priv->slave_sd_state, &sd_format);
-	if (ret)
-		return ret;
-
-	ret = max96712_check_fmt_code(sd, sd_state, &sd_format);
 	if (ret)
 		return ret;
 
@@ -970,10 +857,6 @@ static int max96712_set_fmt(struct v4l2_subdev *sd,
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, pad, set_fmt,
 			       sd_priv->slave_sd_state, &sd_format);
-	if (ret)
-		return ret;
-
-	ret = max96712_check_fmt_code(sd, sd_state, &sd_format);
 	if (ret)
 		return ret;
 
