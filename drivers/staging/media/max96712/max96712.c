@@ -26,6 +26,7 @@
 #define MAX96712_SINK_PAD	1
 #define MAX96712_PAD_NUM	2
 
+/* TODO: allow infinite subdevs. */
 #define MAX96712_SUBDEVS_NUM	4
 #define MAX96712_PHYS_NUM	4
 #define MAX96712_PIPES_NUM	4
