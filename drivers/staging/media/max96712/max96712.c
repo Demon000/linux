@@ -722,6 +722,7 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 				 struct v4l2_async_subdev *asd)
 {
 	struct max96712_subdev_priv *sd_priv = sd_to_max96712(notifier->sd);
+	struct max96712_subdev_priv *other_sd_priv;
 	struct max96712_priv *priv = sd_priv->priv;
 	int ret;
 
@@ -729,9 +730,22 @@ static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
 	if (ret)
 		return ret;
 
-	ret = max96712_link_media(sd_priv, subdev);
-	if (ret)
-		return ret;
+	for_each_subdev(priv, other_sd_priv) {
+		if (other_sd_priv->slave_fwnode != sd_priv->slave_fwnode)
+			continue;
+
+		ret = max96712_link_media(other_sd_priv, subdev);
+		if (ret)
+			return ret;
+
+		other_sd_priv->slave_sd_state = sd_priv->slave_sd_state;
+
+		if (!other_sd_priv->registered) {
+			ret = v4l2_async_register_subdev(&sd_priv->sd);
+			if (ret)
+				return ret;
+		}
+	}
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, core, post_register);
 	if (ret) {
