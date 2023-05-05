@@ -82,8 +82,6 @@ struct max96712_subdev_priv {
 	struct media_pad pads[MAX96712_PAD_NUM];
 
 	bool active;
-	bool initialized;
-	bool registered;
 	unsigned int pipe_id;
 	struct max96712_dt_vc_remap remaps[MAX96712_REMAPS_NUM];
 	unsigned int num_remaps;
@@ -664,9 +662,11 @@ static int max96712_init(struct max96712_priv *priv)
 	return 0;
 }
 
-static int max96712_link_media(struct max96712_subdev_priv *sd_priv,
-			       struct v4l2_subdev *subdev)
+static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
+				 struct v4l2_subdev *subdev,
+				 struct v4l2_async_subdev *asd)
 {
+	struct max96712_subdev_priv *sd_priv = sd_to_max96712(notifier->sd);
 	struct max96712_priv *priv = sd_priv->priv;
 	int ret;
 
@@ -704,48 +704,9 @@ static int max96712_link_media(struct max96712_subdev_priv *sd_priv,
 		sd_priv->sd.name,
 		MAX96712_SINK_PAD);
 
-	return 0;
-}
-
-static int max96712_alloc_state(struct max96712_subdev_priv *sd_priv,
-				struct v4l2_subdev *subdev)
-{
 	sd_priv->slave_sd_state = v4l2_subdev_alloc_state(subdev);
 	if (IS_ERR(sd_priv->slave_sd_state))
 		return PTR_ERR(sd_priv->slave_sd_state);
-
-	return 0;
-}
-
-static int max96712_notify_bound(struct v4l2_async_notifier *notifier,
-				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
-{
-	struct max96712_subdev_priv *sd_priv = sd_to_max96712(notifier->sd);
-	struct max96712_subdev_priv *other_sd_priv;
-	struct max96712_priv *priv = sd_priv->priv;
-	int ret;
-
-	ret = max96712_alloc_state(sd_priv, subdev);
-	if (ret)
-		return ret;
-
-	for_each_subdev(priv, other_sd_priv) {
-		if (other_sd_priv->slave_fwnode != sd_priv->slave_fwnode)
-			continue;
-
-		ret = max96712_link_media(other_sd_priv, subdev);
-		if (ret)
-			return ret;
-
-		other_sd_priv->slave_sd_state = sd_priv->slave_sd_state;
-
-		if (!other_sd_priv->registered) {
-			ret = v4l2_async_register_subdev(&sd_priv->sd);
-			if (ret)
-				return ret;
-		}
-	}
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, core, post_register);
 	if (ret) {
@@ -995,12 +956,18 @@ static const struct v4l2_subdev_ops max96712_subdev_ops = {
 	.pad = &max96712_pad_ops,
 };
 
-static int max96712_v4l2_init_sd(struct max96712_subdev_priv *sd_priv)
+static int max96712_v4l2_register_sd(struct max96712_subdev_priv *sd_priv)
 {
 	struct max96712_priv *priv = sd_priv->priv;
+	unsigned int index = sd_priv->index;
 	char postfix[3];
+	int ret;
 
-	snprintf(postfix, sizeof(postfix), ":%d", sd_priv->index);
+	ret = max96712_v4l2_notifier_register(sd_priv);
+	if (ret)
+		return ret;
+
+	snprintf(postfix, sizeof(postfix), ":%d", index);
 
 	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max96712_subdev_ops);
 	v4l2_i2c_subdev_set_name(&sd_priv->sd, priv->client, NULL, postfix);
@@ -1011,20 +978,30 @@ static int max96712_v4l2_init_sd(struct max96712_subdev_priv *sd_priv)
 	sd_priv->pads[MAX96712_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	sd_priv->pads[MAX96712_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
 
+	ret = media_entity_pads_init(&sd_priv->sd.entity, MAX96712_PAD_NUM, sd_priv->pads);
+	if (ret)
+		goto error;
+
 	v4l2_set_subdevdata(&sd_priv->sd, sd_priv);
 
-	return media_entity_pads_init(&sd_priv->sd.entity, MAX96712_PAD_NUM,
-				      sd_priv->pads);
-}
+	return v4l2_async_register_subdev(&sd_priv->sd);
 
-static void max96712_v4l2_uninit_sd(struct max96712_subdev_priv *sd_priv)
-{
+error:
+	v4l2_async_notifier_unregister(&sd_priv->notifier);
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
 	media_entity_cleanup(&sd_priv->sd.entity);
+	fwnode_handle_put(sd_priv->sd.fwnode);
+
+	return ret;
 }
 
 static void max96712_v4l2_unregister_sd(struct max96712_subdev_priv *sd_priv)
 {
+	v4l2_async_notifier_unregister(&sd_priv->notifier);
+	v4l2_async_notifier_cleanup(&sd_priv->notifier);
 	v4l2_async_unregister_subdev(&sd_priv->sd);
+	media_entity_cleanup(&sd_priv->sd.entity);
+	fwnode_handle_put(sd_priv->sd.fwnode);
 }
 
 static int max96712_v4l2_register(struct max96712_priv *priv)
@@ -1033,53 +1010,9 @@ static int max96712_v4l2_register(struct max96712_priv *priv)
 	int ret;
 
 	for_each_subdev(priv, sd_priv) {
-		ret = max96712_v4l2_init_sd(sd_priv);
-		if (ret)
-			break;
-
-		sd_priv->initialized = true;
-	}
-
-	if (ret) {
-		for_each_subdev(priv, sd_priv) {
-			if (!sd_priv->initialized)
-				continue;
-
-			max96712_v4l2_uninit_sd(sd_priv);
-		}
-		return ret;
-	}
-
-	/*
-	 * Only one subdev can register a notifier for another subdev,
-	 * but PHY replication requires us to link from multiple subdevs
-	 * to the same subdev. Register notifier-less subdevs after binding.
-	 */
-	for_each_subdev(priv, sd_priv) {
-		ret = max96712_v4l2_notifier_register(sd_priv);
-		if (ret && ret != -EEXIST)
-			break;
-
-		if (ret == -EEXIST) {
-			ret = 0;
-			continue;
-		}
-
-		ret = v4l2_async_register_subdev(&sd_priv->sd);
+		ret = max96712_v4l2_register_sd(sd_priv);
 		if (ret)
 			return ret;
-
-		sd_priv->registered = true;
-	}
-
-	if (ret) {
-		for_each_subdev(priv, sd_priv) {
-			if (!sd_priv->registered)
-				continue;
-
-			max96712_v4l2_unregister_sd(sd_priv);
-		}
-		return ret;
 	}
 
 	return 0;
@@ -1089,10 +1022,8 @@ static void max96712_v4l2_unregister(struct max96712_priv *priv)
 {
 	struct max96712_subdev_priv *sd_priv;
 
-	for_each_subdev(priv, sd_priv) {
+	for_each_subdev(priv, sd_priv)
 		max96712_v4l2_unregister_sd(sd_priv);
-		max96712_v4l2_uninit_sd(sd_priv);
-	}
 }
 
 static int max96712_parse_ch_remap_dt(struct max96712_subdev_priv *sd_priv,
