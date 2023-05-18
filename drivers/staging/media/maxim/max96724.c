@@ -17,6 +17,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#include "max_serdes.h"
+
 #define MAX96724_ID 0x20
 
 #define MAX96724_DPLL_FREQ 2500
@@ -35,14 +37,6 @@
 #define MAX96724_REMAPS_NUM	16
 
 #define MAX96724_MUX_CH_INVALID	-1
-
-#define v4l2_subdev_state v4l2_subdev_pad_config
-#define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
-#define v4l2_subdev_free_state v4l2_subdev_free_pad_config
-#undef v4l2_async_notifier_add_fwnode_subdev
-#define v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode, __type) \
-((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,    \
-                           sizeof(__type)))
 
 static const struct regmap_config max96724_i2c_regmap = {
 	.reg_bits = 16,

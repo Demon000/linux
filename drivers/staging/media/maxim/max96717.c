@@ -19,6 +19,8 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#include "max_serdes.h"
+
 #define MAX96717_SOURCE_PAD	0
 #define MAX96717_SINK_PAD	1
 #define MAX96717_PAD_NUM	2
@@ -38,14 +40,6 @@
 #define MAX96717_DT_RAW14			0x2d
 #define MAX96717_DT_RAW16			0x2e
 #define MAX96717_DT_RAW20			0x2f
-
-#define v4l2_subdev_state v4l2_subdev_pad_config
-#define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
-#define v4l2_subdev_free_state v4l2_subdev_free_pad_config
-#undef v4l2_async_notifier_add_fwnode_subdev
-#define v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode, __type) \
-((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,    \
-                           sizeof(__type)))
 
 struct max96717_asd {
 	struct v4l2_async_subdev base;
