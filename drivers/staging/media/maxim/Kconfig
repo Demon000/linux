@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0
+config VIDEO_MAXIM
+	bool "Maxim support"
+	help
+	  Add support for Maxim video4linux drivers.
+
+if VIDEO_MAXIM
+
+config VIDEO_MAXIM_SERDES
+	tristate "Maxim GMSL2 Serializer and Deserializer support"
+	depends on OF_GPIO
+	depends on VIDEO_V4L2
+	select V4L2_FWNODE
+	select VIDEO_V4L2_SUBDEV_API
+	select MEDIA_CONTROLLER
+	help
+	  This driver supports the Maxim GMSL2 common Serializer and Deserializer
+	  framework.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max_serdes.
+
+config VIDEO_MAX96717
+	tristate "Maxim MAX96717 GMSL2 Serializer support"
+	depends on I2C
+	select VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim MAX96717 GMSL2 Seserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96717.
+
+config VIDEO_MAX96724
+	tristate "Maxim MAX96712 Quad GMSL2 Deserializer support"
+	depends on I2C
+	select VIDEO_MAXIM_SERDES
+	help
+	  This driver supports the Maxim MAX96724 Quad GMSL2 Deserializer.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max96724.
+
+endif
