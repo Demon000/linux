@@ -18,6 +18,7 @@
 #include <media/v4l2-subdev.h>
 
 #include "max_des.h"
+#include "max_serdes.h"
 
 #define MAX_DES_DPLL_FREQ 2500
 
