@@ -1,4 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Maxim MAX96717 GMSL2 Serializer Driver
+ *
+ * Copyright (C) 2023 Analog Devices Inc.
+ */
 
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -1268,6 +1273,6 @@ static struct i2c_driver max96717_i2c_driver = {
 
 module_i2c_driver(max96717_i2c_driver);
 
-MODULE_DESCRIPTION("MAX96717 GMSL serializer subdevice driver");
+MODULE_DESCRIPTION("MAX96717 GMSL2 Serializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");

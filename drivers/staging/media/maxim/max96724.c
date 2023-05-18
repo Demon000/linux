@@ -2,8 +2,7 @@
 /*
  * Maxim MAX96724 Quad GMSL2 Deserializer Driver
  *
- * Copyright (C) 2021 Renesas Electronics Corporation
- * Copyright (C) 2021 Niklas Söderlund
+ * Copyright (C) 2023 Analog Devices Inc.
  */
 
 #include <linux/debugfs.h>
@@ -1516,5 +1515,5 @@ static struct i2c_driver max96724_i2c_driver = {
 module_i2c_driver(max96724_i2c_driver);
 
 MODULE_DESCRIPTION("Maxim MAX96724 Quad GMSL2 Deserializer Driver");
-MODULE_AUTHOR("Niklas Söderlund <niklas.soderlund@ragnatech.se>");
+MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
