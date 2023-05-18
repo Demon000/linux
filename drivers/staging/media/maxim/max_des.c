@@ -1326,7 +1326,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
     return 0;
 }
 
-static int max_des_probe(struct i2c_client *client)
+int max_des_probe(struct i2c_client *client)
 {
     struct max_des_priv *priv;
     int ret;
@@ -1373,7 +1373,7 @@ static int max_des_probe(struct i2c_client *client)
     return max_des_v4l2_register(priv);
 }
 
-static int max_des_remove(struct i2c_client *client)
+int max_des_remove(struct i2c_client *client)
 {
     struct max_des_priv *priv = i2c_get_clientdata(client);
 
