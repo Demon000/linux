@@ -5,6 +5,10 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/i2c.h>
+#include <linux/module.h>
+#include <linux/of_graph.h>
+
 #include "max_des.h"
 #include "max_serdes.h"
 
