@@ -15,8 +15,6 @@
 #include "max_des.h"
 #include "max_serdes.h"
 
-#define MAX_DES_DPLL_FREQ		2500
-
 #define MAX_DES_REMAP_EL_NUM		5
 #define MAX_DES_MUX_CH_INVALID		-1
 

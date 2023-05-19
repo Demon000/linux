@@ -12,6 +12,8 @@
 
 #include "max_des.h"
 
+#define MAX96724_DPLL_FREQ		2500
+
 static const struct regmap_config max96724_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
@@ -245,7 +247,7 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 	/* Set DPLL frequency. */
 	reg = 0x415 + 0x3 * index;
 	ret = max96724_update_bits(priv, reg, GENMASK(4, 0),
-				   MAX_DES_DPLL_FREQ / 100);
+				   MAX96724_DPLL_FREQ / 100);
 	if (ret)
 		return ret;
 
@@ -344,7 +346,7 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	unsigned int index = pipe->index;
-	unsigned int reg, val, shift;
+	unsigned int reg, shift;
 	int ret;
 
 	/* Set destination PHY. */
@@ -378,7 +380,7 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
-	return max_des_init_pipe_remaps(priv, pipe);
+	return max96724_init_pipe_remaps(priv, pipe);
 }
 
 static int max96724_init_link(struct max_des_priv *des_priv,
@@ -404,7 +406,7 @@ static int max96724_post_init(struct max_des_priv *des_priv)
 	int ret;
 
 	/* One-shot reset all PHYs. */
-	ret = max_des_write(priv, 0x18, 0x0f);
+	ret = max96724_write(priv, 0x18, 0x0f);
 	if (ret)
 		return ret;
 
@@ -423,12 +425,14 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
+	.init_link = max96724_init_link,
 	.post_init = max96724_post_init,
 };
 
 static int max96724_probe(struct i2c_client *client)
 {
 	struct max96724_priv *priv;
+	int ret;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -454,7 +458,6 @@ static int max96724_probe(struct i2c_client *client)
 
 	priv->des_priv.dev = &client->dev;
 	priv->des_priv.client = client;
-	priv->des_priv.regmap = priv->regmap;
 	priv->des_priv.ops = &max96724_ops;
 
 	ret = max96724_reset(priv);
