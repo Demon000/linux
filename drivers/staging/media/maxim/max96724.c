@@ -154,17 +154,17 @@ static int max96724_init(struct max_des_priv *des_priv)
 
 	/* Set alternate memory map mode for 12bpp. */
 	/* TODO: make dynamic. */
-	ret = max96724_des_write(priv, 0x9b3, 0x01);
+	ret = max96724_write(priv, 0x9b3, 0x01);
 	if (ret)
 		return ret;
 
 	/* Disable all PHYs. */
-	ret = max96724_des_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
+	ret = max96724_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
 	if (ret)
 		return ret;
 
 	/* Disable automatic stream select. */
-	ret = max96724_des_update_bits(priv, 0xf4, BIT(4), 0x00);
+	ret = max96724_update_bits(priv, 0xf4, BIT(4), 0x00);
 	if (ret)
 		return ret;
 
