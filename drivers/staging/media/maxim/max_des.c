@@ -921,7 +921,7 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 }
 
 static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
-					  struct fwnode_handle *fwnode)
+				     struct fwnode_handle *fwnode)
 {
 	const char *prop_name = "max,dt-vc-phy-remap";
 	struct max_des_priv *priv = sd_priv->priv;
