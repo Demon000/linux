@@ -3,8 +3,6 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include <linux/regmap.h>
-
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -57,6 +55,11 @@ struct max_des_subdev_priv {
 	unsigned int num_remaps;
 };
 
+struct max_des_link {
+	unsigned int index;
+	bool enabled;
+};
+
 struct max_des_pipe {
 	unsigned int index;
 	unsigned int dest_phy;
@@ -73,10 +76,21 @@ struct max_des_phy {
 	bool enabled;
 };
 
+struct max_des_ops {
+	int (*mux_select)(struct max_des_priv *des_priv, unsigned int link);
+	int (*mipi_enable)(struct max_des_priv *des_priv, bool enable);
+	int (*init)(struct max_des_priv *priv);
+	int (*init_phy)(struct max_des_priv *priv, struct max_des_phy *phy);
+	int (*init_pipe)(struct max_des_priv *priv, struct max_des_pipe *pipe);
+	int (*init_link)(struct max_des_priv *priv, struct max_des_link *link);
+	int (*post_init)(struct max_des_priv *priv);
+};
+
 struct max_des_priv {
+	const struct max_des_ops *ops;
+
 	struct device *dev;
 	struct i2c_client *client;
-	struct regmap *regmap;
 
 	struct i2c_mux_core *mux;
 	int mux_channel;

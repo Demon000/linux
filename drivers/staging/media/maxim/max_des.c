@@ -52,27 +52,17 @@ static inline struct max_des_subdev_priv *sd_to_max_des(struct v4l2_subdev *sd)
 static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max_des_priv *priv = i2c_mux_priv(muxc);
-	int ret;
 
 	if (priv->mux_channel == chan)
 		return 0;
 
 	priv->mux_channel = chan;
 
-	ret = max_des_write(priv, 0x3, (~BIT(chan * 2)) & 0xff);
-	if (ret) {
-		dev_err(priv->dev, "Failed to write I2C mux config: %d\n", ret);
-		return ret;
-	}
-
-	usleep_range(3000, 5000);
-
-	return 0;
+	return priv->ops->mux_select(priv, chan);
 }
 
 static int max_des_i2c_mux_init(struct max_des_priv *priv)
 {
-	struct max_des_subdev_priv *sd_priv;
 	unsigned int i;
 	int ret;
 
@@ -113,7 +103,6 @@ static int __max_des_mipi_update(struct max_des_priv *priv)
 {
 	struct max_des_subdev_priv *sd_priv;
 	bool enable = 0;
-	int ret;
 
 	for_each_subdev(priv, sd_priv)
 		if (sd_priv->active)
@@ -124,25 +113,7 @@ static int __max_des_mipi_update(struct max_des_priv *priv)
 
 	priv->active = enable;
 
-	if (enable) {
-		ret = max_des_update_bits(priv, 0x40b, 0x02, 0x02);
-		if (ret)
-			return ret;
-
-		ret = max_des_update_bits(priv, 0x8a0, 0x80, 0x80);
-		if (ret)
-			return ret;
-	} else {
-		ret = max_des_update_bits(priv, 0x8a0, 0x80, 0x00);
-		if (ret)
-			return ret;
-
-		ret = max_des_update_bits(priv, 0x40b, 0x02, 0x00);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return priv->ops->mipi_enable(priv, enable);
 }
 
 static int max_des_mipi_enable(struct max_des_subdev_priv *sd_priv, bool enable)
@@ -163,161 +134,6 @@ exit:
 	mutex_unlock(&priv->lock);
 
 	return ret;
-}
-
-static int max_des_init_phy(struct max_des_priv *priv,
-			    struct max_des_phy *phy)
-{
-	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int reg, val, shift, mask, clk_bit;
-	unsigned int index = phy->index;
-	unsigned int i;
-	int ret;
-
-	/* Configure a lane count. */
-	/* TODO: Add support CPHY mode. */
-	ret = max_des_update_bits(priv, 0x90a + 0x40 * index, GENMASK(7, 6),
-				   FIELD_PREP(GENMASK(7, 6), num_data_lanes - 1));
-	if (ret)
-		return ret;
-
-	if (num_data_lanes == 4) {
-		mask = 0xff;
-		val = 0xe4;
-		shift = 0;
-	} else {
-		mask = 0xf;
-		val = 0x4;
-		shift = 4 * (index % 2);
-	}
-
-	reg = 0x8a3 + index / 2;
-
-	/* Configure lane mapping. */
-	/* TODO: Add support for lane swapping. */
-	ret = max_des_update_bits(priv, reg, mask << shift, val << shift);
-	if (ret)
-		return ret;
-
-	if (num_data_lanes == 4) {
-		mask = 0x3f;
-		clk_bit = 5;
-		shift = 0;
-	} else {
-		mask = 0x7;
-		clk_bit = 2;
-		shift = 4 * (index % 2);
-	}
-
-	reg = 0x8a5 + index / 2;
-
-	/* Configure lane polarity. */
-	val = 0;
-	for (i = 0; i < num_data_lanes + 1; i++)
-		if (phy->mipi.lane_polarities[i])
-			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
-	ret = max_des_update_bits(priv, reg, mask << shift, val << shift);
-	if (ret)
-		return ret;
-
-	/* Put DPLL block into reset. */
-	ret = max_des_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x00);
-	if (ret)
-		return ret;
-
-	/* Set DPLL frequency. */
-	reg = 0x415 + 0x3 * index;
-	ret = max_des_update_bits(priv, reg, GENMASK(4, 0),
-				   MAX_DES_DPLL_FREQ / 100);
-	if (ret)
-		return ret;
-
-	/* Enable DPLL frequency. */
-	ret = max_des_update_bits(priv, reg, BIT(5), BIT(5));
-	if (ret)
-		return ret;
-
-	/* Pull DPLL block out of reset. */
-	ret = max_des_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x01);
-	if (ret)
-		return ret;
-
-	/* Disable initial deskew. */
-	ret = max_des_write(priv, 0x903 + 0x40 * index, 0x07);
-	if (ret)
-		return ret;
-
-	/* Disable periodic deskeq. */
-	ret = max_des_write(priv, 0x904 + 0x40 * index, 0x01);
-	if (ret)
-		return ret;
-
-	/* Enable PHY. */
-	val = BIT(index) << 4;
-	max_des_update_bits(priv, 0x8a2, val, val);
-
-	return 0;
-}
-
-static int max_des_init_pipe_remap(struct max_des_priv *priv,
-				   struct max_des_pipe *pipe,
-				   struct max_des_dt_vc_remap *remap,
-				   unsigned int i)
-{
-	unsigned int index = pipe->index;
-	unsigned int reg, val, shift, mask;
-	int ret;
-
-	/* Set source Data Type and Virtual Channel. */
-	/* TODO: implement extended Virtual Channel. */
-	reg = 0x90d + 0x40 * index + i * 2;
-	ret = max_des_write(priv, reg,
-				 MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
-	if (ret)
-		return ret;
-
-	/* Set destination Data Type and Virtual Channel. */
-	/* TODO: implement extended Virtual Channel. */
-	reg = 0x90e + 0x40 * index + i * 2;
-	ret = max_des_write(priv, reg,
-				 MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
-	if (ret)
-		return ret;
-
-	/* Set destination PHY. */
-	reg = 0x92d + 0x40 * index + i / 4;
-	shift = (i % 4) * 2;
-	mask = 0x3 << shift;
-	val = (remap->phy & 0x3) << shift;
-	ret = max_des_update_bits(priv, reg, mask, val);
-	if (ret)
-		return ret;
-
-	/* Enable remap. */
-	reg = 0x90b + 0x40 * index + i / 8;
-	val = BIT(i % 8);
-	ret = max_des_update_bits(priv, reg, val, val);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int max_des_init_pipe_remaps(struct max_des_priv *priv,
-				    struct max_des_pipe *pipe)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < pipe->num_remaps; i++) {
-		struct max_des_dt_vc_remap *remap = &pipe->remaps[i];
-
-		ret = max_des_init_pipe_remap(priv, pipe, remap, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 static int max_des_update_pipe_remaps(struct max_des_priv *priv,
@@ -365,57 +181,8 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 	return 0;
 }
 
-static int max_des_init_pipe(struct max_des_priv *priv,
-			     struct max_des_pipe *pipe)
-{
-	unsigned int index = pipe->index;
-	unsigned int reg, val, shift;
-	int ret;
-
-	/* Set destination PHY. */
-	shift = index * 2;
-	ret = max_des_update_bits(priv, 0x8ca, 0x3 << shift,
-				  pipe->dest_phy << shift);
-	if (ret)
-		return ret;
-
-	shift = 4;
-	ret = max_des_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
-				  pipe->dest_phy << shift);
-	if (ret)
-		return ret;
-
-	/* Enable pipe. */
-	ret = max_des_update_bits(priv, 0xf4, BIT(index), BIT(index));
-	if (ret)
-		return ret;
-
-	/* Set source stream. */
-	reg = 0xf0 + index / 2;
-	shift = 4 * (index % 2);
-	ret = max_des_update_bits(priv, reg, 0x3 << shift, pipe->src_stream_id << shift);
-	if (ret)
-		return ret;
-
-	/* Set source link. */
-	shift += 2;
-	ret = max_des_update_bits(priv, reg, 0x3 << shift, pipe->src_link << shift);
-	if (ret)
-		return ret;
-
-	/* Enable link. */
-	val = BIT(pipe->src_link);
-	ret = max_des_update_bits(priv, 0x6, val, val);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max_des_init(struct max_des_priv *priv)
 {
-	struct max_des_pipe *pipe;
-	struct max_des_phy *phy;
 	unsigned int i;
 	int ret;
 
@@ -423,68 +190,47 @@ static int max_des_init(struct max_des_priv *priv)
 	if (ret)
 		return ret;
 
-	/* Select 2x4 or 4x2 mode. */
-	ret = max_des_update_bits(priv, 0x8a0, 0x1f, BIT(priv->lane_config));
-	if (ret)
-		return ret;
-
-	/* Set alternate memory map mode for 12bpp. */
-	/* TODO: make dynamic. */
-	ret = max_des_write(priv, 0x9b3, 0x01);
-	if (ret)
-		return ret;
-
-	/* Disable all PHYs. */
-	ret = max_des_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
-	if (ret)
-		return ret;
-
-	/* Disable automatic stream select. */
-	ret = max_des_update_bits(priv, 0xf4, BIT(4), 0x00);
+	ret = priv->ops->init(priv);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < MAX_DES_PHYS_NUM; i++) {
-		phy = &priv->phys[i];
+		struct max_des_phy *phy = &priv->phys[i];
 
 		if (!phy->enabled)
 			continue;
 
-		ret = max_des_init_phy(priv, phy);
+		ret = priv->ops->init_phy(priv, phy);
 		if (ret)
 			return ret;
 	}
 
-	/* Disable all pipes. */
-	ret = max_des_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
-	if (ret)
-		return ret;
-
 	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
-		pipe = &priv->pipes[i];
+		struct max_des_pipe *pipe = &priv->pipes[i];
 
 		if (!pipe->enabled)
 			continue;
 
-		ret = max_des_init_pipe(priv, pipe);
-		if (ret)
-			return ret;
-
-		ret = max_des_init_pipe_remaps(priv, pipe);
+		ret = priv->ops->init_pipe(priv, pipe);
 		if (ret)
 			return ret;
 	}
 
-	/* One-shot reset all PHYs. */
-	ret = max_des_write(priv, 0x18, 0x0f);
+	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+		struct max_des_link *link = &priv->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		ret = priv->ops->init_link(priv, link);
+		if (ret)
+			return ret;
+
+	}
+
+	ret = priv->ops->post_init(priv);
 	if (ret)
 		return ret;
-
-	/*
-	 * Wait for 2ms to allow the link to resynchronize after the
-	 * configuration change.
-	 */
-	usleep_range(2000, 5000);
 
 	return 0;
 }
