@@ -951,14 +951,15 @@ static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
 
 	for (i = 0; i < count; i += MAX_DES_REMAP_EL_NUM) {
 		unsigned int index = i / MAX_DES_REMAP_EL_NUM;
+		struct max_des_dt_vc_remap *remap = &sd_priv->remaps[index];
 
-		sd_priv->remaps[index].from_dt = remaps_arr[i + 0];
-		sd_priv->remaps[index].from_vc = remaps_arr[i + 1];
-		sd_priv->remaps[index].to_dt = remaps_arr[i + 2];
-		sd_priv->remaps[index].to_vc = remaps_arr[i + 3];
-		sd_priv->remaps[index].phy = remaps_arr[i + 4];
+		remap->from_dt = remaps_arr[i + 0];
+		remap->from_vc = remaps_arr[i + 1];
+		remap->to_dt = remaps_arr[i + 2];
+		remap->to_vc = remaps_arr[i + 3];
+		remap->phy = remaps_arr[i + 4];
 
-		if (remaps_arr[i + 4] > MAX_DES_PHYS_NUM) {
+		if (remap->phy > MAX_DES_PHYS_NUM) {
 			dev_err(priv->dev, "Invalid remap PHY %u\n",
 				remaps_arr[i + 4]);
 			ret = -EINVAL;
