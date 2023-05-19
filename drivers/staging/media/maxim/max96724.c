@@ -10,7 +10,6 @@
 #include <linux/of_graph.h>
 
 #include "max_des.h"
-#include "max_serdes.h"
 
 static const struct regmap_config max96724_i2c_regmap = {
 	.reg_bits = 16,
