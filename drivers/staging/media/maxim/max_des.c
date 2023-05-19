@@ -1168,7 +1168,14 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		if (!of_node_name_eq(of_node, channel_node_name))
 			continue;
 
-		priv->num_subdevs++;
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index > priv->num_subdevs)
+			priv->num_subdevs = index;
 	}
 
 	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
@@ -1186,11 +1193,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		if (ret) {
 			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
 			continue;
-		}
-
-		if (index >= priv->num_subdevs) {
-			dev_err(priv->dev, "Invalid channel number %u\n", index);
-			return -EINVAL;
 		}
 
 		sd_priv = &priv->sd_privs[index];
