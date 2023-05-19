@@ -1075,7 +1075,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 
 	/* TODO: check the rest of the MIPI configuration. */
 	if (phy->mipi.num_data_lanes && phy->mipi.num_data_lanes !=
-		v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+	    v4l2_ep.bus.mipi_csi2.num_data_lanes) {
 		dev_err(priv->dev, "PHY configured with differing number of data lanes\n");
 		return -EINVAL;
 	}
