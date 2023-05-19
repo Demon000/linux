@@ -65,9 +65,9 @@ static int max96724_update_bits(struct max96724_priv *priv, unsigned int reg,
 	return ret;
 }
 
-static int max96724_wait_for_device(struct max_des_priv *priv)
+static int max96724_wait_for_device(struct max96724_priv *priv )
 {
-	unsigned int i, val;
+	unsigned int i;
 	int ret;
 
 	for (i = 0; i < 100; i++) {
@@ -83,7 +83,7 @@ static int max96724_wait_for_device(struct max_des_priv *priv)
 	return ret;
 }
 
-static int max96724_reset(struct max_des_priv *priv)
+static int max96724_reset(struct max96724_priv *priv)
 {
 	int ret;
 
