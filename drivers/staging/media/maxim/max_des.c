@@ -393,12 +393,12 @@ static int max_des_init_pipe(struct max_des_priv *priv,
 
 	/* Set source link. */
 	shift += 2;
-	ret = max_des_update_bits(priv, reg, 0x3 << shift, pipe->src_gmsl_link << shift);
+	ret = max_des_update_bits(priv, reg, 0x3 << shift, pipe->src_link << shift);
 	if (ret)
 		return ret;
 
 	/* Enable link. */
-	val = BIT(pipe->src_gmsl_link);
+	val = BIT(pipe->src_link);
 	ret = max_des_update_bits(priv, 0x6, val, val);
 	if (ret)
 		return ret;
@@ -924,13 +924,13 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	}
 	pipe->src_stream_id = val;
 
-	val = pipe->src_gmsl_link;
-	fwnode_property_read_u32(fwnode, "max,src-gmsl-link", &val);
+	val = pipe->src_link;
+	fwnode_property_read_u32(fwnode, "max,src-link", &val);
 	if (val > MAX_DES_LINKS_NUM) {
 		dev_err(priv->dev, "Invalid source link %u\n", val);
 		return -EINVAL;
 	}
-	pipe->src_gmsl_link = val;
+	pipe->src_link = val;
 
 	return 0;
 }
@@ -1062,7 +1062,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
 		pipe = &priv->pipes[i];
 		pipe->index = i;
-		pipe->src_gmsl_link = i;
+		pipe->src_link = i;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
