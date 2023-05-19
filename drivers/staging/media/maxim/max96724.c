@@ -21,6 +21,7 @@ static const struct regmap_config max96724_i2c_regmap = {
 struct max96724_priv {
 	struct max_des_priv des_priv;
 
+	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
 };
@@ -433,6 +434,7 @@ static int max96724_probe(struct i2c_client *client)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = &client->dev;
 	i2c_set_clientdata(client, priv);
 
 	priv->regmap = devm_regmap_init_i2c(client, &max96724_i2c_regmap);
