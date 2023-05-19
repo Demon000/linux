@@ -12,7 +12,7 @@
 #include "max_des.h"
 #include "max_serdes.h"
 
-static const struct regmap_config max_des_i2c_regmap = {
+static const struct regmap_config max96724_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
 	.max_register = 0x1f00,
@@ -38,7 +38,7 @@ static int max96724_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, priv);
 
-	priv->regmap = devm_regmap_init_i2c(client, &max_des_i2c_regmap);
+	priv->regmap = devm_regmap_init_i2c(client, &max96724_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
