@@ -1132,6 +1132,7 @@ static const unsigned int max_des_lane_configs[][MAX_DES_PHYS_NUM] = {
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
 	const char *channel_node_name = "channel";
+	const char *pipe_node_name = "pipe";
 	struct max_des_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
 	struct max_des_pipe *pipe;
@@ -1154,7 +1155,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
-		if (!of_node_name_eq(of_node, "pipe"))
+		if (!of_node_name_eq(of_node, pipe_node_name))
 			continue;
 
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
