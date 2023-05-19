@@ -29,12 +29,6 @@
 #define MAX_DES_REMAP_EL_NUM		5
 #define MAX_DES_MUX_CH_INVALID		-1
 
-static const struct regmap_config max_des_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
-
 static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
 					       struct max_des_subdev_priv *sd_priv)
 {
@@ -1260,33 +1254,9 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	return 0;
 }
 
-int max_des_probe(struct i2c_client *client)
+int max_des_probe(struct max_des_priv *priv)
 {
-	struct max_des_priv *priv;
 	int ret;
-
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->dev = &client->dev;
-	priv->client = client;
-	i2c_set_clientdata(client, priv);
-
-	priv->regmap = devm_regmap_init_i2c(client, &max_des_i2c_regmap);
-	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
-
-	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
-						   GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->gpiod_pwdn))
-		return PTR_ERR(priv->gpiod_pwdn);
-
-	gpiod_set_consumer_name(priv->gpiod_pwdn, "max_des-pwdn");
-	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
-
-	if (priv->gpiod_pwdn)
-		usleep_range(4000, 5000);
 
 	ret = max_des_reset(priv);
 	if (ret)
@@ -1307,13 +1277,9 @@ int max_des_probe(struct i2c_client *client)
 	return max_des_v4l2_register(priv);
 }
 
-int max_des_remove(struct i2c_client *client)
+int max_des_remove(struct max_des_priv *priv)
 {
-	struct max_des_priv *priv = i2c_get_clientdata(client);
-
 	max_des_v4l2_unregister(priv);
-
-	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 
 	return 0;
 }

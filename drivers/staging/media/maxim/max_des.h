@@ -66,7 +66,6 @@ struct max_des_priv {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct gpio_desc *gpiod_pwdn;
 
 	struct i2c_mux_core *mux;
 	int mux_channel;
@@ -81,6 +80,6 @@ struct max_des_priv {
 	struct max_des_subdev_priv *sd_privs;
 };
 
-int max_des_probe(struct i2c_client *client);
+int max_des_probe(struct max_des_priv *priv);
 
-int max_des_remove(struct i2c_client *client);
+int max_des_remove(struct max_des_priv *priv);
