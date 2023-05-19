@@ -114,7 +114,7 @@ struct max_des_priv {
 };
 
 static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
-						struct max_des_subdev_priv *sd_priv)
+					       struct max_des_subdev_priv *sd_priv)
 {
 	if (!sd_priv)
 		sd_priv = &priv->sd_privs[0];
@@ -167,7 +167,7 @@ static int max_des_write(struct max_des_priv *priv, unsigned int reg, u8 val)
 }
 
 static int max_des_update_bits(struct max_des_priv *priv, unsigned int reg,
-				u8 mask, u8 val)
+			       u8 mask, u8 val)
 {
 	int ret;
 
@@ -242,7 +242,7 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 	int ret;
 
 	if (!i2c_check_functionality(priv->client->adapter,
-					 I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
+				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
 
 	priv->mux_channel = MAX_DES_MUX_CH_INVALID;
@@ -326,7 +326,7 @@ exit:
 }
 
 static int max_des_init_phy(struct max_des_priv *priv,
-				 struct max_des_phy *phy)
+			    struct max_des_phy *phy)
 {
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
@@ -420,9 +420,9 @@ static int max_des_init_phy(struct max_des_priv *priv,
 }
 
 static int max_des_init_pipe_remap(struct max_des_priv *priv,
-					struct max_des_pipe *pipe,
-					struct max_des_dt_vc_remap *remap,
-					unsigned int i)
+				   struct max_des_pipe *pipe,
+				   struct max_des_dt_vc_remap *remap,
+				   unsigned int i)
 {
 	unsigned int index = pipe->index;
 	unsigned int reg, val, shift, mask;
@@ -464,7 +464,7 @@ static int max_des_init_pipe_remap(struct max_des_priv *priv,
 }
 
 static int max_des_init_pipe_remaps(struct max_des_priv *priv,
-					 struct max_des_pipe *pipe)
+				    struct max_des_pipe *pipe)
 {
 	unsigned int i;
 	int ret;
@@ -481,7 +481,7 @@ static int max_des_init_pipe_remaps(struct max_des_priv *priv,
 }
 
 static int max_des_update_pipe_remaps(struct max_des_priv *priv,
-					   struct max_des_pipe *pipe)
+				      struct max_des_pipe *pipe)
 {
 	struct max_des_subdev_priv *sd_priv;
 	unsigned int i;
@@ -526,7 +526,7 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 }
 
 static int max_des_init_pipe(struct max_des_priv *priv,
-				  struct max_des_pipe *pipe)
+			     struct max_des_pipe *pipe)
 {
 	unsigned int index = pipe->index;
 	unsigned int reg, val, shift;
@@ -535,13 +535,13 @@ static int max_des_init_pipe(struct max_des_priv *priv,
 	/* Set destination PHY. */
 	shift = index * 2;
 	ret = max_des_update_bits(priv, 0x8ca, 0x3 << shift,
-				   pipe->dest_phy << shift);
+				  pipe->dest_phy << shift);
 	if (ret)
 		return ret;
 
 	shift = 4;
 	ret = max_des_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
-				   pipe->dest_phy << shift);
+				  pipe->dest_phy << shift);
 	if (ret)
 		return ret;
 
@@ -650,8 +650,8 @@ static int max_des_init(struct max_des_priv *priv)
 }
 
 static int max_des_notify_bound(struct v4l2_async_notifier *notifier,
-				 struct v4l2_subdev *subdev,
-				 struct v4l2_async_subdev *asd)
+				struct v4l2_subdev *subdev,
+				struct v4l2_async_subdev *asd)
 {
 	struct max_des_subdev_priv *sd_priv = sd_to_max_des(notifier->sd);
 	struct max_des_priv *priv = sd_priv->priv;
@@ -707,8 +707,8 @@ static int max_des_notify_bound(struct v4l2_async_notifier *notifier,
 }
 
 static void max_des_notify_unbind(struct v4l2_async_notifier *notifier,
-				   struct v4l2_subdev *subdev,
-				   struct v4l2_async_subdev *asd)
+				  struct v4l2_subdev *subdev,
+				  struct v4l2_async_subdev *asd)
 {
 	struct max_des_subdev_priv *sd_priv = sd_to_max_des(notifier->sd);
 
@@ -785,8 +785,8 @@ static const struct v4l2_subdev_video_ops max_des_video_ops = {
 };
 
 static int max_des_get_selection(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state,
-				  struct v4l2_subdev_selection *sel)
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_selection sd_sel = *sel;
@@ -808,8 +808,8 @@ static int max_des_get_selection(struct v4l2_subdev *sd,
 }
 
 static int max_des_get_fmt(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_format *format)
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *format)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_format sd_format = *format;
@@ -831,8 +831,8 @@ static int max_des_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int max_des_set_fmt(struct v4l2_subdev *sd,
-				struct v4l2_subdev_state *sd_state,
-				struct v4l2_subdev_format *format)
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *format)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_format sd_format = *format;
@@ -854,8 +854,8 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int max_des_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_mbus_code_enum *code)
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_mbus_code_enum sd_code = *code;
@@ -877,8 +877,8 @@ static int max_des_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int max_des_enum_frame_size(struct v4l2_subdev *sd,
-					struct v4l2_subdev_state *sd_state,
-					struct v4l2_subdev_frame_size_enum *fse)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_frame_size_enum sd_fse = *fse;
@@ -904,8 +904,8 @@ static int max_des_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int max_des_enum_frame_interval(struct v4l2_subdev *sd,
-					struct v4l2_subdev_state *sd_state,
-					struct v4l2_subdev_frame_interval_enum *fie)
+				       struct v4l2_subdev_state *sd_state,
+				       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_frame_interval_enum sd_fie = *fie;
@@ -1068,8 +1068,8 @@ exit:
 }
 
 static int max_des_parse_pipe_dt(struct max_des_priv *priv,
-				  struct max_des_pipe *pipe,
-				  struct fwnode_handle *fwnode)
+				 struct max_des_pipe *pipe,
+				 struct fwnode_handle *fwnode)
 {
 	u32 val;
 
@@ -1101,7 +1101,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 }
 
 static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
-				struct fwnode_handle *fwnode)
+			       struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = sd_priv->priv;
 	struct max_des_pipe *pipe;
@@ -1134,7 +1134,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 }
 
 static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
-					  struct fwnode_handle *fwnode)
+					 struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = sd_priv->priv;
 	struct max_des_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
@@ -1178,7 +1178,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 }
 
 static int max_des_parse_sink_dt_endpoint(struct max_des_subdev_priv *sd_priv,
-					   struct fwnode_handle *fwnode)
+					  struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = sd_priv->priv;
 	struct fwnode_handle *ep;
