@@ -111,10 +111,6 @@ struct max_des_priv {
 	struct max_des_phy phys[MAX_DES_PHYS_NUM];
 	struct max_des_pipe pipes[MAX_DES_PHYS_NUM];
 	struct max_des_subdev_priv sd_privs[MAX_DES_SUBDEVS_NUM];
-
-	unsigned            cached_reg_addr;
-	char                read_buf[20];
-	unsigned int            read_buf_len;
 };
 
 static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
