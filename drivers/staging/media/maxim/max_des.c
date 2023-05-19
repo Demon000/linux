@@ -73,6 +73,7 @@ static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 static int max_des_i2c_mux_init(struct max_des_priv *priv)
 {
 	struct max_des_subdev_priv *sd_priv;
+	unsigned int i;
 	int ret;
 
 	if (!i2c_check_functionality(priv->client->adapter,
@@ -89,9 +90,14 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 
 	priv->mux->priv = priv;
 
-	for_each_subdev(priv, sd_priv) {
-		ret = i2c_mux_add_adapter(priv->mux, 0, sd_priv->index, 0);
-		if (ret < 0)
+	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+		struct max_des_link *link = &priv->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		ret = i2c_mux_add_adapter(priv->mux, 0, link->index, 0);
+		if (ret)
 			goto error;
 	}
 
@@ -939,6 +945,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 			       struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
 	u32 val;
@@ -964,6 +971,9 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	phy = &priv->phys[pipe->dest_phy];
 	phy->enabled = true;
+
+	link = &priv->links[pipe->src_link];
+	link->enabled = true;
 
 	return 0;
 }
@@ -1048,6 +1058,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	const char *pipe_node_name = "pipe";
 	struct max_des_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
+	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
 	unsigned int i, j;
@@ -1063,6 +1074,11 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		pipe = &priv->pipes[i];
 		pipe->index = i;
 		pipe->src_link = i;
+	}
+
+	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+		link = &priv->links[i];
+		link->index = i;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
