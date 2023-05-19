@@ -43,7 +43,7 @@ static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
 	else
 		sd_priv++;
 
-	for (; sd_priv < &priv->sd_privs[MAX_DES_SUBDEVS_NUM]; sd_priv++) {
+	for (; sd_priv < priv->sd_privs + priv->num_subdevs; sd_priv++) {
 		if (sd_priv->fwnode)
 			return sd_priv;
 	}
@@ -170,7 +170,7 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 	priv->mux_channel = MAX_DES_MUX_CH_INVALID;
 
 	priv->mux = i2c_mux_alloc(priv->client->adapter, &priv->client->dev,
-				  MAX_DES_SUBDEVS_NUM, 0, I2C_MUX_LOCKED,
+				  priv->num_subdevs, 0, I2C_MUX_LOCKED,
 				  max_des_i2c_mux_select, NULL);
 	if (!priv->mux)
 		return -ENOMEM;
@@ -1131,6 +1131,7 @@ static const unsigned int max_des_lane_configs[][MAX_DES_PHYS_NUM] = {
 
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
+	const char *channel_node_name = "channel";
 	struct max_des_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
 	struct max_des_pipe *pipe;
@@ -1177,7 +1178,21 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
-		if (!of_node_name_eq(of_node, "channel"))
+		if (!of_node_name_eq(of_node, channel_node_name))
+			continue;
+
+		priv->num_subdevs++;
+	}
+
+	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
+				      sizeof(struct max_des_subdev_priv), GFP_KERNEL);
+	if (!priv->sd_privs)
+		return -ENOMEM;
+
+	device_for_each_child_node(priv->dev, fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, channel_node_name))
 			continue;
 
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
@@ -1186,7 +1201,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= MAX_DES_SUBDEVS_NUM) {
+		if (index >= priv->num_subdevs) {
 			dev_err(priv->dev, "Invalid channel number %u\n", index);
 			return -EINVAL;
 		}
