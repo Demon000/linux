@@ -11,20 +11,11 @@
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
-#include <linux/regmap.h>
-
-#include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
 
 #include "max_des.h"
 #include "max_serdes.h"
 
 #define MAX_DES_DPLL_FREQ		2500
-
-#define MAX_DES_SOURCE_PAD		0
-#define MAX_DES_SINK_PAD		1
-#define MAX_DES_PAD_NUM			2
 
 #define MAX_DES_REMAP_EL_NUM		5
 #define MAX_DES_MUX_CH_INVALID		-1

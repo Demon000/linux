@@ -25,7 +25,7 @@ struct max96724_priv {
 	struct gpio_desc *gpiod_pwdn;
 };
 
-#define des_to_priv(des)
+#define des_to_priv(des) \
 	container_of(des, struct max96724_priv, des_priv)
 
 static int max96724_probe(struct i2c_client *client)
@@ -62,7 +62,7 @@ static int max96724_probe(struct i2c_client *client)
 
 static int max96724_remove(struct i2c_client *client)
 {
-	struct max_des_priv *priv = i2c_get_clientdata(client);
+	struct max96724_priv *priv = i2c_get_clientdata(client);
 
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 

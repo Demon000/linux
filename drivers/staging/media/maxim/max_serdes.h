@@ -3,6 +3,9 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
+
 #define v4l2_subdev_state v4l2_subdev_pad_config
 #define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
 #define v4l2_subdev_free_state v4l2_subdev_free_pad_config

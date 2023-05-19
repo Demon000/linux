@@ -3,12 +3,23 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/regmap.h>
+
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
+
+#include "max_serdes.h"
+
 /* TODO: allow infinite subdevs. */
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_PIPES_NUM		4
 #define MAX_DES_STREAMS_NUM		4
 #define MAX_DES_LINKS_NUM		4
 #define MAX_DES_REMAPS_NUM		16
+
+#define MAX_DES_SOURCE_PAD		0
+#define MAX_DES_SINK_PAD		1
+#define MAX_DES_PAD_NUM			2
 
 struct max_des_asd {
 	struct v4l2_async_subdev base;
