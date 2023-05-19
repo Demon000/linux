@@ -49,79 +49,6 @@ static inline struct max_des_subdev_priv *sd_to_max_des(struct v4l2_subdev *sd)
 	return container_of(sd, struct max_des_subdev_priv, sd);
 }
 
-static int max_des_read(struct max_des_priv *priv, int reg)
-{
-	int ret, val;
-
-	ret = regmap_read(priv->regmap, reg, &val);
-	if (ret) {
-		dev_err(priv->dev, "read 0x%04x failed\n", reg);
-		return ret;
-	}
-
-	return val;
-}
-
-static int max_des_write(struct max_des_priv *priv, unsigned int reg, u8 val)
-{
-	int ret;
-
-	ret = regmap_write(priv->regmap, reg, val);
-	if (ret)
-		dev_err(priv->dev, "write 0x%04x failed\n", reg);
-
-	return ret;
-}
-
-static int max_des_update_bits(struct max_des_priv *priv, unsigned int reg,
-			       u8 mask, u8 val)
-{
-	int ret;
-
-	ret = regmap_update_bits(priv->regmap, reg, mask, val);
-	if (ret)
-		dev_err(priv->dev, "update 0x%04x failed\n", reg);
-
-	return ret;
-}
-
-static int max_des_wait_for_device(struct max_des_priv *priv)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < 100; i++) {
-		ret = max_des_read(priv, 0x0);
-		if (ret >= 0)
-			return 0;
-
-		msleep(10);
-
-		dev_err(priv->dev, "Retry %u waiting for deserializer: %d\n", i, ret);
-	}
-
-	return ret;
-}
-
-static int max_des_reset(struct max_des_priv *priv)
-{
-	int ret;
-
-	ret = max_des_wait_for_device(priv);
-	if (ret)
-		return ret;
-
-	ret = max_des_update_bits(priv, 0x13, 0x40, 0x40);
-	if (ret)
-		return ret;
-
-	ret = max_des_wait_for_device(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max_des_priv *priv = i2c_mux_priv(muxc);
@@ -1251,10 +1178,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 int max_des_probe(struct max_des_priv *priv)
 {
 	int ret;
-
-	ret = max_des_reset(priv);
-	if (ret)
-		return ret;
 
 	ret = max_des_parse_dt(priv);
 	if (ret)

@@ -8,6 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/regmap.h>
 
 #include "max_des.h"
 
@@ -26,6 +27,79 @@ struct max96724_priv {
 
 #define des_to_priv(des) \
 	container_of(des, struct max96724_priv, des_priv)
+
+static int max96724_read(struct max96724_priv *priv, int reg)
+{
+	int ret, val;
+
+	ret = regmap_read(priv->regmap, reg, &val);
+	if (ret) {
+		dev_err(priv->dev, "read 0x%04x failed\n", reg);
+		return ret;
+	}
+
+	return val;
+}
+
+static int max96724_write(struct max96724_priv *priv, unsigned int reg, u8 val)
+{
+	int ret;
+
+	ret = regmap_write(priv->regmap, reg, val);
+	if (ret)
+		dev_err(priv->dev, "write 0x%04x failed\n", reg);
+
+	return ret;
+}
+
+static int max96724_update_bits(struct max96724_priv *priv, unsigned int reg,
+			        u8 mask, u8 val)
+{
+	int ret;
+
+	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	if (ret)
+		dev_err(priv->dev, "update 0x%04x failed\n", reg);
+
+	return ret;
+}
+
+static int max96724_wait_for_device(struct max_des_priv *priv)
+{
+	unsigned int i, val;
+	int ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = max96724_read(priv, 0x0);
+		if (ret >= 0)
+			return 0;
+
+		msleep(10);
+
+		dev_err(priv->dev, "Retry %u waiting for deserializer: %d\n", i, ret);
+	}
+
+	return ret;
+}
+
+static int max96724_reset(struct max_des_priv *priv)
+{
+	int ret;
+
+	ret = max96724_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	ret = max96724_update_bits(priv, 0x13, 0x40, 0x40);
+	if (ret)
+		return ret;
+
+	ret = max96724_wait_for_device(priv);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 static int max96724_probe(struct i2c_client *client)
 {
@@ -55,6 +129,10 @@ static int max96724_probe(struct i2c_client *client)
 	priv->des_priv.dev = &client->dev;
 	priv->des_priv.client = client;
 	priv->des_priv.regmap = priv->regmap;
+
+	ret = max96724_reset(priv);
+	if (ret)
+		return ret;
 
 	return max_des_probe(&priv->des_priv);
 }
