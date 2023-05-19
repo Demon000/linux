@@ -78,7 +78,7 @@ struct max_des_priv {
 	bool active;
 
 	struct max_des_phy phys[MAX_DES_PHYS_NUM];
-	struct max_des_pipe pipes[MAX_DES_PHYS_NUM];
+	struct max_des_pipe pipes[MAX_DES_PIPES_NUM];
 	struct max_des_subdev_priv *sd_privs;
 };
 
