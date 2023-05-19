@@ -3,6 +3,85 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+/* TODO: allow infinite subdevs. */
+#define MAX_DES_SUBDEVS_NUM		4
+#define MAX_DES_PHYS_NUM		4
+#define MAX_DES_PIPES_NUM		4
+#define MAX_DES_STREAMS_NUM		4
+#define MAX_DES_LINKS_NUM		4
+#define MAX_DES_REMAPS_NUM		16
+
+struct max_des_asd {
+	struct v4l2_async_subdev base;
+	struct max_des_subdev_priv *sd_priv;
+};
+
+#define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
+
+struct max_des_dt_vc_remap {
+	u8 from_dt;
+	u8 from_vc;
+	u8 to_dt;
+	u8 to_vc;
+	u8 phy;
+};
+
+struct max_des_subdev_priv {
+	struct v4l2_subdev sd;
+	unsigned int index;
+	struct fwnode_handle *fwnode;
+
+	struct max_des_priv *priv;
+
+	struct v4l2_subdev *slave_sd;
+	struct fwnode_handle *slave_fwnode;
+	struct v4l2_subdev_state *slave_sd_state;
+	unsigned int slave_sd_pad_id;
+
+	struct v4l2_async_notifier notifier;
+	struct media_pad pads[MAX_DES_PAD_NUM];
+
+	bool active;
+	unsigned int pipe_id;
+	struct max_des_dt_vc_remap remaps[MAX_DES_REMAPS_NUM];
+	unsigned int num_remaps;
+};
+
+struct max_des_pipe {
+	unsigned int index;
+	unsigned int dest_phy;
+	unsigned int src_stream_id;
+	unsigned int src_gmsl_link;
+	struct max_des_dt_vc_remap remaps[MAX_DES_REMAPS_NUM];
+	unsigned int num_remaps;
+	bool enabled;
+};
+
+struct max_des_phy {
+	unsigned int index;
+	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	bool enabled;
+};
+
+struct max_des_priv {
+	struct device *dev;
+	struct i2c_client *client;
+	struct regmap *regmap;
+	struct gpio_desc *gpiod_pwdn;
+
+	struct i2c_mux_core *mux;
+	int mux_channel;
+
+	unsigned int num_subdevs;
+	unsigned int lane_config;
+	struct mutex lock;
+	bool active;
+
+	struct max_des_phy phys[MAX_DES_PHYS_NUM];
+	struct max_des_pipe pipes[MAX_DES_PHYS_NUM];
+	struct max_des_subdev_priv *sd_privs;
+};
+
 int max_des_probe(struct i2c_client *client);
 
 int max_des_remove(struct i2c_client *client);
