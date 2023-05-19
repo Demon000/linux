@@ -1121,7 +1121,7 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	return 0;
 }
 
-static const unsigned int max_des_lane_configs[][MAX_DES_SUBDEVS_NUM] = {
+static const unsigned int max_des_lane_configs[][MAX_DES_PHYS_NUM] = {
 	{ 2, 2, 2, 2 },
 	{ 0, 0, 0, 0 },
 	{ 0, 4, 4, 0 },
