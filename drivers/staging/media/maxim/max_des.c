@@ -861,8 +861,10 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index > priv->num_subdevs)
-			priv->num_subdevs = index;
+		if (index + 1 < priv->num_subdevs)
+			continue;
+
+		priv->num_subdevs = index + 1;
 	}
 
 	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
