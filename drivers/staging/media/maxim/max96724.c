@@ -476,13 +476,13 @@ static int max96724_init_link(struct max_des_priv *des_priv,
 	unsigned int val;
 	int ret;
 
-	ret = max96724_init_link_ser_xlate(priv, link);
-	if (ret)
-		return ret;
-
 	/* Enable link. */
 	val = BIT(index);
 	ret = max96724_update_bits(priv, 0x6, val, val);
+	if (ret)
+		return ret;
+
+	ret = max96724_init_link_ser_xlate(priv, link);
 	if (ret)
 		return ret;
 
