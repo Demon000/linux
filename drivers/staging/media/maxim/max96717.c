@@ -211,6 +211,13 @@ static int max96717_reset(struct max96717_priv *priv)
 	if (ret)
 		return ret;
 
+	ret = max96717_read(priv, 0x0);
+	if (ret < 0)
+		return ret;
+
+	if (ret != 0x80)
+		return 0;
+
 	ret = max96717_update_bits(priv, 0x10, 0x80, 0x80);
 	if (ret)
 		return ret;
