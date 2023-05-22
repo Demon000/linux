@@ -427,17 +427,17 @@ static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
 		goto err_unregister_client;
 	}
 
-	ret = max96724_read(priv, 0x3);
+	ret = max96724_read(priv, 0x6);
 	if (ret < 0) {
-		dev_err(priv->dev, "Failed to read original channel config: %d\n", ret);
+		dev_err(priv->dev, "Failed to read original link config: %d\n", ret);
 		goto err_regmap_exit;
 	}
 
 	val = ret;
 
-	ret = max96724_write(priv, 0x3, (~BIT(link->index * 2)) & 0xff);
+	ret = max96724_update_bits(priv, 0x6, GENMASK(3, 0), BIT(link->index));
 	if (ret) {
-		dev_err(priv->dev, "Failed to write channel config: %d\n", ret);
+		dev_err(priv->dev, "Failed to write link config: %d\n", ret);
 		goto err_regmap_exit;
 	}
 
@@ -453,9 +453,9 @@ static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
 		goto err_regmap_exit;
 	}
 
-	ret = max96724_write(priv, 0x3, val);
+	ret = max96724_write(priv, 0x6, val);
 	if (ret) {
-		dev_err(priv->dev, "Failed to write original channel config: %d\n", ret);
+		dev_err(priv->dev, "Failed to write original link config: %d\n", ret);
 		goto err_regmap_exit;
 	}
 
