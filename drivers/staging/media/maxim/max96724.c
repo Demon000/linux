@@ -86,40 +86,6 @@ static int max96724_wait_for_device(struct max96724_priv *priv)
 	return ret;
 }
 
-static int max96724_wait_for_ser(struct max96724_priv *priv,
-				 struct i2c_client *client,
-				 struct regmap *regmap,
-				 struct max_des_i2c_xlate *xlate,
-				 bool try_new)
-{
-	unsigned int i, val;
-	int ret;
-
-	for (i = 0; i < 100; i++) {
-		client->addr = xlate->src;
-
-		ret = regmap_read(regmap, 0x0, &val);
-		if (ret >= 0)
-			return 0;
-
-		if (!try_new)
-			goto skip_try_new;
-
-		client->addr = xlate->dst;
-
-		ret = regmap_read(regmap, 0x0, &val);
-		if (ret >= 0)
-			return 0;
-
-skip_try_new:
-		msleep(10);
-
-		dev_err(priv->dev, "Retry %u waiting for serializer: %d\n", i, ret);
-	}
-
-	return ret;
-}
-
 static int max96724_reset(struct max96724_priv *priv)
 {
 	int ret;
@@ -207,11 +173,6 @@ static int max96724_init(struct max_des_priv *des_priv)
 
 	/* Disable all pipes. */
 	ret = max96724_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
-	if (ret)
-		return ret;
-
-	/* Disable all links. */
-	ret = max96724_update_bits(priv, 0x6, GENMASK(3, 0), 0x00);
 	if (ret)
 		return ret;
 
@@ -418,107 +379,20 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	return max96724_init_pipe_remaps(priv, pipe);
 }
 
-static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
-					struct max_des_link *link)
-{
-	struct i2c_client *client;
-	struct regmap *regmap;
-	unsigned int val;
-	int ret;
-
-	if (!link->ser_i2c_xlate_enabled)
-		return 0;
-
-	client = i2c_new_dummy_device(priv->client->adapter, link->ser_i2c_xlate.src);
-	if (IS_ERR(client)) {
-		ret = PTR_ERR(client);
-		dev_err(priv->dev,
-			"Failed to create I2C client: %d\n", ret);
-		return ret;
-	}
-
-	regmap = regmap_init_i2c(client, &max96724_i2c_regmap);
-	if (IS_ERR(priv->regmap)) {
-		ret = PTR_ERR(regmap);
-		dev_err(priv->dev,
-			"Failed to create I2C regmap: %d\n", ret);
-		goto err_unregister_client;
-	}
-
-	ret = max96724_read(priv, 0x6);
-	if (ret < 0) {
-		dev_err(priv->dev, "Failed to read original link config: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	val = ret;
-
-	ret = max96724_update_bits(priv, 0x6, GENMASK(3, 0), BIT(link->index));
-	if (ret) {
-		dev_err(priv->dev, "Failed to write link config: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	ret = max96724_wait_for_ser(priv, client, regmap,
-				    &link->ser_i2c_xlate, true);
-	if (ret) {
-		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	ret = regmap_update_bits(regmap, 0x10, 0x80, 0x80);
-	if (ret) {
-		dev_err(priv->dev, "Failed to reset serializer: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	ret = max96724_wait_for_ser(priv, client, regmap,
-				    &link->ser_i2c_xlate, false);
-	if (ret) {
-		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	ret = regmap_write(regmap, 0x0, link->ser_i2c_xlate.dst << 1);
-	if (ret) {
-		dev_err(priv->dev, "Failed to change I2C address: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-	ret = max96724_write(priv, 0x6, val);
-	if (ret) {
-		dev_err(priv->dev, "Failed to write original link config: %d\n", ret);
-		goto err_regmap_exit;
-	}
-
-err_regmap_exit:
-	regmap_exit(regmap);
-
-err_unregister_client:
-	i2c_unregister_device(client);
-
-	return ret;
-}
-
-static int max96724_init_link(struct max_des_priv *des_priv,
-			      struct max_des_link *link)
+static int max96724_disable_links(struct max_des_priv *des_priv)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int index = link->index;
-	unsigned int val;
-	int ret;
 
-	ret = max96724_init_link_ser_xlate(priv, link);
-	if (ret)
-		return ret;
+	return max96724_update_bits(priv, 0x6, GENMASK(3, 0), 0x00);
+}
 
-	/* Enable link. */
-	val = BIT(index);
-	ret = max96724_update_bits(priv, 0x6, val, val);
-	if (ret)
-		return ret;
+static int max96724_enable_link(struct max_des_priv *des_priv,
+				struct max_des_link *link)
+{
+	struct max96724_priv *priv = des_to_priv(des_priv);
+	unsigned int val = BIT(link->index);
 
-	return 0;
+	return max96724_update_bits(priv, 0x6, val, val);
 }
 
 static int max96724_post_init(struct max_des_priv *des_priv)
@@ -546,7 +420,8 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
-	.init_link = max96724_init_link,
+	.disable_links = max96724_disable_links,
+	.enable_link = max96724_enable_link,
 	.post_init = max96724_post_init,
 };
 

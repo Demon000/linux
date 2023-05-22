@@ -11,8 +11,10 @@
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/regmap.h>
 
 #include "max_des.h"
+#include "max_ser.h"
 #include "max_serdes.h"
 
 #define MAX_DES_REMAP_EL_NUM		5
@@ -179,6 +181,78 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 	return 0;
 }
 
+static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
+				       struct max_des_link *link)
+{
+	u8 addrs[] = { link->ser_i2c_xlate.src, link->ser_i2c_xlate.dst };
+	struct i2c_client *client;
+	struct regmap *regmap;
+	int ret;
+
+	if (!link->ser_i2c_xlate_enabled)
+		return 0;
+
+	client = i2c_new_dummy_device(priv->client->adapter, addrs[0]);
+	if (IS_ERR(client)) {
+		ret = PTR_ERR(client);
+		dev_err(priv->dev,
+			"Failed to create I2C client: %d\n", ret);
+		return ret;
+	}
+
+	regmap = regmap_init_i2c(client, &max_ser_i2c_regmap);
+	if (IS_ERR(regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(priv->dev,
+			"Failed to create I2C regmap: %d\n", ret);
+		goto err_unregister_client;
+	}
+
+	ret = priv->ops->disable_links(priv);
+	if (ret)
+		goto err_regmap_exit;
+
+	ret = priv->ops->enable_link(priv, link);
+	if (ret)
+		goto err_regmap_exit;
+
+	ret = max_ser_wait_for_multiple(client, regmap, addrs, 2);
+	if (ret) {
+		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max_ser_reset(regmap);
+	if (ret) {
+		dev_err(priv->dev, "Failed to reset serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max_ser_wait(client, regmap, addrs[0]);
+	if (ret) {
+		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max_ser_change_address(regmap, addrs[1]);
+	if (ret) {
+		dev_err(priv->dev, "Failed to change serializer address: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = priv->ops->disable_links(priv);
+	if (ret)
+		goto err_regmap_exit;
+
+err_regmap_exit:
+	regmap_exit(regmap);
+
+err_unregister_client:
+	i2c_unregister_device(client);
+
+	return ret;
+}
+
 static int max_des_init(struct max_des_priv *priv)
 {
 	unsigned int i;
@@ -220,7 +294,19 @@ static int max_des_init(struct max_des_priv *priv)
 		if (!link->enabled)
 			continue;
 
-		ret = priv->ops->init_link(priv, link);
+		ret = max_des_init_link_ser_xlate(priv, link);
+		if (ret)
+			return ret;
+
+	}
+
+	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+		struct max_des_link *link = &priv->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		ret = priv->ops->enable_link(priv, link);
 		if (ret)
 			return ret;
 
