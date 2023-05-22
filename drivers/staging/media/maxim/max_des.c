@@ -622,6 +622,7 @@ static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
 
 	link->ser_i2c_xlate.src = vals[0];
 	link->ser_i2c_xlate.dst = vals[1];
+	link->ser_i2c_xlate_enabled = true;
 
 	return 0;
 }

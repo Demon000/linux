@@ -411,6 +411,9 @@ static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
 	unsigned int val;
 	int ret;
 
+	if (!link->ser_i2c_xlate_enabled)
+		return 0;
+
 	client = i2c_new_dummy_device(priv->client->adapter, link->ser_i2c_xlate.src);
 	if (IS_ERR(client)) {
 		ret = PTR_ERR(client);
