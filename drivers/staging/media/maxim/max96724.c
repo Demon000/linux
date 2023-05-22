@@ -87,16 +87,31 @@ static int max96724_wait_for_device(struct max96724_priv *priv)
 }
 
 static int max96724_wait_for_ser(struct max96724_priv *priv,
-				 struct regmap *regmap)
+				 struct i2c_client *client,
+				 struct regmap *regmap,
+				 struct max_des_i2c_xlate *xlate,
+				 bool try_new)
 {
 	unsigned int i, val;
 	int ret;
 
 	for (i = 0; i < 100; i++) {
+		client->addr = xlate->src;
+
 		ret = regmap_read(regmap, 0x0, &val);
 		if (ret >= 0)
 			return 0;
 
+		if (!try_new)
+			goto skip_try_new;
+
+		client->addr = xlate->dst;
+
+		ret = regmap_read(regmap, 0x0, &val);
+		if (ret >= 0)
+			return 0;
+
+skip_try_new:
 		msleep(10);
 
 		dev_err(priv->dev, "Retry %u waiting for serializer: %d\n", i, ret);
@@ -444,7 +459,21 @@ static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
 		goto err_regmap_exit;
 	}
 
-	ret = max96724_wait_for_ser(priv, regmap);
+	ret = max96724_wait_for_ser(priv, client, regmap,
+				    &link->ser_i2c_xlate, true);
+	if (ret) {
+		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = regmap_update_bits(regmap, 0x10, 0x80, 0x80);
+	if (ret) {
+		dev_err(priv->dev, "Failed to reset serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max96724_wait_for_ser(priv, client, regmap,
+				    &link->ser_i2c_xlate, false);
 	if (ret) {
 		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
 		goto err_regmap_exit;
