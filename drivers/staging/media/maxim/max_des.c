@@ -1010,6 +1010,7 @@ int max_des_probe(struct max_des_priv *priv)
 
 	return max_des_v4l2_register(priv);
 }
+EXPORT_SYMBOL_GPL(max_des_probe);
 
 int max_des_remove(struct max_des_priv *priv)
 {
@@ -1017,3 +1018,4 @@ int max_des_remove(struct max_des_priv *priv)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(max_des_remove);
