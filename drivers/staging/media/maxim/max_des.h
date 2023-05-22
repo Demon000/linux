@@ -34,6 +34,11 @@ struct max_des_dt_vc_remap {
 	u8 phy;
 };
 
+struct max_des_i2c_xlate {
+	u8 src;
+	u8 dst;
+};
+
 struct max_des_subdev_priv {
 	struct v4l2_subdev sd;
 	unsigned int index;
@@ -58,6 +63,7 @@ struct max_des_subdev_priv {
 struct max_des_link {
 	unsigned int index;
 	bool enabled;
+	struct max_des_i2c_xlate ser_i2c_xlate;
 };
 
 struct max_des_pipe {

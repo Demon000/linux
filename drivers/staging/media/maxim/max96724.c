@@ -85,6 +85,25 @@ static int max96724_wait_for_device(struct max96724_priv *priv)
 	return ret;
 }
 
+static int max96724_wait_for_ser(struct max96724_priv *priv,
+				 struct regmap *regmap)
+{
+	unsigned int i, val;
+	int ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = regmap_read(regmap, 0x0, &val);
+		if (ret >= 0)
+			return 0;
+
+		msleep(10);
+
+		dev_err(priv->dev, "Retry %u waiting for serializer: %d\n", i, ret);
+	}
+
+	return ret;
+}
+
 static int max96724_reset(struct max96724_priv *priv)
 {
 	int ret;
@@ -383,6 +402,71 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	return max96724_init_pipe_remaps(priv, pipe);
 }
 
+static int max96724_init_link_ser_xlate(struct max96724_priv *priv,
+					struct max_des_link *link)
+{
+	struct i2c_client *client;
+	struct regmap *regmap;
+	unsigned int val;
+	int ret;
+
+	client = i2c_new_dummy_device(priv->client->adapter, link->ser_i2c_xlate.src);
+	if (IS_ERR(client)) {
+		ret = PTR_ERR(client);
+		dev_err(priv->dev,
+			"Failed to create I2C client: %d\n", ret);
+		return ret;
+	}
+
+	regmap = regmap_init_i2c(client, &max96724_i2c_regmap);
+	if (IS_ERR(priv->regmap)) {
+		ret = PTR_ERR(regmap);
+		dev_err(priv->dev,
+			"Failed to create I2C regmap: %d\n", ret);
+		goto err_unregister_client;
+	}
+
+	ret = max96724_read(priv, 0x3);
+	if (ret < 0) {
+		dev_err(priv->dev, "Failed to read original channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	val = ret;
+
+	ret = max96724_write(priv, 0x3, (~BIT(link->index * 2)) & 0xff);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max96724_wait_for_ser(priv, regmap);
+	if (ret) {
+		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = regmap_write(regmap, 0x0, link->ser_i2c_xlate.dst << 1);
+	if (ret) {
+		dev_err(priv->dev, "Failed to change I2C address: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+	ret = max96724_write(priv, 0x3, val);
+	if (ret) {
+		dev_err(priv->dev, "Failed to write original channel config: %d\n", ret);
+		goto err_regmap_exit;
+	}
+
+err_regmap_exit:
+	regmap_exit(regmap);
+
+err_unregister_client:
+	i2c_unregister_device(client);
+
+	return ret;
+}
+
 static int max96724_init_link(struct max_des_priv *des_priv,
 			      struct max_des_link *link)
 {
@@ -390,6 +474,10 @@ static int max96724_init_link(struct max_des_priv *des_priv,
 	unsigned int index = link->index;
 	unsigned int val;
 	int ret;
+
+	ret = max96724_init_link_ser_xlate(priv, link);
+	if (ret)
+		return ret;
 
 	/* Enable link. */
 	val = BIT(index);

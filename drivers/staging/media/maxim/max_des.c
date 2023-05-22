@@ -597,6 +597,35 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 		max_des_v4l2_unregister_sd(sd_priv);
 }
 
+static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
+					   struct max_des_link *link,
+					   struct fwnode_handle *fwnode)
+{
+	const char *prop_name = "max,ser-addr-translate";
+	u32 vals[2];
+	int ret;
+
+	ret = fwnode_property_count_u32(fwnode, prop_name);
+	if (ret <= 0)
+		return 0;
+
+	if (ret != 2) {
+		dev_err(priv->dev,
+			"Invalid serializer addr translate element number %u\n", ret);
+		return -EINVAL;
+	}
+
+	ret = fwnode_property_read_u32_array(fwnode, prop_name,
+					     vals, ARRAY_SIZE(vals));
+	if (ret)
+		return ret;
+
+	link->ser_i2c_xlate.src = vals[0];
+	link->ser_i2c_xlate.dst = vals[1];
+
+	return 0;
+}
+
 static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
 				     struct fwnode_handle *fwnode)
 {
@@ -799,6 +828,7 @@ static const unsigned int max_des_lane_configs[][MAX_DES_PHYS_NUM] = {
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
 	const char *channel_node_name = "channel";
+	const char *link_node_name = "link";
 	const char *pipe_node_name = "pipe";
 	struct max_des_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
@@ -823,6 +853,30 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
 		link = &priv->links[i];
 		link->index = i;
+	}
+
+	device_for_each_child_node(priv->dev, fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, link_node_name))
+			continue;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index >= MAX_DES_LINKS_NUM) {
+			dev_err(priv->dev, "Invalid link number %u\n", index);
+			return -EINVAL;
+		}
+
+		link = &priv->links[index];
+
+		ret = max_des_parse_link_ser_xlate_dt(priv, link, fwnode);
+		if (ret)
+			return ret;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
