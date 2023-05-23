@@ -18,6 +18,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#include "max_ser.h"
 #include "max_serdes.h"
 
 #define MAX96717_SOURCE_PAD	0
@@ -997,12 +998,6 @@ static int max96717_parse_dt(struct max96717_priv *priv)
 	return 0;
 }
 
-static const struct regmap_config max96717_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
-
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -1015,7 +1010,7 @@ static int max96717_probe(struct i2c_client *client)
 	priv->dev = &client->dev;
 	priv->client = client;
 
-	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
+	priv->regmap = devm_regmap_init_i2c(client, &max_ser_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
