@@ -8,7 +8,6 @@
 
 #include "max_serdes.h"
 
-/* TODO: allow infinite subdevs. */
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_PIPES_NUM		4
 #define MAX_DES_STREAMS_NUM		4
