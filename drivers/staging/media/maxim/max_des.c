@@ -188,12 +188,12 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link)
 {
-	u8 addrs[] = { link->ser_i2c_xlate.src, link->ser_i2c_xlate.dst };
+	u8 addrs[] = { link->ser_xlate.src, link->ser_xlate.dst };
 	struct i2c_client *client;
 	struct regmap *regmap;
 	int ret;
 
-	if (!link->ser_i2c_xlate_enabled)
+	if (!link->ser_xlate_enabled)
 		return 0;
 
 	client = i2c_new_dummy_device(priv->client->adapter, addrs[0]);
@@ -712,9 +712,9 @@ static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
 	if (ret)
 		return ret;
 
-	link->ser_i2c_xlate.src = vals[0];
-	link->ser_i2c_xlate.dst = vals[1];
-	link->ser_i2c_xlate_enabled = true;
+	link->ser_xlate.src = vals[0];
+	link->ser_xlate.dst = vals[1];
+	link->ser_xlate_enabled = true;
 
 	return 0;
 }
