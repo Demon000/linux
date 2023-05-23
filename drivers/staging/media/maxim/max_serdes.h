@@ -17,4 +17,9 @@
 ((__type *)__v4l2_async_notifier_add_fwnode_subdev(__notifier, __fwnode,    \
                            sizeof(__type)))
 
+struct max_i2c_xlate {
+    u8 src;
+    u8 dst;
+};
+
 #endif // MAX_SERDES_H
