@@ -8,6 +8,9 @@
 
 #include "max_serdes.h"
 
+#ifndef MAX_DES_H
+#define MAX_DES_H
+
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_PIPES_NUM		4
 #define MAX_DES_STREAMS_NUM		4
@@ -118,3 +121,5 @@ struct max_des_priv {
 int max_des_probe(struct max_des_priv *priv);
 
 int max_des_remove(struct max_des_priv *priv);
+
+#endif // MAX_DES_H
