@@ -69,8 +69,8 @@ struct max_des_subdev_priv {
 struct max_des_link {
 	unsigned int index;
 	bool enabled;
-	bool ser_xlate_enabled;
 	struct max_des_i2c_xlate ser_xlate;
+	bool ser_xlate_enabled;
 };
 
 struct max_des_pipe {
