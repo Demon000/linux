@@ -5,7 +5,6 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
