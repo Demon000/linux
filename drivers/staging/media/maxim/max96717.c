@@ -78,10 +78,6 @@ struct max96717_priv {
 	bool pixel_mode;
 
 	struct max96717_subdev_priv sd_privs[MAX96717_SUBDEVS_NUM];
-
-	unsigned			cached_reg_addr;
-	char				read_buf[20];
-	unsigned int			read_buf_len;
 };
 
 #define MAX96717_FMT(_code, _dt)	\
