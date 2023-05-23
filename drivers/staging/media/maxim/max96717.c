@@ -9,10 +9,15 @@
 
 struct max96717_priv {
 	struct max_ser_priv ser_priv;
+	const struct max96717_chip_info *info;
 
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
+};
+
+struct max96717_chip_info {
+	bool has_tunnel_mode;
 };
 
 #define ser_to_priv(ser) \
@@ -169,6 +174,8 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
 	unsigned int index = sd_priv->index;
 	unsigned int val, shift, mask;
+	unsigned int pipe_id = 2;
+	unsigned int port_id = 1;
 	unsigned int i;
 	int ret;
 
@@ -216,8 +223,33 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
+	/* Enable port B. */
+	shift = 4;
+	val = BIT(port_id) << shift;
+	ret = max96717_update_bits(priv, 0x308, val, val);
+	if (ret)
+		return ret;
+
+	/* Map pipe Z to port B. */
+	val = BIT(pipe_id);
+	ret = max96717_update_bits(priv, 0x308, val, val);
+	if (ret)
+		return ret;
+
+	/* Enable pipe Z output to port B. */
+	shift = 4;
+	val = BIT(pipe_id) << shift;
+	ret = max96717_update_bits(priv, 0x311, val, val);
+	if (ret)
+		return ret;
+
 	/* Set stream ID. */
-	ret = max96717_write(priv, 0x5b, sd_priv->stream_id);
+	ret = max96717_write(priv, 0x53 + 0x4 * pipe_id, sd_priv->stream_id);
+	if (ret)
+		return ret;
+
+	/* Avoid stream ID conflict. */
+	ret = max96717_write(priv, 0x53 + 0x4 * sd_priv->stream_id, pipe_id);
 	if (ret)
 		return ret;
 
@@ -249,6 +281,21 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 		return ret;
 
 	ret = _max96717_set_tunnel_mode(priv, false);
+	if (ret)
+		return ret;
+
+	/* Disable ports. */
+	ret = max96717_update_bits(priv, 0x308, GENMASK(5, 4), 0x00);
+	if (ret)
+		return ret;
+
+	/* Reset pipe to ports mapping. */
+	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
+	if (ret)
+		return ret;
+
+	/* Disable pipes. */
+	ret = max96717_write(priv, 0x311, 0x00);
 	if (ret)
 		return ret;
 
@@ -330,11 +377,22 @@ static int max96717_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct max96717_priv *priv;
+	struct max_ser_ops *ops;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	ops = devm_kzalloc(dev, sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		return -ENOMEM;
+
+	priv->info = device_get_match_data(dev);
+	if (!priv->info) {
+		dev_err(dev, "Failed to get match data\n");
+		return -ENODEV;
+	}
 
 	priv->dev = dev;
 	priv->client = client;
@@ -344,9 +402,14 @@ static int max96717_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
+	*ops = max96717_ops;
+
+	if (!priv->info->has_tunnel_mode)
+		ops->set_tunnel_mode = NULL;
+
 	priv->ser_priv.dev = &client->dev;
 	priv->ser_priv.client = client;
-	priv->ser_priv.ops = &max96717_ops;
+	priv->ser_priv.ops = ops;
 
 	ret = max96717_wait_for_device(priv);
 	if (ret)
@@ -362,8 +425,17 @@ static int max96717_remove(struct i2c_client *client)
 	return max_ser_remove(&priv->ser_priv);
 }
 
+static const struct max96717_chip_info max96717_info = {
+	.has_tunnel_mode = true,
+};
+
+static const struct max96717_chip_info max9295a_info = {
+	.has_tunnel_mode = false,
+};
+
 static const struct of_device_id max96717_of_ids[] = {
-	{ .compatible = "maxim,max96717", },
+	{ .compatible = "maxim,max96717", .data = &max96717_info },
+	{ .compatible = "maxim,max9295a", .data = &max9295a_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96717_of_ids);
