@@ -328,14 +328,15 @@ static const struct max_ser_ops max96717_ops = {
 
 static int max96717_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct max96717_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev = &client->dev;
+	priv->dev = dev;
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
