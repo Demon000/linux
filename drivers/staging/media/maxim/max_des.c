@@ -881,7 +881,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	val = sd_priv->index;
 	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
-	if (val > MAX_DES_PHYS_NUM) {
+	if (val > MAX_DES_PIPES_NUM) {
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
