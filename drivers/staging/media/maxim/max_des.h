@@ -18,6 +18,8 @@
 #define MAX_DES_SINK_PAD		1
 #define MAX_DES_PAD_NUM			2
 
+extern const struct regmap_config max_des_i2c_regmap;
+
 struct max_des_asd {
 	struct v4l2_async_subdev base;
 	struct max_des_subdev_priv *sd_priv;

@@ -20,6 +20,12 @@
 #define MAX_DES_ADDR_XLATE_NUM		2
 #define MAX_DES_MUX_CH_INVALID		-1
 
+const struct regmap_config max_des_i2c_regmap = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x1f00,
+};
+
 static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
 					       struct max_des_subdev_priv *sd_priv)
 {
