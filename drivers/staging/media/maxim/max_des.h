@@ -88,8 +88,8 @@ struct max_des_phy {
 };
 
 struct max_des_ops {
-	int (*mux_select)(struct max_des_priv *des_priv, unsigned int link);
-	int (*mipi_enable)(struct max_des_priv *des_priv, bool enable);
+	int (*mux_select)(struct max_des_priv *priv, unsigned int link);
+	int (*mipi_enable)(struct max_des_priv *priv, bool enable);
 	int (*init)(struct max_des_priv *priv);
 	int (*init_phy)(struct max_des_priv *priv, struct max_des_phy *phy);
 	int (*init_pipe)(struct max_des_priv *priv, struct max_des_pipe *pipe);
