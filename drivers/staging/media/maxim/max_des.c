@@ -6,8 +6,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/i2c.h>
-#include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regmap.h>

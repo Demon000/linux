@@ -3,6 +3,8 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/i2c-mux.h>
+
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
