@@ -26,7 +26,6 @@ struct max96724_priv {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct gpio_desc *gpiod_pwdn;
 };
 
 #define des_to_priv(des) \
@@ -442,17 +441,6 @@ static int max96724_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "enable",
-						   GPIOD_OUT_HIGH);
-	if (IS_ERR(priv->gpiod_pwdn))
-		return PTR_ERR(priv->gpiod_pwdn);
-
-	gpiod_set_consumer_name(priv->gpiod_pwdn, "max96724-pwdn");
-	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
-
-	if (priv->gpiod_pwdn)
-		usleep_range(4000, 5000);
-
 	priv->des_priv.dev = &client->dev;
 	priv->des_priv.client = client;
 	priv->des_priv.ops = &max96724_ops;
@@ -467,8 +455,6 @@ static int max96724_probe(struct i2c_client *client)
 static int max96724_remove(struct i2c_client *client)
 {
 	struct max96724_priv *priv = i2c_get_clientdata(client);
-
-	gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
 
 	return max_des_remove(&priv->des_priv);
 }
