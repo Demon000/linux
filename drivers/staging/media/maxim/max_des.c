@@ -222,7 +222,8 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 
 	ret = max_ser_wait_for_multiple(client, regmap, addrs, 2);
 	if (ret) {
-		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		dev_err(priv->dev,
+			"Failed waiting for serializer with new or old address: %d\n", ret);
 		goto err_regmap_exit;
 	}
 
@@ -234,7 +235,8 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 
 	ret = max_ser_wait(client, regmap, addrs[0]);
 	if (ret) {
-		dev_err(priv->dev, "Failed waiting for serializer: %d\n", ret);
+		dev_err(priv->dev,
+			"Failed waiting for serializer with new address: %d\n", ret);
 		goto err_regmap_exit;
 	}
 
