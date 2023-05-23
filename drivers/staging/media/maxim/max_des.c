@@ -18,6 +18,7 @@
 #include "max_serdes.h"
 
 #define MAX_DES_REMAP_EL_NUM		5
+#define MAX_DES_ADDR_XLATE_NUM		2
 #define MAX_DES_MUX_CH_INVALID		-1
 
 static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
@@ -688,14 +689,14 @@ static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
 					   struct fwnode_handle *fwnode)
 {
 	const char *prop_name = "max,ser-addr-translate";
-	u32 vals[2];
+	u32 vals[MAX_DES_ADDR_XLATE_NUM];
 	int ret;
 
 	ret = fwnode_property_count_u32(fwnode, prop_name);
 	if (ret <= 0)
 		return 0;
 
-	if (ret != 2) {
+	if (ret != MAX_DES_ADDR_XLATE_NUM) {
 		dev_err(priv->dev,
 			"Invalid serializer addr translate element number %u\n", ret);
 		return -EINVAL;

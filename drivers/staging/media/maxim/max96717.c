@@ -5,7 +5,6 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/fwnode.h>
 #include <linux/init.h>
@@ -72,7 +71,6 @@ struct max96717_subdev_priv {
 
 struct max96717_priv {
 	struct device *dev;
-	struct dentry *debugfs_root;
 	struct i2c_client *client;
 	struct regmap *regmap;
 
@@ -1009,184 +1007,6 @@ static const struct regmap_config max96717_i2c_regmap = {
 	.max_register = 0x1f00,
 };
 
-static int max96717_dump_regs(struct max96717_priv *priv, struct seq_file *m)
-{
-	static const struct {
-		unsigned int start;
-		unsigned int end;
-	} registers[] = {
-		{0x0, 0x6},
-		{0x8, 0x8},
-		{0xc, 0xe},
-		{0x10, 0x13},
-		{0x18, 0x22},
-		{0x24, 0x26},
-		{0x28, 0x2d},
-		{0x30, 0x31},
-		{0x40, 0x45},
-		{0x48, 0x48},
-		{0x4c, 0x4d},
-		{0x4f, 0x4f},
-		{0x58, 0x58},
-		{0x5b, 0x5b},
-		{0x78, 0x78},
-		{0x7b, 0x7c},
-		{0x80, 0x80},
-		{0x83, 0x87},
-		{0x90, 0x90},
-		{0x93, 0x97},
-		{0xa0, 0xa0},
-		{0xa3, 0xa8},
-		{0xab, 0xaf},
-		{0x110, 0x112},
-		{0x170, 0x178},
-		{0x236, 0x278},
-		{0x2be, 0x2de},
-		{0x302, 0x302},
-		{0x308, 0x308},
-		{0x30d, 0x30e},
-		{0x311, 0x313},
-		{0x318, 0x319},
-		{0x31e, 0x31e},
-		{0x320, 0x320},
-		{0x323, 0x323},
-		{0x325, 0x325},
-		{0x330, 0x335},
-		{0x337, 0x338},
-		{0x33b, 0x33e},
-		{0x343, 0x347},
-		{0x36c, 0x36f},
-		{0x377, 0x381},
-		{0x383, 0x383},
-		{0x38d, 0x390},
-		{0x3c8, 0x3cb},
-		{0x3d1, 0x3d1},
-		{0x3dc, 0x3dd},
-		{0x3e0, 0x3f9},
-		{0x500, 0x502},
-		{0x508, 0x509},
-		{0x50c, 0x534},
-		{0x53e, 0x53e},
-		{0x548, 0x54b},
-		{0x550, 0x557},
-		{0x55f, 0x55f},
-		{0x56e, 0x571},
-		{0x584, 0x588},
-		{0x1300, 0x1300},
-		{0x1380, 0x1380},
-		{0x1404, 0x1407},
-		{0x1417, 0x1417},
-		{0x141c, 0x141d},
-		{0x141f, 0x141f},
-		{0x1432, 0x1432},
-		{0x143a, 0x143b},
-		{0x1464, 0x1464},
-		{0x1470, 0x1476},
-		{0x14a8, 0x14aa},
-		{0x14ce, 0x14ce},
-		{0x1a00, 0x1a00},
-		{0x1a03, 0x1a03},
-		{0x1a07, 0x1a0a},
-		{0x1c50, 0x1c67},
-		{0x1d00, 0x1d03},
-		{0x1d08, 0x1d0c},
-		{0x1d12, 0x1d14},
-		{0x1d20, 0x1d20},
-		{0x1d28, 0x1d28},
-		{0x1d31, 0x1d35},
-		{0x1d37, 0x1d37},
-		{0x1d3a, 0x1d3d},
-	};
-	unsigned int i, j;
-	int val;
-
-	for (i = 0; i < ARRAY_SIZE(registers); i++) {
-		for (j = registers[i].start; j <= registers[i].end; j++) {
-			val = max96717_read(priv, j);
-			if (val < 0)
-				return -EINVAL;
-
-			seq_printf(m, "0x%04x: 0x%02x\n", j, val);
-		}
-	}
-
-	return 0;
-}
-
-static int max96717_dump_regs_show(struct seq_file *m, void *private)
-{
-	struct max96717_priv *priv = m->private;
-
-	return max96717_dump_regs(priv, m);
-}
-DEFINE_SHOW_ATTRIBUTE(max96717_dump_regs);
-
-static ssize_t max96717_debugfs_read_reg(struct file *file, char __user *userbuf,
-				      size_t count, loff_t *ppos)
-{
-	struct max96717_priv *priv = file->private_data;
-	int ret;
-
-	if (*ppos > 0)
-		return simple_read_from_buffer(userbuf, count, ppos,
-					       priv->read_buf,
-					       priv->read_buf_len);
-
-	ret = max96717_read(priv, priv->cached_reg_addr);
-	if (ret < 0) {
-		dev_err(priv->dev, "%s: read failed\n", __func__);
-		return ret;
-	}
-
-	priv->read_buf_len = snprintf(priv->read_buf,
-				      sizeof(priv->read_buf),
-				      "0x%02X\n", ret);
-
-	return simple_read_from_buffer(userbuf, count, ppos,
-				       priv->read_buf,
-				       priv->read_buf_len);
-}
-
-static ssize_t max96717_debugfs_write_reg(struct file *file,
-				       const char __user *userbuf,
-				       size_t count, loff_t *ppos)
-{
-	struct max96717_priv *priv = file->private_data;
-	unsigned reg, val;
-	char buf[80];
-	int ret;
-
-	count = min_t(size_t, count, (sizeof(buf)-1));
-	if (copy_from_user(buf, userbuf, count))
-		return -EFAULT;
-
-	buf[count] = 0;
-
-	ret = sscanf(buf, "%i %i", &reg, &val);
-
-	if (ret != 1 && ret != 2)
-		return -EINVAL;
-
-	priv->cached_reg_addr = reg;
-
-	if (ret == 1)
-		return count;
-
-	ret = max96717_write(priv, reg, val);
-	if (ret) {
-		dev_err(priv->dev, "%s: write failed\n", __func__);
-		return ret;
-	}
-
-	return count;
-}
-
-static const struct file_operations max96717_reg_fops = {
-	.open = simple_open,
-	.read = max96717_debugfs_read_reg,
-	.write = max96717_debugfs_write_reg,
-};
-
 static int max96717_probe(struct i2c_client *client)
 {
 	struct max96717_priv *priv;
@@ -1202,12 +1022,6 @@ static int max96717_probe(struct i2c_client *client)
 	priv->regmap = devm_regmap_init_i2c(client, &max96717_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
-
-	priv->debugfs_root = debugfs_create_dir(dev_name(priv->dev), NULL);
-	debugfs_create_file("dump_regs", 0600, priv->debugfs_root, priv,
-			    &max96717_dump_regs_fops);
-	debugfs_create_file("reg", 0600, priv->debugfs_root, priv,
-			    &max96717_reg_fops);
 
 	ret = max96717_wait_for_device(priv);
 	if (ret)
