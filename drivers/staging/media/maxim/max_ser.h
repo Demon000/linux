@@ -18,7 +18,6 @@
 #define MAX_SER_SINK_PAD	1
 #define MAX_SER_PAD_NUM		2
 
-#define MAX_SER_SUBDEVS_NUM	2
 #define MAX_SER_PHYS_NUM	2
 
 #define MAX_SER_DT_EMB8				0x12

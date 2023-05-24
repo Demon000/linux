@@ -64,7 +64,7 @@ static struct max_ser_subdev_priv *next_subdev(struct max_ser_priv *priv,
 	else
 		sd_priv++;
 
-	for (; sd_priv < &priv->sd_privs[MAX_SER_SUBDEVS_NUM]; sd_priv++) {
+	for (; sd_priv < priv->sd_privs + priv->num_subdevs; sd_priv++) {
 		if (sd_priv->fwnode)
 			return sd_priv;
 	}
@@ -714,11 +714,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		if (ret) {
 			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
 			continue;
-		}
-
-		if (index >= MAX_SER_SUBDEVS_NUM) {
-			dev_err(priv->dev, "Invalid channel number %u\n", index);
-			return -EINVAL;
 		}
 
 		sd_priv = &priv->sd_privs[index];
