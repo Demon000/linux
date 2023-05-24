@@ -821,7 +821,7 @@ static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
 		remap->to_vc = remaps_arr[i + 3];
 		remap->phy = remaps_arr[i + 4];
 
-		if (remap->phy > MAX_DES_PHYS_NUM) {
+		if (remap->phy >= MAX_DES_PHYS_NUM) {
 			dev_err(priv->dev, "Invalid remap PHY %u\n",
 				remaps_arr[i + 4]);
 			ret = -EINVAL;
@@ -845,7 +845,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 	val = pipe->index;
 	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
-	if (val > MAX_DES_PHYS_NUM) {
+	if (val >= MAX_DES_PHYS_NUM) {
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
@@ -881,8 +881,8 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	val = sd_priv->index;
 	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
-	if (val > MAX_DES_PIPES_NUM) {
-		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
+	if (val >= MAX_DES_PIPES_NUM) {
+		dev_err(priv->dev, "Invalid pipe number %u\n", val);
 		return -EINVAL;
 	}
 	sd_priv->pipe_id = val;
@@ -892,7 +892,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	val = pipe->index;
 	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
-	if (val > MAX_DES_PHYS_NUM) {
+	if (val >= MAX_DES_PHYS_NUM) {
 		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
 		return -EINVAL;
 	}
