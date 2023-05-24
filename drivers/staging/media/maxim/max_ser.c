@@ -13,8 +13,6 @@
 #include "max_ser.h"
 #include "max_serdes.h"
 
-#define MAX_SER_MAX_STREAM_ID	3
-
 const struct regmap_config max_ser_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
@@ -498,7 +496,7 @@ static const struct v4l2_subdev_ops max_ser_subdev_ops = {
 
 static int max_ser_init(struct max_ser_priv *priv)
 {
-	struct max_ser_subdev_priv *sd_priv;
+	unsigned int i;
 	int ret;
 
 	ret = priv->ops->init(priv);
@@ -511,8 +509,24 @@ static int max_ser_init(struct max_ser_priv *priv)
 			return ret;
 	}
 
-	for_each_subdev(priv, sd_priv) {
-		ret = priv->ops->init_ch(priv, sd_priv);
+	for (i = 0; i < priv->ops->num_phys; i++) {
+		struct max_ser_phy *phy = &priv->phys[i];
+
+		if (!phy->enabled)
+			continue;
+
+		ret = priv->ops->init_phy(priv, phy);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < priv->ops->num_pipes; i++) {
+		struct max_ser_pipe *pipe = &priv->pipes[i];
+
+		if (!pipe->enabled)
+			continue;
+
+		ret = priv->ops->init_pipe(priv, pipe);
 		if (ret)
 			return ret;
 	}
@@ -594,19 +608,52 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 		max_ser_v4l2_unregister_sd(sd_priv);
 }
 
+static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
+				 struct max_ser_pipe *pipe,
+				 struct fwnode_handle *fwnode)
+{
+	struct max_ser_phy *phy;
+	unsigned int val;
+
+	val = pipe->phy_id;
+	fwnode_property_read_u32(fwnode, "max,phy-id", &val);
+	if (val >= priv->ops->num_phys) {
+		dev_err(priv->dev, "Invalid PHY %u\n", val);
+		return -EINVAL;
+	}
+	pipe->phy_id = val;
+
+	phy = &priv->phys[val];
+	phy->enabled = true;
+
+	val = pipe->stream_id;
+	fwnode_property_read_u32(fwnode, "max,stream-id", &val);
+	if (val >= MAX_SERDES_STREAMS_NUM) {
+		dev_err(priv->dev, "Invalid stream %u\n", val);
+		return -EINVAL;
+	}
+	pipe->stream_id = val;
+
+	return 0;
+}
+
 static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
 			       struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_pipe *pipe;
 	u32 val;
 
-	val = 0;
-	fwnode_property_read_u32(fwnode, "max,stream-id", &val);
-	if (val > MAX_SER_MAX_STREAM_ID) {
-		dev_err(priv->dev, "Invalid stream %u\n", val);
+	val = sd_priv->index;
+	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
+	if (val >= priv->ops->num_pipes) {
+		dev_err(priv->dev, "Invalid pipe %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->stream_id = val;
+	sd_priv->pipe_id = val;
+
+	pipe = &priv->pipes[val];
+	pipe->enabled = true;
 
 	return 0;
 }
@@ -630,6 +677,8 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
+	struct max_ser_phy *phy = &priv->phys[pipe->phy_id];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
@@ -656,30 +705,74 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 		return ret;
 	}
 
-	sd_priv->mipi = v4l2_ep.bus.mipi_csi2;
+	/* TODO: check the rest of the MIPI configuration. */
+	if (phy->mipi.num_data_lanes && phy->mipi.num_data_lanes !=
+	    v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+		dev_err(priv->dev, "PHY configured with differing number of data lanes\n");
+		return -EINVAL;
+	}
+
+	phy->mipi = v4l2_ep.bus.mipi_csi2;
+
 	sd_priv->slave_fwnode = remote_ep;
 
 	return 0;
 }
 
-static const unsigned int max_ser_lane_configs[][MAX_SER_PHYS_NUM] = {
-	{ 0, 4 },
-	{ 2, 0 },
-	{ 0, 2 },
-	{ 2, 2 },
-};
-
 static int max_ser_parse_dt(struct max_ser_priv *priv)
 {
 	const char *channel_node_name = "channel";
+	const char *pipe_node_name = "pipe";
 	struct max_ser_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
-	unsigned int i, j;
+	struct max_ser_pipe *pipe;
+	struct max_ser_phy *phy;
+	unsigned int i;
 	u32 index;
 	int ret;
 
 	if (priv->ops->set_tunnel_mode)
 		priv->tunnel_mode = device_property_read_bool(priv->dev, "max,tunnel-mode");
+
+	for (i = 0; i < priv->ops->num_phys; i++) {
+		phy = &priv->phys[i];
+		phy->index = i;
+	}
+
+	for (i = 0; i < priv->ops->num_pipes; i++) {
+		pipe = &priv->pipes[i];
+		pipe->index = i;
+		/*
+		 * Serializer chips usually have more pipes than PHYs,
+		 * make sure each pipe gets a valid PHY.
+		 */
+		pipe->phy_id = i / priv->ops->num_phys;
+		pipe->stream_id = i;
+	}
+
+	device_for_each_child_node(priv->dev, fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, pipe_node_name))
+			continue;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index >= priv->ops->num_pipes) {
+			dev_err(priv->dev, "Invalid pipe number %u\n", index);
+			return -EINVAL;
+		}
+
+		pipe = &priv->pipes[index];
+
+		ret = max_ser_parse_pipe_dt(priv, pipe, fwnode);
+		if (ret)
+			return ret;
+	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
@@ -733,30 +826,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 	}
-
-	for (i = 0; i < ARRAY_SIZE(max_ser_lane_configs); i++) {
-		bool matching = true;
-
-		for (j = 0; j < MAX_SER_PHYS_NUM; j++) {
-			sd_priv = &priv->sd_privs[j];
-
-			if (sd_priv->fwnode && sd_priv->mipi.num_data_lanes !=
-			    max_ser_lane_configs[i][j]) {
-				matching = false;
-				break;
-			}
-		}
-
-		if (matching)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(max_ser_lane_configs)) {
-		dev_err(priv->dev, "Invalid lane configuration\n");
-		return -EINVAL;
-	}
-
-	priv->lane_config = i;
 
 	return 0;
 }

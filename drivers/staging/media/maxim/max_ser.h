@@ -19,6 +19,7 @@
 #define MAX_SER_PAD_NUM		2
 
 #define MAX_SER_PHYS_NUM	2
+#define MAX_SER_PIPES_NUM	4
 
 #define MAX_SER_DT_EMB8				0x12
 #define MAX_SER_DT_YUV422_8B			0x1e
@@ -60,16 +61,32 @@ struct max_ser_subdev_priv {
 	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX_SER_PAD_NUM];
 
+	unsigned int pipe_id;
+};
+
+struct max_ser_phy {
+	unsigned int index;
 	struct v4l2_fwnode_bus_mipi_csi2 mipi;
+	bool enabled;
+};
+
+struct max_ser_pipe {
+	unsigned int index;
+	unsigned int phy_id;
 	unsigned int stream_id;
+	bool enabled;
 };
 
 struct max_ser_ops {
+	unsigned int num_pipes;
+	unsigned int num_phys;
+
 	int (*mipi_enable)(struct max_ser_priv *priv, bool enable);
 	int (*set_dt)(struct max_ser_priv *priv, u32 code);
 	int (*init)(struct max_ser_priv *priv);
 	int (*set_tunnel_mode)(struct max_ser_priv *priv);
-	int (*init_ch)(struct max_ser_priv *priv, struct max_ser_subdev_priv *sd_priv);
+	int (*init_phy)(struct max_ser_priv *priv, struct max_ser_phy *phy);
+	int (*init_pipe)(struct max_ser_priv *priv, struct max_ser_pipe *pipe);
 	int (*post_init)(struct max_ser_priv *priv);
 };
 
@@ -80,9 +97,10 @@ struct max_ser_priv {
 	struct i2c_client *client;
 
 	unsigned int num_subdevs;
-	unsigned int lane_config;
 	bool tunnel_mode;
 
+	struct max_ser_phy phys[MAX_SER_PHYS_NUM];
+	struct max_ser_pipe pipes[MAX_SER_PIPES_NUM];
 	struct max_ser_subdev_priv *sd_privs;
 };
 

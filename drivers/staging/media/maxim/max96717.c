@@ -7,6 +7,8 @@
 
 #include "max_ser.h"
 
+#define MAX96717_LANE_CONFIGS_NUM		2
+
 struct max96717_priv {
 	struct max_ser_priv ser_priv;
 	const struct max96717_chip_info *info;
@@ -18,6 +20,13 @@ struct max96717_priv {
 
 struct max96717_chip_info {
 	bool has_tunnel_mode;
+	unsigned int num_pipes;
+	unsigned int pipe_hw_ids[MAX_SER_PIPES_NUM];
+	unsigned int num_phys;
+	unsigned int phy_hw_ids[MAX_SER_PHYS_NUM];
+	unsigned int num_lane_configs;
+	unsigned int lane_configs[MAX96717_LANE_CONFIGS_NUM][MAX_SER_PHYS_NUM];
+	unsigned int phy_configs[MAX96717_LANE_CONFIGS_NUM];
 };
 
 #define ser_to_priv(ser) \
@@ -167,15 +176,13 @@ static int max96717_set_dt(struct max_ser_priv *ser_priv, u32 code)
 	return 0;
 }
 
-static int max96717_init_ch(struct max_ser_priv *ser_priv,
-			    struct max_ser_subdev_priv *sd_priv)
+static int max96717_init_phy(struct max_ser_priv *ser_priv,
+			     struct max_ser_phy *phy)
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
-	unsigned int num_data_lanes = sd_priv->mipi.num_data_lanes;
-	unsigned int index = sd_priv->index;
+	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
+	unsigned int index = priv->info->phy_hw_ids[phy->index];
 	unsigned int val, shift, mask;
-	unsigned int pipe_id = 2;
-	unsigned int port_id = 1;
 	unsigned int i;
 	int ret;
 
@@ -184,7 +191,7 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 	else
 		val = 0x1;
 
-	shift = index * 4;
+	shift = index == 1 ? 4 : 0;
 	mask = 0x3;
 
 	/* Configure a lane count. */
@@ -195,6 +202,7 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 
 	/* Configure lane mapping. */
 	/* TODO: Add support for lane swapping. */
+	/* TODO: Handle PHY A. */
 	ret = max96717_update_bits(priv, 0x332, 0xf0, 0xe0);
 	if (ret)
 		return ret;
@@ -205,9 +213,10 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 
 	/* Configure lane polarity. */
 	/* Lower two lanes. */
+	/* TODO: Handle PHY A. */
 	val = 0;
 	for (i = 0; i < 3 && i < num_data_lanes + 1; i++)
-		if (sd_priv->mipi.lane_polarities[i])
+		if (phy->mipi.lane_polarities[i])
 			val |= BIT(i == 0 ? 2 : i - 1);
 	ret = max96717_update_bits(priv, 0x335, 0x7, val);
 	if (ret)
@@ -217,39 +226,53 @@ static int max96717_init_ch(struct max_ser_priv *ser_priv,
 	val = 0;
 	shift = 4;
 	for (i = 3; i < num_data_lanes + 1; i++)
-		if (sd_priv->mipi.lane_polarities[i])
+		if (phy->mipi.lane_polarities[i])
 			val |= BIT(i - 3);
 	ret = max96717_update_bits(priv, 0x334, 0x7 << shift, val << shift);
 	if (ret)
 		return ret;
 
-	/* Enable port B. */
+	/* Enable port. */
 	shift = 4;
-	val = BIT(port_id) << shift;
+	val = BIT(index) << shift;
 	ret = max96717_update_bits(priv, 0x308, val, val);
 	if (ret)
 		return ret;
 
-	/* Map pipe Z to port B. */
-	val = BIT(pipe_id);
-	ret = max96717_update_bits(priv, 0x308, val, val);
+	return 0;
+}
+
+static int max96717_init_pipe(struct max_ser_priv *ser_priv,
+			      struct max_ser_pipe *pipe)
+{
+	struct max96717_priv *priv = ser_to_priv(ser_priv);
+	unsigned int index = priv->info->pipe_hw_ids[pipe->index];
+	unsigned int phy_id = priv->info->phy_hw_ids[pipe->phy_id];
+	unsigned int val, shift, mask;
+	int ret;
+
+	/* Map pipe to PHY. */
+	mask = BIT(index);
+	val = phy_id == 1 ? mask : 0;
+	ret = max96717_update_bits(priv, 0x308, mask, val);
 	if (ret)
 		return ret;
 
-	/* Enable pipe Z output to port B. */
-	shift = 4;
-	val = BIT(pipe_id) << shift;
-	ret = max96717_update_bits(priv, 0x311, val, val);
+	/* Enable pipe output to PHY. */
+	shift = phy_id == 1 ? 4 : 0;
+	mask = GENMASK(3, 0) << shift;
+	val = BIT(index) << shift;
+	ret = max96717_update_bits(priv, 0x311, mask, val);
 	if (ret)
 		return ret;
 
 	/* Set stream ID. */
-	ret = max96717_write(priv, 0x53 + 0x4 * pipe_id, sd_priv->stream_id);
+	ret = max96717_write(priv, 0x53 + 0x4 * index, pipe->stream_id);
 	if (ret)
 		return ret;
 
 	/* Avoid stream ID conflict. */
-	ret = max96717_write(priv, 0x53 + 0x4 * sd_priv->stream_id, pipe_id);
+	ret = max96717_write(priv, 0x53 + 0x4 * pipe->stream_id, index);
 	if (ret)
 		return ret;
 
@@ -261,6 +284,43 @@ static int _max96717_set_tunnel_mode(struct max96717_priv *priv, bool enable)
 	unsigned int mask = BIT(7);
 
 	return max96717_update_bits(priv, 0x383, mask, enable ? mask : 0x00);
+}
+
+static int max96717_init_lane_config(struct max96717_priv *priv)
+{
+	struct max_ser_priv *ser_priv = &priv->ser_priv;
+	struct max_ser_phy *phy;
+	unsigned int i, j;
+	int ret;
+
+	for (i = 0; i < priv->info->num_lane_configs; i++) {
+		bool matching = true;
+
+		for (j = 0; j < priv->info->num_phys; j++) {
+			phy = &ser_priv->phys[j];
+
+			if (phy->enabled && phy->mipi.num_data_lanes !=
+			    priv->info->lane_configs[i][j]) {
+				matching = false;
+				break;
+			}
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == priv->info->num_lane_configs) {
+		dev_err(priv->dev, "Invalid lane configuration\n");
+		return -EINVAL;
+	}
+
+	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
+				   priv->info->phy_configs[i]);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int max96717_init(struct max_ser_priv *ser_priv)
@@ -296,6 +356,11 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 
 	/* Disable pipes. */
 	ret = max96717_write(priv, 0x311, 0x00);
+	if (ret)
+		return ret;
+
+
+	ret = max96717_init_lane_config(priv);
 	if (ret)
 		return ret;
 
@@ -369,7 +434,8 @@ static const struct max_ser_ops max96717_ops = {
 	.set_dt = max96717_set_dt,
 	.init = max96717_init,
 	.set_tunnel_mode = max96717_set_tunnel_mode,
-	.init_ch = max96717_init_ch,
+	.init_phy = max96717_init_phy,
+	.init_pipe = max96717_init_pipe,
 	.post_init = max96717_post_init,
 };
 
@@ -407,6 +473,9 @@ static int max96717_probe(struct i2c_client *client)
 	if (!priv->info->has_tunnel_mode)
 		ops->set_tunnel_mode = NULL;
 
+	ops->num_pipes = priv->info->num_pipes;
+	ops->num_phys = priv->info->num_phys;
+
 	priv->ser_priv.dev = &client->dev;
 	priv->ser_priv.client = client;
 	priv->ser_priv.ops = ops;
@@ -427,15 +496,63 @@ static int max96717_remove(struct i2c_client *client)
 
 static const struct max96717_chip_info max96717_info = {
 	.has_tunnel_mode = true,
+	.num_pipes = 1,
+	.pipe_hw_ids = { 2 },
+	.num_phys = 1,
+	.phy_hw_ids = { 1 },
+	.num_lane_configs = 2,
+	.lane_configs = {
+		{ 4 },
+		{ 2 },
+	},
+	.phy_configs = {
+		0b000,
+		0b000,
+	},
 };
 
 static const struct max96717_chip_info max9295a_info = {
 	.has_tunnel_mode = false,
+	.num_pipes = 4,
+	.pipe_hw_ids = { 0, 1, 2, 3 },
+	.num_phys = 1,
+	.phy_hw_ids = { 1 },
+	.num_lane_configs = 2,
+	.lane_configs = {
+		{ 4 },
+		{ 2 },
+	},
+	.phy_configs = {
+		0b000,
+		0b000,
+	},
+};
+
+static const struct max96717_chip_info max9295b_info = {
+	.has_tunnel_mode = false,
+	.num_pipes = 4,
+	.pipe_hw_ids = { 0, 1, 2, 3 },
+	.num_phys = 2,
+	.phy_hw_ids = { 0, 1 },
+	.num_lane_configs = 4,
+	.lane_configs = {
+		{ 0, 4 },
+		{ 2, 0 },
+		{ 0, 2 },
+		{ 2, 2 },
+	},
+	.phy_configs = {
+		0b000,
+		0b001,
+		0b010,
+		0b011,
+	},
 };
 
 static const struct of_device_id max96717_of_ids[] = {
 	{ .compatible = "maxim,max96717", .data = &max96717_info },
 	{ .compatible = "maxim,max9295a", .data = &max9295a_info },
+	{ .compatible = "maxim,max9295b", .data = &max9295b_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96717_of_ids);
