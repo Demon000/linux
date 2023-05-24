@@ -79,10 +79,11 @@ struct max_ser_priv {
 	struct device *dev;
 	struct i2c_client *client;
 
+	unsigned int num_subdevs;
 	unsigned int lane_config;
 	bool tunnel_mode;
 
-	struct max_ser_subdev_priv sd_privs[MAX_SER_SUBDEVS_NUM];
+	struct max_ser_subdev_priv *sd_privs;
 };
 
 int max_ser_probe(struct max_ser_priv *priv);

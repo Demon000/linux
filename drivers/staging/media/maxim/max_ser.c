@@ -671,6 +671,7 @@ static const unsigned int max_ser_lane_configs[][MAX_SER_SUBDEVS_NUM] = {
 
 static int max_ser_parse_dt(struct max_ser_priv *priv)
 {
+	const char *channel_node_name = "channel";
 	struct max_ser_subdev_priv *sd_priv;
 	struct fwnode_handle *fwnode;
 	unsigned int i, j;
@@ -683,7 +684,30 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
-		if (!of_node_name_eq(of_node, "channel"))
+		if (!of_node_name_eq(of_node, channel_node_name))
+			continue;
+
+		ret = fwnode_property_read_u32(fwnode, "reg", &index);
+		if (ret) {
+			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
+			continue;
+		}
+
+		if (index + 1 < priv->num_subdevs)
+			continue;
+
+		priv->num_subdevs = index + 1;
+	}
+
+	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
+				      sizeof(struct max_ser_subdev_priv), GFP_KERNEL);
+	if (!priv->sd_privs)
+		return -ENOMEM;
+
+	device_for_each_child_node(priv->dev, fwnode) {
+		struct device_node *of_node = to_of_node(fwnode);
+
+		if (!of_node_name_eq(of_node, channel_node_name))
 			continue;
 
 		ret = fwnode_property_read_u32(fwnode, "reg", &index);
