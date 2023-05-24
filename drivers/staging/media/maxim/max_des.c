@@ -853,7 +853,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 	val = pipe->src_stream_id;
 	fwnode_property_read_u32(fwnode, "max,src-stream-id", &val);
-	if (val > MAX_DES_STREAMS_NUM) {
+	if (val > MAX_SERDES_STREAMS_NUM) {
 		dev_err(priv->dev, "Invalid source stream %u\n", val);
 		return -EINVAL;
 	}
