@@ -595,7 +595,7 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 }
 
 static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
-				struct fwnode_handle *fwnode)
+			       struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
 	u32 val;
@@ -627,7 +627,7 @@ static int max_ser_parse_src_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 }
 
 static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
-					   struct fwnode_handle *fwnode)
+					  struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
