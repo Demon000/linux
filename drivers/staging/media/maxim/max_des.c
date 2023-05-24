@@ -888,7 +888,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 	val = sd_priv->pipe_id;
 	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
 	if (val >= MAX_DES_PIPES_NUM) {
-		dev_err(priv->dev, "Invalid pipe number %u\n", val);
+		dev_err(priv->dev, "Invalid pipe %u\n", val);
 		return -EINVAL;
 	}
 	sd_priv->pipe_id = val;
@@ -1018,7 +1018,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		}
 
 		if (index >= MAX_DES_LINKS_NUM) {
-			dev_err(priv->dev, "Invalid link number %u\n", index);
+			dev_err(priv->dev, "Invalid link %u\n", index);
 			return -EINVAL;
 		}
 
@@ -1046,7 +1046,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		}
 
 		if (index >= MAX_DES_PIPES_NUM) {
-			dev_err(priv->dev, "Invalid pipe number %u\n", index);
+			dev_err(priv->dev, "Invalid pipe %u\n", index);
 			return -EINVAL;
 		}
 
