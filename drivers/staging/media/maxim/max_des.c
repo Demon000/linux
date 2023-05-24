@@ -845,32 +845,32 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	struct max_des_phy *phy;
 	u32 val;
 
-	val = pipe->index;
-	fwnode_property_read_u32(fwnode, "max,dest-phy", &val);
+	val = pipe->phy_id;
+	fwnode_property_read_u32(fwnode, "max,phy-id", &val);
 	if (val >= MAX_DES_PHYS_NUM) {
-		dev_err(priv->dev, "Invalid destination PHY %u\n", val);
+		dev_err(priv->dev, "Invalid PHY %u\n", val);
 		return -EINVAL;
 	}
-	pipe->dest_phy = val;
+	pipe->phy_id = val;
 
 	phy = &priv->phys[val];
 	phy->enabled = true;
 
-	val = pipe->src_stream_id;
-	fwnode_property_read_u32(fwnode, "max,src-stream-id", &val);
+	val = pipe->stream_id;
+	fwnode_property_read_u32(fwnode, "max,stream-id", &val);
 	if (val >= MAX_SERDES_STREAMS_NUM) {
-		dev_err(priv->dev, "Invalid source stream %u\n", val);
+		dev_err(priv->dev, "Invalid stream %u\n", val);
 		return -EINVAL;
 	}
-	pipe->src_stream_id = val;
+	pipe->stream_id = val;
 
-	val = pipe->src_link;
-	fwnode_property_read_u32(fwnode, "max,src-link", &val);
-	if (val > MAX_DES_LINKS_NUM) {
-		dev_err(priv->dev, "Invalid source link %u\n", val);
+	val = pipe->link_id;
+	fwnode_property_read_u32(fwnode, "max,link-id", &val);
+	if (val >= MAX_DES_LINKS_NUM) {
+		dev_err(priv->dev, "Invalid link %u\n", val);
 		return -EINVAL;
 	}
-	pipe->src_link = val;
+	pipe->link_id = val;
 
 	link = &priv->links[val];
 	link->enabled = true;
@@ -885,7 +885,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 	struct max_des_pipe *pipe;
 	u32 val;
 
-	val = sd_priv->index;
+	val = sd_priv->pipe_id;
 	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
 	if (val >= MAX_DES_PIPES_NUM) {
 		dev_err(priv->dev, "Invalid pipe number %u\n", val);
@@ -904,7 +904,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 {
 	struct max_des_priv *priv = sd_priv->priv;
 	struct max_des_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
-	struct max_des_phy *phy = &priv->phys[pipe->dest_phy];
+	struct max_des_phy *phy = &priv->phys[pipe->phy_id];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
@@ -995,7 +995,9 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
 		pipe = &priv->pipes[i];
 		pipe->index = i;
-		pipe->src_link = i;
+		pipe->phy_id = i;
+		pipe->stream_id = i;
+		pipe->link_id = i;
 	}
 
 	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
@@ -1094,6 +1096,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
 		sd_priv->index = index;
+		sd_priv->pipe_id = index;
 
 		ret = max_des_parse_ch_dt(sd_priv, fwnode);
 		if (ret)

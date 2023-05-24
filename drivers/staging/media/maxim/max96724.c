@@ -341,13 +341,13 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	/* Set destination PHY. */
 	shift = index * 2;
 	ret = max96724_update_bits(priv, 0x8ca, 0x3 << shift,
-				   pipe->dest_phy << shift);
+				   pipe->phy_id << shift);
 	if (ret)
 		return ret;
 
 	shift = 4;
 	ret = max96724_update_bits(priv, 0x939 + 0x40 * index, 0x3 << shift,
-				   pipe->dest_phy << shift);
+				   pipe->phy_id << shift);
 	if (ret)
 		return ret;
 
@@ -359,13 +359,13 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	/* Set source stream. */
 	reg = 0xf0 + index / 2;
 	shift = 4 * (index % 2);
-	ret = max96724_update_bits(priv, reg, 0x3 << shift, pipe->src_stream_id << shift);
+	ret = max96724_update_bits(priv, reg, 0x3 << shift, pipe->stream_id << shift);
 	if (ret)
 		return ret;
 
 	/* Set source link. */
 	shift += 2;
-	ret = max96724_update_bits(priv, reg, 0x3 << shift, pipe->src_link << shift);
+	ret = max96724_update_bits(priv, reg, 0x3 << shift, pipe->link_id << shift);
 	if (ret)
 		return ret;
 
