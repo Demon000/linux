@@ -662,7 +662,7 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 	return 0;
 }
 
-static const unsigned int max_ser_lane_configs[][MAX_SER_SUBDEVS_NUM] = {
+static const unsigned int max_ser_lane_configs[][MAX_SER_PHYS_NUM] = {
 	{ 0, 4 },
 	{ 2, 0 },
 	{ 0, 2 },
@@ -742,7 +742,7 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(max_ser_lane_configs); i++) {
 		bool matching = true;
 
-		for (j = 0; j < MAX_SER_SUBDEVS_NUM; j++) {
+		for (j = 0; j < MAX_SER_PHYS_NUM; j++) {
 			sd_priv = &priv->sd_privs[j];
 
 			if (sd_priv->fwnode && sd_priv->mipi.num_data_lanes !=
