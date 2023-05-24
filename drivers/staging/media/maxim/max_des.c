@@ -841,6 +841,8 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
+	struct max_des_link *link;
+	struct max_des_phy *phy;
 	u32 val;
 
 	val = pipe->index;
@@ -850,6 +852,9 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 		return -EINVAL;
 	}
 	pipe->dest_phy = val;
+
+	phy = &priv->phys[val];
+	phy->enabled = true;
 
 	val = pipe->src_stream_id;
 	fwnode_property_read_u32(fwnode, "max,src-stream-id", &val);
@@ -867,6 +872,9 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	}
 	pipe->src_link = val;
 
+	link = &priv->links[val];
+	link->enabled = true;
+
 	return 0;
 }
 
@@ -874,9 +882,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 			       struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = sd_priv->priv;
-	struct max_des_link *link;
 	struct max_des_pipe *pipe;
-	struct max_des_phy *phy;
 	u32 val;
 
 	val = sd_priv->index;
@@ -889,12 +895,6 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	pipe = &priv->pipes[val];
 	pipe->enabled = true;
-
-	phy = &priv->phys[pipe->dest_phy];
-	phy->enabled = true;
-
-	link = &priv->links[pipe->src_link];
-	link->enabled = true;
 
 	return 0;
 }
