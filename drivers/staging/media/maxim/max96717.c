@@ -127,6 +127,7 @@ static int max96717_set_dt(struct max_ser_priv *ser_priv, u32 code)
 
 	/* TODO: implement all other supported formats. */
 
+	/* TODO: handle all pipes. */
 	ret = max96717_update_bits(priv, 0x312, BIT(2), 0);
 	if (ret)
 		return ret;
