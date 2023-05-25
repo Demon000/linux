@@ -306,6 +306,10 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 set_data_type:
+	/*
+	 * TODO: figure out how to handle multiple DTs per pipe from multiple
+	 * channels per pipe.
+	 */
 	ret = priv->ops->set_pipe_dt(priv, pipe, format->format.code);
 	if (ret)
 		return ret;
