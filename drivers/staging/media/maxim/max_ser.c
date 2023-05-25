@@ -225,9 +225,10 @@ static int max_ser_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max_ser_subdev_priv *sd_priv = sd_to_max_ser(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_pipe *pipe = max_ser_pipe_by_id(priv, sd_priv->pipe_id);
 	int ret;
 
-	ret = priv->ops->mipi_enable(priv, enable);
+	ret = priv->ops->set_pipe_enable(priv, pipe, enable);
 	if (ret)
 		return ret;
 
@@ -287,7 +288,7 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
+	struct max_ser_pipe *pipe = max_ser_pipe_by_id(priv, sd_priv->pipe_id);
 	int ret;
 
 	if (max_ser_format_valid(priv, format->format.code))

@@ -89,13 +89,6 @@ static int max96717_wait_for_device(struct max96717_priv *priv)
 	return ret;
 }
 
-static int max96717_mipi_enable(struct max_ser_priv *ser_priv, bool enable)
-{
-	struct max96717_priv *priv = ser_to_priv(ser_priv);
-
-	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6) : 0);
-}
-
 static unsigned int max96717_pipe_id(struct max96717_priv *priv,
 				     struct max_ser_pipe *pipe)
 {
@@ -106,6 +99,16 @@ static unsigned int max96717_phy_id(struct max96717_priv *priv,
 				    struct max_ser_phy *phy)
 {
 	return priv->info->phy_hw_ids[phy->index];
+}
+
+static int max96717_set_pipe_enable(struct max_ser_priv *ser_priv,
+				    struct max_ser_pipe *pipe, bool enable)
+{
+	struct max96717_priv *priv = ser_to_priv(ser_priv);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int mask = BIT(index + 4);
+
+	return max96717_update_bits(priv, 0x2, mask, enable ? mask : 0);
 }
 
 static int max96717_override_pipe_bpp(struct max96717_priv *priv,
@@ -301,6 +304,10 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
+	ret = max96717_set_pipe_enable(ser_priv, pipe, false);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -402,10 +409,6 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 	if (ret)
 		return ret;
 
-	ret = max96717_mipi_enable(ser_priv, false);
-	if (ret)
-		return ret;
-
 	ret = _max96717_set_tunnel_mode(priv, false);
 	if (ret)
 		return ret;
@@ -499,7 +502,7 @@ static int max96717_post_init(struct max_ser_priv *ser_priv)
 }
 
 static const struct max_ser_ops max96717_ops = {
-	.mipi_enable = max96717_mipi_enable,
+	.set_pipe_enable = max96717_set_pipe_enable,
 	.set_pipe_dt = max96717_set_pipe_dt,
 	.init = max96717_init,
 	.set_tunnel_mode = max96717_set_tunnel_mode,
