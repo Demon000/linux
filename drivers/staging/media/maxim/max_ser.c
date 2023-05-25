@@ -240,8 +240,8 @@ static int max_ser_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max_ser_get_selection(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state,
-				  struct v4l2_subdev_selection *sel)
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_selection sd_sel = *sel;
@@ -263,8 +263,8 @@ static int max_ser_get_selection(struct v4l2_subdev *sd,
 }
 
 static int max_ser_fix_fmt_code(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state,
-				 struct v4l2_subdev_format *format)
+				struct v4l2_subdev_state *sd_state,
+				struct v4l2_subdev_format *format)
 {
 	struct v4l2_subdev_mbus_code_enum code = {
 		.pad = MAX_SER_SOURCE_PAD,
@@ -282,8 +282,8 @@ static int max_ser_fix_fmt_code(struct v4l2_subdev *sd,
 }
 
 static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_format *format)
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_format *format)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
@@ -313,8 +313,8 @@ set_data_type:
 }
 
 static int max_ser_get_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state,
-			    struct v4l2_subdev_format *format)
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *format)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_format sd_format = *format;
@@ -340,8 +340,8 @@ static int max_ser_get_fmt(struct v4l2_subdev *sd,
 }
 
 static int max_ser_set_fmt(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state,
-			    struct v4l2_subdev_format *format)
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_format *format)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct v4l2_subdev_format sd_format = *format;
@@ -367,8 +367,8 @@ static int max_ser_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int max_ser_enum_mbus_code(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_mbus_code_enum *code)
+				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
@@ -398,8 +398,8 @@ static int max_ser_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int max_ser_enum_frame_size(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *sd_state,
-				    struct v4l2_subdev_frame_size_enum *fse)
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
@@ -433,8 +433,8 @@ static int max_ser_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 static int max_ser_enum_frame_interval(struct v4l2_subdev *sd,
-					struct v4l2_subdev_state *sd_state,
-					struct v4l2_subdev_frame_interval_enum *fie)
+				       struct v4l2_subdev_state *sd_state,
+				       struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
