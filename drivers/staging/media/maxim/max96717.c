@@ -294,9 +294,8 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 
 	/* Enable pipe output to PHY. */
 	shift = phy_id == 1 ? 4 : 0;
-	mask = GENMASK(3, 0) << shift;
-	val = BIT(index) << shift;
-	ret = max96717_update_bits(priv, 0x311, mask, val);
+	mask = BIT(index) << shift;
+	ret = max96717_update_bits(priv, 0x311, mask, mask);
 	if (ret)
 		return ret;
 
