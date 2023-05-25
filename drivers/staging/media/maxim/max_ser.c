@@ -287,6 +287,7 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
 	int ret;
 
 	if (max_ser_format_valid(priv, format->format.code))
@@ -305,7 +306,7 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 set_data_type:
-	ret = priv->ops->set_dt(priv, format->format.code);
+	ret = priv->ops->set_pipe_dt(priv, pipe, format->format.code);
 	if (ret)
 		return ret;
 

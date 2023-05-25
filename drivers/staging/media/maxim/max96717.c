@@ -105,33 +105,40 @@ static unsigned int max96717_phy_id(struct max96717_priv *priv,
 	return priv->info->phy_hw_ids[phy->index];
 }
 
-static int max96717_override_bpp(struct max96717_priv *priv, u8 bpp)
+static int max96717_override_pipe_bpp(struct max96717_priv *priv,
+				      struct max_ser_pipe *pipe, u8 bpp)
 {
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int reg, mask;
 	int ret;
 
 	/* Disable Auto BPP mode. */
-	ret = max96717_update_bits(priv, 0x110, BIT(3), 0x00);
+	reg = 0x100 + 0x8 * index;
+	ret = max96717_update_bits(priv, reg, BIT(3), 0x00);
 	if (ret)
 		return ret;
 
 	/* Software override BPP. */
-	ret = max96717_update_bits(priv, 0x31e, GENMASK(4, 0),
-				   FIELD_PREP(GENMASK(4, 0), bpp));
+	reg = 0x31c + index;
+	ret = max96717_update_bits(priv, reg, GENMASK(4, 0), bpp);
 	if (ret)
 		return ret;
 
 	/* Enable software override BPP. */
-	ret = max96717_update_bits(priv, 0x31e, BIT(5), BIT(5));
+	mask = BIT(5);
+	ret = max96717_update_bits(priv, reg, mask, mask);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int max96717_set_dt(struct max_ser_priv *ser_priv, u32 code)
+static int max96717_set_pipe_dt(struct max_ser_priv *ser_priv,
+				struct max_ser_pipe *pipe, u32 code)
 {
 	const struct max_ser_format *fmt = max_ser_format_by_code(code);
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
+	unsigned int index = max96717_pipe_id(priv, pipe);
 	int ret;
 
 	if (!fmt)
@@ -139,12 +146,11 @@ static int max96717_set_dt(struct max_ser_priv *ser_priv, u32 code)
 
 	/* TODO: implement all other supported formats. */
 
-	/* TODO: handle all pipes. */
-	ret = max96717_update_bits(priv, 0x312, BIT(2), 0);
+	ret = max96717_update_bits(priv, 0x312, BIT(index), 0);
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, 0x313, BIT(6) | BIT(2), 0);
+	ret = max96717_update_bits(priv, 0x313, BIT(index + 4) | BIT(index), 0);
 	if (ret)
 		return ret;
 
@@ -153,31 +159,31 @@ static int max96717_set_dt(struct max_ser_priv *ser_priv, u32 code)
 	case MAX_SER_DT_YUV422_10B:
 		break;
 	case MAX_SER_DT_RAW8:
-		ret = max96717_update_bits(priv, 0x312, BIT(2), BIT(2));
+		ret = max96717_update_bits(priv, 0x312, BIT(index), BIT(index));
 		if (ret)
 			return ret;
 
-		ret = max96717_override_bpp(priv, 16);
+		ret = max96717_override_pipe_bpp(priv, pipe, 16);
 		if (ret)
 			return ret;
 
 		break;
 	case MAX_SER_DT_RAW10:
-		ret = max96717_update_bits(priv, 0x313, BIT(2), BIT(2));
+		ret = max96717_update_bits(priv, 0x313, BIT(index), BIT(index));
 		if (ret)
 			return ret;
 
-		ret = max96717_override_bpp(priv, 20);
+		ret = max96717_override_pipe_bpp(priv, pipe, 20);
 		if (ret)
 			return ret;
 
 		break;
 	case MAX_SER_DT_RAW12:
-		ret = max96717_update_bits(priv, 0x313, BIT(6), BIT(6));
+		ret = max96717_update_bits(priv, 0x313, BIT(index + 2), BIT(index + 2));
 		if (ret)
 			return ret;
 
-		ret = max96717_override_bpp(priv, 24);
+		ret = max96717_override_pipe_bpp(priv, pipe, 24);
 		if (ret)
 			return ret;
 
@@ -490,7 +496,7 @@ static int max96717_post_init(struct max_ser_priv *ser_priv)
 
 static const struct max_ser_ops max96717_ops = {
 	.mipi_enable = max96717_mipi_enable,
-	.set_dt = max96717_set_dt,
+	.set_pipe_dt = max96717_set_pipe_dt,
 	.init = max96717_init,
 	.set_tunnel_mode = max96717_set_tunnel_mode,
 	.init_phy = max96717_init_phy,

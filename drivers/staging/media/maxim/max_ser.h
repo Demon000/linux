@@ -82,7 +82,7 @@ struct max_ser_ops {
 	unsigned int num_phys;
 
 	int (*mipi_enable)(struct max_ser_priv *priv, bool enable);
-	int (*set_dt)(struct max_ser_priv *priv, u32 code);
+	int (*set_pipe_dt)(struct max_ser_priv *priv, struct max_ser_pipe *pipe, u32 code);
 	int (*init)(struct max_ser_priv *priv);
 	int (*set_tunnel_mode)(struct max_ser_priv *priv);
 	int (*init_phy)(struct max_ser_priv *priv, struct max_ser_phy *phy);
