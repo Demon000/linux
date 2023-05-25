@@ -257,10 +257,10 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
-	/* Enable port. */
+	/* Enable PHY. */
 	shift = 4;
-	val = BIT(index) << shift;
-	ret = max96717_update_bits(priv, 0x308, val, val);
+	mask = BIT(index) << shift;
+	ret = max96717_update_bits(priv, 0x308, mask, mask);
 	if (ret)
 		return ret;
 
