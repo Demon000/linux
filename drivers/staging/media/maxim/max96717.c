@@ -93,6 +93,18 @@ static int max96717_mipi_enable(struct max_ser_priv *ser_priv, bool enable)
 	return max96717_update_bits(priv, 0x2, BIT(6), enable ? BIT(6) : 0);
 }
 
+static unsigned int max96717_pipe_id(struct max96717_priv *priv,
+				     struct max_ser_pipe *pipe)
+{
+	return priv->info->pipe_hw_ids[pipe->index];
+}
+
+static unsigned int max96717_phy_id(struct max96717_priv *priv,
+				    struct max_ser_phy *phy)
+{
+	return priv->info->phy_hw_ids[phy->index];
+}
+
 static int max96717_override_bpp(struct max96717_priv *priv, u8 bpp)
 {
 	int ret;
@@ -182,7 +194,7 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int index = priv->info->phy_hw_ids[phy->index];
+	unsigned int index = max96717_phy_id(phy->index);
 	unsigned int val, shift, mask;
 	unsigned int i;
 	int ret;
@@ -246,7 +258,7 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 static int max96717_init_pipe_stream_id(struct max96717_priv *priv,
 					struct max_ser_pipe *pipe)
 {
-	unsigned int index = priv->info->pipe_hw_ids[pipe->index];
+	unsigned int index = max96717_pipe_id(priv, pipe);
 
 	return max96717_write(priv, 0x53 + 0x4 * index, pipe->stream_id);
 }
@@ -255,8 +267,8 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 			      struct max_ser_pipe *pipe)
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
-	unsigned int index = priv->info->pipe_hw_ids[pipe->index];
-	unsigned int phy_id = priv->info->phy_hw_ids[pipe->phy_id];
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int phy_id = max96717_phy_id(pipe->phy_id);
 	unsigned int val, shift, mask;
 	int ret;
 
