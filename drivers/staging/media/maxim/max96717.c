@@ -272,9 +272,9 @@ static int max96717_init_pipe_stream_id(struct max96717_priv *priv,
 static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 			      struct max_ser_pipe *pipe)
 {
+	struct max_ser_phy *phy = max_ser_pipe_phy(ser_priv, pipe);
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	struct max_ser_phy *phy = &ser_priv->phys[pipe->phy_id];
 	unsigned int phy_id = max96717_phy_id(priv, phy);
 	unsigned int val, shift, mask;
 	int ret;
@@ -317,7 +317,7 @@ static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
 	int ret;
 
 	for (i = 0; i < ser_priv->ops->num_pipes; i++) {
-		pipe = &ser_priv->pipes[i];
+		pipe = max_ser_pipe_by_id(ser_priv, i);
 
 		if (!pipe->enabled)
 			continue;
@@ -331,7 +331,7 @@ static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
 	}
 
 	for (i = 0; i < ser_priv->ops->num_pipes; i++) {
-		pipe = &ser_priv->pipes[i];
+		pipe = max_ser_pipe_by_id(ser_priv, i);
 
 		if (pipe->enabled)
 			continue;
@@ -360,7 +360,7 @@ static int max96717_init_lane_config(struct max96717_priv *priv)
 		bool matching = true;
 
 		for (j = 0; j < priv->info->num_phys; j++) {
-			phy = &ser_priv->phys[j];
+			phy = max_ser_phy_by_id(ser_priv, j);
 
 			if (phy->enabled && phy->mipi.num_data_lanes !=
 			    priv->info->lane_configs[i][j]) {

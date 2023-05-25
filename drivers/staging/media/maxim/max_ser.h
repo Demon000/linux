@@ -121,4 +121,22 @@ int max_ser_change_address(struct regmap *regmap, u8 addr);
 int max_ser_init_i2c_xlate(struct regmap *regmap, unsigned int i,
 			   struct max_i2c_xlate *i2c_xlate);
 
+static inline struct max_ser_pipe *max_ser_pipe_by_id(struct max_ser_priv *priv,
+						      unsigned int index)
+{
+	return &priv->pipes[index];
+}
+
+static inline struct max_ser_phy *max_ser_phy_by_id(struct max_ser_priv *priv,
+						    unsigned int index)
+{
+	return &priv->phys[index];
+}
+
+static inline struct max_ser_phy *max_ser_pipe_phy(struct max_ser_priv *priv,
+						   struct max_ser_pipe *pipe)
+{
+	return max_ser_phy_by_id(priv, pipe->phy_id);
+}
+
 #endif // MAX_SER_H
