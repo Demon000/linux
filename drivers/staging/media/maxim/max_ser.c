@@ -612,7 +612,6 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 				 struct max_ser_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
-	struct max_ser_phy *phy;
 	unsigned int val;
 
 	val = pipe->phy_id;
@@ -622,9 +621,6 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 		return -EINVAL;
 	}
 	pipe->phy_id = val;
-
-	phy = &priv->phys[val];
-	phy->enabled = true;
 
 	val = pipe->stream_id;
 	fwnode_property_read_u32(fwnode, "max,stream-id", &val);
@@ -642,6 +638,7 @@ static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
 {
 	struct max_ser_priv *priv = sd_priv->priv;
 	struct max_ser_pipe *pipe;
+	struct max_ser_phy *phy;
 	u32 val;
 
 	val = sd_priv->index;
@@ -654,6 +651,9 @@ static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
 
 	pipe = &priv->pipes[val];
 	pipe->enabled = true;
+
+	phy = &priv->phys[pipe->phy_id];
+	phy->enabled = true;
 
 	return 0;
 }
