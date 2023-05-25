@@ -243,6 +243,14 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	return 0;
 }
 
+static int max96717_init_pipe_stream_id(struct max96717_priv *priv,
+					struct max_ser_pipe *pipe)
+{
+	unsigned int index = priv->info->pipe_hw_ids[pipe->index];
+
+	return max96717_write(priv, 0x53 + 0x4 * index, pipe->stream_id);
+}
+
 static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 			      struct max_ser_pipe *pipe)
 {
@@ -267,13 +275,7 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
-	/* Set stream ID. */
-	ret = max96717_write(priv, 0x53 + 0x4 * index, pipe->stream_id);
-	if (ret)
-		return ret;
-
-	/* Avoid stream ID conflict. */
-	ret = max96717_write(priv, 0x53 + 0x4 * pipe->stream_id, index);
+	ret = max96717_init_pipe_stream_id(priv, pipe);
 	if (ret)
 		return ret;
 
@@ -285,6 +287,47 @@ static int _max96717_set_tunnel_mode(struct max96717_priv *priv, bool enable)
 	unsigned int mask = BIT(7);
 
 	return max96717_update_bits(priv, 0x383, mask, enable ? mask : 0x00);
+}
+
+static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
+{
+	struct max_ser_priv *ser_priv = &priv->ser_priv;
+	unsigned int used_stream_ids = 0;
+	struct max_ser_pipe *pipe;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ser_priv->ops->num_pipes; i++) {
+		pipe = &ser_priv->pipes[i];
+
+		if (!pipe->enabled)
+			continue;
+
+		if (used_stream_ids & BIT(pipe->stream_id)) {
+			dev_err(priv->dev, "Duplicate stream %u\n", pipe->index);
+			return -EINVAL;
+		}
+
+		used_stream_ids |= BIT(pipe->stream_id);
+	}
+
+	for (i = 0; i < ser_priv->ops->num_pipes; i++) {
+		pipe = &ser_priv->pipes[i];
+
+		if (pipe->enabled)
+			continue;
+
+		/* Stream ID already used, find a free one. */
+		/* TODO: check whether there is no unused stream ID? */
+		if (used_stream_ids & BIT(pipe->stream_id))
+			pipe->stream_id = ffz(used_stream_ids);
+
+		ret = max96717_init_pipe_stream_id(priv, pipe);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int max96717_init_lane_config(struct max96717_priv *priv)
@@ -360,7 +403,6 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 	if (ret)
 		return ret;
 
-
 	ret = max96717_init_lane_config(priv);
 	if (ret)
 		return ret;
@@ -379,6 +421,10 @@ static int max96717_post_init(struct max_ser_priv *ser_priv)
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	int ret;
+
+	ret = max96717_init_pipes_stream_ids(priv);
+	if (ret)
+		return ret;
 
 	/* Enable RCLK output at fastest slew rate on GPIO 4. */
 	ret = max96717_update_bits(priv, 0x6, BIT(5), BIT(5));
