@@ -200,7 +200,7 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int index = max96717_phy_id(phy->index);
+	unsigned int index = max96717_phy_id(priv, phy);
 	unsigned int val, shift, mask;
 	unsigned int i;
 	int ret;
@@ -274,7 +274,8 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int phy_id = max96717_phy_id(pipe->phy_id);
+	struct max_ser_phy *phy = &ser_priv->phys[pipe->phy_id];
+	unsigned int phy_id = max96717_phy_id(priv, phy);
 	unsigned int val, shift, mask;
 	int ret;
 
