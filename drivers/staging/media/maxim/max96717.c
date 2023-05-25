@@ -7,7 +7,7 @@
 
 #include "max_ser.h"
 
-#define MAX96717_LANE_CONFIGS_NUM		2
+#define MAX96717_LANE_CONFIGS_NUM		4
 
 struct max96717_priv {
 	struct max_ser_priv ser_priv;
