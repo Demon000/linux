@@ -185,7 +185,7 @@ static int max96717_set_pipe_dt(struct max_ser_priv *ser_priv,
 
 		break;
 	case MAX_SER_DT_RAW12:
-		ret = max96717_update_bits(priv, 0x313, BIT(index + 2), BIT(index + 2));
+		ret = max96717_update_bits(priv, 0x313, BIT(index + 4), BIT(index + 4));
 		if (ret)
 			return ret;
 
