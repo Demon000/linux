@@ -217,7 +217,7 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 		val = 0x1;
 
 	shift = index == 1 ? 4 : 0;
-	mask = 0x3;
+	mask = GENMASK(1, 0);
 
 	/* Configure a lane count. */
 	/* TODO: Add support for 1-lane configurations. */
@@ -250,10 +250,11 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	/* Upper two lanes. */
 	val = 0;
 	shift = 4;
+	mask = GENMASK(2, 0);
 	for (i = 3; i < num_data_lanes + 1; i++)
 		if (phy->mipi.lane_polarities[i])
 			val |= BIT(i - 3);
-	ret = max96717_update_bits(priv, 0x334, 0x7 << shift, val << shift);
+	ret = max96717_update_bits(priv, 0x334, mask << shift, val << shift);
 	if (ret)
 		return ret;
 
