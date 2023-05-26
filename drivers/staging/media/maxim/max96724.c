@@ -307,8 +307,8 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 		return ret;
 
 	/* Enable PHY. */
-	val = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x8a2, val, val);
+	mask = BIT(index + 4);
+	ret = max96724_update_bits(priv, 0x8a2, mask, mask);
 	if (ret)
 		return ret;
 
