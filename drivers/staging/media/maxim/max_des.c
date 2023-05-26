@@ -1077,7 +1077,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	}
 
 	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
-				      sizeof(struct max_des_subdev_priv), GFP_KERNEL);
+				      sizeof(*priv->sd_privs), GFP_KERNEL);
 	if (!priv->sd_privs)
 		return -ENOMEM;
 
