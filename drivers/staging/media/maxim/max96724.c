@@ -454,6 +454,9 @@ static int max96724_post_init(struct max_des_priv *des_priv)
 }
 
 static const struct max_des_ops max96724_ops = {
+	.num_phys = 4,
+	.num_pipes = 4,
+	.num_links = 4,
 	.mux_select = max96724_mux_select,
 	.mipi_enable = max96724_mipi_enable,
 	.init = max96724_init,
