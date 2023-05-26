@@ -836,9 +836,28 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 	return 0;
 }
 
+static int max_ser_allocate(struct max_ser_priv *priv)
+{
+	priv->phys = devm_kcalloc(priv->dev, priv->ops->num_phys,
+				  sizeof(*priv->phys), GFP_KERNEL);
+	if (!priv->phys)
+		return -ENOMEM;
+
+	priv->pipes = devm_kcalloc(priv->dev, priv->ops->num_pipes,
+				   sizeof(*priv->pipes), GFP_KERNEL);
+	if (!priv->pipes)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int max_ser_probe(struct max_ser_priv *priv)
 {
 	int ret;
+
+	ret = max_ser_allocate(priv);
+	if (ret)
+		return ret;
 
 	ret = max_ser_parse_dt(priv);
 	if (ret)

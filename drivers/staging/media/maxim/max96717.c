@@ -7,6 +7,8 @@
 
 #include "max_ser.h"
 
+#define MAX96717_PIPES_NUM			4
+#define MAX96717_PHYS_NUM			2
 #define MAX96717_LANE_CONFIGS_NUM		4
 
 struct max96717_priv {
@@ -21,11 +23,11 @@ struct max96717_priv {
 struct max96717_chip_info {
 	bool has_tunnel_mode;
 	unsigned int num_pipes;
-	unsigned int pipe_hw_ids[MAX_SER_PIPES_NUM];
+	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
 	unsigned int num_phys;
-	unsigned int phy_hw_ids[MAX_SER_PHYS_NUM];
+	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
 	unsigned int num_lane_configs;
-	unsigned int lane_configs[MAX96717_LANE_CONFIGS_NUM][MAX_SER_PHYS_NUM];
+	unsigned int lane_configs[MAX96717_LANE_CONFIGS_NUM][MAX96717_PHYS_NUM];
 	unsigned int phy_configs[MAX96717_LANE_CONFIGS_NUM];
 };
 

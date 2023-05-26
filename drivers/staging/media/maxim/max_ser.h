@@ -18,9 +18,6 @@
 #define MAX_SER_SINK_PAD	1
 #define MAX_SER_PAD_NUM		2
 
-#define MAX_SER_PHYS_NUM	2
-#define MAX_SER_PIPES_NUM	4
-
 #define MAX_SER_DT_EMB8				0x12
 #define MAX_SER_DT_YUV422_8B			0x1e
 #define MAX_SER_DT_YUV422_10B			0x1f
@@ -99,8 +96,8 @@ struct max_ser_priv {
 	unsigned int num_subdevs;
 	bool tunnel_mode;
 
-	struct max_ser_phy phys[MAX_SER_PHYS_NUM];
-	struct max_ser_pipe pipes[MAX_SER_PIPES_NUM];
+	struct max_ser_phy *phys;
+	struct max_ser_pipe *pipes;
 	struct max_ser_subdev_priv *sd_privs;
 };
 
