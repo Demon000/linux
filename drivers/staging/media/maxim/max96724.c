@@ -13,6 +13,7 @@
 #include "max_des.h"
 
 #define MAX96724_DPLL_FREQ		2500
+#define MAX96724_PHYS_NUM		4
 
 struct max96724_priv {
 	struct max_des_priv des_priv;
@@ -138,15 +139,56 @@ static int max96724_mipi_enable(struct max_des_priv *des_priv, bool enable)
 	return 0;
 }
 
+static const unsigned int max96724_lane_configs[][MAX96724_PHYS_NUM] = {
+	{ 2, 2, 2, 2 },
+	{ 0, 0, 0, 0 },
+	{ 0, 4, 4, 0 },
+	{ 0, 4, 2, 2 },
+	{ 2, 2, 4, 0 },
+};
+
+static int max96724_init_lane_config(struct max96724_priv *priv)
+{
+	unsigned int num_lane_configs = ARRAY_SIZE(max96724_lane_configs);
+	struct max_des_priv *des_priv = &priv->des_priv;
+	struct max_des_phy *phy;
+	unsigned int i, j;
+	int ret;
+
+	for (i = 0; i < num_lane_configs; i++) {
+		bool matching = true;
+
+		for (j = 0; j < des_priv->ops->num_phys; j++) {
+			phy = max_des_phy_by_id(des_priv, j);
+
+			if (phy->enabled && phy->mipi.num_data_lanes !=
+			    max96724_lane_configs[i][j]) {
+				matching = false;
+				break;
+			}
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == num_lane_configs) {
+		dev_err(priv->dev, "Invalid lane configuration\n");
+		return -EINVAL;
+	}
+
+	/* Select 2x4 or 4x2 mode. */
+	ret = max96724_update_bits(priv, 0x8a0, 0x1f, BIT(i));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int max96724_init(struct max_des_priv *des_priv)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	int ret;
-
-	/* Select 2x4 or 4x2 mode. */
-	ret = max96724_update_bits(priv, 0x8a0, 0x1f, BIT(des_priv->lane_config));
-	if (ret)
-		return ret;
 
 	/* Set alternate memory map mode for 12bpp. */
 	/* TODO: make dynamic. */
@@ -166,6 +208,10 @@ static int max96724_init(struct max_des_priv *des_priv)
 
 	/* Disable all pipes. */
 	ret = max96724_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
+	if (ret)
+		return ret;
+
+	ret = max96724_init_lane_config(priv);
 	if (ret)
 		return ret;
 

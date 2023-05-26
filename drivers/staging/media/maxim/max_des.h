@@ -108,7 +108,6 @@ struct max_des_priv {
 	int mux_channel;
 
 	unsigned int num_subdevs;
-	unsigned int lane_config;
 	struct mutex lock;
 	bool active;
 
@@ -121,5 +120,11 @@ struct max_des_priv {
 int max_des_probe(struct max_des_priv *priv);
 
 int max_des_remove(struct max_des_priv *priv);
+
+static inline struct max_des_phy *max_des_phy_by_id(struct max_des_priv *priv,
+						    unsigned int index)
+{
+	return &priv->phys[index];
+}
 
 #endif // MAX_DES_H

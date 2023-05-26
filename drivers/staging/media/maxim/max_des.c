@@ -966,14 +966,6 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	return 0;
 }
 
-static const unsigned int max_des_lane_configs[][MAX_DES_PHYS_NUM] = {
-	{ 2, 2, 2, 2 },
-	{ 0, 0, 0, 0 },
-	{ 0, 4, 4, 0 },
-	{ 0, 4, 2, 2 },
-	{ 2, 2, 4, 0 },
-};
-
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
 	const char *channel_node_name = "channel";
@@ -984,7 +976,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
-	unsigned int i, j;
+	unsigned int i;
 	u32 index;
 	int ret;
 
@@ -1119,30 +1111,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	ret = max_des_update_pipes_remaps(priv);
 	if (ret)
 		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(max_des_lane_configs); i++) {
-		bool matching = true;
-
-		for (j = 0; j < priv->ops->num_phys; j++) {
-			phy = &priv->phys[j];
-
-			if (phy->enabled && phy->mipi.num_data_lanes !=
-				max_des_lane_configs[i][j]) {
-				matching = false;
-				break;
-			}
-		}
-
-		if (matching)
-			break;
-	}
-
-	if (i == ARRAY_SIZE(max_des_lane_configs)) {
-		dev_err(priv->dev, "Invalid lane configuration\n");
-		return -EINVAL;
-	}
-
-	priv->lane_config = i;
 
 	return 0;
 }
