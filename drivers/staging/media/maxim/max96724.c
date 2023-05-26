@@ -301,7 +301,7 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
-	/* Disable periodic deskeq. */
+	/* Disable periodic deskew. */
 	ret = max96724_write(priv, 0x904 + 0x40 * index, 0x01);
 	if (ret)
 		return ret;
