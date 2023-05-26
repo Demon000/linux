@@ -84,7 +84,7 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 
 	priv->mux->priv = priv;
 
-	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_links; i++) {
 		struct max_des_link *link = &priv->links[i];
 
 		if (!link->enabled)
@@ -171,7 +171,7 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
+	for (i = 0; i < priv->ops->num_pipes; i++) {
 		pipe = &priv->pipes[i];
 
 		if (!pipe->enabled)
@@ -297,7 +297,7 @@ static int max_des_init(struct max_des_priv *priv)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < MAX_DES_PHYS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_phys; i++) {
 		struct max_des_phy *phy = &priv->phys[i];
 
 		if (!phy->enabled)
@@ -308,7 +308,7 @@ static int max_des_init(struct max_des_priv *priv)
 			return ret;
 	}
 
-	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
+	for (i = 0; i < priv->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &priv->pipes[i];
 
 		if (!pipe->enabled)
@@ -319,7 +319,7 @@ static int max_des_init(struct max_des_priv *priv)
 			return ret;
 	}
 
-	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_links; i++) {
 		struct max_des_link *link = &priv->links[i];
 
 		if (!link->enabled)
@@ -331,7 +331,7 @@ static int max_des_init(struct max_des_priv *priv)
 
 	}
 
-	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_links; i++) {
 		struct max_des_link *link = &priv->links[i];
 
 		if (!link->enabled)
@@ -821,7 +821,7 @@ static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
 		remap->to_vc = remaps_arr[i + 3];
 		remap->phy = remaps_arr[i + 4];
 
-		if (remap->phy >= MAX_DES_PHYS_NUM) {
+		if (remap->phy >= priv->ops->num_phys) {
 			dev_err(priv->dev, "Invalid remap PHY %u\n",
 				remaps_arr[i + 4]);
 			ret = -EINVAL;
@@ -845,7 +845,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 	val = pipe->phy_id;
 	fwnode_property_read_u32(fwnode, "max,phy-id", &val);
-	if (val >= MAX_DES_PHYS_NUM) {
+	if (val >= priv->ops->num_phys) {
 		dev_err(priv->dev, "Invalid PHY %u\n", val);
 		return -EINVAL;
 	}
@@ -861,7 +861,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 	val = pipe->link_id;
 	fwnode_property_read_u32(fwnode, "max,link-id", &val);
-	if (val >= MAX_DES_LINKS_NUM) {
+	if (val >= priv->ops->num_links) {
 		dev_err(priv->dev, "Invalid link %u\n", val);
 		return -EINVAL;
 	}
@@ -882,7 +882,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	val = sd_priv->pipe_id;
 	fwnode_property_read_u32(fwnode, "max,pipe-id", &val);
-	if (val >= MAX_DES_PIPES_NUM) {
+	if (val >= priv->ops->num_pipes) {
 		dev_err(priv->dev, "Invalid pipe %u\n", val);
 		return -EINVAL;
 	}
@@ -988,12 +988,12 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	u32 index;
 	int ret;
 
-	for (i = 0; i < MAX_DES_PHYS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_phys; i++) {
 		phy = &priv->phys[i];
 		phy->index = i;
 	}
 
-	for (i = 0; i < MAX_DES_PIPES_NUM; i++) {
+	for (i = 0; i < priv->ops->num_pipes; i++) {
 		pipe = &priv->pipes[i];
 		pipe->index = i;
 		pipe->phy_id = i;
@@ -1001,7 +1001,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		pipe->link_id = i;
 	}
 
-	for (i = 0; i < MAX_DES_LINKS_NUM; i++) {
+	for (i = 0; i < priv->ops->num_links; i++) {
 		link = &priv->links[i];
 		link->index = i;
 	}
@@ -1018,7 +1018,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= MAX_DES_LINKS_NUM) {
+		if (index >= priv->ops->num_links) {
 			dev_err(priv->dev, "Invalid link %u\n", index);
 			return -EINVAL;
 		}
@@ -1046,7 +1046,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= MAX_DES_PIPES_NUM) {
+		if (index >= priv->ops->num_pipes) {
 			dev_err(priv->dev, "Invalid pipe %u\n", index);
 			return -EINVAL;
 		}
@@ -1123,7 +1123,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(max_des_lane_configs); i++) {
 		bool matching = true;
 
-		for (j = 0; j < MAX_DES_PHYS_NUM; j++) {
+		for (j = 0; j < priv->ops->num_phys; j++) {
 			phy = &priv->phys[j];
 
 			if (phy->enabled && phy->mipi.num_data_lanes !=
@@ -1147,9 +1147,33 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	return 0;
 }
 
+static int max_des_allocate(struct max_des_priv *priv)
+{
+	priv->phys = devm_kcalloc(priv->dev, priv->ops->num_phys,
+				  sizeof(*priv->phys), GFP_KERNEL);
+	if (!priv->phys)
+		return -ENOMEM;
+
+	priv->pipes = devm_kcalloc(priv->dev, priv->ops->num_pipes,
+				   sizeof(*priv->pipes), GFP_KERNEL);
+	if (!priv->pipes)
+		return -ENOMEM;
+
+	priv->links = devm_kcalloc(priv->dev, priv->ops->num_links,
+				   sizeof(*priv->links), GFP_KERNEL);
+	if (!priv->links)
+		return -ENOMEM;
+
+	return 0;
+}
+
 int max_des_probe(struct max_des_priv *priv)
 {
 	int ret;
+
+	ret = max_des_allocate(priv);
+	if (ret)
+		return ret;
 
 	ret = max_des_parse_dt(priv);
 	if (ret)

@@ -13,9 +13,6 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
-#define MAX_DES_PHYS_NUM		4
-#define MAX_DES_PIPES_NUM		4
-#define MAX_DES_LINKS_NUM		4
 #define MAX_DES_REMAPS_NUM		16
 #define MAX_DES_I2C_XLATES_NUM		2
 
@@ -87,6 +84,10 @@ struct max_des_phy {
 };
 
 struct max_des_ops {
+	unsigned int num_phys;
+	unsigned int num_pipes;
+	unsigned int num_links;
+
 	int (*mux_select)(struct max_des_priv *priv, unsigned int link);
 	int (*mipi_enable)(struct max_des_priv *priv, bool enable);
 	int (*init)(struct max_des_priv *priv);
@@ -111,9 +112,9 @@ struct max_des_priv {
 	struct mutex lock;
 	bool active;
 
-	struct max_des_phy phys[MAX_DES_PHYS_NUM];
-	struct max_des_pipe pipes[MAX_DES_PIPES_NUM];
-	struct max_des_link links[MAX_DES_LINKS_NUM];
+	struct max_des_phy *phys;
+	struct max_des_pipe *pipes;
+	struct max_des_link *links;
 	struct max_des_subdev_priv *sd_privs;
 };
 
