@@ -13,7 +13,6 @@
 #include "max_des.h"
 
 #define MAX9296A_DPLL_FREQ		2500
-#define MAX9296A_PHYS_NUM		4
 
 struct max9296a_priv {
 	struct max_des_priv des_priv;
