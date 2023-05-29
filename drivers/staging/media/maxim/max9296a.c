@@ -140,7 +140,7 @@ static int max9296a_init(struct max_des_priv *des_priv)
 	/* Set alternate memory map mode for 12bpp. */
 	/* TODO: FIX. */
 	/* TODO: make dynamic. */
-	ret = max9296a_write(priv, 0x433, 0x01);
+	ret = max9296a_write(priv, 0x4b3, 0x01);
 	if (ret)
 		return ret;
 
