@@ -87,6 +87,7 @@ struct max_des_ops {
 	unsigned int num_phys;
 	unsigned int num_pipes;
 	unsigned int num_links;
+	bool supports_pipe_link_remap;
 
 	int (*mux_select)(struct max_des_priv *priv, unsigned int link);
 	int (*mipi_enable)(struct max_des_priv *priv, bool enable);

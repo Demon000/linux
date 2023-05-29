@@ -837,11 +837,36 @@ exit:
 	return ret;
 }
 
+static int max_des_parse_pipe_link_remap_dt(struct max_des_priv *priv,
+					    struct max_des_pipe *pipe,
+					    struct fwnode_handle *fwnode)
+{
+	u32 val;
+	int ret;
+
+	val = pipe->link_id;
+	ret = fwnode_property_read_u32(fwnode, "max,link-id", &val);
+	if (!ret && priv->ops->supports_pipe_link_remap) {
+		dev_err(priv->dev, "Pipe link remapping is not supported\n");
+		return -EINVAL;
+	}
+
+	if (val >= priv->ops->num_links) {
+		dev_err(priv->dev, "Invalid link %u\n", val);
+		return -EINVAL;
+	}
+
+	pipe->link_id = val;
+
+	return 0;
+}
+
 static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
 	u32 val;
+	int ret;
 
 	val = pipe->phy_id;
 	fwnode_property_read_u32(fwnode, "max,phy-id", &val);
@@ -859,13 +884,9 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	}
 	pipe->stream_id = val;
 
-	val = pipe->link_id;
-	fwnode_property_read_u32(fwnode, "max,link-id", &val);
-	if (val >= priv->ops->num_links) {
-		dev_err(priv->dev, "Invalid link %u\n", val);
-		return -EINVAL;
-	}
-	pipe->link_id = val;
+	ret = max_des_parse_pipe_link_remap_dt(priv, pipe, fwnode);
+	if (ret)
+		return ret;
 
 	return 0;
 }
