@@ -233,11 +233,7 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 		goto err_unregister_client;
 	}
 
-	ret = priv->ops->disable_links(priv);
-	if (ret)
-		goto err_regmap_exit;
-
-	ret = priv->ops->enable_link(priv, link);
+	ret = priv->ops->select_links(priv, BIT(link->index));
 	if (ret)
 		goto err_regmap_exit;
 
@@ -271,10 +267,6 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 		goto err_regmap_exit;
 	}
 
-	ret = priv->ops->disable_links(priv);
-	if (ret)
-		goto err_regmap_exit;
-
 err_regmap_exit:
 	regmap_exit(regmap);
 
@@ -286,7 +278,7 @@ err_unregister_client:
 
 static int max_des_init(struct max_des_priv *priv)
 {
-	unsigned int i;
+	unsigned int i, mask;
 	int ret;
 
 	ret = __max_des_mipi_update(priv);
@@ -331,17 +323,19 @@ static int max_des_init(struct max_des_priv *priv)
 
 	}
 
+	mask = 0;
 	for (i = 0; i < priv->ops->num_links; i++) {
 		struct max_des_link *link = &priv->links[i];
 
 		if (!link->enabled)
 			continue;
 
-		ret = priv->ops->enable_link(priv, link);
-		if (ret)
-			return ret;
-
+		mask |= BIT(link->index);
 	}
+
+	ret = priv->ops->select_links(priv, mask);
+	if (ret)
+		return ret;
 
 	ret = priv->ops->post_init(priv);
 	if (ret)

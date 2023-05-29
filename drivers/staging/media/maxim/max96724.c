@@ -421,20 +421,12 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	return max96724_init_pipe_remaps(priv, pipe);
 }
 
-static int max96724_disable_links(struct max_des_priv *des_priv)
+static int max96724_select_links(struct max_des_priv *des_priv,
+				 unsigned int mask)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
 
-	return max96724_update_bits(priv, 0x6, GENMASK(3, 0), 0x00);
-}
-
-static int max96724_enable_link(struct max_des_priv *des_priv,
-				struct max_des_link *link)
-{
-	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int val = BIT(link->index);
-
-	return max96724_update_bits(priv, 0x6, val, val);
+	return max96724_update_bits(priv, 0x6, GENMASK(3, 0), mask);
 }
 
 static int max96724_post_init(struct max_des_priv *des_priv)
@@ -466,8 +458,7 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
-	.disable_links = max96724_disable_links,
-	.enable_link = max96724_enable_link,
+	.select_links = max96724_select_links,
 	.post_init = max96724_post_init,
 };
 

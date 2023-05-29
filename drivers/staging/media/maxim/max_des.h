@@ -94,8 +94,7 @@ struct max_des_ops {
 	int (*init)(struct max_des_priv *priv);
 	int (*init_phy)(struct max_des_priv *priv, struct max_des_phy *phy);
 	int (*init_pipe)(struct max_des_priv *priv, struct max_des_pipe *pipe);
-	int (*disable_links)(struct max_des_priv *priv);
-	int (*enable_link)(struct max_des_priv *priv, struct max_des_link *link);
+	int (*select_links)(struct max_des_priv *priv, unsigned int mask);
 	int (*post_init)(struct max_des_priv *priv);
 };
 
