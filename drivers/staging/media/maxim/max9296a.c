@@ -250,7 +250,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		return ret;
 
 	/* Enable PHY. */
-	mask = BIT(index + 4);
+	mask = GENMASK(1, 0) << (2 * index + 4);
 	ret = max9296a_update_bits(priv, 0x332, mask, mask);
 	if (ret)
 		return ret;
