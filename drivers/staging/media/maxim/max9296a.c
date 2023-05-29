@@ -168,13 +168,20 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 	struct max9296a_priv *priv = des_to_priv(des_priv);
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
-	unsigned int index = phy->index;
+	unsigned int index;
 	unsigned int i;
 	int ret;
 
+	/*
+	 * MAX9296A has four PHYs, but does not support single-PHY configurations,
+	 * only double-PHY configurations, even when only using two lanes.
+	 * Some registers are indexed for 4 PHYs, and some are indexed for only 2 PHYs.
+	 */
+	index = phy->index * 2;
+
 	/* Configure a lane count. */
 	/* TODO: Add support CPHY mode. */
-	ret = max9296a_update_bits(priv, 0x44a + 0x40 * index, GENMASK(7, 6),
+	ret = max9296a_update_bits(priv, 0x44a + 0x40 * index / 2, GENMASK(7, 6),
 				   FIELD_PREP(GENMASK(7, 6), num_data_lanes - 1));
 	if (ret)
 		return ret;
@@ -241,17 +248,17 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		return ret;
 
 	/* Disable initial deskew. */
-	ret = max9296a_write(priv, 0x443 + 0x40 * index, 0x07);
+	ret = max9296a_write(priv, 0x443 + 0x40 * index / 2, 0x07);
 	if (ret)
 		return ret;
 
 	/* Disable periodic deskew. */
-	ret = max9296a_write(priv, 0x444 + 0x40 * index, 0x01);
+	ret = max9296a_write(priv, 0x444 + 0x40 * index / 2, 0x01);
 	if (ret)
 		return ret;
 
 	/* Enable PHY. */
-	mask = GENMASK(1, 0) << (2 * index + 4);
+	mask = GENMASK(1, 0) << (index + 4);
 	ret = max9296a_update_bits(priv, 0x332, mask, mask);
 	if (ret)
 		return ret;
@@ -266,6 +273,7 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 {
 	unsigned int index = pipe->index;
 	unsigned int reg, val, shift, mask;
+	unsigned int phy_id = remap->phy * 2;
 	int ret;
 
 	/* Set source Data Type and Virtual Channel. */
@@ -288,7 +296,7 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 	reg = 0x42d + 0x40 * index + i / 4;
 	shift = (i % 4) * 2;
 	mask = 0x3 << shift;
-	val = (remap->phy & 0x3) << shift;
+	val = (phy_id & 0x3) << shift;
 	ret = max9296a_update_bits(priv, reg, mask, val);
 	if (ret)
 		return ret;
