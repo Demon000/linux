@@ -30,6 +30,7 @@ static int max9296a_read(struct max9296a_priv *priv, int reg)
 	int ret, val;
 
 	ret = regmap_read(priv->regmap, reg, &val);
+	dev_err(priv->dev, "read %d 0x%x = 0x%02x\n", ret, reg, val);
 	if (ret) {
 		dev_err(priv->dev, "read 0x%04x failed\n", reg);
 		return ret;
@@ -43,6 +44,7 @@ static int max9296a_write(struct max9296a_priv *priv, unsigned int reg, u8 val)
 	int ret;
 
 	ret = regmap_write(priv->regmap, reg, val);
+	dev_err(priv->dev, "write %d 0x%x = 0x%02x\n", ret, reg, val);
 	if (ret)
 		dev_err(priv->dev, "write 0x%04x failed\n", reg);
 
@@ -55,6 +57,7 @@ static int max9296a_update_bits(struct max9296a_priv *priv, unsigned int reg,
 	int ret;
 
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	dev_err(priv->dev, "update %d 0x%x 0x%02x = 0x%02x\n", ret, reg, mask, val);
 	if (ret)
 		dev_err(priv->dev, "update 0x%04x failed\n", reg);
 
