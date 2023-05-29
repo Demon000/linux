@@ -429,25 +429,6 @@ static int max96724_select_links(struct max_des_priv *des_priv,
 	return max96724_update_bits(priv, 0x6, GENMASK(3, 0), mask);
 }
 
-static int max96724_post_init(struct max_des_priv *des_priv)
-{
-	struct max96724_priv *priv = des_to_priv(des_priv);
-	int ret;
-
-	/* One-shot reset all PHYs. */
-	ret = max96724_write(priv, 0x18, 0x0f);
-	if (ret)
-		return ret;
-
-	/*
-	 * Wait for 2ms to allow the link to resynchronize after the
-	 * configuration change.
-	 */
-	usleep_range(2000, 5000);
-
-	return 0;
-}
-
 static const struct max_des_ops max96724_ops = {
 	.num_phys = 4,
 	.num_pipes = 4,
@@ -459,7 +440,6 @@ static const struct max_des_ops max96724_ops = {
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
 	.select_links = max96724_select_links,
-	.post_init = max96724_post_init,
 };
 
 static int max96724_probe(struct i2c_client *client)

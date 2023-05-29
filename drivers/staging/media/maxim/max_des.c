@@ -337,9 +337,11 @@ static int max_des_init(struct max_des_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = priv->ops->post_init(priv);
-	if (ret)
-		return ret;
+	if (priv->ops->post_init) {
+		ret = priv->ops->post_init(priv);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
