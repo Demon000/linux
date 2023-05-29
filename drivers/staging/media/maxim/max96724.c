@@ -191,6 +191,7 @@ static int max96724_init(struct max_des_priv *des_priv)
 	int ret;
 
 	/* Set alternate memory map mode for 12bpp. */
+	/* TODO: FIX. */
 	/* TODO: make dynamic. */
 	ret = max96724_write(priv, 0x9b3, 0x01);
 	if (ret)
