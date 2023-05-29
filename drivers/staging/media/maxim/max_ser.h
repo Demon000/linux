@@ -18,6 +18,9 @@
 #define MAX_SER_SINK_PAD	1
 #define MAX_SER_PAD_NUM		2
 
+#define MAX_SER_MAX96717_DEV_ID			0xbf
+#define MAX_SER_MAX9265A_DEV_ID			0x91
+
 #define MAX_SER_DT_EMB8				0x12
 #define MAX_SER_DT_YUV422_8B			0x1e
 #define MAX_SER_DT_YUV422_10B			0x1f
@@ -113,7 +116,7 @@ int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr);
 int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
 			      u8 *addrs, unsigned int num_addrs);
 
-int max_ser_change_address(struct regmap *regmap, u8 addr);
+int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr);
 
 int max_ser_init_i2c_xlate(struct regmap *regmap, unsigned int i,
 			   struct max_i2c_xlate *i2c_xlate);

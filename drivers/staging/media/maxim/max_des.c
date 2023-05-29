@@ -261,7 +261,7 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 	if (ret)
 		goto err_regmap_exit;
 
-	ret = max_ser_change_address(regmap, addrs[1]);
+	ret = max_ser_change_address(client, regmap, addrs[1]);
 	if (ret) {
 		dev_err(priv->dev, "Failed to change serializer address: %d\n", ret);
 		goto err_regmap_exit;

@@ -915,9 +915,41 @@ int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr)
 }
 EXPORT_SYMBOL_GPL(max_ser_wait);
 
-int max_ser_change_address(struct regmap *regmap, u8 addr)
+int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr)
 {
-	return regmap_write(regmap, 0x0, addr << 1);
+	unsigned int dev_id;
+	int ret;
+
+	ret = regmap_read(regmap, 0xd, &dev_id);
+	if (ret)
+		return ret;
+
+	ret = regmap_write(regmap, 0x0, addr << 1);
+	if (ret)
+		return ret;
+
+	client->addr = addr;
+
+	switch (dev_id) {
+	case MAX_SER_MAX96717_DEV_ID:
+		return 0;
+	case MAX_SER_MAX9265A_DEV_ID: {
+		unsigned int addr_regs[] = { 0x7b, 0x83, 0x8b, 0x93, 0xa3, 0xab };
+		unsigned int i;
+
+		for (i = 0; i < ARRAY_SIZE(addr_regs); i++) {
+			ret = regmap_write(regmap, addr_regs[i], addr);
+			if (ret)
+				return ret;
+		}
+
+		break;
+	}
+	default:
+		return 0;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_change_address);
 
