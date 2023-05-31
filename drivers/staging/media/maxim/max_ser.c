@@ -94,7 +94,7 @@ const struct max_ser_format *max_ser_format_by_code(u32 code)
 	return NULL;
 }
 
-static const bool max_ser_format_valid(struct max_ser_priv *priv, u32 code)
+static bool max_ser_format_valid(struct max_ser_priv *priv, u32 code)
 {
 	if (priv->tunnel_mode)
 		return true;
