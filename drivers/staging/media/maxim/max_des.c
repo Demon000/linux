@@ -120,7 +120,7 @@ static int __max_des_mipi_update(struct max_des_priv *priv)
 	return priv->ops->mipi_enable(priv, enable);
 }
 
-static int max_des_mipi_enable(struct max_des_subdev_priv *sd_priv, bool enable)
+static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
 {
 	struct max_des_priv *priv = sd_priv->priv;
 	int ret = 0;
@@ -465,7 +465,7 @@ static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 	struct max_des_priv *priv = sd_priv->priv;
 	int ret;
 
-	ret = max_des_mipi_enable(sd_priv, enable);
+	ret = max_des_ch_enable(sd_priv, enable);
 	if (ret)
 		return ret;
 
