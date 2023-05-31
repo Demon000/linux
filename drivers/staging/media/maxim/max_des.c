@@ -465,7 +465,9 @@ static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 	struct max_des_priv *priv = sd_priv->priv;
 	int ret;
 
-	max_des_mipi_enable(sd_priv, enable);
+	ret = max_des_mipi_enable(sd_priv, enable);
+	if (ret)
+		return ret;
 
 	ret = v4l2_subdev_call(sd_priv->slave_sd, video, s_stream, enable);
 	if (ret) {
