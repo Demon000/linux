@@ -61,6 +61,7 @@ struct max_ser_subdev_priv {
 	struct v4l2_async_notifier notifier;
 	struct media_pad pads[MAX_SER_PAD_NUM];
 
+	bool active;
 	unsigned int pipe_id;
 };
 
@@ -76,6 +77,7 @@ struct max_ser_pipe {
 	unsigned int stream_id;
 	unsigned int *dts;
 	bool enabled;
+	bool active;
 };
 
 struct max_ser_ops {
@@ -99,6 +101,7 @@ struct max_ser_priv {
 	struct i2c_client *client;
 
 	unsigned int num_subdevs;
+	struct mutex lock;
 	bool tunnel_mode;
 
 	struct max_ser_phy *phys;

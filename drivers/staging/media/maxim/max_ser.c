@@ -221,14 +221,52 @@ error_cleanup_notifier:
 	return ret;
 }
 
+static int __max_ser_pipe_update_active(struct max_ser_priv *priv,
+					struct max_ser_pipe *pipe)
+{
+	struct max_ser_subdev_priv *sd_priv;
+	bool enable = 0;
+
+	for_each_subdev(priv, sd_priv)
+		if (sd_priv->pipe_id == pipe->index && sd_priv->active)
+			enable = 1;
+
+	if (enable == pipe->active)
+		return 0;
+
+	pipe->active = enable;
+
+	return priv->ops->set_pipe_enable(priv, pipe, enable);
+}
+
+static int max_ser_ch_enable(struct max_ser_subdev_priv *sd_priv, bool enable)
+{
+	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_pipe *pipe = max_ser_ch_pipe(sd_priv);
+	int ret = 0;
+
+	mutex_lock(&priv->lock);
+
+	if (sd_priv->active == enable)
+		goto exit;
+
+	sd_priv->active = enable;
+
+	ret = __max_ser_pipe_update_active(priv, pipe);
+
+exit:
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
 static int max_ser_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max_ser_subdev_priv *sd_priv = sd_to_max_ser(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_pipe *pipe = max_ser_pipe_by_id(priv, sd_priv->pipe_id);
 	int ret;
 
-	ret = priv->ops->set_pipe_enable(priv, pipe, enable);
+	ret = max_ser_ch_enable(sd_priv, enable);
 	if (ret)
 		return ret;
 
@@ -863,6 +901,8 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 int max_ser_probe(struct max_ser_priv *priv)
 {
 	int ret;
+
+	mutex_init(&priv->lock);
 
 	ret = max_ser_allocate(priv);
 	if (ret)
