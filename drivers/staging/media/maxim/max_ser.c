@@ -683,8 +683,7 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
-	struct max_ser_phy *phy = &priv->phys[pipe->phy_id];
+	struct max_ser_phy *phy = max_ser_phy_by_pipe_id(priv, sd_priv->pipe_id);
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
