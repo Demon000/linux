@@ -23,6 +23,7 @@ struct max96717_priv {
 struct max96717_chip_info {
 	bool has_tunnel_mode;
 	unsigned int num_pipes;
+	unsigned int num_dts_per_pipe;
 	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
@@ -545,6 +546,7 @@ static int max96717_probe(struct i2c_client *client)
 		ops->set_tunnel_mode = NULL;
 
 	ops->num_pipes = priv->info->num_pipes;
+	ops->num_dts_per_pipe = priv->info->num_dts_per_pipe;
 	ops->num_phys = priv->info->num_phys;
 
 	priv->ser_priv.dev = &client->dev;
@@ -568,6 +570,7 @@ static int max96717_remove(struct i2c_client *client)
 static const struct max96717_chip_info max96717_info = {
 	.has_tunnel_mode = true,
 	.num_pipes = 1,
+	.num_dts_per_pipe = 8,
 	.pipe_hw_ids = { 2 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
@@ -585,6 +588,7 @@ static const struct max96717_chip_info max96717_info = {
 static const struct max96717_chip_info max9295a_info = {
 	.has_tunnel_mode = false,
 	.num_pipes = 4,
+	.num_dts_per_pipe = 6,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
@@ -602,6 +606,7 @@ static const struct max96717_chip_info max9295a_info = {
 static const struct max96717_chip_info max9295b_info = {
 	.has_tunnel_mode = false,
 	.num_pipes = 4,
+	.num_dts_per_pipe = 6,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 2,
 	.phy_hw_ids = { 0, 1 },

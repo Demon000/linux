@@ -74,11 +74,13 @@ struct max_ser_pipe {
 	unsigned int index;
 	unsigned int phy_id;
 	unsigned int stream_id;
+	unsigned int *dts;
 	bool enabled;
 };
 
 struct max_ser_ops {
 	unsigned int num_pipes;
+	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
 
 	int (*set_pipe_enable)(struct max_ser_priv *priv, struct max_ser_pipe *pipe, bool enable);

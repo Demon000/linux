@@ -837,6 +837,8 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 
 static int max_ser_allocate(struct max_ser_priv *priv)
 {
+	unsigned int i;
+
 	priv->phys = devm_kcalloc(priv->dev, priv->ops->num_phys,
 				  sizeof(*priv->phys), GFP_KERNEL);
 	if (!priv->phys)
@@ -846,6 +848,13 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 				   sizeof(*priv->pipes), GFP_KERNEL);
 	if (!priv->pipes)
 		return -ENOMEM;
+
+	for (i = 0; i < priv->ops->num_pipes; i++) {
+		struct max_ser_pipe *pipe = &priv->pipes[i];
+
+		pipe->dts = devm_kcalloc(priv->dev, priv->ops->num_dts_per_pipe,
+					 sizeof(*pipe->dts), GFP_KERNEL);
+	}
 
 	return 0;
 }
