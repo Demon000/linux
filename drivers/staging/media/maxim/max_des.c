@@ -108,9 +108,12 @@ static int __max_des_mipi_update(struct max_des_priv *priv)
 	struct max_des_subdev_priv *sd_priv;
 	bool enable = 0;
 
-	for_each_subdev(priv, sd_priv)
-		if (sd_priv->active)
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->active) {
 			enable = 1;
+			break;
+		}
+	}
 
 	if (enable == priv->active)
 		return 0;
