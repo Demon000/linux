@@ -1158,6 +1158,8 @@ int max_des_probe(struct max_des_priv *priv)
 {
 	int ret;
 
+	mutex_init(&priv->lock);
+
 	ret = max_des_allocate(priv);
 	if (ret)
 		return ret;
