@@ -227,9 +227,12 @@ static int max_ser_pipe_update_active(struct max_ser_priv *priv,
 	struct max_ser_subdev_priv *sd_priv;
 	bool enable = 0;
 
-	for_each_subdev(priv, sd_priv)
-		if (sd_priv->pipe_id == pipe->index && sd_priv->active)
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->pipe_id == pipe->index && sd_priv->active) {
 			enable = 1;
+			break;
+		}
+	}
 
 	if (enable == pipe->active)
 		return 0;
