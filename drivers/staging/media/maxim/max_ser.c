@@ -221,8 +221,8 @@ error_cleanup_notifier:
 	return ret;
 }
 
-static int __max_ser_pipe_update_active(struct max_ser_priv *priv,
-					struct max_ser_pipe *pipe)
+static int max_ser_pipe_update_active(struct max_ser_priv *priv,
+				      struct max_ser_pipe *pipe)
 {
 	struct max_ser_subdev_priv *sd_priv;
 	bool enable = 0;
@@ -252,7 +252,7 @@ static int max_ser_ch_enable(struct max_ser_subdev_priv *sd_priv, bool enable)
 
 	sd_priv->active = enable;
 
-	ret = __max_ser_pipe_update_active(priv, pipe);
+	ret = max_ser_pipe_update_active(priv, pipe);
 
 exit:
 	mutex_unlock(&priv->lock);
