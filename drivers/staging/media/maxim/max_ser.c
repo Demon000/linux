@@ -288,7 +288,7 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_pipe *pipe = max_ser_pipe_by_id(priv, sd_priv->pipe_id);
+	struct max_ser_pipe *pipe = max_ser_ch_pipe(sd_priv);
 	int ret;
 
 	if (max_ser_format_valid(priv, format->format.code))
@@ -683,7 +683,8 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_phy *phy = max_ser_phy_by_pipe_id(priv, sd_priv->pipe_id);
+	struct max_ser_pipe *pipe = max_ser_ch_pipe(sd_priv);
+	struct max_ser_phy *phy = max_ser_pipe_phy(priv, pipe);
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
