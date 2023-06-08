@@ -221,6 +221,23 @@ error_cleanup_notifier:
 	return ret;
 }
 
+static int max_ser_pipe_update_dts(struct max_ser_priv *priv,
+				   struct max_ser_pipe *pipe)
+{
+	struct max_ser_subdev_priv *sd_priv;
+	pipe->num_dts = 0;
+
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->pipe_id != pipe->index || !sd_priv->active)
+			continue;
+
+		/* TODO: optimize by checking for existing filters. */
+		pipe->dts[pipe->num_dts++] = sd_priv->dt;
+	}
+
+	return priv->ops->update_pipe_dts(priv, pipe);
+}
+
 static int max_ser_pipe_update_active(struct max_ser_priv *priv,
 				      struct max_ser_pipe *pipe)
 {
@@ -254,6 +271,10 @@ static int max_ser_ch_enable(struct max_ser_subdev_priv *sd_priv, bool enable)
 		goto exit;
 
 	sd_priv->active = enable;
+
+	ret = max_ser_pipe_update_dts(priv, pipe);
+	if (ret)
+		goto exit;
 
 	ret = max_ser_pipe_update_active(priv, pipe);
 
@@ -329,7 +350,7 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
-	struct max_ser_pipe *pipe = max_ser_ch_pipe(sd_priv);
+	const struct max_ser_format *fmt;
 	int ret;
 
 	if (max_ser_format_valid(priv, format->format.code))
@@ -348,11 +369,11 @@ static int max_ser_check_fmt_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 set_data_type:
-	/*
-	 * TODO: figure out how to handle multiple DTs per pipe from multiple
-	 * channels per pipe.
-	 */
-	ret = priv->ops->set_pipe_dt(priv, pipe, format->format.code);
+	fmt = max_ser_format_by_code(format->format.code);
+	if (!fmt)
+		return -EINVAL;
+
+	sd_priv->dt = fmt->dt;
 	if (ret)
 		return ret;
 

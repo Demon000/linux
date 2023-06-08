@@ -139,16 +139,52 @@ static int max96717_override_pipe_bpp(struct max96717_priv *priv,
 	return 0;
 }
 
-static int max96717_set_pipe_dt(struct max_ser_priv *ser_priv,
-				struct max_ser_pipe *pipe, u32 code)
+static int max96717_set_pipe_dt_en(struct max96717_priv *priv,
+				   struct max_ser_pipe *pipe,
+				   unsigned int i, bool en)
 {
-	const struct max_ser_format *fmt = max_ser_format_by_code(code);
-	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	int ret;
+	unsigned int reg, mask;
 
-	if (!fmt)
-		return -EINVAL;
+	if (i < 2) {
+		reg = 0x315 + index * 2 + i;
+		mask = BIT(6);
+	} else if (i < 6) {
+		reg = 0x3d0 + index / 2;
+		mask = BIT(i);
+	} else {
+		reg = 0x3dc + index * 2 + i;
+		mask = BIT(6);
+	}
+
+	return max96717_update_bits(priv, reg, mask, en ? mask : 0);
+}
+
+static int max96717_set_pipe_dt(struct max96717_priv *priv,
+				struct max_ser_pipe *pipe,
+				unsigned int i)
+{
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	u32 dt = pipe->dts[i];
+	unsigned int reg;
+
+	if (i < 2)
+		reg = 0x315 + index * 2 + i;
+	else if (i < 6)
+		reg = 0x3c0 + index * 4 + i;
+	else
+		reg = 0x3dc + index * 2 + i;
+
+	return max96717_update_bits(priv, reg, GENMASK(5, 0), dt);
+}
+
+static int max96717_set_pipe_dbl(struct max96717_priv *priv,
+				 struct max_ser_pipe *pipe,
+				 unsigned int i)
+{
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	u32 dt = pipe->dts[i];
+	int ret;
 
 	/* TODO: implement all other supported formats. */
 
@@ -160,7 +196,7 @@ static int max96717_set_pipe_dt(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
-	switch (fmt->dt) {
+	switch (dt) {
 	case MAX_SER_DT_YUV422_8B:
 	case MAX_SER_DT_YUV422_10B:
 		break;
@@ -195,7 +231,42 @@ static int max96717_set_pipe_dt(struct max_ser_priv *ser_priv,
 
 		break;
 	default:
-		dev_err(priv->dev, "Data type %02x not implemented\n", fmt->dt);
+		dev_err(priv->dev, "Data type %02x not implemented\n", dt);
+	}
+
+	return 0;
+}
+
+static int max96717_update_pipe_dts(struct max_ser_priv *ser_priv,
+				    struct max_ser_pipe *pipe)
+{
+	struct max96717_priv *priv = ser_to_priv(ser_priv);
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < pipe->num_dts; i++) {
+		ret = max96717_set_pipe_dt(priv, pipe, i);
+		if (ret)
+			return ret;
+
+		/*
+		 * TODO: implement algorithm to decide if double mode should be
+		 * used based on all the DTs. Might need to be done in deserializer also.
+		 */
+		ret = max96717_set_pipe_dbl(priv, pipe, i);
+		if (ret)
+			return ret;
+
+		ret = max96717_set_pipe_dt_en(priv, pipe, i, true);
+		if (ret)
+			return ret;
+	}
+
+	/* Disable unused DTs. */
+	for (i = pipe->num_dts; i < ser_priv->ops->num_dts_per_pipe; i++) {
+		ret = max96717_set_pipe_dt_en(priv, pipe, i, false);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -503,7 +574,7 @@ static int max96717_post_init(struct max_ser_priv *ser_priv)
 
 static const struct max_ser_ops max96717_ops = {
 	.set_pipe_enable = max96717_set_pipe_enable,
-	.set_pipe_dt = max96717_set_pipe_dt,
+	.update_pipe_dts = max96717_update_pipe_dts,
 	.init = max96717_init,
 	.set_tunnel_mode = max96717_set_tunnel_mode,
 	.init_phy = max96717_init_phy,

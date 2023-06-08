@@ -63,6 +63,7 @@ struct max_ser_subdev_priv {
 
 	bool active;
 	unsigned int pipe_id;
+	unsigned int dt;
 };
 
 struct max_ser_phy {
@@ -76,6 +77,7 @@ struct max_ser_pipe {
 	unsigned int phy_id;
 	unsigned int stream_id;
 	unsigned int *dts;
+	unsigned int num_dts;
 	bool enabled;
 	bool active;
 };
@@ -86,7 +88,7 @@ struct max_ser_ops {
 	unsigned int num_phys;
 
 	int (*set_pipe_enable)(struct max_ser_priv *priv, struct max_ser_pipe *pipe, bool enable);
-	int (*set_pipe_dt)(struct max_ser_priv *priv, struct max_ser_pipe *pipe, u32 code);
+	int (*update_pipe_dts)(struct max_ser_priv *priv, struct max_ser_pipe *pipe);
 	int (*init)(struct max_ser_priv *priv);
 	int (*set_tunnel_mode)(struct max_ser_priv *priv);
 	int (*init_phy)(struct max_ser_priv *priv, struct max_ser_phy *phy);
