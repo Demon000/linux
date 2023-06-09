@@ -244,6 +244,11 @@ static int max_ser_pipe_update_dts(struct max_ser_priv *priv,
 		if (sd_priv->pipe_id != pipe->index || !sd_priv->active)
 			continue;
 
+		if (pipe->num_dts == priv->ops->num_dts_per_pipe) {
+			dev_err(priv->dev, "Too many data types per pipe\n");
+			return -EINVAL;
+		}
+
 		/* TODO: optimize by checking for existing filters. */
 		pipe->dts[pipe->num_dts++] = sd_priv->dt;
 	}
