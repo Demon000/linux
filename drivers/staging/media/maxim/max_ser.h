@@ -43,7 +43,9 @@ struct max_ser_asd {
 
 struct max_ser_format {
 	u32 code;
-	u32 dt;
+	u8 dt;
+	u8 bpp;
+	bool dbl;
 };
 
 struct max_ser_subdev_priv {
@@ -116,6 +118,8 @@ int max_ser_probe(struct max_ser_priv *priv);
 int max_ser_remove(struct max_ser_priv *priv);
 
 const struct max_ser_format *max_ser_format_by_code(u32 code);
+
+const struct max_ser_format *max_ser_format_by_dt(u8 dt);
 
 int max_ser_reset(struct regmap *regmap);
 

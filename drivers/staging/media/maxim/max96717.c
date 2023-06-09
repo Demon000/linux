@@ -111,34 +111,6 @@ static int max96717_set_pipe_enable(struct max_ser_priv *ser_priv,
 	return max96717_update_bits(priv, 0x2, mask, enable ? mask : 0);
 }
 
-static int max96717_override_pipe_bpp(struct max96717_priv *priv,
-				      struct max_ser_pipe *pipe, u8 bpp)
-{
-	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int reg, mask;
-	int ret;
-
-	/* Disable Auto BPP mode. */
-	reg = 0x100 + 0x8 * index;
-	ret = max96717_update_bits(priv, reg, BIT(3), 0x00);
-	if (ret)
-		return ret;
-
-	/* Software override BPP. */
-	reg = 0x31c + index;
-	ret = max96717_update_bits(priv, reg, GENMASK(4, 0), bpp);
-	if (ret)
-		return ret;
-
-	/* Enable software override BPP. */
-	mask = BIT(5);
-	ret = max96717_update_bits(priv, reg, mask, mask);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max96717_set_pipe_dt_en(struct max96717_priv *priv,
 				   struct max_ser_pipe *pipe,
 				   unsigned int i, bool en)
@@ -180,59 +152,55 @@ static int max96717_set_pipe_dt(struct max96717_priv *priv,
 
 static int max96717_set_pipe_dbl(struct max96717_priv *priv,
 				 struct max_ser_pipe *pipe,
-				 unsigned int i)
+				 unsigned int i, bool en)
 {
+	const struct max_ser_format *fmt = max_ser_format_by_dt(pipe->dts[i]);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	u32 dt = pipe->dts[i];
+	bool dbl = en && fmt->dbl;
+	unsigned int reg, mask;
 	int ret;
 
-	/* TODO: implement all other supported formats. */
-
-	ret = max96717_update_bits(priv, 0x312, BIT(index), 0);
+	/* Set 8bit double mode. */
+	mask = BIT(index);
+	ret = max96717_update_bits(priv, 0x312, mask,
+				   dbl && fmt->bpp == 8 ? mask : 0);
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, 0x313, BIT(index + 4) | BIT(index), 0);
+	/* Set 10bit double mode. */
+	mask = BIT(index);
+	ret = max96717_update_bits(priv, 0x313, mask,
+				   dbl && fmt->bpp == 10 ? mask : 0);
 	if (ret)
 		return ret;
 
-	switch (dt) {
-	case MAX_SER_DT_YUV422_8B:
-	case MAX_SER_DT_YUV422_10B:
-		break;
-	case MAX_SER_DT_RAW8:
-		ret = max96717_update_bits(priv, 0x312, BIT(index), BIT(index));
-		if (ret)
-			return ret;
+	/* Set 12bit double mode. */
+	mask = BIT(index) << 4;
+	ret = max96717_update_bits(priv, 0x313, mask,
+				   dbl && fmt->bpp == 12 ? mask : 0);
+	if (ret)
+		return ret;
 
-		ret = max96717_override_pipe_bpp(priv, pipe, 16);
-		if (ret)
-			return ret;
+	/* Set BPP. */
+	reg = 0x31c + index;
+	ret = max96717_update_bits(priv, reg, GENMASK(4, 0),
+				   dbl ? fmt->bpp * 2 : 0);
+	if (ret)
+		return ret;
 
-		break;
-	case MAX_SER_DT_RAW10:
-		ret = max96717_update_bits(priv, 0x313, BIT(index), BIT(index));
-		if (ret)
-			return ret;
+	/* Set Auto BPP mode. */
+	reg = 0x100 + 0x8 * index;
+	mask = BIT(3);
+	ret = max96717_update_bits(priv, reg, mask, dbl ? 0 : mask);
+	if (ret)
+		return ret;
 
-		ret = max96717_override_pipe_bpp(priv, pipe, 20);
-		if (ret)
-			return ret;
-
-		break;
-	case MAX_SER_DT_RAW12:
-		ret = max96717_update_bits(priv, 0x313, BIT(index + 4), BIT(index + 4));
-		if (ret)
-			return ret;
-
-		ret = max96717_override_pipe_bpp(priv, pipe, 24);
-		if (ret)
-			return ret;
-
-		break;
-	default:
-		dev_err(priv->dev, "Data type %02x not implemented\n", dt);
-	}
+	/* Set override BPP. */
+	reg = 0x31c + index;
+	mask = BIT(5);
+	ret = max96717_update_bits(priv, reg, mask, dbl ? mask : 0);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -253,7 +221,7 @@ static int max96717_update_pipe_dts(struct max_ser_priv *ser_priv,
 		 * TODO: implement algorithm to decide if double mode should be
 		 * used based on all the DTs. Might need to be done in deserializer also.
 		 */
-		ret = max96717_set_pipe_dbl(priv, pipe, i);
+		ret = max96717_set_pipe_dbl(priv, pipe, i, true);
 		if (ret)
 			return ret;
 
