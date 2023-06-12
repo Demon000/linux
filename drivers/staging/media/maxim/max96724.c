@@ -177,6 +177,10 @@ static int max96724_init_lane_config(struct max96724_priv *priv)
 		return -EINVAL;
 	}
 
+	/*
+	 * TODO: add a fake 2-lane mode that uses the 4-lane config
+	 * and disables the other 2 lanes.
+	 */
 	/* Select 2x4 or 4x2 mode. */
 	ret = max96724_update_bits(priv, 0x8a0, 0x1f, BIT(i));
 	if (ret)
