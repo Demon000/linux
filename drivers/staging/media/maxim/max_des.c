@@ -195,9 +195,6 @@ static int max_des_init_link_i2c_xlate(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
-	if (!link->num_i2c_xlates)
-		return 0;
-
 	for (i = 0; i < link->num_i2c_xlates; i++) {
 		struct max_i2c_xlate *xlate = &link->i2c_xlates[i];
 
