@@ -1022,8 +1022,6 @@ int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 
 	client->addr = addr;
 
 	switch (dev_id) {
-	case MAX_SER_MAX96717_DEV_ID:
-		return 0;
 	case MAX_SER_MAX9265A_DEV_ID: {
 		unsigned int addr_regs[] = { 0x7b, 0x83, 0x8b, 0x93, 0xa3, 0xab };
 		unsigned int i;
