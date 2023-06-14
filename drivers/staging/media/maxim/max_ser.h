@@ -127,7 +127,8 @@ int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr);
 int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
 			      u8 *addrs, unsigned int num_addrs);
 
-int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr);
+int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
+			   bool fix_tx_ids);
 
 int max_ser_init_i2c_xlate(struct regmap *regmap, unsigned int i,
 			   struct max_i2c_xlate *i2c_xlate);

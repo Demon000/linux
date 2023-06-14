@@ -370,6 +370,7 @@ static const struct max_des_ops max9296a_ops = {
 	.num_phys = 2,
 	.num_pipes = 4,
 	.num_links = 2,
+	.fix_tx_ids = true,
 	.supports_pipe_link_remap = false,
 	.mux_select = max9296a_mux_select,
 	.mipi_enable = max9296a_mipi_enable,

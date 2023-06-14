@@ -1006,7 +1006,8 @@ int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr)
 }
 EXPORT_SYMBOL_GPL(max_ser_wait);
 
-int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr)
+int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
+			   bool fix_tx_ids)
 {
 	unsigned int dev_id;
 	int ret;
@@ -1020,6 +1021,9 @@ int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 
 		return ret;
 
 	client->addr = addr;
+
+	if (!fix_tx_ids)
+		return 0;
 
 	switch (dev_id) {
 	case MAX_SER_MAX9265A_DEV_ID: {
