@@ -70,6 +70,9 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 	unsigned int i;
 	int ret;
 
+	if (!priv->ops->mux_select)
+		return 0;
+
 	if (!i2c_check_functionality(priv->client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
