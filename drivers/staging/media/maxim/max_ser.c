@@ -694,6 +694,51 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 		max_ser_v4l2_unregister_sd(sd_priv);
 }
 
+static int max_ser_parse_i2c_xlate_dt(struct max_ser_priv *priv,
+				      struct fwnode_handle *fwnode)
+{
+	const char *prop_name = "max,i2c-addr-translate";
+	unsigned int count, i;
+	u32 *vals;
+	int ret;
+
+	ret = fwnode_property_count_u32(fwnode, prop_name);
+	if (ret <= 0)
+		return 0;
+
+	count = ret;
+
+	if (ret % MAX_SER_I2C_XLATE_EL_NUM != 0 ||
+	    count / MAX_SER_I2C_XLATE_EL_NUM >
+	    priv->ops->num_i2c_xlates) {
+		dev_err(priv->dev,
+			"Invalid I2C addr translate element number %u\n", ret);
+		return -EINVAL;
+	}
+
+	vals = kcalloc(count, sizeof(*vals), GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
+
+	ret = fwnode_property_read_u32_array(fwnode, prop_name, vals, count);
+	if (ret)
+		goto free_vals;
+
+	for (i = 0; i < count; i += MAX_SER_I2C_XLATE_EL_NUM) {
+		unsigned int index = i / MAX_SER_I2C_XLATE_EL_NUM;
+		struct max_i2c_xlate *xlate = &priv->i2c_xlates[index];
+
+		xlate->src = vals[i + 0];
+		xlate->dst = vals[i + 1];
+		priv->num_i2c_xlates++;
+	}
+
+free_vals:
+	kfree(vals);
+
+	return ret;
+}
+
 static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 				 struct max_ser_pipe *pipe,
 				 struct fwnode_handle *fwnode)
@@ -836,6 +881,10 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		pipe->stream_id = i;
 	}
 
+	ret = max_ser_parse_i2c_xlate_dt(priv, dev_fwnode(priv->dev));
+	if (ret)
+		return ret;
+
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
@@ -928,6 +977,11 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 	priv->pipes = devm_kcalloc(priv->dev, priv->ops->num_pipes,
 				   sizeof(*priv->pipes), GFP_KERNEL);
 	if (!priv->pipes)
+		return -ENOMEM;
+
+	priv->i2c_xlates = devm_kcalloc(priv->dev, priv->ops->num_i2c_xlates,
+					sizeof(*priv->i2c_xlates), GFP_KERNEL);
+	if (!priv->i2c_xlates)
 		return -ENOMEM;
 
 	for (i = 0; i < priv->ops->num_pipes; i++) {

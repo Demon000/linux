@@ -91,6 +91,7 @@ struct max_ser_ops {
 	unsigned int num_pipes;
 	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
+	unsigned int num_i2c_xlates;
 
 	int (*set_pipe_enable)(struct max_ser_priv *priv, struct max_ser_pipe *pipe, bool enable);
 	int (*update_pipe_dts)(struct max_ser_priv *priv, struct max_ser_pipe *pipe);
@@ -110,6 +111,9 @@ struct max_ser_priv {
 	unsigned int num_subdevs;
 	struct mutex lock;
 	bool tunnel_mode;
+
+	struct max_i2c_xlate *i2c_xlates;
+	unsigned int num_i2c_xlates;
 
 	struct max_ser_phy *phys;
 	struct max_ser_pipe *pipes;

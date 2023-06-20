@@ -438,6 +438,30 @@ static int max96717_init_lane_config(struct max96717_priv *priv)
 	return 0;
 }
 
+static int max96717_init_i2c_xlate(struct max96717_priv *priv)
+{
+	struct max_ser_priv *ser_priv = &priv->ser_priv;
+	unsigned int reg;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ser_priv->num_i2c_xlates; i++) {
+		struct max_i2c_xlate *i2c_xlate = &ser_priv->i2c_xlates[i];
+
+		reg = 0x42 + 0x2 * i;
+
+		ret = regmap_write(priv->regmap, reg, i2c_xlate->src << 1);
+		if (ret)
+			return ret;
+
+		ret = regmap_write(priv->regmap, reg + 1, i2c_xlate->dst << 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max96717_init(struct max_ser_priv *ser_priv)
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
@@ -467,6 +491,10 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 
 	/* Disable pipes. */
 	ret = max96717_write(priv, 0x311, 0x00);
+	if (ret)
+		return ret;
+
+	ret = max96717_init_i2c_xlate(priv);
 	if (ret)
 		return ret;
 
@@ -544,6 +572,7 @@ static int max96717_post_init(struct max_ser_priv *ser_priv)
 }
 
 static const struct max_ser_ops max96717_ops = {
+	.num_i2c_xlates = 2,
 	.set_pipe_enable = max96717_set_pipe_enable,
 	.update_pipe_dts = max96717_update_pipe_dts,
 	.init = max96717_init,
