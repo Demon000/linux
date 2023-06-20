@@ -18,6 +18,9 @@
 #define MAX_SER_SINK_PAD	1
 #define MAX_SER_PAD_NUM		2
 
+#define MAX_SER_I2C_XLATE_EL_NUM	2
+#define MAX_SER_I2C_XLATES_NUM		2
+
 #define MAX_SER_MAX96717_DEV_ID			0xbf
 #define MAX_SER_MAX9265A_DEV_ID			0x91
 

@@ -8,6 +8,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
+#include "max_ser.h"
 #include "max_serdes.h"
 
 #ifndef MAX_DES_H
@@ -15,7 +16,6 @@
 
 /* TODO: remove */
 #define MAX_DES_REMAPS_NUM		16
-#define MAX_DES_I2C_XLATES_NUM		2
 
 #define MAX_DES_SOURCE_PAD		0
 #define MAX_DES_SINK_PAD		1
@@ -64,8 +64,8 @@ struct max_des_link {
 	bool enabled;
 	struct max_i2c_xlate ser_xlate;
 	bool ser_xlate_enabled;
-	struct max_i2c_xlate i2c_xlates[MAX_DES_I2C_XLATES_NUM];
-	unsigned int num_i2c_xlates;
+	struct max_i2c_xlate ser_i2c_xlates[MAX_SER_I2C_XLATES_NUM];
+	unsigned int num_ser_i2c_xlates;
 };
 
 struct max_des_pipe {
