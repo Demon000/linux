@@ -742,8 +742,8 @@ static int max_des_parse_link_i2c_xlate_dt(struct max_des_priv *priv,
 		unsigned int index = i / MAX_DES_I2C_XLATE_EL_NUM;
 		struct max_i2c_xlate *xlate = &link->i2c_xlates[index];
 
-		xlate->src = vals[0];
-		xlate->dst = vals[1];
+		xlate->src = vals[i + 0];
+		xlate->dst = vals[i + 1];
 		link->num_i2c_xlates++;
 	}
 
