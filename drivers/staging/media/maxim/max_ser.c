@@ -1099,21 +1099,3 @@ int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_change_address);
-
-int max_ser_init_i2c_xlate(struct regmap *regmap, unsigned int i,
-			   struct max_i2c_xlate *i2c_xlate)
-{
-	unsigned int addr = 0x42 + 0x2 * i;
-	int ret;
-
-	ret = regmap_write(regmap, addr, i2c_xlate->src << 1);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(regmap, addr + 0x1, i2c_xlate->dst << 1);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(max_ser_init_i2c_xlate);

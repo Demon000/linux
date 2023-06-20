@@ -8,7 +8,6 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#include "max_ser.h"
 #include "max_serdes.h"
 
 #ifndef MAX_DES_H
@@ -64,8 +63,6 @@ struct max_des_link {
 	bool enabled;
 	struct max_i2c_xlate ser_xlate;
 	bool ser_xlate_enabled;
-	struct max_i2c_xlate ser_i2c_xlates[MAX_SER_I2C_XLATES_NUM];
-	unsigned int num_ser_i2c_xlates;
 	struct max_i2c_xlate *i2c_xlates;
 	unsigned int num_i2c_xlates;
 };

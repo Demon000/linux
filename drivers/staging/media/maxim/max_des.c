@@ -188,24 +188,6 @@ static int max_des_update_pipes_remaps(struct max_des_priv *priv)
 	return 0;
 }
 
-static int max_des_init_link_ser_i2c_xlate(struct max_des_priv *priv,
-					   struct max_des_link *link,
-					   struct regmap *regmap)
-{
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < link->num_ser_i2c_xlates; i++) {
-		struct max_i2c_xlate *xlate = &link->ser_i2c_xlates[i];
-
-		ret = max_ser_init_i2c_xlate(regmap, i, xlate);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link)
 {
@@ -256,10 +238,6 @@ static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 			"Failed waiting for serializer with new address: %d\n", ret);
 		goto err_regmap_exit;
 	}
-
-	ret = max_des_init_link_ser_i2c_xlate(priv, link, regmap);
-	if (ret)
-		goto err_regmap_exit;
 
 	ret = max_ser_change_address(client, regmap, addrs[1], priv->ops->fix_tx_ids);
 	if (ret) {
@@ -715,44 +693,6 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 		max_des_v4l2_unregister_sd(sd_priv);
 }
 
-static int max_des_parse_link_ser_i2c_xlate_dt(struct max_des_priv *priv,
-					       struct max_des_link *link,
-					       struct fwnode_handle *fwnode)
-{
-	const char *prop_name = "max,ser-i2c-addr-translate";
-	u32 vals[MAX_SER_I2C_XLATE_EL_NUM * MAX_SER_I2C_XLATES_NUM];
-	unsigned int count, i;
-	int ret;
-
-	ret = fwnode_property_count_u32(fwnode, prop_name);
-	if (ret <= 0)
-		return 0;
-
-	count = ret;
-
-	if (ret % MAX_SER_I2C_XLATE_EL_NUM != 0 ||
-	    count / MAX_SER_I2C_XLATE_EL_NUM > MAX_SER_I2C_XLATES_NUM) {
-		dev_err(priv->dev,
-			"Invalid I2C addr translate element number %u\n", ret);
-		return -EINVAL;
-	}
-
-	ret = fwnode_property_read_u32_array(fwnode, prop_name, vals, count);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < count; i += MAX_SER_I2C_XLATE_EL_NUM) {
-		unsigned int index = i / MAX_SER_I2C_XLATE_EL_NUM;
-		struct max_i2c_xlate *xlate = &link->ser_i2c_xlates[index];
-
-		xlate->src = vals[i + 0];
-		xlate->dst = vals[i + 1];
-		link->num_ser_i2c_xlates++;
-	}
-
-	return 0;
-}
-
 static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
 					   struct max_des_link *link,
 					   struct fwnode_handle *fwnode)
@@ -1086,10 +1026,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		link = &priv->links[index];
 
 		ret = max_des_parse_link_ser_xlate_dt(priv, link, fwnode);
-		if (ret)
-			return ret;
-
-		ret = max_des_parse_link_ser_i2c_xlate_dt(priv, link, fwnode);
 		if (ret)
 			return ret;
 
