@@ -101,11 +101,6 @@ static int max9296a_reset(struct max9296a_priv *priv)
 	return 0;
 }
 
-static int max9296a_mux_select(struct max_des_priv *des_priv, unsigned int link)
-{
-	return 0;
-}
-
 static int max9296a_mipi_enable(struct max_des_priv *des_priv, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des_priv);
@@ -392,7 +387,6 @@ static const struct max_des_ops max9296a_ops = {
 	.num_pipes = 4,
 	.num_links = 2,
 	.fix_tx_ids = true,
-	.mux_select = max9296a_mux_select,
 	.mipi_enable = max9296a_mipi_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
