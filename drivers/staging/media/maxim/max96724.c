@@ -431,6 +431,31 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	return max96724_init_pipe_remaps(priv, pipe);
 }
 
+static int max96724_init_link(struct max_des_priv *des_priv,
+			      struct max_des_link *link)
+{
+	struct max96724_priv *priv = des_to_priv(des_priv);
+	unsigned int reg;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < link->num_i2c_xlates; i++) {
+		struct max_i2c_xlate *xlate = &link->i2c_xlates[i];
+
+		reg = 0x642 + 0x10 * link->index + 0x2 * i;
+
+		ret = max96724_write(priv, reg, xlate->src << 1);
+		if (ret)
+			return ret;
+
+		ret = max96724_write(priv, reg + 1, xlate->dst << 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max96724_select_links(struct max_des_priv *des_priv,
 				 unsigned int mask)
 {
@@ -443,12 +468,14 @@ static const struct max_des_ops max96724_ops = {
 	.num_phys = 4,
 	.num_pipes = 4,
 	.num_links = 4,
+	.num_i2c_xlates_per_link = 2,
 	.supports_pipe_link_remap = true,
 	.mux_select = max96724_mux_select,
 	.mipi_enable = max96724_mipi_enable,
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
+	.init_link = max96724_init_link,
 	.select_links = max96724_select_links,
 };
 

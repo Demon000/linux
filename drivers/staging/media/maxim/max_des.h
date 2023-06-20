@@ -66,6 +66,8 @@ struct max_des_link {
 	bool ser_xlate_enabled;
 	struct max_i2c_xlate ser_i2c_xlates[MAX_SER_I2C_XLATES_NUM];
 	unsigned int num_ser_i2c_xlates;
+	struct max_i2c_xlate *i2c_xlates;
+	unsigned int num_i2c_xlates;
 };
 
 struct max_des_pipe {
@@ -88,6 +90,7 @@ struct max_des_ops {
 	unsigned int num_phys;
 	unsigned int num_pipes;
 	unsigned int num_links;
+	unsigned int num_i2c_xlates_per_link;
 	bool fix_tx_ids;
 	bool supports_pipe_link_remap;
 
@@ -96,6 +99,7 @@ struct max_des_ops {
 	int (*init)(struct max_des_priv *priv);
 	int (*init_phy)(struct max_des_priv *priv, struct max_des_phy *phy);
 	int (*init_pipe)(struct max_des_priv *priv, struct max_des_pipe *pipe);
+	int (*init_link)(struct max_des_priv *priv, struct max_des_link *link);
 	int (*select_links)(struct max_des_priv *priv, unsigned int mask);
 	int (*post_init)(struct max_des_priv *priv);
 };

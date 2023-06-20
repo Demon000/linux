@@ -351,6 +351,27 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 	return max9296a_init_pipe_remaps(priv, pipe);
 }
 
+
+static int max9296a_init_link(struct max_des_priv *des_priv,
+			      struct max_des_link *link)
+{
+	struct max9296a_priv *priv = des_to_priv(des_priv);
+	unsigned int reg;
+	int ret;
+
+	reg = 0x42 + 0x2 * link->index;
+
+	ret = max9296a_write(priv, reg, link->i2c_xlates->src);
+	if (ret)
+		return ret;
+
+	ret = max9296a_write(priv, reg + 1, link->i2c_xlates->dst);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int max9296a_select_links(struct max_des_priv *des_priv,
 				 unsigned int mask)
 {
@@ -370,6 +391,7 @@ static const struct max_des_ops max9296a_ops = {
 	.num_phys = 2,
 	.num_pipes = 4,
 	.num_links = 2,
+	.num_i2c_xlates_per_link = 1,
 	.fix_tx_ids = true,
 	.supports_pipe_link_remap = false,
 	.mux_select = max9296a_mux_select,
@@ -377,6 +399,7 @@ static const struct max_des_ops max9296a_ops = {
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
 	.init_pipe = max9296a_init_pipe,
+	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
 };
 

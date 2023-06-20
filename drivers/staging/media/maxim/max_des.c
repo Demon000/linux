@@ -321,6 +321,9 @@ static int max_des_init(struct max_des_priv *priv)
 		if (ret)
 			return ret;
 
+		ret = priv->ops->init_link(priv, link);
+		if (ret)
+			return ret;
 	}
 
 	mask = 0;
@@ -780,6 +783,52 @@ static int max_des_parse_link_ser_xlate_dt(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_parse_link_i2c_xlate_dt(struct max_des_priv *priv,
+					   struct max_des_link *link,
+					   struct fwnode_handle *fwnode)
+{
+	const char *prop_name = "max,i2c-addr-translate";
+	unsigned int count, i;
+	u32 *vals;
+	int ret;
+
+	ret = fwnode_property_count_u32(fwnode, prop_name);
+	if (ret <= 0)
+		return 0;
+
+	count = ret;
+
+	if (ret % MAX_DES_I2C_XLATE_EL_NUM != 0 ||
+	    count / MAX_DES_I2C_XLATE_EL_NUM >
+	    priv->ops->num_i2c_xlates_per_link) {
+		dev_err(priv->dev,
+			"Invalid I2C addr translate element number %u\n", ret);
+		return -EINVAL;
+	}
+
+	vals = kcalloc(count, sizeof(*vals), GFP_KERNEL);
+	if (!vals)
+		return -ENOMEM;
+
+	ret = fwnode_property_read_u32_array(fwnode, prop_name, vals, count);
+	if (ret)
+		goto free_vals;
+
+	for (i = 0; i < count; i += MAX_DES_I2C_XLATE_EL_NUM) {
+		unsigned int index = i / MAX_DES_I2C_XLATE_EL_NUM;
+		struct max_i2c_xlate *xlate = &link->i2c_xlates[index];
+
+		xlate->src = vals[i + 0];
+		xlate->dst = vals[i + 1];
+		link->num_i2c_xlates++;
+	}
+
+free_vals:
+	kfree(vals);
+
+	return ret;
+}
+
 static int max_des_parse_ch_remap_dt(struct max_des_subdev_priv *sd_priv,
 				     struct fwnode_handle *fwnode)
 {
@@ -1043,6 +1092,10 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		ret = max_des_parse_link_ser_i2c_xlate_dt(priv, link, fwnode);
 		if (ret)
 			return ret;
+
+		ret = max_des_parse_link_i2c_xlate_dt(priv, link, fwnode);
+		if (ret)
+			return ret;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
@@ -1136,6 +1189,8 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 
 static int max_des_allocate(struct max_des_priv *priv)
 {
+	unsigned int i;
+
 	priv->phys = devm_kcalloc(priv->dev, priv->ops->num_phys,
 				  sizeof(*priv->phys), GFP_KERNEL);
 	if (!priv->phys)
@@ -1150,6 +1205,17 @@ static int max_des_allocate(struct max_des_priv *priv)
 				   sizeof(*priv->links), GFP_KERNEL);
 	if (!priv->links)
 		return -ENOMEM;
+
+	for (i = 0; i < priv->ops->num_links; i++) {
+		struct max_des_link *link = &priv->links[i];
+
+		link->i2c_xlates = devm_kcalloc(priv->dev,
+						priv->ops->num_i2c_xlates_per_link,
+						sizeof(*link->i2c_xlates),
+						GFP_KERNEL);
+		if (!link->i2c_xlates)
+			return -ENOMEM;
+	}
 
 	return 0;
 }
