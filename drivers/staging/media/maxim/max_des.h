@@ -13,6 +13,7 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
+/* TODO: remove */
 #define MAX_DES_REMAPS_NUM		16
 #define MAX_DES_I2C_XLATES_NUM		2
 
