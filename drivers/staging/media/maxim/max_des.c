@@ -209,7 +209,7 @@ static int max_des_init_link_i2c_xlate(struct max_des_priv *priv,
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link)
 {
-	u8 addrs[] = { link->ser_xlate.src, link->ser_xlate.dst };
+	u8 addrs[] = { link->ser_xlate.dst, link->ser_xlate.src };
 	struct i2c_client *client;
 	struct regmap *regmap;
 	int ret;
