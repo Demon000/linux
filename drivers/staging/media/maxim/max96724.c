@@ -104,7 +104,6 @@ static int max96724_reset(struct max96724_priv *priv)
 
 static int max96724_mux_select(struct max_des_priv *des_priv, unsigned int link)
 {
-#if 0
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	int ret;
 
@@ -113,7 +112,6 @@ static int max96724_mux_select(struct max_des_priv *des_priv, unsigned int link)
 		return ret;
 
 	usleep_range(3000, 5000);
-#endif
 
 	return 0;
 }
