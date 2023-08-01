@@ -1346,6 +1346,8 @@ config VIDEO_SAA717X
 
 source "drivers/media/i2c/cx25840/Kconfig"
 
+source "drivers/media/i2c/maxim-serdes/Kconfig"
+
 endmenu
 
 menu "Video encoders"
