@@ -13000,6 +13000,17 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/temperature/max30208.c
 
+MAXIM GMSL2 SERIALIZERS AND DESERIALIZERS
+M:	Cosmin Tanislav <cosmin.tanislav@analog.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max9296a.yaml
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max96717-pinctrl.yaml
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max96717.yaml
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max96724.yaml
+F:	Documentation/devicetree/bindings/media/i2c/maxim-deserializer.yaml
+F:	Documentation/devicetree/bindings/media/i2c/maxim-serializer.yaml
+
 MAXIM MAX77650 PMIC MFD DRIVER
 M:	Bartosz Golaszewski <brgl@bgdev.pl>
 L:	linux-kernel@vger.kernel.org
