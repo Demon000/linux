@@ -642,12 +642,11 @@ static int max96717_set_pipe_dt_en(struct max96717_priv *priv,
 	unsigned int reg, mask;
 
 	if (i < 2) {
-		reg = 0x315 + index * 2 + i;
+		reg = 0x314 + index * 2 + i;
 		mask = BIT(6);
-	} else if (i < 6) {
-		reg = 0x3d0 + index / 2;
-		mask = BIT(i);
 	} else {
+		i -= 2;
+
 		reg = 0x3dc + index * 2 + i;
 		mask = BIT(6);
 	}
@@ -663,12 +662,13 @@ static int max96717_set_pipe_dt(struct max96717_priv *priv,
 	u32 dt = pipe->dts[i];
 	unsigned int reg;
 
-	if (i < 2)
-		reg = 0x315 + index * 2 + i;
-	else if (i < 6)
-		reg = 0x3c0 + index * 4 + i;
-	else
+	if (i < 2) {
+		reg = 0x314 + index * 2 + i;
+	} else {
+		i -= 2;
+
 		reg = 0x3dc + index * 2 + i;
+	}
 
 	return max96717_update_bits(priv, reg, GENMASK(5, 0), dt);
 }
@@ -1194,7 +1194,7 @@ static int max96717_remove(struct i2c_client *client)
 static const struct max96717_chip_info max96717_info = {
 	.has_tunnel_mode = true,
 	.num_pipes = 1,
-	.num_dts_per_pipe = 8,
+	.num_dts_per_pipe = 4,
 	.pipe_hw_ids = { 2 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
@@ -1212,7 +1212,7 @@ static const struct max96717_chip_info max96717_info = {
 static const struct max96717_chip_info max9295a_info = {
 	.has_tunnel_mode = false,
 	.num_pipes = 4,
-	.num_dts_per_pipe = 6,
+	.num_dts_per_pipe = 2,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
