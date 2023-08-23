@@ -15,6 +15,8 @@
 #include "max_serdes.h"
 
 #define MAX96717_NAME				"max96717"
+#define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
+#define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
 #define MAX96717_GPIO_NUM			11
 #define MAX96717_PIPES_NUM			4
 #define MAX96717_PHYS_NUM			2
@@ -602,6 +604,14 @@ static void max96717_gpio_set(struct gpio_chip *gc, unsigned int offset, int val
 			offset, ret);
 }
 
+static int max96717_gpio_add_pin_ranges(struct gpio_chip *gc)
+{
+	struct max96717_priv *priv = gpiochip_get_data(gc);
+	const char *name = dev_name(priv->dev);
+
+	return gpiochip_add_pin_range(gc, name, 0, 0, gc->ngpio);
+}
+
 static unsigned int max96717_pipe_id(struct max96717_priv *priv,
 				     struct max_ser_pipe *pipe)
 {
@@ -1131,7 +1141,7 @@ static int max96717_probe(struct i2c_client *client)
 
 	priv->pctldesc = (struct pinctrl_desc) {
 		.owner = THIS_MODULE,
-		.name = MAX96717_NAME,
+		.name = MAX96717_PINCTRL_NAME,
 		.pins = max96717_pins,
 		.npins = ARRAY_SIZE(max96717_pins),
 		.pctlops = &max96717_ctrl_ops,
@@ -1151,7 +1161,7 @@ static int max96717_probe(struct i2c_client *client)
 
 	priv->gc = (struct gpio_chip) {
 		.owner = THIS_MODULE,
-		.label = MAX96717_NAME,
+		.label = MAX96717_GPIOCHIP_NAME,
 		.base = -1,
 		.ngpio = MAX96717_GPIO_NUM,
 		.parent = dev,
@@ -1164,6 +1174,7 @@ static int max96717_probe(struct i2c_client *client)
 		.direction_output = max96717_gpio_direction_output,
 		.get = max96717_gpio_get,
 		.set = max96717_gpio_set,
+		.add_pin_ranges = max96717_gpio_add_pin_ranges,
 	};
 
 	ret = devm_gpiochip_add_data(dev, &priv->gc, priv);
