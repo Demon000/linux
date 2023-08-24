@@ -73,11 +73,11 @@ static int max_aggregator_probe(struct platform_device *pdev)
 	if (!max_aggregator->pads)
 		return -ENOMEM;
 
-	for (i = 0; i < max_aggregator->nsinks; ++i)
-		max_aggregator->pads[i].flags = MEDIA_PAD_FL_SINK;
+	for (i = 0; i < max_aggregator->nsources; ++i)
+		max_aggregator->pads[i].flags = MEDIA_PAD_FL_SOURCE;
 
 	for (; i < npads; ++i)
-		max_aggregator->pads[i].flags = MEDIA_PAD_FL_SOURCE;
+		max_aggregator->pads[i].flags = MEDIA_PAD_FL_SINK;
 
 	subdev = &max_aggregator->subdev;
 	v4l2_subdev_init(subdev, &max_aggregator_ops);
