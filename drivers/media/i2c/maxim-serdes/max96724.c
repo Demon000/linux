@@ -130,12 +130,16 @@ static int max96724_mipi_enable(struct max_des_priv *des_priv, bool enable)
 	return 0;
 }
 
-static const unsigned int max96724_lane_configs[][MAX96724_PHYS_NUM] = {
-	{ 2, 2, 2, 2 },
-	{ 0, 0, 0, 0 },
-	{ 0, 4, 4, 0 },
-	{ 0, 4, 2, 2 },
-	{ 2, 2, 4, 0 },
+struct max96724_lane_config {
+	unsigned int lanes[MAX96724_PHYS_NUM];
+	unsigned int bit;
+};
+
+static const struct max96724_lane_config max96724_lane_configs[] = {
+	{ { 2, 2, 2, 2 }, BIT(0) },
+	{ { 0, 4, 4, 0 }, BIT(2) },
+	{ { 0, 4, 2, 2 }, BIT(3) },
+	{ { 2, 2, 4, 0 }, BIT(4) },
 };
 
 static int max96724_init_lane_config(struct max96724_priv *priv)
@@ -153,7 +157,7 @@ static int max96724_init_lane_config(struct max96724_priv *priv)
 			phy = max_des_phy_by_id(des_priv, j);
 
 			if (phy->enabled && phy->mipi.num_data_lanes !=
-			    max96724_lane_configs[i][j]) {
+			    max96724_lane_configs[i].lanes[j]) {
 				matching = false;
 				break;
 			}
@@ -173,7 +177,8 @@ static int max96724_init_lane_config(struct max96724_priv *priv)
 	 * and disables the other 2 lanes.
 	 */
 	/* Select 2x4 or 4x2 mode. */
-	ret = max96724_update_bits(priv, 0x8a0, 0x1f, BIT(i));
+	ret = max96724_update_bits(priv, 0x8a0, 0x1f,
+				   max96724_lane_configs[i].bit);
 	if (ret)
 		return ret;
 
