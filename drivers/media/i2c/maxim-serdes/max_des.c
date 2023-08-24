@@ -661,7 +661,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct fwnode_handle *ep, *remote_ep;
+	struct fwnode_handle *ep;
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_DES_SOURCE_PAD, 0, 0);
@@ -670,15 +670,8 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 		return -EINVAL;
 	}
 
-	remote_ep = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
 	fwnode_handle_put(ep);
-	if (!remote_ep) {
-		dev_err(priv->dev, "Not connected to remote endpoint\n");
-		return -EINVAL;
-	}
-
-	ret = v4l2_fwnode_endpoint_parse(remote_ep, &v4l2_ep);
-	fwnode_handle_put(remote_ep);
 	if (ret) {
 		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
 		return ret;
