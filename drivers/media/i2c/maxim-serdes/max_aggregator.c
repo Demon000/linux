@@ -36,7 +36,18 @@ static int max_aggregator_parse_of(struct max_aggregator_device *max_aggregator)
 	return 0;
 }
 
-static struct v4l2_subdev_ops max_aggregator_ops = { };
+static int max_aggregator_s_stream(struct v4l2_subdev *subdev, int enable)
+{
+	return 0;
+}
+
+static struct v4l2_subdev_video_ops aggregator_video_ops = {
+	.s_stream = max_aggregator_s_stream,
+};
+
+static struct v4l2_subdev_ops max_aggregator_ops = {
+	.video = &aggregator_video_ops,
+};
 
 static int max_aggregator_probe(struct platform_device *pdev)
 {
