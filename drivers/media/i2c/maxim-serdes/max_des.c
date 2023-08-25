@@ -234,7 +234,7 @@ static int max_des_init(struct max_des_priv *priv)
 
 static int max_des_post_init(struct max_des_priv *priv)
 {
-	unsigned int i, mask;
+	unsigned int i, mask = 0;
 	int ret;
 
 	for (i = 0; i < priv->ops->num_links; i++) {
