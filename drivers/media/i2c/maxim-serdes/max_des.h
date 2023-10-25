@@ -127,6 +127,8 @@ struct max_des_priv {
 	bool active;
 
 	bool pipe_stream_autoselect;
+	char name[V4L2_SUBDEV_NAME_SIZE];
+
 	struct max_des_phy *phys;
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;

@@ -83,4 +83,6 @@ const struct max_format *max_format_by_index(unsigned int index);
 const struct max_format *max_format_by_code(u32 code);
 const struct max_format *max_format_by_dt(u8 dt);
 
+void max_set_priv_name(char *name, const char *label, struct i2c_client *client);
+
 #endif // MAX_SERDES_H

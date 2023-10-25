@@ -75,3 +75,15 @@ const struct max_format *max_format_by_dt(u8 dt)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(max_format_by_dt);
+
+void max_set_priv_name(char *name, const char *label, struct i2c_client *client)
+{
+	size_t size = V4L2_SUBDEV_NAME_SIZE;
+
+	if (label)
+		strscpy(name, label, size);
+	else
+		snprintf(name, size, "%s %d-%04x", client->dev.driver->name,
+			 i2c_adapter_id(client->adapter), client->addr);
+}
+EXPORT_SYMBOL_GPL(max_set_priv_name);
