@@ -192,40 +192,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c3>;
 	status = "okay";
-#if 0
-	imx219: sensor@10 {
-		compatible = "sony,imx219";
-		reg = <0x10>;
-		clocks = <&cam24m>;
 
-		port {
-			cam_out: endpoint {
-				remote-endpoint = <&imx8mp_mipi_csi_in>;
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				clock-noncontinuous;
-				link-frequencies = /bits/ 64 <456000000>;
-			};
-		};
-	};
-#endif
-#if 1
-	isx021: sensor@1a {
-		compatible = "sony,isx021";
-		reg = <0x1a>;
-		clocks = <&cam24m>;
-		clock-names = "xclk";
-
-		port {
-			cam_out: endpoint {
-				remote-endpoint = <&imx8mp_mipi_csi_in>;
-				clock-lanes = <0>;
-				data-lanes = <1 2 3 4>;
-				link-frequencies = /bits/ 64 <750000000>;
-			};
-		};
-	};
-#endif
 	adv_bridge: adv7535@3d {
 		compatible = "adi,adv7535";
 		reg = <0x3d>, <0x3c>, <0x3e>, <0x3f>;
@@ -300,11 +267,28 @@
 
 &mipi_csi_0 {
 	status = "okay";
+
 	ports {
 		port@0 {
 			reg = <0>;
-			imx8mp_mipi_csi_in: endpoint {
-				remote-endpoint = <&cam_out>;
+
+			csi_0_in: endpoint {
+				remote-endpoint = <&des_phy_1_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi_csi_1 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+
+			csi_1_in: endpoint {
+				remote-endpoint = <&des_phy_2_out>;
 				data-lanes = <1 2 3 4>;
 			};
 		};
@@ -570,5 +554,55 @@
 		fsl,pins = <
 			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12 		0x1c4
 		>;
+	};
+};
+
+#define GMSL_MAINLINE_PLATFORM
+
+#define GMSL_DES_I2C_LABEL		i2c3
+#define GMSL_DES_PHY			1
+#define GMSL_DES_PHY_NUM_LANES		4
+#define GMSL_DES_PHY_LINK_FREQ		1250000000
+
+#define GMSL_CAMERA_NUM			4
+#define GMSL_DES_MAX96724
+#define GMSL_SER_0_MAX9295A
+#define GMSL_SER_1_MAX9295A
+#define GMSL_SER_2_MAX96717
+#define GMSL_SER_3_MAX96717
+#define GMSL_CAM_0_OX03A
+#define GMSL_CAM_1_OX03A
+#define GMSL_CAM_2_OX03A
+#define GMSL_CAM_3_OX03A
+
+#include "../gmsl/gmsl.dtsi"
+
+&des {
+	phy@1 {
+		reg = <1>;
+
+		port {
+			des_phy_1_out: endpoint {
+				remote-endpoint = <&csi_0_in>;
+				clock-lanes = <0>;
+				data-lanes = <4 3 2 1>;
+				lane-polarities = <1 1 1 1 1>;
+				link-frequencies = /bits/ 64 <750000000>;
+			};
+		};
+	};
+
+	phy@2 {
+		reg = <2>;
+
+		port {
+			des_phy_2_out: endpoint {
+				remote-endpoint = <&csi_1_in>;
+				clock-lanes = <0>;
+				data-lanes = <4 3 2 1>;
+				lane-polarities = <1 1 1 1 1>;
+				link-frequencies = /bits/ 64 <750000000>;
+			};
+		};
 	};
 };
