@@ -11,7 +11,11 @@
 #endif
 
 #if defined(DES_CH_INDEX)
+#if defined(GMSL_MAINLINE_PLATFORM)
+#define SER_OUT_REMOTE_LABEL DES_LINK_Y_IN_LABEL(DES_CH_INDEX)
+#else
 #define SER_OUT_REMOTE_LABEL DES_CH_Y_IN_LABEL(DES_CH_INDEX)
+#endif
 #endif
 
 #if defined(CAM_INDEX)
