@@ -543,13 +543,13 @@ static int ovx03a_power_on(struct ovx03a *sensor)
 	if (ret < 0)
 		return ret;
 
-	udelay(1);
+	fsleep(500000);
 
 	ret = gpiod_direction_output(sensor->reset, 0);
 	if (ret < 0)
 		goto err_supply;
 
-	udelay(1);
+	fsleep(500000);
 
 	ret = clk_prepare_enable(sensor->clk);
 	if (ret < 0)
