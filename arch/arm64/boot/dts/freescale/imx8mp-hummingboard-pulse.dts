@@ -578,6 +578,8 @@
 #include "../gmsl/gmsl.dtsi"
 
 &des {
+	maxim,pipe-stream-autoselect;
+
 	phy@1 {
 		reg = <1>;
 
