@@ -14,7 +14,7 @@
 #endif
 
 #if defined(SER_INDEX) && defined(SER_CH_INDEX)
-#define CAM_OUT_REMOTE_LABEL	SER_X_CH_Y_IN_LABEL(SER_INDEX, SER_CH_INDEX)
+#define CAM_OUT_REMOTE_LABEL	SER_X_LINK_Y_IN_LABEL(SER_INDEX, SER_CH_INDEX)
 #endif
 
 #if !defined(CAM_HEX_REG)

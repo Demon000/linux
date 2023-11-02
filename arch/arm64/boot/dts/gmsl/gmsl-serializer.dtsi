@@ -6,8 +6,13 @@
 #if defined(SER_INDEX)
 #define SER_LABEL SER_X_LABEL(SER_INDEX)
 #define SER_I2C_LABEL CONCAT(SER_LABEL, _i2c_0)
+#if defined(GMSL_MAINLINE_PLATFORM)
+#define SER_OUT_LABEL SER_X_LINK_Y_OUT_LABEL(SER_INDEX, 0)
+#define SER_IN_LABEL SER_X_LINK_Y_IN_LABEL(SER_INDEX, 0)
+#else
 #define SER_OUT_LABEL SER_X_CH_Y_OUT_LABEL(SER_INDEX, 0)
 #define SER_IN_LABEL SER_X_CH_Y_IN_LABEL(SER_INDEX, 0)
+#endif
 #endif
 
 #if defined(DES_CH_INDEX)
@@ -69,6 +74,8 @@ SER_LABEL: gmsl-serializer@SER_HEX_REG {
 	#gpio-cells = <2>;
 	gpio-ranges = <&SER_LABEL 0 0 11>;
 
+	label = STRINGIFY(SER_LABEL);
+
 	i2c-alias-pool = <SER_I2C_ADDR_POOL_0>;
 
 	i2c-atr {
@@ -89,6 +96,28 @@ SER_LABEL: gmsl-serializer@SER_HEX_REG {
 		maxim,stream-id = <SER_INDEX>;
 	};
 
+#if defined(GMSL_MAINLINE_PLATFORM)
+	link@0 {
+		reg = <0>;
+
+		port {
+			SER_OUT_LABEL: endpoint {
+				remote-endpoint = <&SER_OUT_REMOTE_LABEL>;
+			};
+		};
+	};
+
+	phy@0 {
+		reg = <0>;
+
+		port {
+
+			SER_IN_LABEL: endpoint {
+				remote-endpoint = <&SER_IN_REMOTE_LABEL>;
+			};
+		};
+	};
+#else
 	channel@0 {
 		reg = <0>;
 
@@ -115,6 +144,7 @@ SER_LABEL: gmsl-serializer@SER_HEX_REG {
 			};
 		};
 	};
+#endif
 };
 
 #undef SER_COMPAT

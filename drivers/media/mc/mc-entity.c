@@ -15,6 +15,9 @@
 #include <media/media-entity.h>
 #include <media/media-device.h>
 
+#undef dev_dbg
+#define dev_dbg dev_err
+
 static inline const char *intf_type(struct media_interface *intf)
 {
 	switch (intf->type) {
@@ -1078,6 +1081,8 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 {
 	struct media_link *link;
 	struct media_link *backlink;
+
+	pr_err("create link %s:%u -> %s:%u\n", source->name, source_pad, sink->name, sink_pad);
 
 	if (WARN_ON(!source || !sink) ||
 	    WARN_ON(source_pad >= source->num_pads) ||

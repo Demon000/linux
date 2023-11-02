@@ -26,6 +26,9 @@
 
 #include "v4l2-subdev-priv.h"
 
+#undef dev_dbg
+#define dev_dbg dev_err
+
 static int v4l2_async_nf_call_bound(struct v4l2_async_notifier *n,
 				    struct v4l2_subdev *subdev,
 				    struct v4l2_async_connection *asc)

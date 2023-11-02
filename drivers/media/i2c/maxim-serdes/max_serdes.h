@@ -5,51 +5,16 @@
 
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-mc.h>
 
 #ifndef MAX_SERDES_H
 #define MAX_SERDES_H
 
-#define v4l2_subdev_state v4l2_subdev_pad_config
-#define v4l2_subdev_alloc_state v4l2_subdev_alloc_pad_config
-#define v4l2_subdev_free_state v4l2_subdev_free_pad_config
+#define MAX_SERDES_STREAMS_NUM		4
+#define MAX_SERDES_VC_ID_NUM		4
 
-#define v4l2_async_nf_init v4l2_async_notifier_init
-#define v4l2_async_nf_unregister v4l2_async_notifier_unregister
-#define v4l2_async_nf_cleanup v4l2_async_notifier_cleanup
-#define v4l2_async_subdev_nf_register v4l2_async_subdev_notifier_register
-#define v4l2_async_nf_add_fwnode(notifier, fwnode, type)		\
-	((type *)v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode, sizeof(type)))
-
-#define v4l2_mbus_config_mipi_csi2 v4l2_fwnode_bus_mipi_csi2
-
-struct pingroup {
-	const char *name;
-	const unsigned int *pins;
-	size_t npins;
-};
-
-#define PINCTRL_PINGROUP(_name, _pins, _npins)	\
-(struct pingroup) {				\
-	.name = _name,				\
-	.pins = _pins,				\
-	.npins = _npins,			\
-}
-
-struct pinfunction {
-	const char *name;
-	const char * const *groups;
-	size_t ngroups;
-};
-
-#define PINCTRL_PINFUNCTION(_name, _groups, _ngroups)	\
-(struct pinfunction) {					\
-		.name = (_name),			\
-		.groups = (_groups),			\
-		.ngroups = (_ngroups),			\
-	}
-
-#define MAX_SERDES_STREAMS_NUM     4
-#define MAX_SERDES_VC_ID_NUM	   4
+extern const struct regmap_config max_i2c_regmap;
 
 struct max_i2c_xlate {
 	u8 src;
@@ -62,6 +27,43 @@ struct max_format {
 	u8 dt;
 	u8 bpp;
 	bool dbl;
+};
+
+#define sd_max_component(sd) container_of(sd, struct max_component, sd)
+
+struct max_component {
+	struct v4l2_subdev sd;
+	struct v4l2_subdev *remote_sd;
+
+	const struct v4l2_subdev_ops *sd_ops;
+	const struct v4l2_subdev_internal_ops *internal_ops;
+
+	struct v4l2_device *v4l2_dev;
+	struct i2c_client *client;
+	struct fwnode_handle *fwnode;
+
+	struct v4l2_async_notifier notifier;
+	struct max_component **notifier_comps;
+	struct fwnode_handle **notifier_eps;
+	unsigned int num_notifier_eps;
+
+	unsigned int num_source_pads;
+	unsigned int num_sink_pads;
+
+	const char *prefix;
+	const char *name;
+	unsigned int index;
+
+	struct media_pad *pads;
+
+	unsigned int num_pads;
+
+	unsigned int source_pads_start;
+	unsigned int source_pads_end;
+
+	unsigned int sink_pads_start;
+	unsigned int sink_pads_end;
+	bool sink_pads_first;
 };
 
 #define MAX_DT_FS			0x00
@@ -83,6 +85,25 @@ const struct max_format *max_format_by_index(unsigned int index);
 const struct max_format *max_format_by_code(u32 code);
 const struct max_format *max_format_by_dt(u8 dt);
 
+#define MAX_SER_MAX96717_DEV_ID			0xbf
+#define MAX_SER_MAX9265A_DEV_ID			0x91
+
+int max_ser_reset(struct regmap *regmap);
+int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr);
+int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
+			      u8 *addrs, unsigned int num_addrs);
+int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
+			   bool fix_tx_ids);
+
 void max_set_priv_name(char *name, const char *label, struct i2c_client *client);
+void max_set_sd_name(struct v4l2_subdev *sd, const char *name,
+		     const char *type, unsigned int index);
+
+int max_component_register_v4l2_sd(struct max_component *comp);
+void max_component_unregister_v4l2_sd(struct max_component *comp);
+
+int max_components_link(struct max_component *source, unsigned int source_offset,
+			struct max_component *sink, unsigned int sink_offset,
+			bool create);
 
 #endif // MAX_SERDES_H

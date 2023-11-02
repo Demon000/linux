@@ -25,13 +25,16 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 
+#undef dev_dbg
+#define dev_dbg dev_err
+
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 /*
  * The Streams API is an experimental feature. To use the Streams API, set
  * 'v4l2_subdev_enable_streams_api' to 1 below.
  */
 
-static bool v4l2_subdev_enable_streams_api;
+static bool v4l2_subdev_enable_streams_api = 1;
 #endif
 
 /*

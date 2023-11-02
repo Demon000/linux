@@ -117,6 +117,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	if (!v4l2_dev || !sd || sd->v4l2_dev || !sd->name[0])
 		return -EINVAL;
 
+	pr_err("registered %s\n", sd->name);
+
 	/*
 	 * The reason to acquire the module here is to avoid unloading
 	 * a module of sub-device which is registered to a media

@@ -105,10 +105,10 @@ static int max96724_reset(struct max96724_priv *priv)
 }
 
 static int max96724_log_pipe_status(struct max_des_priv *des_priv,
-				    struct max_des_pipe *pipe, const char *name)
+				    struct max_des_pipe_data *data, const char *name)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int index = pipe->index;
+	unsigned int index = data->index;
 	unsigned int reg, mask;
 	int ret;
 
@@ -125,10 +125,10 @@ static int max96724_log_pipe_status(struct max_des_priv *des_priv,
 }
 
 static int max96724_log_phy_status(struct max_des_priv *des_priv,
-				   struct max_des_phy *phy, const char *name)
+				   struct max_des_phy_data *data, const char *name)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int index = phy->index;
+	unsigned int index = data->index;
 	unsigned int reg, mask, shift;
 	int ret;
 
@@ -207,6 +207,7 @@ static int max96724_init_lane_config(struct max96724_priv *priv)
 	unsigned int num_lane_configs = ARRAY_SIZE(max96724_lane_configs);
 	struct max_des_priv *des_priv = &priv->des_priv;
 	struct max_des_phy *phy;
+	struct max_des_phy_data *data;
 	unsigned int i, j;
 	int ret;
 
@@ -215,12 +216,13 @@ static int max96724_init_lane_config(struct max96724_priv *priv)
 
 		for (j = 0; j < des_priv->ops->num_phys; j++) {
 			phy = max_des_phy_by_id(des_priv, j);
+			data = &phy->data;
 
-			if (!phy->enabled)
+			if (!data->enabled)
 				continue;
 
-			if (phy->mipi.num_data_lanes == max96724_lane_configs[i].lanes[j] &&
-			    phy->mipi.clock_lane == max96724_lane_configs[i].clock_lane[j])
+			if (data->mipi.num_data_lanes == max96724_lane_configs[i].lanes[j] &&
+			    data->mipi.clock_lane == max96724_lane_configs[i].clock_lane[j])
 				continue;
 
 			matching = false;
@@ -273,25 +275,25 @@ static int max96724_init(struct max_des_priv *des_priv)
 }
 
 static int max96724_init_phy(struct max_des_priv *des_priv,
-			     struct max_des_phy *phy)
+			     struct max_des_phy_data *data)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int dpll_freq = phy->link_frequency * 2;
+	unsigned int num_data_lanes = data->mipi.num_data_lanes;
+	unsigned int dpll_freq = data->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
 	unsigned int reg, val, shift, mask, clk_bit;
-	unsigned int index = phy->index;
+	unsigned int index = data->index;
 	unsigned int used_data_lanes = 0;
 	unsigned int i;
 	int ret;
 
 	/* Configure a lane count. */
 	/* TODO: Add support CPHY mode. */
-	if (index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
-	    phy->mipi.num_data_lanes == 2)
+	if (index == 1 && data->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
+	    data->mipi.num_data_lanes == 2)
 		num_hw_data_lanes = 4;
 	else
-		num_hw_data_lanes = phy->mipi.num_data_lanes;
+		num_hw_data_lanes = data->mipi.num_data_lanes;
 
 	reg = 0x90a + 0x40 * index;
 	shift = 6;
@@ -317,7 +319,7 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 		unsigned int map;
 
 		if (i < num_data_lanes)
-			map = phy->mipi.data_lanes[i] - 1;
+			map = data->mipi.data_lanes[i] - 1;
 		else
 			map = ffz(used_data_lanes);
 
@@ -344,7 +346,7 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 
 	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
-		if (phy->mipi.lane_polarities[i])
+		if (data->mipi.lane_polarities[i])
 			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
 	ret = max96724_update_bits(priv, reg, mask << shift, val << shift);
 	if (ret)
@@ -396,10 +398,10 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 		return ret;
 
 	/* Set alternate memory map modes. */
-	val  = phy->alt_mem_map12 ? BIT(0) : 0;
-	val |= phy->alt_mem_map8 ? BIT(1) : 0;
-	val |= phy->alt_mem_map10 ? BIT(2) : 0;
-	val |= phy->alt2_mem_map8 ? BIT(4) : 0;
+	val  = data->alt_mem_map12 ? BIT(0) : 0;
+	val |= data->alt_mem_map8 ? BIT(1) : 0;
+	val |= data->alt_mem_map10 ? BIT(2) : 0;
+	val |= data->alt2_mem_map8 ? BIT(4) : 0;
 	reg = 0x933 + 0x40 * index;
 	ret = max96724_update_bits(priv, reg, GENMASK(2, 0), val);
 	if (ret)
@@ -422,11 +424,11 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
 }
 
 static int max96724_init_pipe_remap(struct max96724_priv *priv,
-				    struct max_des_pipe *pipe,
+				    struct max_des_pipe_data *data,
 				    struct max_des_dt_vc_remap *remap,
 				    unsigned int i)
 {
-	unsigned int index = pipe->index;
+	unsigned int index = data->index;
 	unsigned int reg, val, shift, mask;
 	int ret;
 
@@ -466,16 +468,16 @@ static int max96724_init_pipe_remap(struct max96724_priv *priv,
 }
 
 static int max96724_update_pipe_remaps(struct max_des_priv *des_priv,
-				       struct max_des_pipe *pipe)
+				       struct max_des_pipe_data *data)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < pipe->num_remaps; i++) {
-		struct max_des_dt_vc_remap *remap = &pipe->remaps[i];
+	for (i = 0; i < data->num_remaps; i++) {
+		struct max_des_dt_vc_remap *remap = &data->remaps[i];
 
-		ret = max96724_init_pipe_remap(priv, pipe, remap, i);
+		ret = max96724_init_pipe_remap(priv, data, remap, i);
 		if (ret)
 			return ret;
 	}
@@ -484,24 +486,24 @@ static int max96724_update_pipe_remaps(struct max_des_priv *des_priv,
 }
 
 static int max96724_init_pipe(struct max_des_priv *des_priv,
-			      struct max_des_pipe *pipe)
+			      struct max_des_pipe_data *data)
 {
 	struct max96724_priv *priv = des_to_priv(des_priv);
-	unsigned int index = pipe->index;
+	unsigned int index = data->index;
 	unsigned int reg, shift, mask;
 	int ret;
 
 	/* Set destination PHY. */
 	shift = index * 2;
 	ret = max96724_update_bits(priv, 0x8ca, GENMASK(1, 0) << shift,
-				   pipe->phy_id << shift);
+				   data->phy_id << shift);
 	if (ret)
 		return ret;
 
 	shift = 4;
 	reg = 0x939 + 0x40 * index;
 	ret = max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
-				   pipe->phy_id << shift);
+				   data->phy_id << shift);
 	if (ret)
 		return ret;
 
@@ -515,7 +517,7 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 		reg = 0xf0 + index / 2;
 		shift = 4 * (index % 2);
 		ret = max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
-					   pipe->stream_id << shift);
+					   data->stream_id << shift);
 		if (ret)
 			return ret;
 	}
@@ -523,18 +525,18 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 	/* Set source link. */
 	shift += 2;
 	ret = max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
-				   pipe->link_id << shift);
+				   data->link_id << shift);
 	if (ret)
 		return ret;
 
 	/* Set 8bit double mode. */
 	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x414, mask, pipe->dbl8 ? mask : 0);
+	ret = max96724_update_bits(priv, 0x414, mask, data->dbl8 ? mask : 0);
 	if (ret)
 		return ret;
 
 	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x417, mask, pipe->dbl8mode ? mask : 0);
+	ret = max96724_update_bits(priv, 0x417, mask, data->dbl8mode ? mask : 0);
 	if (ret)
 		return ret;
 
@@ -555,14 +557,14 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
 
 	ret = max96724_update_bits(priv, reg,
 				   mask | (mask << 1),
-				   (pipe->dbl10 ? mask : 0) |
-				   (pipe->dbl10mode ? (mask << 1) : 0));
+				   (data->dbl10 ? mask : 0) |
+				   (data->dbl10mode ? (mask << 1) : 0));
 	if (ret)
 		return ret;
 
 	/* Set 12bit double mode. */
 	mask = BIT(index);
-	ret = max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
+	ret = max96724_update_bits(priv, 0x41f, mask, data->dbl12 ? mask : 0);
 	if (ret)
 		return ret;
 
@@ -615,7 +617,7 @@ static int max96724_probe(struct i2c_client *client)
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
-	priv->regmap = devm_regmap_init_i2c(client, &max_des_i2c_regmap);
+	priv->regmap = devm_regmap_init_i2c(client, &max_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
@@ -631,11 +633,11 @@ static int max96724_probe(struct i2c_client *client)
 	return max_des_probe(&priv->des_priv);
 }
 
-static int max96724_remove(struct i2c_client *client)
+static void max96724_remove(struct i2c_client *client)
 {
 	struct max96724_priv *priv = i2c_get_clientdata(client);
 
-	return max_des_remove(&priv->des_priv);
+	max_des_remove(&priv->des_priv);
 }
 
 static const struct of_device_id max96724_of_table[] = {
@@ -649,7 +651,7 @@ static struct i2c_driver max96724_i2c_driver = {
 		.name = "max96724",
 		.of_match_table	= of_match_ptr(max96724_of_table),
 	},
-	.probe_new = max96724_probe,
+	.probe = max96724_probe,
 	.remove = max96724_remove,
 };
 
