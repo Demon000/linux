@@ -27,6 +27,16 @@
 #define SER_X_CH_Y_IN_LABEL(x, y)	CONCAT(SER_X_CH_Y_LABEL(x, y), _in)
 #define SER_X_CH_Y_OUT_LABEL(x, y)	CONCAT(SER_X_CH_Y_LABEL(x, y), _out)
 
+#define SER_X_LINK_LABEL(x)		CONCAT(SER_X_LABEL(x), _link_)
+#define SER_X_LINK_Y_LABEL(x, y)	CONCAT(SER_X_LINK_LABEL(x), y)
+#define SER_X_LINK_Y_IN_LABEL(x, y)	CONCAT(SER_X_LINK_Y_LABEL(x, y), _in)
+#define SER_X_LINK_Y_OUT_LABEL(x, y)	CONCAT(SER_X_LINK_Y_LABEL(x, y), _out)
+
+#define SER_X_PHY_LABEL(x)		CONCAT(SER_X_LABEL(x), _phy_)
+#define SER_X_PHY_Y_LABEL(x, y)		CONCAT(SER_X_PHY_LABEL(x), y)
+#define SER_X_PHY_Y_IN_LABEL(x, y)	CONCAT(SER_X_PHY_Y_LABEL(x, y), _in)
+#define SER_X_PHY_Y_OUT_LABEL(x, y)	CONCAT(SER_X_PHY_Y_LABEL(x, y), _out)
+
 #define CAM_X_LABEL(x)			CONCAT(cam_, x)
 #define CAM_X_OUT_LABEL(x)		CONCAT(CAM_X_LABEL(x), _out)
 
@@ -507,7 +517,7 @@ Configuration parameters:
 
 		port {
 			DES_LINK_Y_IN_LABEL(0): endpoint {
-				remote-endpoint = <&SER_X_CH_Y_OUT_LABEL(0, 0)>;
+				remote-endpoint = <&SER_X_LINK_Y_OUT_LABEL(0, 0)>;
 			};
 		};
 	};
@@ -519,7 +529,7 @@ Configuration parameters:
 
 		port {
 			DES_LINK_Y_IN_LABEL(1): endpoint {
-				remote-endpoint = <&SER_X_CH_Y_OUT_LABEL(1, 0)>;
+				remote-endpoint = <&SER_X_LINK_Y_OUT_LABEL(1, 0)>;
 			};
 		};
 	};
@@ -531,7 +541,7 @@ Configuration parameters:
 
 		port {
 			DES_LINK_Y_IN_LABEL(2): endpoint {
-				remote-endpoint = <&SER_X_CH_Y_OUT_LABEL(2, 0)>;
+				remote-endpoint = <&SER_X_LINK_Y_OUT_LABEL(2, 0)>;
 			};
 		};
 	};
@@ -543,7 +553,7 @@ Configuration parameters:
 
 		port {
 			DES_LINK_Y_IN_LABEL(3): endpoint {
-				remote-endpoint = <&SER_X_CH_Y_OUT_LABEL(3, 0)>;
+				remote-endpoint = <&SER_X_LINK_Y_OUT_LABEL(3, 0)>;
 			};
 		};
 	};
