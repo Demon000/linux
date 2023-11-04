@@ -22,6 +22,11 @@
 
 #include "adv7511.h"
 
+#define debug pr_err("%s:%u\n", __func__, __LINE__);
+
+#undef dev_dbg
+#define dev_dbg dev_err
+
 /* ADI recommended values for proper operation. */
 static const struct reg_sequence adv7511_fixed_registers[] = {
 	{ 0x98, 0x03 },
@@ -432,12 +437,18 @@ static void adv7511_hpd_work(struct work_struct *work)
 	int ret;
 
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_STATUS, &val);
-	if (ret < 0)
+	if (ret < 0) {
 		status = connector_status_disconnected;
-	else if (val & ADV7511_STATUS_HPD)
+		pr_err("adv7511 disconnected 1\n");
+	}
+	else if (val & ADV7511_STATUS_HPD) {
 		status = connector_status_connected;
-	else
+		pr_err("adv7511 connected\n");
+	}
+	else {
+		pr_err("adv7511 disconnected 2\n");
 		status = connector_status_disconnected;
+	}
 
 	/*
 	 * The bridge resets its registers on unplug. So when we get a plug
@@ -1189,45 +1200,75 @@ static int adv7511_probe(struct i2c_client *i2c)
 	unsigned int val;
 	int ret;
 
+	dump_stack();
+
+	debug
+
 	if (!dev->of_node)
 		return -EINVAL;
+
+	debug
 
 	adv7511 = devm_kzalloc(dev, sizeof(*adv7511), GFP_KERNEL);
 	if (!adv7511)
 		return -ENOMEM;
+
+	debug
 
 	adv7511->i2c_main = i2c;
 	adv7511->powered = false;
 	adv7511->status = connector_status_disconnected;
 	adv7511->info = i2c_get_match_data(i2c);
 
+	debug
+
 	memset(&link_config, 0, sizeof(link_config));
+
+	debug
 
 	if (adv7511->info->link_config)
 		ret = adv7511_parse_dt(dev->of_node, &link_config);
 	else
 		ret = adv7533_parse_dt(dev->of_node, adv7511);
+
+	debug
+
 	if (ret)
 		return ret;
 
+	debug
+
 	ret = adv7511_init_regulators(adv7511);
+
+	debug
+
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to init regulators\n");
+
+	debug
 
 	/*
 	 * The power down GPIO is optional. If present, toggle it from active to
 	 * inactive to wake up the encoder.
 	 */
 	adv7511->gpio_pd = devm_gpiod_get_optional(dev, "pd", GPIOD_OUT_HIGH);
+
+	debug
+
+
 	if (IS_ERR(adv7511->gpio_pd)) {
 		ret = PTR_ERR(adv7511->gpio_pd);
 		goto uninit_regulators;
 	}
 
+	debug
+
 	if (adv7511->gpio_pd) {
 		usleep_range(5000, 6000);
 		gpiod_set_value_cansleep(adv7511->gpio_pd, 0);
 	}
+
+	debug
 
 	adv7511->regmap = devm_regmap_init_i2c(i2c, &adv7511_regmap_config);
 	if (IS_ERR(adv7511->regmap)) {
@@ -1235,10 +1276,14 @@ static int adv7511_probe(struct i2c_client *i2c)
 		goto uninit_regulators;
 	}
 
+	debug
+
 	ret = regmap_read(adv7511->regmap, ADV7511_REG_CHIP_REVISION, &val);
 	if (ret)
 		goto uninit_regulators;
 	dev_dbg(dev, "Rev. %d\n", val);
+
+	debug
 
 	if (adv7511->info->type == ADV7511)
 		ret = regmap_register_patch(adv7511->regmap,
@@ -1249,7 +1294,11 @@ static int adv7511_probe(struct i2c_client *i2c)
 	if (ret)
 		goto uninit_regulators;
 
+	debug
+
 	adv7511_packet_disable(adv7511, 0xffff);
+
+	debug
 
 	adv7511->i2c_edid = i2c_new_ancillary_device(i2c, "edid",
 					ADV7511_EDID_I2C_ADDR_DEFAULT);
@@ -1258,8 +1307,12 @@ static int adv7511_probe(struct i2c_client *i2c)
 		goto uninit_regulators;
 	}
 
+	debug
+
 	regmap_write(adv7511->regmap, ADV7511_REG_EDID_I2C_ADDR,
 		     adv7511->i2c_edid->addr << 1);
+
+	debug
 
 	adv7511->i2c_packet = i2c_new_ancillary_device(i2c, "packet",
 					ADV7511_PACKET_I2C_ADDR_DEFAULT);
@@ -1268,14 +1321,20 @@ static int adv7511_probe(struct i2c_client *i2c)
 		goto err_i2c_unregister_edid;
 	}
 
+	debug
+
 	regmap_write(adv7511->regmap, ADV7511_REG_PACKET_I2C_ADDR,
 		     adv7511->i2c_packet->addr << 1);
+
+	debug
 
 	ret = adv7511_init_cec_regmap(adv7511);
 	if (ret)
 		goto err_i2c_unregister_packet;
 
 	INIT_WORK(&adv7511->hpd_work, adv7511_hpd_work);
+
+	debug
 
 	if (i2c->irq) {
 		init_waitqueue_head(&adv7511->wq);
@@ -1288,6 +1347,8 @@ static int adv7511_probe(struct i2c_client *i2c)
 			goto err_unregister_cec;
 	}
 
+	debug
+
 	adv7511_power_off(adv7511);
 
 	i2c_set_clientdata(i2c, adv7511);
@@ -1295,32 +1356,47 @@ static int adv7511_probe(struct i2c_client *i2c)
 	if (adv7511->info->link_config)
 		adv7511_set_link_config(adv7511, &link_config);
 
+	debug
+
 	ret = adv7511_cec_init(dev, adv7511);
 	if (ret)
 		goto err_unregister_cec;
+
+	debug
 
 	adv7511->bridge.funcs = &adv7511_bridge_funcs;
 	adv7511->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID;
 	if (adv7511->i2c_main->irq)
 		adv7511->bridge.ops |= DRM_BRIDGE_OP_HPD;
 
+	debug
+
 	adv7511->bridge.of_node = dev->of_node;
 	adv7511->bridge.type = DRM_MODE_CONNECTOR_HDMIA;
 
 	drm_bridge_add(&adv7511->bridge);
 
-	adv7511_audio_init(dev, adv7511);
+	debug
+
+	ret = adv7511_audio_init(dev, adv7511);
+	if (ret)
+		goto err_remove_drm_bridge;
 
 	if (adv7511->info->has_dsi) {
 		ret = adv7533_attach_dsi(adv7511);
-		if (ret)
+		if (ret) {
+			dev_err(dev, "Failed to attach DSI: %d\n", ret);
 			goto err_unregister_audio;
+		}
 	}
+
+	debug
 
 	return 0;
 
 err_unregister_audio:
 	adv7511_audio_exit(adv7511);
+err_remove_drm_bridge:
 	drm_bridge_remove(&adv7511->bridge);
 err_unregister_cec:
 	cec_unregister_adapter(adv7511->cec_adap);

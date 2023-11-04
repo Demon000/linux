@@ -131,6 +131,8 @@ int adv7533_patch_cec_registers(struct adv7511 *adv)
 				    ARRAY_SIZE(adv7533_cec_fixed_registers));
 }
 
+#define debug pr_err("%s:%u\n", __func__, __LINE__);
+
 int adv7533_attach_dsi(struct adv7511 *adv)
 {
 	struct device *dev = &adv->i2c_main->dev;
@@ -142,10 +144,16 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 						   .node = NULL,
 						 };
 
+	debug
+
+	msleep(1000);
+
 	host = of_find_mipi_dsi_host_by_node(adv->host_node);
 	if (!host)
 		return dev_err_probe(dev, -EPROBE_DEFER,
 				     "failed to find dsi host\n");
+
+	debug
 
 	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
 	if (IS_ERR(dsi))
@@ -159,9 +167,13 @@ int adv7533_attach_dsi(struct adv7511 *adv)
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 			  MIPI_DSI_MODE_NO_EOT_PACKET | MIPI_DSI_MODE_VIDEO_HSE;
 
+	debug
+
 	ret = devm_mipi_dsi_attach(dev, dsi);
 	if (ret < 0)
 		return dev_err_probe(dev, ret, "failed to attach dsi to host\n");
+
+	debug
 
 	return 0;
 }
