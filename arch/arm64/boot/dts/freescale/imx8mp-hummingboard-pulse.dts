@@ -151,13 +151,6 @@
 		clock-frequency = <12000000>;
 		clock-output-names = "cam24m";
 	};
-
-	reg_vddext_3v3: regulator-vddext-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDEXT_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
 };
 
 &ecspi2 {
@@ -205,15 +198,11 @@
 		reg = <0x3d>, <0x3c>, <0x3e>, <0x3f>;
 		reg-names = "main", "cec", "edid", "packet";
 		adi,dsi-lanes = <4>;
-		interrupt-parent = <&gpio1>;
-		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
-		avdd-supply = <&buck4>;
-		dvdd-supply = <&buck4>;
-		pvdd-supply = <&buck4>;
-		a2vdd-supply = <&buck4>;
-		v3p3-supply = <&reg_vddext_3v3>;
-		v1p2-supply = <&buck4>;
-
+		adi,input-depth = <8>;
+		adi,input-colorspace = "rgb";
+		adi,input-clock = "1x";
+		adi,input-style = <1>;
+		adi,input-justification = "evenly";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mipi_dsi_en>;
 		gpio = <&gpio1 8 GPIO_ACTIVE_HIGH>;
