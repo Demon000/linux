@@ -3,6 +3,7 @@
  * Copyright 2019 NXP
  */
 
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include "imx8mp.dtsi"
 
 / {
@@ -39,6 +40,12 @@
 		device_type = "memory";
 		reg = <0x0 0x40000000 0 0xc0000000>,
 		      <0x1 0x00000000 0 0xc0000000>;
+	};
+
+	pcie0_refclk: pcie0-refclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <100000000>;
 	};
 
 	sdio_pwrseq: sdio-pwrseq {
@@ -204,7 +211,7 @@
 			};
 		};
 	};
-	
+
 	eeprom: eeprom@50{
 		compatible = "st,24c02", "atmel,24c02";
 		reg = <0x50>;
@@ -242,11 +249,13 @@
 };
 
 &pcie_phy {
-	ext_osc = <0>;
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	clocks = <&pcie0_refclk>;
+	clock-names = "ref";
 	status = "disabled";
 };
 
-&snvs_rtc{
+&snvs_rtc {
 	status = "okay";
 };
 
@@ -402,8 +411,8 @@
 
 	pinctrl_i2c4: i2c4grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_I2C4_SCL__I2C4_SCL			0x400001c3
-			MX8MP_IOMUXC_I2C4_SDA__I2C4_SDA			0x400001c3
+			MX8MP_IOMUXC_ECSPI2_MISO__I2C4_SCL			0x400001c3
+			MX8MP_IOMUXC_ECSPI2_SS0__I2C4_SDA			0x400001c3
 		>;
 	};
 

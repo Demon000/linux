@@ -55,6 +55,11 @@
 
 #define I2C_ADDR_DEVICE_ID	0x7c
 
+#undef pr_debug
+#define pr_debug pr_err
+#undef dev_dbg
+#define dev_dbg dev_err
+
 /*
  * core_lock protects i2c_adapter_idr, and guarantees that device detection,
  * deletion of detected devices are serialized

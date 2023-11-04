@@ -261,42 +261,7 @@
 	};
 };
 
-&isi_0 {
-	status = "okay";
-};
-
-&mipi_csi_0 {
-	status = "okay";
-
-	ports {
-		port@0 {
-			reg = <0>;
-
-			csi_0_in: endpoint {
-				remote-endpoint = <&des_phy_1_out>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-};
-
-&mipi_csi_1 {
-	status = "okay";
-
-	ports {
-		port@0 {
-			reg = <0>;
-
-			csi_1_in: endpoint {
-				remote-endpoint = <&des_phy_2_out>;
-				data-lanes = <1 2 3 4>;
-			};
-		};
-	};
-};
-
-&pcie_phy{
-	ext_osc = <0>;
+&pcie_phy {
 	status = "okay";
 };
 
@@ -559,7 +524,7 @@
 
 #define GMSL_MAINLINE_PLATFORM
 
-#define GMSL_DES_I2C_LABEL		i2c3
+#define GMSL_DES_I2C_LABEL		i2c4
 #define GMSL_DES_PHY			1
 #define GMSL_DES_PHY_NUM_LANES		4
 #define GMSL_DES_PHY_LINK_FREQ		1250000000
@@ -649,5 +614,40 @@
 	pipe@3 {
 		reg = <3>;
 		maxim,stream-id = <3>;
+	};
+};
+
+
+&isi_0 {
+	status = "okay";
+};
+
+&mipi_csi_0 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+
+			csi_0_in: endpoint {
+				remote-endpoint = <&des_phy_1_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi_csi_1 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			reg = <0>;
+
+			csi_1_in: endpoint {
+				remote-endpoint = <&des_phy_2_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
 	};
 };
