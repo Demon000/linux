@@ -133,11 +133,26 @@ static int drm_minor_alloc(struct drm_device *dev, enum drm_minor_type type)
 	if (type == DRM_MINOR_ACCEL) {
 		r = accel_minor_alloc();
 	} else {
+		int hardcoded_start;
+		int hardcoded_end;
+
+		if (!strcmp(minor->dev->driver->name, "imx-lcdif")) {
+			hardcoded_start = 0;
+			hardcoded_end = hardcoded_start + 1;
+		} else if (!strcmp(minor->dev->driver->name, "etnaviv")) {
+			hardcoded_start = 1;
+			hardcoded_end = hardcoded_start + 2;
+		} else {
+			hardcoded_start = 64 * type;
+			hardcoded_end = 64 * (type + 1);
+		}
+		dev_err(minor->dev->dev, "picked id: %u\n", hardcoded_start);
+
 		spin_lock_irqsave(&drm_minor_lock, flags);
 		r = idr_alloc(&drm_minors_idr,
 			NULL,
-			64 * type,
-			64 * (type + 1),
+			hardcoded_start,
+			hardcoded_end,
 			GFP_NOWAIT);
 		spin_unlock_irqrestore(&drm_minor_lock, flags);
 	}
