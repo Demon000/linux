@@ -240,10 +240,6 @@
 	};
 };
 
-&lcdif2 {
-	status = "okay";
-};
-
 &ocotp {
 	status = "okay";
 };
