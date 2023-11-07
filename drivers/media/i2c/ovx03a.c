@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
+#include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
@@ -882,6 +883,23 @@ static int ovx03a_init_cfg(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ovx03a_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct ovx03a *sensor = to_ovx03a(sd);
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
+	fd->entry[0].stream = 0;
+	fd->entry[0].flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
+	fd->entry[0].length = OVX03A_WIDTH * 2;
+	fd->entry[0].pixelcode = ovx03a_mbus_code(sensor);
+	fd->entry[0].bus.csi2.vc = 0;
+	fd->entry[0].bus.csi2.dt = MIPI_CSI2_DT_RAW12;
+	fd->num_entries = 1;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_video_ops ovx03a_subdev_video_ops = {
 	.g_frame_interval = ovx03a_g_frame_interval,
 	.s_frame_interval = ovx03a_s_frame_interval,
@@ -895,6 +913,7 @@ static const struct v4l2_subdev_pad_ops ovx03a_subdev_pad_ops = {
 	.get_fmt = ovx03a_get_format,
 	.set_fmt = ovx03a_set_format,
 	.init_cfg = ovx03a_init_cfg,
+	.get_frame_desc = ovx03a_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops ovx03a_subdev_ops = {
