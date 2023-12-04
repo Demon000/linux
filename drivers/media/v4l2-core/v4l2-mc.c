@@ -321,10 +321,14 @@ int v4l_vb2q_enable_media_source(struct vb2_queue *q)
 }
 EXPORT_SYMBOL_GPL(v4l_vb2q_enable_media_source);
 
+#define debug pr_err("%s:%u\n", __func__, __LINE__);
+
 int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 				    struct media_pad *sink, u32 flags)
 {
 	struct fwnode_handle *endpoint;
+
+	debug
 
 	if (!(sink->flags & MEDIA_PAD_FL_SINK))
 		return -EINVAL;
@@ -334,15 +338,23 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		int src_idx, sink_idx, ret;
 		struct media_pad *src;
 
+		pr_err("src entity: %s, endpoints: %pfw\n", src_sd->entity.name, endpoint);
+
 		src_idx = media_entity_get_fwnode_pad(&src_sd->entity,
 						      endpoint,
 						      MEDIA_PAD_FL_SOURCE);
-		if (src_idx < 0)
+		if (src_idx < 0) {
+			debug
 			continue;
+		}
 
 		remote_ep = fwnode_graph_get_remote_endpoint(endpoint);
-		if (!remote_ep)
+		if (!remote_ep) {
+			debug
 			continue;
+		}
+
+		pr_err("sink entity: %s, endpoints: %pfw\n", sink->entity->name, remote_ep);
 
 		/*
 		 * ask the sink to verify it owns the remote endpoint,
@@ -353,8 +365,12 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 						       MEDIA_PAD_FL_SINK);
 		fwnode_handle_put(remote_ep);
 
-		if (sink_idx < 0 || sink_idx != sink->index)
+		pr_err("sink_idx: %u, sink->index: %u\n", sink_idx, sink->index);
+
+		if (sink_idx < 0 || sink_idx != sink->index) {
+			debug
 			continue;
+		}
 
 		/*
 		 * the source endpoint corresponds to one of its source pads,
@@ -367,10 +383,12 @@ int v4l2_create_fwnode_links_to_pad(struct v4l2_subdev *src_sd,
 		src = &src_sd->entity.pads[src_idx];
 
 		/* skip if link already exists */
-		if (media_entity_find_link(src, sink))
+		if (media_entity_find_link(src, sink)) {
+			debug
 			continue;
+		}
 
-		dev_dbg(src_sd->dev, "creating link %s:%d -> %s:%d\n",
+		dev_err(src_sd->dev, "creating link %s:%d -> %s:%d\n",
 			src_sd->entity.name, src_idx,
 			sink->entity->name, sink_idx);
 

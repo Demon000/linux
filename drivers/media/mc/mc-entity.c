@@ -15,8 +15,8 @@
 #include <media/media-entity.h>
 #include <media/media-device.h>
 
-#undef dev_dbg
-#define dev_dbg dev_err
+// #undef dev_dbg
+// #define dev_dbg dev_err
 
 static inline const char *intf_type(struct media_interface *intf)
 {
