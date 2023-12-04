@@ -231,6 +231,8 @@ static int max_component_init_gather_routing(struct max_component *comp,
 			route->source_pad, route->source_stream);
 	}
 
+	kfree(pads_streams);
+
 	return 0;
 }
 
