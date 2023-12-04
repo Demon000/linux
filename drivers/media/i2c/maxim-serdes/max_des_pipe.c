@@ -3,25 +3,28 @@
 static int max_des_pipe_log_status(struct v4l2_subdev *sd)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_des_pipe *pipe = container_of(comp, struct max_des_pipe, comp);
-	struct max_des_pipe_data *data = &pipe->data;
-	struct max_des_priv *priv = pipe->priv;
+	struct max_des_priv *priv = comp->priv;
+	struct max_des *des = priv->des;
+	struct max_des_pipe *pipe = &des->pipes[comp->index];
 	unsigned int i;
 	int ret;
 
-	v4l2_info(sd, "index: %u\n", data->index);
-	v4l2_info(sd, "phy_id: %u\n", data->phy_id);
-	v4l2_info(sd, "stream_id: %u\n", data->stream_id);
-	v4l2_info(sd, "link_id: %u\n", data->link_id);
-	v4l2_info(sd, "dbl8: %u\n", data->dbl8);
-	v4l2_info(sd, "dbl8mode: %u\n", data->dbl8mode);
-	v4l2_info(sd, "dbl10: %u\n", data->dbl10);
-	v4l2_info(sd, "dbl10mode: %u\n", data->dbl10mode);
-	v4l2_info(sd, "dbl12: %u\n", data->dbl12);
-	v4l2_info(sd, "remaps: %u\n", data->num_remaps);
+	v4l2_info(sd, "index: %u\n", pipe->index);
+	v4l2_info(sd, "phy_id: %u\n", pipe->phy_id);
+	if (des->pipe_stream_autoselect)
+		v4l2_info(sd, "stream_id: autoselect\n");
+	else
+		v4l2_info(sd, "stream_id: %u\n", pipe->stream_id);
+	v4l2_info(sd, "link_id: %u\n", pipe->link_id);
+	v4l2_info(sd, "dbl8: %u\n", pipe->dbl8);
+	v4l2_info(sd, "dbl8mode: %u\n", pipe->dbl8mode);
+	v4l2_info(sd, "dbl10: %u\n", pipe->dbl10);
+	v4l2_info(sd, "dbl10mode: %u\n", pipe->dbl10mode);
+	v4l2_info(sd, "dbl12: %u\n", pipe->dbl12);
+	v4l2_info(sd, "remaps: %u\n", pipe->num_remaps);
 
-	for (i = 0; i < data->num_remaps; i++) {
-		struct max_des_dt_vc_remap *remap = &data->remaps[i];
+	for (i = 0; i < pipe->num_remaps; i++) {
+		struct max_des_dt_vc_remap *remap = &pipe->remaps[i];
 
 		v4l2_info(sd, "\tremap: from: vc: %u, dt: 0x%02x\n",
 			  remap->from_vc, remap->from_dt);
@@ -29,8 +32,8 @@ static int max_des_pipe_log_status(struct v4l2_subdev *sd)
 			  remap->to_vc, remap->to_dt, remap->phy);
 	}
 
-	if (priv->ops->log_pipe_status) {
-		ret = priv->ops->log_pipe_status(priv, data, sd->name);
+	if (des->ops->log_pipe_status) {
+		ret = des->ops->log_pipe_status(des, pipe, sd->name);
 		if (ret)
 			return ret;
 	}
@@ -39,110 +42,126 @@ static int max_des_pipe_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int max_des_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
+				   bool enable)
+{
+	int ret;
+
+	ret = des->ops->set_pipe_enable(des, pipe, true);
+	if (ret)
+		return ret;
+
+	pipe->enabled = true;
+
+	return 0;
+}
+
+static int max_des_pipe_enable_streams(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_state *state, u32 pad,
+				       u64 streams_mask)
+{
+	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = comp->priv;
+	struct max_des *des = priv->des;
+	struct max_des_pipe *pipe = &des->pipes[comp->index];
+	u64 streams;
+	int ret;
+
+	streams = max_component_set_enabled_streams(comp, pad, streams_mask, true);
+
+	if (streams) {
+		ret = max_des_set_pipe_enable(des, pipe, true);
+		if (ret)
+			return ret;
+	}
+
+	return max_component_set_remote_streams_enable(comp, state, pad,
+						       streams_mask, true);
+}
+
+static int max_des_pipe_disable_streams(struct v4l2_subdev *sd,
+					struct v4l2_subdev_state *state, u32 pad,
+					u64 streams_mask)
+{
+	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = comp->priv;
+	struct max_des *des = priv->des;
+	struct max_des_pipe *pipe = &des->pipes[comp->index];
+	u64 streams;
+	int ret;
+
+	streams = max_component_set_enabled_streams(comp, pad, streams_mask, true);
+
+	if (!streams) {
+		ret = max_des_set_pipe_enable(des, pipe, false);
+		if (ret)
+			return ret;
+	}
+
+	return max_component_set_remote_streams_enable(comp, state, pad,
+						       streams_mask, false);
+}
+
 static const struct v4l2_subdev_core_ops max_des_pipe_core_ops = {
 	.log_status = max_des_pipe_log_status,
 };
 
-static const struct v4l2_subdev_video_ops max_des_pipe_video_ops = {
-};
-
 static const struct v4l2_subdev_pad_ops max_des_pipe_pad_ops = {
+	.init_cfg = max_component_init_cfg,
+	.set_routing = max_component_set_validate_routing,
+	.enable_streams = max_des_pipe_enable_streams,
+	.disable_streams = max_des_pipe_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
 };
 
 static const struct v4l2_subdev_ops max_des_pipe_subdev_ops = {
 	.core = &max_des_pipe_core_ops,
-	.video = &max_des_pipe_video_ops,
 	.pad = &max_des_pipe_pad_ops,
 };
 
-int max_des_pipe_register_v4l2_sd(struct max_des_pipe *pipe,
+static const struct media_entity_operations max_des_link_pipe_xbar_entity_ops = {
+	.link_validate = v4l2_subdev_link_validate,
+	.has_pad_interdep = v4l2_subdev_has_pad_interdep,
+};
+
+int max_des_pipe_register_v4l2_sd(struct max_des_priv *priv,
+				  struct max_des_pipe *pipe,
+				  struct max_component *comp,
 				  struct v4l2_device *v4l2_dev)
 {
-	struct max_des_priv *priv = pipe->priv;
-	struct max_component *comp = &pipe->comp;
+	struct max_des *des = priv->des;
 
+	comp->priv = priv;
 	comp->sd_ops = &max_des_pipe_subdev_ops;
+	comp->mc_ops = &max_des_link_pipe_xbar_entity_ops;
 	comp->v4l2_dev = v4l2_dev;
-	comp->client = priv->client;
+	comp->dev = priv->dev;
 	comp->num_source_pads = 1;
 	comp->num_sink_pads = 1;
-	comp->prefix = priv->name;
+	comp->prefix = des->name;
 	comp->name = "pipe";
-	comp->index = pipe->data.index;
+	comp->index = pipe->index;
+	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
+				 V4L2_SUBDEV_ROUTING_NO_STREAM_MIX;
 
 	return max_component_register_v4l2_sd(comp);
 }
 
-void max_des_pipe_unregister_v4l2_sd(struct max_des_pipe *pipe)
+void max_des_pipe_unregister_v4l2_sd(struct max_des_priv *priv,
+				     struct max_component *comp)
 {
-	struct max_component *comp = &pipe->comp;
-
 	max_component_unregister_v4l2_sd(comp);
 }
 
-static int max_des_pipe_parse_link_remap_dt(struct max_des_priv *priv,
-					    struct max_des_pipe_data *data,
-					    struct fwnode_handle *fwnode)
-{
-	u32 val;
-	int ret;
-
-	val = data->link_id;
-	ret = fwnode_property_read_u32(fwnode, "maxim,link-id", &val);
-	if (!ret && !priv->ops->supports_pipe_link_remap) {
-		dev_err(priv->dev, "Pipe link remapping is not supported\n");
-		return -EINVAL;
-	}
-
-	if (val >= priv->ops->num_links) {
-		dev_err(priv->dev, "Invalid link %u\n", val);
-		return -EINVAL;
-	}
-
-	data->link_id = val;
-
-	return 0;
-}
-
-int max_des_pipe_parse_dt(struct max_des_priv *priv, struct max_des_pipe_data *data,
+int max_des_pipe_parse_dt(struct max_des_priv *priv, struct max_des_pipe *pipe,
 			  struct fwnode_handle *fwnode)
 {
-	u32 val;
-	int ret;
+	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
+	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
+	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
 
-	val = data->phy_id;
-	fwnode_property_read_u32(fwnode, "maxim,phy-id", &val);
-	if (val >= priv->ops->num_pipes) {
-		dev_err(priv->dev, "Invalid PHY %u\n", val);
-		return -EINVAL;
-	}
-	data->phy_id = val;
-
-	val = data->stream_id;
-	ret = fwnode_property_read_u32(fwnode, "maxim,stream-id", &val);
-	if (!ret && priv->pipe_stream_autoselect) {
-		dev_err(priv->dev, "Cannot select stream when using autoselect\n");
-		return -EINVAL;
-	}
-
-	if (val >= MAX_SERDES_STREAMS_NUM) {
-		dev_err(priv->dev, "Invalid stream %u\n", val);
-		return -EINVAL;
-	}
-
-	data->stream_id = val;
-
-	data->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	data->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	data->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
-
-	data->dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
-	data->dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
-
-	ret = max_des_pipe_parse_link_remap_dt(priv, data, fwnode);
-	if (ret)
-		return ret;
+	pipe->dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
+	pipe->dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
 
 	return 0;
 }

@@ -453,16 +453,26 @@ again:
 	return 0;
 }
 
+#define debug pr_err("%s:%u\n", __func__, __LINE__);
+
 static void v4l2_async_unbind_subdev_one(struct v4l2_async_notifier *notifier,
 					 struct v4l2_async_connection *asc)
 {
+	debug
 	list_move_tail(&asc->asc_entry, &notifier->waiting_list);
+	debug
 	if (list_is_singular(&asc->asc_subdev_entry)) {
+		debug
 		v4l2_async_nf_call_unbind(notifier, asc->sd, asc);
+		debug
 		v4l2_device_unregister_subdev(asc->sd);
+		debug
 		asc->sd = NULL;
+		debug
 	}
+	debug
 	list_del(&asc->asc_subdev_entry);
+	debug
 }
 
 /* Unbind all sub-devices in the notifier tree. */

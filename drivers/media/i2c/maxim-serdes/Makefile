@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-max_serdes_all-objs := max_serdes.o
+max_serdes_all-objs := max_serdes.o max_ser_common.o
 
 max_ser_all-objs := max_ser.o max_ser_atr.o
 max_ser_all-objs += max_ser_phy.o max_ser_pipe.o max_ser_link.o

@@ -1275,6 +1275,16 @@ static int mxc_isi_video_enum_framesizes(struct file *file, void *priv,
 	return 0;
 }
 
+static int mxc_isi_video_log_status(struct file *file, void *fh)
+{
+	struct mxc_isi_video *video = video_drvdata(file);
+	struct video_device *vdev = &video->vdev;
+
+	v4l2_device_call_all(vdev->v4l2_dev, 0, core, log_status);
+
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops mxc_isi_video_ioctl_ops = {
 	.vidioc_querycap		= mxc_isi_video_querycap,
 
@@ -1298,6 +1308,8 @@ static const struct v4l2_ioctl_ops mxc_isi_video_ioctl_ops = {
 
 	.vidioc_subscribe_event		= v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
+
+	.vidioc_log_status              = mxc_isi_video_log_status,
 };
 
 /* -----------------------------------------------------------------------------

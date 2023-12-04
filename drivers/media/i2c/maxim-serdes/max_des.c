@@ -13,29 +13,28 @@
 #include "max_des.h"
 #include "max_serdes.h"
 
+#if 0
 static int __max_des_mipi_update(struct max_des_priv *priv)
 {
-#if 0
+	struct max_des *des = priv->des;
 	struct max_des_subdev_priv *sd_priv;
-#endif
 	bool enable = 0;
 
-#if 0
 	for_each_subdev(priv, sd_priv) {
 		if (sd_priv->active) {
 			enable = 1;
 			break;
 		}
 	}
-#endif
 
 	if (enable == priv->active)
 		return 0;
 
 	priv->active = enable;
 
-	return priv->ops->mipi_enable(priv, enable);
+	return des->ops->mipi_enable(des, enable);
 }
+#endif
 
 #if 0
 static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
@@ -59,21 +58,20 @@ exit:
 }
 #endif
 
+#if 0
 static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 				      struct max_des_pipe *pipe)
 {
-	struct max_des_link *link = &priv->links[pipe->data.link_id];
-#if 0
+	struct max_des *des = priv->des;
+	struct max_des_link *link = &des->links[pipe->link_id];
 	struct max_des_subdev_priv *sd_priv;
 	unsigned int i;
-#endif
 
-	pipe->data.num_remaps = 0;
+	pipe->num_remaps = 0;
 
-	if (link->data.tunnel_mode)
+	if (link->tunnel_mode)
 		return 0;
 
-#if 0
 	for_each_subdev(priv, sd_priv) {
 		unsigned int num_remaps;
 
@@ -83,7 +81,7 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 		if (!sd_priv->fmt)
 			continue;
 
-		if (sd_priv->fmt->dt == MAX_DT_EMB8)
+		if (sd_priv->fmt->dt == MIPI_CSI2_DT_EMBEDDED_8B)
 			num_remaps = 1;
 		else
 			num_remaps = 3;
@@ -102,9 +100,9 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 			if (i == 0)
 				dt = sd_priv->fmt->dt;
 			else if (i == 1)
-				dt = MAX_DT_FS;
+				dt = MIPI_CSI2_DT_FS;
 			else
-				dt = MAX_DT_FE;
+				dt = MIPI_CSI2_DT_FE;
 
 			remap->from_dt = dt;
 			remap->from_vc = sd_priv->src_vc_id;
@@ -113,34 +111,46 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 			remap->phy = sd_priv->phy_id;
 		}
 	}
+
+	return des->ops->set_pipe_remaps(des, pipe);
+}
 #endif
 
-	return priv->ops->update_pipe_remaps(priv, &pipe->data);
-}
 static int max_des_init(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
 	unsigned int i;
 	int ret;
 
-	ret = priv->ops->init(priv);
+	ret = des->ops->init(des);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < priv->ops->num_phys; i++) {
-		struct max_des_phy *phy = &priv->phys[i];
+	for (i = 0; i < des->ops->num_phys; i++) {
+		struct max_des_phy *phy = &des->phys[i];
 
-		if (!phy->data.enabled)
-			continue;
+		if (phy->enabled) {
+			ret = des->ops->init_phy(des, phy);
+			if (ret)
+				return ret;
+		}
 
-		ret = priv->ops->init_phy(priv, &phy->data);
+		ret = des->ops->set_phy_enable(des, phy, phy->enabled);
 		if (ret)
 			return ret;
 	}
 
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &priv->pipes[i];
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		struct max_des_pipe *pipe = &des->pipes[i];
 
-		ret = priv->ops->init_pipe(priv, &pipe->data);
+		ret = des->ops->init_pipe(des, pipe);
+		if (ret)
+			return ret;
+
+		/*
+		 * Pipes will be enabled dynamically.
+		 */
+		ret = des->ops->set_pipe_enable(des, pipe, false);
 		if (ret)
 			return ret;
 	}
@@ -150,25 +160,25 @@ static int max_des_init(struct max_des_priv *priv)
 
 static int max_des_post_init(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
 	unsigned int i, mask = 0;
 	int ret;
 
-	for (i = 0; i < priv->ops->num_links; i++) {
-		struct max_des_link *link = &priv->links[i];
-		struct max_des_link_data *data = &link->data;
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
 
-		if (!data->enabled)
+		if (!link->enabled)
 			continue;
 
-		mask |= BIT(data->index);
+		mask |= BIT(link->index);
 	}
 
-	ret = priv->ops->select_links(priv, mask);
+	ret = des->ops->select_links(des, mask);
 	if (ret)
 		return ret;
 
-	if (priv->ops->post_init) {
-		ret = priv->ops->post_init(priv);
+	if (des->ops->post_init) {
+		ret = des->ops->post_init(des);
 		if (ret)
 			return ret;
 	}
@@ -178,17 +188,21 @@ static int max_des_post_init(struct max_des_priv *priv)
 
 static int max_des_register_async_v4l2(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
 	bool attach_notifier = true;
+	struct max_component *comp;
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < priv->ops->num_phys; i++) {
-		struct max_des_phy *phy = &priv->phys[i];
+	for (i = 0; i < des->ops->num_phys; i++) {
+		struct max_des_phy *phy = &des->phys[i];
 
-		if (!phy->data.enabled)
+		if (!phy->enabled)
 			continue;
 
-		ret = max_des_phy_register_v4l2_sd(phy, attach_notifier);
+		comp = &priv->phys_comp[i];
+
+		ret = max_des_phy_register_v4l2_sd(priv, phy, comp, attach_notifier);
 		if (ret)
 			return ret;
 
@@ -200,33 +214,49 @@ static int max_des_register_async_v4l2(struct max_des_priv *priv)
 
 static void max_des_unregister_async_v4l2(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
+	struct max_component *comp;
 	unsigned int i;
 
-	for (i = 0; i < priv->ops->num_phys; i++) {
-		struct max_des_phy *phy = &priv->phys[i];
+	for (i = 0; i < des->ops->num_phys; i++) {
+		struct max_des_phy *phy = &des->phys[i];
 
-		max_des_phy_unregister_v4l2_sd(phy);
+		if (!phy->enabled)
+			continue;
+
+		comp = &priv->phys_comp[i];
+
+		max_des_phy_unregister_v4l2_sd(priv, comp);
 	}
 }
 
 static int max_des_register_pipe_phy_xbar(struct max_des_priv *priv,
 					  struct v4l2_device *v4l2_dev)
 {
-	struct max_des_pipe_phy_xbar *xbar = &priv->pipe_phy_xbar;
+	struct max_component *comp = &priv->pipe_phy_xbar_comp;
+	struct max_component *other_comp;
+	struct max_des *des = priv->des;
 	unsigned int offset;
 	unsigned int i;
 	int ret;
 
-	ret = max_des_pipe_phy_xbar_register_v4l2_sd(xbar, v4l2_dev);
+	ret = max_des_pipe_phy_xbar_register_v4l2_sd(priv, comp, v4l2_dev);
 	if (ret)
 		return ret;
 
 	/* Create xbar->PHY links. */
 	offset = 0;
-	for (i = 0; i < priv->ops->num_phys; i++) {
-		struct max_des_phy *phy = &priv->phys[i];
+	for (i = 0; i < des->ops->num_phys; i++) {
+		struct max_des_phy *phy = &des->phys[i];
 
-		ret = max_components_link(&xbar->comp, offset, &phy->comp, 0, phy->data.enabled);
+		if (!phy->enabled) {
+			offset++;
+			continue;
+		}
+
+		other_comp = &priv->phys_comp[i];
+
+		ret = max_components_link(comp, offset, other_comp, 0);
 		if (ret < 0)
 			return ret;
 
@@ -235,10 +265,10 @@ static int max_des_register_pipe_phy_xbar(struct max_des_priv *priv,
 
 	/* Create pipe->xbar links. */
 	offset = 0;
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &priv->pipes[i];
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		other_comp = &priv->pipes_comp[i];
 
-		ret = max_components_link(&pipe->comp, 0, &xbar->comp, offset, true);
+		ret = max_components_link(other_comp, 0, comp, offset);
 		if (ret < 0)
 			return ret;
 
@@ -251,21 +281,23 @@ static int max_des_register_pipe_phy_xbar(struct max_des_priv *priv,
 static int max_des_register_link_pipe_xbar(struct max_des_priv *priv,
 					   struct v4l2_device *v4l2_dev)
 {
-	struct max_des_link_pipe_xbar *xbar = &priv->link_pipe_xbar;
+	struct max_component *comp = &priv->link_pipe_xbar_comp;
+	struct max_component *other_comp;
+	struct max_des *des = priv->des;
 	unsigned int offset;
 	unsigned int i;
 	int ret;
 
-	ret = max_des_link_pipe_xbar_register_v4l2_sd(xbar, v4l2_dev);
+	ret = max_des_link_pipe_xbar_register_v4l2_sd(priv, comp, v4l2_dev);
 	if (ret)
 		return ret;
 
 	/* Create xbar->pipe links. */
 	offset = 0;
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &priv->pipes[i];
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		other_comp = &priv->pipes_comp[i];
 
-		ret = max_components_link(&xbar->comp, offset, &pipe->comp, 0, true);
+		ret = max_components_link(comp, offset, other_comp, 0);
 		if (ret < 0)
 			return ret;
 
@@ -274,11 +306,17 @@ static int max_des_register_link_pipe_xbar(struct max_des_priv *priv,
 
 	/* Create link->xbar links. */
 	offset = 0;
-	for (i = 0; i < priv->ops->num_links; i++) {
-		struct max_des_link *link = &priv->links[i];
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
 
-		ret = max_components_link(&link->comp, 0, &xbar->comp, offset,
-					  link->data.enabled);
+		if (!link->enabled) {
+			offset += des->num_streams_per_link;
+			continue;
+		}
+
+		other_comp = &priv->links_comp[i];
+
+		ret = max_components_link(other_comp, 0, comp, offset);
 		if (ret < 0)
 			return ret;
 
@@ -290,6 +328,8 @@ static int max_des_register_link_pipe_xbar(struct max_des_priv *priv,
 
 int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_dev)
 {
+	struct max_des *des = priv->des;
+	struct max_component *comp;
 	unsigned int i;
 	int ret;
 
@@ -298,21 +338,25 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 	if (priv->num_bound_phys != priv->num_enabled_phys)
 		return 0;
 
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &priv->pipes[i];
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		struct max_des_pipe *pipe = &des->pipes[i];
 
-		ret = max_des_pipe_register_v4l2_sd(pipe, v4l2_dev);
+		comp = &priv->pipes_comp[i];
+
+		ret = max_des_pipe_register_v4l2_sd(priv, pipe, comp, v4l2_dev);
 		if (ret)
 			return ret;
 	}
 
-	for (i = 0; i < priv->ops->num_links; i++) {
-		struct max_des_link *link = &priv->links[i];
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
 
-		if (!link->data.enabled)
+		if (!link->enabled)
 			continue;
 
-		ret = max_des_link_register_v4l2_sd(link, v4l2_dev);
+		comp = &priv->links_comp[i];
+
+		ret = max_des_link_register_v4l2_sd(priv, link, comp, v4l2_dev);
 		if (ret)
 			return ret;
 	}
@@ -330,6 +374,8 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 
 void max_des_unregister_v4l2(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
+	struct max_component *comp;
 	unsigned int i;
 
 	priv->num_bound_phys--;
@@ -337,29 +383,73 @@ void max_des_unregister_v4l2(struct max_des_priv *priv)
 	if (priv->num_bound_phys != 0)
 		return;
 
-	max_des_link_pipe_xbar_unregister_v4l2_sd(&priv->link_pipe_xbar);
+	max_des_link_pipe_xbar_unregister_v4l2_sd(priv, &priv->link_pipe_xbar_comp);
 
-	max_des_pipe_phy_xbar_unregister_v4l2_sd(&priv->pipe_phy_xbar);
+	max_des_pipe_phy_xbar_unregister_v4l2_sd(priv, &priv->pipe_phy_xbar_comp);
 
-	for (i = 0; i < priv->ops->num_links; i++) {
-		struct max_des_link *link = &priv->links[i];
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
 
-		if (!link->data.enabled)
+		if (!link->enabled)
 			continue;
 
-		max_des_link_unregister_v4l2_sd(link);
+		comp = &priv->links_comp[i];
+
+		max_des_link_unregister_v4l2_sd(priv, comp);
 	}
 
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &priv->pipes[i];
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		comp = &priv->pipes_comp[i];
 
-		max_des_pipe_unregister_v4l2_sd(pipe);
+		max_des_pipe_unregister_v4l2_sd(priv, comp);
 	}
+}
+
+static int max_des_find_phys_config(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+	const struct max_serdes_phy_configs *configs = des->ops->phys_configs.configs;
+	unsigned int num_phys_configs = des->ops->phys_configs.num_configs;
+	struct max_des_phy *phy;
+	unsigned int i, j;
+
+	for (i = 0; i < num_phys_configs; i++) {
+		bool matching = true;
+
+		for (j = 0; j < des->ops->num_phys; j++) {
+			phy = &des->phys[j];
+
+			if (!phy->enabled)
+				continue;
+
+			if (phy->mipi.num_data_lanes == configs[i].lanes[j] &&
+			    phy->mipi.clock_lane == configs[i].clock_lane[j])
+				continue;
+
+			matching = false;
+
+			break;
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == num_phys_configs) {
+		dev_err(priv->dev, "Invalid lane configuration\n");
+		return -EINVAL;
+	}
+
+	des->phys_config = i;
+
+	return 0;
 }
 
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
+	struct max_des *des = priv->des;
 	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
+	struct max_component *comp;
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
@@ -370,39 +460,32 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	int ret;
 
 	fwnode_property_read_string(fwnode, "label", &label);
-	max_set_priv_name(priv->name, label, priv->client);
+	max_set_priv_name(des->name, label, priv->client);
 
 	val = device_property_read_bool(priv->dev, "maxim,pipe-stream-autoselect");
-	if (val && !priv->ops->supports_pipe_stream_autoselect) {
+	if (val && !des->ops->supports_pipe_stream_autoselect) {
 		dev_err(priv->dev, "Pipe stream autoselect is not supported\n");
 		return -EINVAL;
 	}
-	priv->pipe_stream_autoselect = val;
-	priv->num_streams_per_link = priv->pipe_stream_autoselect ? 1 : MAX_SERDES_STREAMS_NUM;
+	des->pipe_stream_autoselect = val;
+	des->num_streams_per_link = des->pipe_stream_autoselect ? 1 : MAX_SERDES_STREAMS_NUM;
 
-	for (i = 0; i < priv->ops->num_phys; i++) {
-		phy = &priv->phys[i];
-		phy->priv = priv;
-		phy->data.index = i;
+	for (i = 0; i < des->ops->num_phys; i++) {
+		phy = &des->phys[i];
+		phy->index = i;
 	}
 
-	priv->pipe_phy_xbar.priv = priv;
-
-	for (i = 0; i < priv->ops->num_pipes; i++) {
-		pipe = &priv->pipes[i];
-		pipe->priv = priv;
-		pipe->data.index = i;
-		pipe->data.phy_id = i % priv->ops->num_phys;
-		pipe->data.stream_id = i % MAX_SERDES_STREAMS_NUM;
-		pipe->data.link_id = i;
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		pipe = &des->pipes[i];
+		pipe->index = i;
+		pipe->phy_id = i % des->ops->num_phys;
+		pipe->stream_id = i % MAX_SERDES_STREAMS_NUM;
+		pipe->link_id = i;
 	}
 
-	priv->link_pipe_xbar.priv = priv;
-
-	for (i = 0; i < priv->ops->num_links; i++) {
-		link = &priv->links[i];
-		link->priv = priv;
-		link->data.index = i;
+	for (i = 0; i < des->ops->num_links; i++) {
+		link = &des->links[i];
+		link->index = i;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
@@ -417,18 +500,21 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= priv->ops->num_phys) {
+		if (index >= des->ops->num_phys) {
 			dev_err(priv->dev, "Invalid PHY %u\n", index);
 			fwnode_handle_put(fwnode);
 			return -EINVAL;
 		}
 
-		phy = &priv->phys[index];
-		phy->comp.fwnode = fwnode;
-		phy->data.enabled = true;
+		phy = &des->phys[index];
+		phy->enabled = true;
+
+		comp = &priv->phys_comp[index];
+		comp->fwnode = fwnode;
+
 		priv->num_enabled_phys++;
 
-		ret = max_des_phy_parse_dt(priv, &phy->data, fwnode);
+		ret = max_des_phy_parse_dt(priv, phy, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
@@ -448,7 +534,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= priv->ops->num_links) {
+		if (index >= des->ops->num_links) {
 			dev_err(priv->dev, "Invalid link %u\n", index);
 			fwnode_handle_put(fwnode);
 			return -EINVAL;
@@ -461,13 +547,16 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			return -EINVAL;
 		}
 
-		link = &priv->links[index];
-		link->comp.fwnode = fwnode;
-		link->data.enabled = true;
-		priv->links_eps[index] = ep;
-		priv->links_comps[index] = &link->comp;
+		link = &des->links[index];
+		link->enabled = true;
 
-		ret = max_des_link_parse_dt(priv, &link->data, fwnode);
+		comp = &priv->links_comp[index];
+		comp->fwnode = fwnode;
+
+		priv->links_eps[index] = ep;
+		priv->links_comps[index] = comp;
+
+		ret = max_des_link_parse_dt(priv, link, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
@@ -486,57 +575,99 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		if (index >= priv->ops->num_pipes) {
+		if (index >= des->ops->num_pipes) {
 			dev_err(priv->dev, "Invalid pipe %u\n", index);
 			fwnode_handle_put(fwnode);
 			return -EINVAL;
 		}
 
-		pipe = &priv->pipes[index];
+		pipe = &des->pipes[index];
 
-		ret = max_des_pipe_parse_dt(priv, &pipe->data, fwnode);
+		ret = max_des_pipe_parse_dt(priv, pipe, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
 	}
 
+	ret = max_des_find_phys_config(priv);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int max_des_allocate(struct max_des_priv *priv)
 {
-	priv->phys = devm_kcalloc(priv->dev, priv->ops->num_phys,
-				  sizeof(*priv->phys), GFP_KERNEL);
-	if (!priv->phys)
+	struct max_des *des = priv->des;
+	unsigned int i;
+
+	des->phys = devm_kcalloc(priv->dev, des->ops->num_phys,
+				 sizeof(*des->phys), GFP_KERNEL);
+	if (!des->phys)
 		return -ENOMEM;
 
-	priv->pipes = devm_kcalloc(priv->dev, priv->ops->num_pipes,
-				   sizeof(*priv->pipes), GFP_KERNEL);
-	if (!priv->pipes)
+	des->pipes = devm_kcalloc(priv->dev, des->ops->num_pipes,
+				  sizeof(*des->pipes), GFP_KERNEL);
+	if (!des->pipes)
 		return -ENOMEM;
 
-	priv->links = devm_kcalloc(priv->dev, priv->ops->num_links,
-				   sizeof(*priv->links), GFP_KERNEL);
-	if (!priv->links)
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		struct max_des_pipe *pipe = &des->pipes[i];
+
+		pipe->remaps = devm_kcalloc(priv->dev, des->ops->num_remaps_per_pipe,
+					    sizeof(*pipe->remaps), GFP_KERNEL);
+		if (!pipe->remaps)
+			return -ENOMEM;
+	}
+
+	des->links = devm_kcalloc(priv->dev, des->ops->num_links,
+				  sizeof(*des->links), GFP_KERNEL);
+	if (!des->links)
 		return -ENOMEM;
 
-	priv->links_eps = devm_kcalloc(priv->dev, priv->ops->num_links,
+	priv->links_eps = devm_kcalloc(priv->dev, des->ops->num_links,
 				       sizeof(*priv->links_eps), GFP_KERNEL);
 	if (!priv->links_eps)
 		return -ENOMEM;
 
-	priv->links_comps = devm_kcalloc(priv->dev, priv->ops->num_links,
+	priv->links_comps = devm_kcalloc(priv->dev, des->ops->num_links,
 					 sizeof(*priv->links_comps), GFP_KERNEL);
 	if (!priv->links_comps)
+		return -ENOMEM;
+
+	priv->phys_comp = devm_kcalloc(priv->dev, des->ops->num_phys,
+				       sizeof(*priv->phys_comp), GFP_KERNEL);
+	if (!priv->phys_comp)
+		return -ENOMEM;
+
+	priv->pipes_comp = devm_kcalloc(priv->dev, des->ops->num_pipes,
+					sizeof(*priv->pipes_comp), GFP_KERNEL);
+	if (!priv->pipes_comp)
+		return -ENOMEM;
+
+	priv->links_comp = devm_kcalloc(priv->dev, des->ops->num_links,
+					sizeof(*priv->links_comp), GFP_KERNEL);
+	if (!priv->links_comp)
 		return -ENOMEM;
 
 	return 0;
 }
 
-int max_des_probe(struct max_des_priv *priv)
+int max_des_probe(struct i2c_client *client, struct max_des *des)
 {
+	struct device *dev = &client->dev;
+	struct max_des_priv *priv;
 	int ret;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	priv->client = client;
+	priv->dev = dev;
+	priv->des = des;
+	des->priv = priv;
 
 	mutex_init(&priv->lock);
 
@@ -564,8 +695,10 @@ int max_des_probe(struct max_des_priv *priv)
 }
 EXPORT_SYMBOL_GPL(max_des_probe);
 
-int max_des_remove(struct max_des_priv *priv)
+int max_des_remove(struct max_des *des)
 {
+	struct max_des_priv *priv = des->priv;
+
 	max_des_unregister_async_v4l2(priv);
 
 	max_des_i2c_atr_deinit(priv);
