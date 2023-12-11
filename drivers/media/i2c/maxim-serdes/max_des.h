@@ -112,6 +112,9 @@ struct max_des {
 	bool pipe_stream_autoselect;
 	unsigned int num_streams_per_link;
 
+	unsigned int num_enabled_phys;
+	struct max_des_phy **enabled_phys;
+
 	struct max_des_phy *phys;
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
@@ -127,7 +130,6 @@ struct max_des_priv {
 	struct mutex lock;
 	bool active;
 
-	unsigned int num_enabled_phys;
 	unsigned int num_bound_phys;
 
 	struct max_component *phys_comp;

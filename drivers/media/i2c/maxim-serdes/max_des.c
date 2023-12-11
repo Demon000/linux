@@ -335,7 +335,7 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 
 	priv->num_bound_phys++;
 
-	if (priv->num_bound_phys != priv->num_enabled_phys)
+	if (priv->num_bound_phys != des->num_enabled_phys)
 		return 0;
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
@@ -512,7 +512,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		comp = &priv->phys_comp[index];
 		comp->fwnode = fwnode;
 
-		priv->num_enabled_phys++;
+		des->enabled_phys[des->num_enabled_phys++] = phy;
 
 		ret = max_des_phy_parse_dt(priv, phy, fwnode);
 		if (ret) {
@@ -611,15 +611,6 @@ static int max_des_allocate(struct max_des_priv *priv)
 				  sizeof(*des->pipes), GFP_KERNEL);
 	if (!des->pipes)
 		return -ENOMEM;
-
-	for (i = 0; i < des->ops->num_pipes; i++) {
-		struct max_des_pipe *pipe = &des->pipes[i];
-
-		pipe->remaps = devm_kcalloc(priv->dev, des->ops->num_remaps_per_pipe,
-					    sizeof(*pipe->remaps), GFP_KERNEL);
-		if (!pipe->remaps)
-			return -ENOMEM;
-	}
 
 	des->links = devm_kcalloc(priv->dev, des->ops->num_links,
 				  sizeof(*des->links), GFP_KERNEL);
