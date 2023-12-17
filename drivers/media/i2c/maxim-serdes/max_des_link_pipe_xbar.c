@@ -3,7 +3,7 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include "max_des.h"
+#include "max_des_priv.h"
 
 static int max_des_set_pipe_link(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,

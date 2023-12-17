@@ -1,6 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Maxim GMSL2 Deserializer Driver
+ *
+ * Copyright (C) 2023 Analog Devices Inc.
+ */
+
 #include <linux/regmap.h>
 
-#include "max_des.h"
+#include "max_des_priv.h"
 #include "max_ser_common.h"
 
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
