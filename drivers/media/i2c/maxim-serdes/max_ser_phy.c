@@ -5,7 +5,7 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include "max_ser.h"
+#include "max_ser_priv.h"
 #include "max_serdes.h"
 
 static int max_ser_phy_log_status(struct v4l2_subdev *sd)

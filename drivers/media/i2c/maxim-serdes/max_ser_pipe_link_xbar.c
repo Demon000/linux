@@ -5,7 +5,7 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include "max_ser.h"
+#include "max_ser_priv.h"
 #include "max_serdes.h"
 
 static int max_ser_set_pipe_stream_id(struct max_ser_priv *priv,

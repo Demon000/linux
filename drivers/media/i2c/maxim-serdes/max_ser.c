@@ -8,7 +8,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
-#include "max_ser.h"
+#include "max_ser_priv.h"
 #include "max_serdes.h"
 
 static int max_ser_init(struct max_ser_priv *priv)

@@ -380,8 +380,8 @@ u64 max_component_set_enabled_streams(struct max_component *comp,
 {
 	u32 index;
 
-	if (max_component_is_pad_source(comp, pad))
-		return -EINVAL;
+	if (!max_component_is_pad_source(comp, pad))
+		return 0;
 
 	index = pad - comp->source_pads_start;
 
@@ -401,6 +401,9 @@ int max_component_set_remote_streams_enable(struct max_component *comp,
 {
 	unsigned int i;
 	int ret;
+
+	if (!max_component_is_pad_source(comp, pad))
+		return 0;
 
 	for (i = comp->sink_pads_start; i < comp->sink_pads_end; i++) {
 		u64 source_streams = streams_mask;
@@ -616,5 +619,27 @@ int max_components_link(struct max_component *source, unsigned int source_offset
 	return num_links;
 }
 EXPORT_SYMBOL_GPL(max_components_link);
+
+static struct v4l2_subdev_stream_config *
+max_find_stream_config(struct v4l2_subdev_state *state, u32 pad, u32 stream)
+{
+	struct v4l2_subdev_stream_configs *configs;
+	struct v4l2_subdev_stream_config *config;
+
+	configs = &state->configs;
+
+	for (i = 0; i < configs->num_configs; i++) {
+		config = &configs->configs[i];
+
+		if (config->pad == pad && config->stream == stream)
+			break;
+	}
+
+
+	if (i == configs->num_configs)
+		return 0;
+
+	return config;
+}
 
 MODULE_LICENSE("GPL");

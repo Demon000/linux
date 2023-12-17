@@ -10,7 +10,7 @@
 #include <linux/of_graph.h>
 #include <media/v4l2-mc.h>
 
-#include "max_des.h"
+#include "max_des_priv.h"
 #include "max_serdes.h"
 
 #if 0
@@ -55,64 +55,6 @@ exit:
 	mutex_unlock(&priv->lock);
 
 	return ret;
-}
-#endif
-
-#if 0
-static int max_des_update_pipe_remaps(struct max_des_priv *priv,
-				      struct max_des_pipe *pipe)
-{
-	struct max_des *des = priv->des;
-	struct max_des_link *link = &des->links[pipe->link_id];
-	struct max_des_subdev_priv *sd_priv;
-	unsigned int i;
-
-	pipe->num_remaps = 0;
-
-	if (link->tunnel_mode)
-		return 0;
-
-	for_each_subdev(priv, sd_priv) {
-		unsigned int num_remaps;
-
-		if (sd_priv->pipe_id != pipe->index)
-			continue;
-
-		if (!sd_priv->fmt)
-			continue;
-
-		if (sd_priv->fmt->dt == MIPI_CSI2_DT_EMBEDDED_8B)
-			num_remaps = 1;
-		else
-			num_remaps = 3;
-
-		for (i = 0; i < num_remaps; i++) {
-			struct max_des_dt_vc_remap *remap;
-			unsigned int dt;
-
-			if (pipe->num_remaps == MAX_DES_REMAPS_NUM) {
-				dev_err(priv->dev, "Too many remaps\n");
-				return -EINVAL;
-			}
-
-			remap = &pipe->remaps[pipe->num_remaps++];
-
-			if (i == 0)
-				dt = sd_priv->fmt->dt;
-			else if (i == 1)
-				dt = MIPI_CSI2_DT_FS;
-			else
-				dt = MIPI_CSI2_DT_FE;
-
-			remap->from_dt = dt;
-			remap->from_vc = sd_priv->src_vc_id;
-			remap->to_dt = dt;
-			remap->to_vc = sd_priv->dst_vc_id;
-			remap->phy = sd_priv->phy_id;
-		}
-	}
-
-	return des->ops->set_pipe_remaps(des, pipe);
 }
 #endif
 
