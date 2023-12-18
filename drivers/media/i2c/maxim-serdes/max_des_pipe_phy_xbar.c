@@ -211,8 +211,8 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 		route->source_stream = ffz(pads_streams[route->source_pad]);
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
 
-		pads_streams[route->sink_pad] |= BIT(route->sink_stream);
-		pads_streams[route->source_pad] |= BIT(route->source_stream);
+		pads_streams[route->sink_pad] |= BIT_ULL(route->sink_stream);
+		pads_streams[route->source_pad] |= BIT_ULL(route->source_stream);
 
 		pr_err("comp: %s, i: %u, %u/%u -> %u/%u\n",
 			comp->sd.name, i,
