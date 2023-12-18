@@ -49,7 +49,9 @@ static unsigned int max_des_code_num_remaps(u32 code)
 
 static int max_des_pipe_update_remaps(struct max_component *comp,
 				      struct v4l2_subdev_state *state,
-				      struct max_des_pipe *pipe)
+				      struct max_des_pipe *pipe,
+				      u64 sink_streams_mask,
+				      bool sink_stream_enable)
 {
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
@@ -61,6 +63,7 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	unsigned int pipe_id;
 	unsigned int idx;
 	unsigned int i, j;
+	bool enable;
 	int ret;
 
 	idx = 0;
@@ -97,6 +100,11 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 		if (pipe_id != pipe->index)
 			continue;
 
+		if (sink_streams_mask & BIT_ULL(sink_config->stream))
+			enable = sink_stream_enable;
+		else
+			enable = source_config->enabled;
+
 		num_dt_remaps += max_des_code_num_remaps(sink_config->fmt.code);
 
 		sink_dt = max_des_code_dt(sink_config->fmt.code);
@@ -115,6 +123,7 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 			remap->to_dt = source_dt;
 			remap->to_vc = source_config->vc;
 			remap->phy = phy_id;
+			remap->enabled = enable;
 		}
 
 		i += num_dt_remaps;
@@ -138,7 +147,7 @@ static int max_des_pipes_update_remaps(struct max_component *comp,
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
-		ret = max_des_pipe_update_remaps(comp, state, pipe);
+		ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
 		if (ret)
 			return ret;
 	}
@@ -294,7 +303,7 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 	if (!pipe)
 		return -EINVAL;
 
-	ret = max_des_pipe_update_remaps(comp, state, pipe);
+	ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
 	if (ret)
 		config->vc = old_vc;
 
@@ -325,11 +334,62 @@ static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
 	if (!pipe)
 		return -EINVAL;
 
-	ret = max_des_pipe_update_remaps(comp, state, pipe);
+	ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
 	if (ret)
 		config->fmt = old_fmt;
 
 	return ret;
+}
+
+static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *comp,
+							 struct v4l2_subdev_state *state,
+							 u32 pad, u64 streams_mask,
+							 bool enable)
+{
+	struct max_des_priv *priv = comp->priv;
+	struct max_des *des = priv->des;
+	struct max_des_pipe *pipe;
+	unsigned int i;
+	u64 sink_streams_mask;
+	u32 sink_pad;
+	u64 pipes = 0;
+	u32 stream;
+	int ret;
+
+	/* Gather all affected pipes. */
+	for (stream = 0; stream < sizeof(streams_mask) * 8; stream++) {
+		if (!(streams_mask & BIT_ULL(stream)))
+			continue;
+
+		pipe = max_des_find_pipe_by_pad_stream(comp, state, pad, stream);
+		if (!pipe)
+			return -EINVAL;
+
+		pipes |= BIT(pipe->index);
+	}
+
+	/*
+	 * For each affected pipe, translate the source streams to sink streams
+	 * for it, and update the remaps.
+	 */
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		if (!(pipes & BIT_ULL(i)))
+			continue;
+
+		pipe = &des->pipes[i];
+
+		sink_pad = comp->sink_pads_start + pipe->index;
+		sink_streams_mask = v4l2_subdev_state_xlate_streams(state, pad,
+								    sink_pad,
+								    &streams_mask);
+
+		ret = max_des_pipe_update_remaps(comp, state, pipe,
+						 sink_streams_mask, enable);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int max_des_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
@@ -338,10 +398,14 @@ static int max_des_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
 	u64 streams;
+	int ret;
 
 	streams = max_component_set_enabled_streams(comp, pad, streams_mask, true);
 
-	/* TODO */
+	ret = max_des_enable_pipe_remaps_for_source_streams(comp, state, pad,
+							    streams_mask, true);
+	if (ret)
+		return ret;
 
 	return max_component_set_remote_streams_enable(comp, state, pad,
 						       streams_mask, true);
@@ -353,10 +417,14 @@ static int max_des_pipe_phy_xbar_disable_streams(struct v4l2_subdev *sd,
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
 	u64 streams;
+	int ret;
 
 	streams = max_component_set_enabled_streams(comp, pad, streams_mask, false);
 
-	/* TODO */
+	ret = max_des_enable_pipe_remaps_for_source_streams(comp, state, pad,
+							    streams_mask, false);
+	if (ret)
+		return ret;
 
 	return max_component_set_remote_streams_enable(comp, state, pad,
 						       streams_mask, false);

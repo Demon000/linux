@@ -90,6 +90,7 @@ int max_component_set_remote_streams_enable(struct max_component *comp,
 					    bool enable);
 u64 max_component_set_enabled_streams(struct max_component *comp,
 				      u32 pad, u64 streams_mask, bool enable);
+u64 max_component_get_enabled_streams(struct max_component *comp, u32 pad);
 int max_component_streams_enable(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state, u32 pad,
 				 u64 streams_mask);
