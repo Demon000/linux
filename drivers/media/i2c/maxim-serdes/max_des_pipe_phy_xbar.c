@@ -54,11 +54,11 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_stream_config *sink_config, *source_config;
-	unsigned int sink_pad = comp->sink_pads_start + pipe->index;
 	u8 sink_dt, source_dt;
 	struct max_des_dt_vc_remap *remaps;
 	struct v4l2_subdev_route *route;
 	unsigned int num_remaps = 0;
+	unsigned int pipe_id;
 	unsigned int idx;
 	unsigned int i, j;
 	int ret;
@@ -66,10 +66,11 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	idx = 0;
 	for_each_active_route(&state->routing, route) {
 		sink_config = &state->stream_configs.configs[idx];
+		pipe_id = sink_config->pad - comp->sink_pads_start;
 
 		idx += 2;
 
-		if (sink_config->pad != sink_pad)
+		if (pipe_id != pipe->index)
 			continue;
 
 		num_remaps += max_des_code_num_remaps(sink_config->fmt.code);
@@ -91,8 +92,9 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 
 		sink_config = &state->stream_configs.configs[idx++];
 		source_config = &state->stream_configs.configs[idx++];
+		pipe_id = sink_config->pad - comp->sink_pads_start;
 
-		if (sink_config->pad != sink_pad)
+		if (pipe_id != pipe->index)
 			continue;
 
 		num_dt_remaps += max_des_code_num_remaps(sink_config->fmt.code);
