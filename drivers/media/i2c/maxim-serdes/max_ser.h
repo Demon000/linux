@@ -3,6 +3,10 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <media/v4l2-mediabus.h>
+
+#include "max_serdes.h"
+
 #ifndef MAX_SER_H
 #define MAX_SER_H
 
@@ -73,8 +77,6 @@ struct max_ser {
 
 	const struct max_ser_ops *ops;
 
-	char name[V4L2_SUBDEV_NAME_SIZE];
-
 	struct max_i2c_xlate *i2c_xlates;
 	unsigned int num_i2c_xlates;
 
@@ -84,5 +86,8 @@ struct max_ser {
 
 	bool tunnel_mode;
 };
+
+int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
+int max_ser_remove(struct max_ser *ser);
 
 #endif // MAX_SER_H

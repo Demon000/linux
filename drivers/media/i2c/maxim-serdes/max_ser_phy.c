@@ -118,8 +118,6 @@ int max_ser_phy_register_v4l2_sd(struct max_ser_priv *priv,
 				 struct max_component *comp,
 				 struct v4l2_device *v4l2_dev)
 {
-	struct max_ser *ser = priv->ser;
-
 	comp->priv = priv;
 	comp->v4l2_dev = v4l2_dev;
 	comp->sd_ops = &max_ser_phy_subdev_ops;
@@ -128,7 +126,7 @@ int max_ser_phy_register_v4l2_sd(struct max_ser_priv *priv,
 	comp->num_source_pads = 1;
 	comp->num_sink_pads = 1;
 	comp->sink_pads_first = true;
-	comp->prefix = ser->name;
+	comp->prefix = priv->name;
 	comp->name = "phy";
 	comp->index = phy->index;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |

@@ -95,7 +95,7 @@ int max_des_phy_register_v4l2_sd(struct max_des_priv *priv,
 	comp->dev = priv->dev;
 	comp->num_source_pads = 1;
 	comp->num_sink_pads = 1;
-	comp->prefix = des->name;
+	comp->prefix = priv->name;
 	comp->name = "phy";
 	comp->index = phy->index;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |

@@ -3,7 +3,7 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include "max_serdes.h"
+#include "max_serdes_priv.h"
 
 const struct regmap_config max_i2c_regmap = {
 	.reg_bits = 16,
@@ -620,13 +620,14 @@ int max_components_link(struct max_component *source, unsigned int source_offset
 }
 EXPORT_SYMBOL_GPL(max_components_link);
 
-static struct v4l2_subdev_stream_config *
+struct v4l2_subdev_stream_config *
 max_find_stream_config(struct v4l2_subdev_state *state, u32 pad, u32 stream)
 {
 	struct v4l2_subdev_stream_configs *configs;
 	struct v4l2_subdev_stream_config *config;
+	unsigned int i;
 
-	configs = &state->configs;
+	configs = &state->stream_configs;
 
 	for (i = 0; i < configs->num_configs; i++) {
 		config = &configs->configs[i];
@@ -641,5 +642,6 @@ max_find_stream_config(struct v4l2_subdev_state *state, u32 pad, u32 stream)
 
 	return config;
 }
+EXPORT_SYMBOL_GPL(max_find_stream_config);
 
 MODULE_LICENSE("GPL");

@@ -164,7 +164,7 @@ int max_des_link_pipe_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->dev = priv->dev;
 	comp->num_source_pads = des->ops->num_pipes;
 	comp->num_sink_pads = des->ops->num_links * des->num_streams_per_link;
-	comp->prefix = des->name;
+	comp->prefix = priv->name;
 	comp->name = "link_pipe_xbar";
 	comp->index = 0;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_NO_N_TO_1 |

@@ -5,6 +5,8 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/module.h>
+#include <linux/i2c.h>
 #include <linux/gpio/driver.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
