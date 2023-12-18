@@ -31,20 +31,9 @@ static int max_des_pipe_set_remaps(struct max_des_priv *priv,
 	return 0;
 }
 
-static u8 max_des_code_dt(u32 code)
-{
-	const struct max_format *fmt;
-
-	fmt = max_format_by_code(code);
-	if (!fmt)
-		return 0;
-
-	return fmt->dt;
-}
-
 static unsigned int max_des_code_num_remaps(u32 code)
 {
-	u8 dt = max_des_code_dt(code);
+	u8 dt = max_format_dt_by_code(code);
 
 	if (dt == 0 || dt == MIPI_CSI2_DT_EMBEDDED_8B)
 		return 1;
@@ -115,8 +104,8 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 
 		num_dt_remaps = max_des_code_num_remaps(sink_config->fmt.code);
 
-		sink_dt = max_des_code_dt(sink_config->fmt.code);
-		source_dt = max_des_code_dt(source_config->fmt.code);
+		sink_dt = max_format_dt_by_code(sink_config->fmt.code);
+		source_dt = max_format_dt_by_code(source_config->fmt.code);
 
 		for (j = 0; j < num_dt_remaps; j++) {
 			struct max_des_dt_vc_remap *remap = &remaps[i + j];
