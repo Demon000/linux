@@ -246,8 +246,8 @@ static int max_des_pipe_phy_xbar_init_cfg(struct v4l2_subdev *sd,
 
 static struct max_des_pipe *
 max_des_find_pipe_by_pad_stream(struct max_component *comp,
-					   struct v4l2_subdev_state *state,
-					   u32 pad, u32 stream)
+				struct v4l2_subdev_state *state,
+				u32 pad, u32 stream)
 {
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
