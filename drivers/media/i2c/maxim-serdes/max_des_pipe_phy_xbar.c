@@ -5,6 +5,11 @@
 
 #include "max_des_priv.h"
 
+#define pad_to_pipe_id(comp, pad) (pad - comp->sink_pads_start)
+#define pad_to_phy_id(comp, pad) (pad - comp->source_pads_start)
+#define pipe_id_to_pad(comp, pipe_id) (pipe_id + comp->sink_pads_start)
+#define phy_id_to_pad(comp, phy_id) (phy_id + comp->source_pads_start)
+
 static int max_des_pipe_set_remaps(struct max_des_priv *priv,
 				   struct max_des_pipe *pipe,
 				   struct max_des_dt_vc_remap *remaps,
@@ -60,7 +65,9 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	struct max_des_dt_vc_remap *remaps;
 	struct v4l2_subdev_route *route;
 	unsigned int num_remaps = 0;
+	unsigned int num_dt_remaps;
 	unsigned int pipe_id;
+	unsigned int phy_id;
 	unsigned int idx;
 	unsigned int i, j;
 	bool enable;
@@ -69,14 +76,16 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	idx = 0;
 	for_each_active_route(&state->routing, route) {
 		sink_config = &state->stream_configs.configs[idx];
-		pipe_id = sink_config->pad - comp->sink_pads_start;
 
 		idx += 2;
 
+		pipe_id = pad_to_pipe_id(comp, route->sink_pad);
 		if (pipe_id != pipe->index)
 			continue;
 
-		num_remaps += max_des_code_num_remaps(sink_config->fmt.code);
+		num_dt_remaps = max_des_code_num_remaps(sink_config->fmt.code);
+
+		num_remaps += num_dt_remaps;
 	}
 
 	if (num_remaps >= des->ops->num_remaps_per_pipe) {
@@ -90,12 +99,11 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 
 	idx = 0;
 	for_each_active_route(&state->routing, route) {
-		unsigned int phy_id = route->source_pad - comp->source_pads_start;
-		unsigned int num_dt_remaps;
-
 		sink_config = &state->stream_configs.configs[idx++];
 		source_config = &state->stream_configs.configs[idx++];
-		pipe_id = sink_config->pad - comp->sink_pads_start;
+
+		phy_id = pad_to_phy_id(comp, route->source_pad);
+		pipe_id = pad_to_pipe_id(comp, route->sink_pad);
 
 		if (pipe_id != pipe->index)
 			continue;
@@ -105,7 +113,7 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 		else
 			enable = source_config->enabled;
 
-		num_dt_remaps += max_des_code_num_remaps(sink_config->fmt.code);
+		num_dt_remaps = max_des_code_num_remaps(sink_config->fmt.code);
 
 		sink_dt = max_des_code_dt(sink_config->fmt.code);
 		source_dt = max_des_code_dt(source_config->fmt.code);
@@ -183,6 +191,7 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 {
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
+	struct v4l2_subdev_route *route;
 	struct max_des_phy *phy;
 	u64 *pads_streams;
 	unsigned int i;
@@ -209,14 +218,14 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 		comp->sd.name, des->num_enabled_phys);
 
 	for (i = 0; i < routing->num_routes; i++) {
-		struct v4l2_subdev_route *route = &routing->routes[i];
-
-		route->sink_pad = comp->sink_pads_start + i % comp->num_sink_pads;
-		route->sink_stream = ffz(pads_streams[route->sink_pad]);
+		route = &routing->routes[i];
 
 		phy = des->enabled_phys[i % des->num_enabled_phys];
 
-		route->source_pad = comp->source_pads_start + phy->index;
+		route->sink_pad = pipe_id_to_pad(comp, i % comp->num_sink_pads);
+		route->sink_stream = ffz(pads_streams[route->sink_pad]);
+
+		route->source_pad = phy_id_to_pad(comp, phy->index);
 		route->source_stream = ffz(pads_streams[route->source_pad]);
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
 
@@ -274,7 +283,7 @@ max_des_find_pipe_by_pad_stream(struct max_component *comp,
 		sink_pad = pad;
 	}
 
-	pipe_id = sink_pad - comp->sink_pads_start;;
+	pipe_id = pad_to_pipe_id(comp, sink_pad);
 
 	return &des->pipes[pipe_id];
 }
@@ -378,7 +387,7 @@ static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *c
 
 		pipe = &des->pipes[i];
 
-		sink_pad = comp->sink_pads_start + pipe->index;
+		sink_pad = pipe_id_to_pad(comp, pipe->index);
 		sink_streams_mask = v4l2_subdev_state_xlate_streams(state, pad,
 								    sink_pad,
 								    &streams_mask);
