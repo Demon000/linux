@@ -164,11 +164,7 @@ static int max_des_pipe_phy_xbar_set_routing(struct v4l2_subdev *sd,
 		return ret;
 
 exit:
-	ret = max_component_set_routing(comp, state, which, routing);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max_component_set_routing(comp, state, which, routing);
 }
 
 static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
@@ -189,8 +185,10 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 		return -ENOMEM;
 
 	pads_streams = kcalloc(comp->num_pads, sizeof(*pads_streams), GFP_KERNEL);
-	if (!pads_streams)
+	if (!pads_streams) {
+		kfree(routing->routes);
 		return -ENOMEM;
+	}
 
 	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
 		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
