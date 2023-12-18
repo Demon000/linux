@@ -205,8 +205,10 @@ static int max_component_init_gather_routing(struct max_component *comp,
 		return -ENOMEM;
 
 	pads_streams = kcalloc(comp->num_pads, sizeof(*pads_streams), GFP_KERNEL);
-	if (!pads_streams)
+	if (!pads_streams) {
+		kfree(routing->routes);
 		return -ENOMEM;
+	}
 
 	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
 		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
