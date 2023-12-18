@@ -61,7 +61,7 @@ int max_des_link_register_v4l2_sd(struct max_des_priv *priv,
 	comp->num_source_pads = des->num_streams_per_link;
 	comp->num_sink_pads = 1;
 	comp->sink_pads_first = true;
-	comp->prefix = des->name;
+	comp->prefix = priv->name;
 	comp->name = "link";
 	comp->index = link->index;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |

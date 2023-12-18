@@ -3,6 +3,8 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include "max_serdes.h"
+
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
@@ -98,8 +100,6 @@ struct max_des {
 
 	const struct max_des_ops *ops;
 
-	char name[V4L2_SUBDEV_NAME_SIZE];
-
 	unsigned int phys_config;
 	bool pipe_stream_autoselect;
 	unsigned int num_streams_per_link;
@@ -111,5 +111,8 @@ struct max_des {
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
 };
+
+int max_des_probe(struct i2c_client *client, struct max_des *des);
+int max_des_remove(struct max_des *des);
 
 #endif // MAX_DES_H

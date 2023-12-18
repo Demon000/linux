@@ -59,7 +59,7 @@ int max_ser_link_register_v4l2_sd(struct max_ser_priv *priv,
 	comp->dev = priv->dev;
 	comp->num_source_pads = 1;
 	comp->num_sink_pads = MAX_SERDES_STREAMS_NUM;
-	comp->prefix = ser->name;
+	comp->prefix = priv->name;
 	comp->name = "link";
 	comp->index = 0;
 	comp->notifier_eps = priv->phys_eps;

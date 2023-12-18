@@ -160,8 +160,6 @@ int max_ser_pipe_register_v4l2_sd(struct max_ser_priv *priv,
 				  struct max_component *comp,
 				  struct v4l2_device *v4l2_dev)
 {
-	struct max_ser *ser = priv->ser;
-
 	comp->priv = priv;
 	comp->sd_ops = &max_ser_pipe_subdev_ops;
 	comp->mc_ops = &max_ser_pipe_entity_ops;
@@ -169,7 +167,7 @@ int max_ser_pipe_register_v4l2_sd(struct max_ser_priv *priv,
 	comp->dev = priv->dev;
 	comp->num_source_pads = 1;
 	comp->num_sink_pads = 1;
-	comp->prefix = ser->name;
+	comp->prefix = priv->name;
 	comp->name = "pipe";
 	comp->index = pipe->index;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |

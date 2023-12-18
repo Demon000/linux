@@ -118,19 +118,11 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 		i += num_dt_remaps;
 	}
 
-	ret = des->ops->set_pipe_remaps(des, pipe, remaps, num_remaps);
-	if (ret) {
+	ret = max_des_pipe_set_remaps(priv, pipe, remaps, num_remaps);
+	if (ret)
 		devm_kfree(priv->dev, remaps);
-		return ret;
-	}
 
-	if (pipe->remaps)
-		devm_kfree(priv->dev, pipe->remaps);
-
-	pipe->remaps = remaps;
-	pipe->num_remaps = num_remaps;
-
-	return 0;
+	return ret;
 }
 
 static int max_des_pipes_update_remaps(struct max_component *comp,
@@ -158,7 +150,6 @@ static int max_des_pipe_phy_xbar_set_routing(struct v4l2_subdev *sd,
 					     struct v4l2_subdev_krouting *routing)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = comp->priv;
 	int ret;
 
 	ret = max_component_validate_routing(comp, routing);
@@ -229,7 +220,6 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 			route->source_pad, route->source_stream);
 	}
 
-exit:
 	kfree(pads_streams);
 
 	return ret;
@@ -254,22 +244,25 @@ static int max_des_pipe_phy_xbar_init_cfg(struct v4l2_subdev *sd,
 	return ret;
 }
 
-static int max_des_find_pipe_by_pad_stream(struct max_component *comp,
+static struct max_des_pipe *
+max_des_find_pipe_by_pad_stream(struct max_component *comp,
 					   struct v4l2_subdev_state *state,
 					   u32 pad, u32 stream)
 {
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	unsigned int pipe_id;
+	u32 sink_pad;
+	int ret;
 
 	if (max_component_is_pad_source(comp, pad)) {
 		ret = v4l2_subdev_routing_find_opposite_end(&state->routing,
 							    pad, stream,
 							    &sink_pad, NULL);
 		if (ret)
-			return ret;
+			return NULL;
 	} else {
-		sink_pad = cfg->pad;
+		sink_pad = pad;
 	}
 
 	pipe_id = sink_pad - comp->sink_pads_start;;
@@ -282,8 +275,6 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 					struct v4l2_subdev_vc *vc)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
 	struct v4l2_subdev_stream_config *config;
 	struct max_des_pipe *pipe;
 	u32 old_vc;
@@ -293,8 +284,8 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 	if (!config)
 		return -EINVAL;
 
-	old_vc = cfg->vc;
-	cfg->vc = vc->vc;
+	old_vc = config->vc;
+	config->vc = vc->vc;
 
 	if (vc->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return 0;
@@ -305,7 +296,7 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 
 	ret = max_des_pipe_update_remaps(comp, state, pipe);
 	if (ret)
-		cfg->vc = old_vc;
+		config->vc = old_vc;
 
 	return ret;
 }
@@ -315,43 +306,38 @@ static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
 					 struct v4l2_subdev_format *format)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
 	struct v4l2_subdev_stream_config *config;
 	struct v4l2_mbus_framefmt old_fmt;
 	struct max_des_pipe *pipe;
 	int ret;
 
-	config = max_find_stream_config(state, vc->pad, vc->stream);
+	config = max_find_stream_config(state, format->pad, format->stream);
 	if (!config)
 		return -EINVAL;
 
-	old_fmt = cfg->fmt;
-	cfg->fmt = format->fmt;
+	old_fmt = config->fmt;
+	config->fmt = format->format;
 
-	if (vc->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+	if (format->which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		return 0;
 
-	pipe = max_des_find_pipe_by_pad_stream(comp, state, vc->pad, vc->stream);
+	pipe = max_des_find_pipe_by_pad_stream(comp, state, format->pad, format->stream);
 	if (!pipe)
 		return -EINVAL;
 
 	ret = max_des_pipe_update_remaps(comp, state, pipe);
 	if (ret)
-		cfg->fmt = old_fmt;
+		config->fmt = old_fmt;
 
 	return ret;
 }
 
-static int max_ser_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
+static int max_des_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
 						struct v4l2_subdev_state *state,
 						u32 pad, u64 streams_mask)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_ser_priv *priv = comp->priv;
-	struct max_ser *ser = priv->ser;
 	u64 streams;
-	int ret;
 
 	streams = max_component_set_enabled_streams(comp, pad, streams_mask, true);
 
@@ -361,15 +347,12 @@ static int max_ser_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
 						       streams_mask, true);
 }
 
-static int max_ser_pipe_phy_xbar_disable_streams(struct v4l2_subdev *sd,
+static int max_des_pipe_phy_xbar_disable_streams(struct v4l2_subdev *sd,
 						 struct v4l2_subdev_state *state,
 						 u32 pad, u64 streams_mask)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct max_ser_priv *priv = comp->priv;
-	struct max_ser *ser = priv->ser;
 	u64 streams;
-	int ret;
 
 	streams = max_component_set_enabled_streams(comp, pad, streams_mask, false);
 
@@ -412,7 +395,7 @@ int max_des_pipe_phy_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->dev = priv->dev;
 	comp->num_source_pads = des->ops->num_phys;
 	comp->num_sink_pads = des->ops->num_pipes;
-	comp->prefix = des->name;
+	comp->prefix = priv->name;
 	comp->name = "pipe_phy_xbar";
 	comp->index = 0;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1;

@@ -11,7 +11,7 @@
 #include <media/v4l2-mc.h>
 
 #include "max_des_priv.h"
-#include "max_serdes.h"
+#include "max_serdes_priv.h"
 
 #if 0
 static int __max_des_mipi_update(struct max_des_priv *priv)
@@ -402,7 +402,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	int ret;
 
 	fwnode_property_read_string(fwnode, "label", &label);
-	max_set_priv_name(des->name, label, priv->client);
+	max_set_priv_name(priv->name, label, priv->client);
 
 	val = device_property_read_bool(priv->dev, "maxim,pipe-stream-autoselect");
 	if (val && !des->ops->supports_pipe_stream_autoselect) {
@@ -542,7 +542,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 static int max_des_allocate(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
-	unsigned int i;
 
 	des->phys = devm_kcalloc(priv->dev, des->ops->num_phys,
 				 sizeof(*des->phys), GFP_KERNEL);
