@@ -450,7 +450,7 @@ static int max96724_set_pipe_remaps(struct max_des *des, struct max_des_pipe *pi
 		if (ret)
 			return ret;
 
-		ret = max96724_set_pipe_remap_enable(priv, pipe, i, true);
+		ret = max96724_set_pipe_remap_enable(priv, pipe, i, remap->enabled);
 		if (ret)
 			return ret;
 	}

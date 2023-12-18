@@ -16,6 +16,7 @@ struct max_des_dt_vc_remap {
 	u8 to_dt;
 	u8 to_vc;
 	u8 phy;
+	bool enabled;
 };
 
 struct max_des_link {
