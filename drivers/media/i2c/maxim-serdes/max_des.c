@@ -13,51 +13,6 @@
 #include "max_des_priv.h"
 #include "max_serdes_priv.h"
 
-#if 0
-static int __max_des_mipi_update(struct max_des_priv *priv)
-{
-	struct max_des *des = priv->des;
-	struct max_des_subdev_priv *sd_priv;
-	bool enable = 0;
-
-	for_each_subdev(priv, sd_priv) {
-		if (sd_priv->active) {
-			enable = 1;
-			break;
-		}
-	}
-
-	if (enable == priv->active)
-		return 0;
-
-	priv->active = enable;
-
-	return des->ops->mipi_enable(des, enable);
-}
-#endif
-
-#if 0
-static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
-{
-	struct max_des_priv *priv = sd_priv->priv;
-	int ret = 0;
-
-	mutex_lock(&priv->lock);
-
-	if (sd_priv->active == enable)
-		goto exit;
-
-	sd_priv->active = enable;
-
-	ret = __max_des_mipi_update(priv);
-
-exit:
-	mutex_unlock(&priv->lock);
-
-	return ret;
-}
-#endif
-
 static int max_des_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;

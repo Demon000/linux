@@ -83,6 +83,18 @@ const struct max_format *max_format_by_dt(u8 dt)
 }
 EXPORT_SYMBOL_GPL(max_format_by_dt);
 
+u8 max_format_dt_by_code(u32 code)
+{
+	const struct max_format *fmt;
+
+	fmt = max_format_by_code(code);
+	if (!fmt)
+		return 0;
+
+	return fmt->dt;
+}
+EXPORT_SYMBOL_GPL(max_format_dt_by_code);
+
 void max_set_name_i2c_client(char *name, size_t size, struct i2c_client *client)
 {
 	snprintf(name, size, "%s %d-%04x", client->dev.driver->name,
