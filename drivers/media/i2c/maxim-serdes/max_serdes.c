@@ -168,88 +168,6 @@ static void max_component_unregister_notifier(struct max_component *comp)
 	v4l2_async_nf_cleanup(&comp->notifier);
 }
 
-static int max_component_init_1_to_n_routing(struct max_component *comp,
-					     struct v4l2_subdev_krouting *routing)
-{
-	unsigned int i;
-
-	routing->num_routes = max(comp->num_source_pads, comp->num_sink_pads);
-
-	routing->routes = kcalloc(routing->num_routes, sizeof(*routing->routes),
-				  GFP_KERNEL);
-	if (!routing->routes)
-		return -ENOMEM;
-
-	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
-		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
-	pr_err("comp: %s, source_pads_start: %u, num_source_pads: %u\n",
-		comp->sd.name, comp->source_pads_start, comp->num_source_pads);
-
-	for (i = 0; i < routing->num_routes; i++) {
-		struct v4l2_subdev_route *route = &routing->routes[i];
-
-		route->sink_pad = comp->sink_pads_start + i % comp->num_sink_pads;
-		route->sink_stream = 0;
-		route->source_pad = comp->source_pads_start + i % comp->num_source_pads;
-		route->source_stream = 0;
-		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-
-		pr_err("comp: %s, i: %u, %u/%u -> %u/%u\n",
-			comp->sd.name, i,
-			route->sink_pad, route->sink_stream,
-			route->source_pad, route->source_stream);
-	}
-
-	return 0;
-}
-
-static int max_component_init_gather_routing(struct max_component *comp,
-					     struct v4l2_subdev_krouting *routing)
-{
-	u64 *pads_streams;
-	unsigned int i;
-
-	routing->num_routes = max(comp->num_source_pads, comp->num_sink_pads);
-
-	routing->routes = kcalloc(routing->num_routes, sizeof(*routing->routes),
-				  GFP_KERNEL);
-	if (!routing->routes)
-		return -ENOMEM;
-
-	pads_streams = kcalloc(comp->num_pads, sizeof(*pads_streams), GFP_KERNEL);
-	if (!pads_streams) {
-		kfree(routing->routes);
-		return -ENOMEM;
-	}
-
-	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
-		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
-	pr_err("comp: %s, source_pads_start: %u, num_source_pads: %u\n",
-		comp->sd.name, comp->source_pads_start, comp->num_source_pads);
-
-	for (i = 0; i < routing->num_routes; i++) {
-		struct v4l2_subdev_route *route = &routing->routes[i];
-
-		route->sink_pad = comp->sink_pads_start + i % comp->num_sink_pads;
-		route->sink_stream = ffz(pads_streams[route->sink_pad]);
-		route->source_pad = comp->source_pads_start + i % comp->num_source_pads;
-		route->source_stream = ffz(pads_streams[route->source_pad]);
-		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-
-		pads_streams[route->sink_pad] |= BIT(route->sink_stream);
-		pads_streams[route->source_pad] |= BIT(route->source_stream);
-
-		pr_err("comp: %s, i: %u, %u/%u -> %u/%u\n",
-			comp->sd.name, i,
-			route->sink_pad, route->sink_stream,
-			route->source_pad, route->source_stream);
-	}
-
-	kfree(pads_streams);
-
-	return 0;
-}
-
 static int max_component_init_1_to_1_routing(struct max_component *comp,
 					     struct v4l2_subdev_krouting *routing)
 {
@@ -262,11 +180,6 @@ static int max_component_init_1_to_1_routing(struct max_component *comp,
 	if (!routing->routes)
 		return -ENOMEM;
 
-	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
-		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
-	pr_err("comp: %s, source_pads_start: %u, num_source_pads: %u\n",
-		comp->sd.name, comp->source_pads_start, comp->num_source_pads);
-
 	for (i = 0; i < routing->num_routes; i++) {
 		struct v4l2_subdev_route *route = &routing->routes[i];
 
@@ -275,11 +188,6 @@ static int max_component_init_1_to_1_routing(struct max_component *comp,
 		route->source_pad = comp->source_pads_start + i;
 		route->source_stream = 0;
 		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-
-		pr_err("comp: %s, i: %u, %u/%u -> %u/%u\n",
-			comp->sd.name, i,
-			route->sink_pad, route->sink_stream,
-			route->source_pad, route->source_stream);
 	}
 
 	return 0;
@@ -289,14 +197,6 @@ int max_component_init_routing(struct max_component *comp,
 			       struct v4l2_subdev_krouting *routing)
 {
 	if (comp->routing_disallow ==
-	    (V4L2_SUBDEV_ROUTING_NO_N_TO_1 |
-	     V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX))
-	    	return max_component_init_1_to_n_routing(comp, routing);
-	else if (comp->routing_disallow ==
-		 (V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
-		  V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX))
-		return max_component_init_gather_routing(comp, routing);
-	else if (comp->routing_disallow ==
 		 (V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
 		  V4L2_SUBDEV_ROUTING_NO_STREAM_MIX))
 		return max_component_init_1_to_1_routing(comp, routing);
@@ -314,15 +214,15 @@ int max_component_init_cfg(struct v4l2_subdev *sd, struct v4l2_subdev_state *sta
 	int ret;
 
 	ret = max_component_init_routing(comp, &routing);
-	if (ret)
-		return ret;
+	if (!ret) {
+		ret = max_component_set_validate_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
+							 &routing);
+		kfree(routing.routes);
+		if (ret)
+			return ret;
+	}
 
-	ret = max_component_set_validate_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
-						 &routing);
-
-	kfree(routing.routes);
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(max_component_init_cfg);
 
