@@ -16,7 +16,7 @@ EXPORT_SYMBOL_GPL(max_i2c_regmap);
 {						\
 	.name = __stringify(_code),		\
 	.code = MEDIA_BUS_FMT_ ## _code,	\
-	.dt = MIPI_CSI2_DT_ ## _dt,				\
+	.dt = MIPI_CSI2_DT_ ## _dt,		\
 	.bpp = (_bpp),				\
 	.dbl = (_dbl),				\
 }
