@@ -385,11 +385,12 @@ static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
 	return max96724_update_bits(priv, 0x8a2, mask, enable ? mask : 0);
 }
 
-static int max96724_set_pipe_remap(struct max96724_priv *priv,
+static int max96724_set_pipe_remap(struct max_des *des,
 				   struct max_des_pipe *pipe,
-				   struct max_des_dt_vc_remap *remap,
-				   unsigned int i)
+				   unsigned int i,
+				   struct max_des_dt_vc_remap *remap)
 {
+	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
 	unsigned int reg, val, shift, mask;
 	int ret;
@@ -422,10 +423,11 @@ static int max96724_set_pipe_remap(struct max96724_priv *priv,
 	return 0;
 }
 
-static int max96724_set_pipe_remap_enable(struct max96724_priv *priv,
+static int max96724_set_pipe_remap_enable(struct max_des *des,
 					  struct max_des_pipe *pipe,
 					  unsigned int i, bool enable)
 {
+	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
 	unsigned int reg, val;
 
@@ -433,35 +435,6 @@ static int max96724_set_pipe_remap_enable(struct max96724_priv *priv,
 	reg = 0x90b + 0x40 * index + i / 8;
 	val = BIT(i % 8);
 	return max96724_update_bits(priv, reg, val, val);
-}
-
-static int max96724_set_pipe_remaps(struct max_des *des, struct max_des_pipe *pipe,
-				    struct max_des_dt_vc_remap *remaps,
-				    unsigned int num_remaps)
-{
-	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < num_remaps; i++) {
-		struct max_des_dt_vc_remap *remap = &remaps[i];
-
-		ret = max96724_set_pipe_remap(priv, pipe, remap, i);
-		if (ret)
-			return ret;
-
-		ret = max96724_set_pipe_remap_enable(priv, pipe, i, remap->enabled);
-		if (ret)
-			return ret;
-	}
-
-	for (i = num_remaps; i < des->ops->num_remaps_per_pipe; i++) {
-		ret = max96724_set_pipe_remap_enable(priv, pipe, i, false);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
 }
 
 static int max96724_set_pipe_link(struct max_des *des, struct max_des_pipe *pipe,
@@ -612,7 +585,8 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_enable = max96724_set_pipe_enable,
-	.set_pipe_remaps = max96724_set_pipe_remaps,
+	.set_pipe_remap = max96724_set_pipe_remap,
+	.set_pipe_remap_enable = max96724_set_pipe_remap_enable,
 	.select_links = max96724_select_links,
 };
 
