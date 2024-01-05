@@ -16,11 +16,26 @@ static int max_des_pipe_set_remaps(struct max_des_priv *priv,
 				   unsigned int num_remaps)
 {
 	struct max_des *des = priv->des;
+	unsigned int i;
 	int ret;
 
-	ret = des->ops->set_pipe_remaps(des, pipe, remaps, num_remaps);
-	if (ret)
-		return ret;
+	for (i = 0; i < num_remaps; i++) {
+		struct max_des_dt_vc_remap *remap = &remaps[i];
+
+		ret = des->ops->set_pipe_remap(des, pipe, i, remap);
+		if (ret)
+			return ret;
+
+		ret = des->ops->set_pipe_remap_enable(des, pipe, i, remap->enabled);
+		if (ret)
+			return ret;
+	}
+
+	for (i = num_remaps; i < des->ops->num_remaps_per_pipe; i++) {
+		ret = des->ops->set_pipe_remap_enable(des, pipe, i, false);
+		if (ret)
+			return ret;
+	}
 
 	if (pipe->remaps)
 		devm_kfree(priv->dev, pipe->remaps);

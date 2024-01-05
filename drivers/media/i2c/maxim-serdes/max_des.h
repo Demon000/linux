@@ -87,9 +87,10 @@ struct max_des_ops {
 			    struct max_des_phy *phy);
 	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
 			       bool enable);
-	int (*set_pipe_remaps)(struct max_des *des, struct max_des_pipe *pipe,
-			       struct max_des_dt_vc_remap *remaps,
-			       unsigned int num_remaps);
+	int (*set_pipe_remap)(struct max_des *des, struct max_des_pipe *pipe,
+			      unsigned int i, struct max_des_dt_vc_remap *remap);
+	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				     unsigned int i, bool enable);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 	int (*post_init)(struct max_des *des);
 };
