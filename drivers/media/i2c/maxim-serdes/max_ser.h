@@ -85,6 +85,7 @@ struct max_ser {
 	struct max_ser_link *links;
 
 	bool tunnel_mode;
+	unsigned int phys_config;
 };
 
 int max_ser_probe(struct i2c_client *client, struct max_ser *ser);

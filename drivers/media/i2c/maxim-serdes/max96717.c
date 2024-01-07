@@ -21,8 +21,6 @@
 #define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
 #define MAX96717_GPIO_NUM			11
 #define MAX96717_PIPES_NUM			4
-#define MAX96717_PHYS_NUM			2
-#define MAX96717_LANE_CONFIGS_NUM		4
 
 struct max96717_priv {
 	struct max_ser ser;
@@ -46,10 +44,9 @@ struct max96717_chip_info {
 	unsigned int num_dts_per_pipe;
 	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
 	unsigned int num_phys;
-	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
-	unsigned int num_lane_configs;
-	unsigned int lane_configs[MAX96717_LANE_CONFIGS_NUM][MAX96717_PHYS_NUM];
-	unsigned int phy_configs[MAX96717_LANE_CONFIGS_NUM];
+	unsigned int phy_hw_ids[MAX_SERDES_PHYS_MAX];
+	struct max_serdes_phys_configs phys_configs;
+	const unsigned int *phys_configs_reg_val;
 };
 
 #define ser_to_priv(ser) \
@@ -895,43 +892,6 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	return max96717_update_bits(priv, 0x308, mask, phy_id == 1 ? mask : 0);
 }
 
-static int max96717_init_lane_config(struct max96717_priv *priv)
-{
-	struct max_ser *ser = &priv->ser;
-	struct max_ser_phy *phy;
-	unsigned int i, j;
-	int ret;
-
-	for (i = 0; i < priv->info->num_lane_configs; i++) {
-		bool matching = true;
-
-		for (j = 0; j < priv->info->num_phys; j++) {
-			phy = &ser->phys[i];
-
-			if (phy->enabled && phy->mipi.num_data_lanes !=
-			    priv->info->lane_configs[i][j]) {
-				matching = false;
-				break;
-			}
-		}
-
-		if (matching)
-			break;
-	}
-
-	if (i == priv->info->num_lane_configs) {
-		dev_err(priv->dev, "Invalid lane configuration\n");
-		return -EINVAL;
-	}
-
-	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
-				   priv->info->phy_configs[i]);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max96717_init_i2c_xlate(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1006,7 +966,9 @@ static int max96717_init(struct max_ser *ser)
 	if (ret)
 		return ret;
 
-	ret = max96717_init_lane_config(priv);
+	/* Set PHY mode. */
+	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
+				   priv->info->phys_configs_reg_val[ser->phys_config]);
 	if (ret)
 		return ret;
 
@@ -1085,6 +1047,7 @@ static int max96717_probe(struct i2c_client *client)
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_dts_per_pipe = priv->info->num_dts_per_pipe;
 	ops->num_phys = priv->info->num_phys;
+	ops->phys_configs = priv->info->phys_configs;
 
 	priv->ser.ops = ops;
 
@@ -1143,6 +1106,16 @@ static void max96717_remove(struct i2c_client *client)
 	max_ser_remove(&priv->ser);
 }
 
+static const struct max_serdes_phy_configs max96717_phys_configs[] = {
+	{ { 2 } },
+	{ { 4 } },
+};
+
+static const unsigned int max96717_phys_configs_reg_val[] = {
+	0b000,
+	0b000,
+};
+
 static const struct max96717_chip_info max96717_info = {
 	.supports_pkt_cnt = true,
 	.supports_tunnel_mode = true,
@@ -1152,15 +1125,11 @@ static const struct max96717_chip_info max96717_info = {
 	.pipe_hw_ids = { 2 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
-	.num_lane_configs = 2,
-	.lane_configs = {
-		{ 4 },
-		{ 2 },
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96717_phys_configs),
+		.configs = max96717_phys_configs,
 	},
-	.phy_configs = {
-		0b000,
-		0b000,
-	},
+	.phys_configs_reg_val = max96717_phys_configs_reg_val,
 };
 
 static const struct max96717_chip_info max9295a_info = {
@@ -1169,15 +1138,11 @@ static const struct max96717_chip_info max9295a_info = {
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
-	.num_lane_configs = 2,
-	.lane_configs = {
-		{ 4 },
-		{ 2 },
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96717_phys_configs),
+		.configs = max96717_phys_configs,
 	},
-	.phy_configs = {
-		0b000,
-		0b000,
-	},
+	.phys_configs_reg_val = max96717_phys_configs_reg_val,
 };
 
 static const struct of_device_id max96717_of_ids[] = {
