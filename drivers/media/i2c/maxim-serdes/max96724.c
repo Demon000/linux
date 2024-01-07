@@ -172,7 +172,7 @@ static int max96724_set_enable(struct max_des *des, bool enable)
 	return 0;
 }
 
-static const unsigned int max96724_phy_configs_reg_val[] = {
+static const unsigned int max96724_phys_configs_reg_val[] = {
 	BIT(2),
 	BIT(3),
 	BIT(0),
@@ -212,11 +212,11 @@ static int max96724_init(struct max_des *des)
 		return ret;
 
 	/* Set PHY mode. */
-	if (des->phys_config >= ARRAY_SIZE(max96724_phy_configs_reg_val))
+	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
 		return -EINVAL;
 
 	ret = max96724_update_bits(priv, 0x8a0, 0x1f,
-				   max96724_phy_configs_reg_val[des->phys_config]);
+				   max96724_phys_configs_reg_val[des->phys_config]);
 	if (ret)
 		return ret;
 
