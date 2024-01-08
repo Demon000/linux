@@ -85,8 +85,6 @@ void max_des_phy_unregister_v4l2_sd(struct max_des_priv *priv,
 
 int max_des_phy_parse_dt(struct max_des_priv *priv, struct max_des_phy *phy,
 			 struct fwnode_handle *fwnode);
-int max_des_pipe_parse_dt(struct max_des_priv *priv, struct max_des_pipe *pipe,
-			  struct fwnode_handle *fwnode);
 int max_des_link_parse_dt(struct max_des_priv *priv, struct max_des_link *link,
 			  struct fwnode_handle *fwnode);
 
