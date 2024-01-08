@@ -11,6 +11,11 @@
 #define MAX_DES_LINK_FREQUENCY_DEFAULT		750000000ull
 #define MAX_DES_LINK_FREQUENCY_MAX		1250000000ull
 
+#define V4L2_CID_ALT_MEM_MAP_8			(V4L2_CID_USER_BASE | 0x1001)
+#define V4L2_CID_ALT2_MEM_MAP_8			(V4L2_CID_USER_BASE | 0x1002)
+#define V4L2_CID_ALT_MEM_MAP_10			(V4L2_CID_USER_BASE | 0x1003)
+#define V4L2_CID_ALT_MEM_MAP_12			(V4L2_CID_USER_BASE | 0x1004)
+
 static int max_des_phy_log_status(struct v4l2_subdev *sd)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
@@ -54,6 +59,55 @@ static void max_des_phy_unregistered(struct v4l2_subdev *sd)
 	max_des_unregister_v4l2(priv);
 }
 
+static int max_des_phy_set_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max_component *comp = ctrl_max_component(ctrl);
+	struct max_des_priv *priv = comp->priv;
+	struct max_des *des = priv->des;
+	struct max_des_phy *phy = &des->phys[comp->index];
+	bool enable = ctrl->val;
+	int ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_ALT_MEM_MAP_8:
+		ret = des->ops->set_phy_alt_mem_map8(des, phy, enable);
+		if (ret)
+			return ret;
+
+		phy->alt_mem_map8 = enable;
+
+		return 0;
+	case V4L2_CID_ALT2_MEM_MAP_8:
+		ret = des->ops->set_phy_alt2_mem_map8(des, phy, ctrl->val);
+		if (ret)
+			return ret;
+
+		phy->alt2_mem_map8 = enable;
+
+		return 0;
+	case V4L2_CID_ALT_MEM_MAP_10:
+		ret = des->ops->set_phy_alt_mem_map10(des, phy, ctrl->val);
+		if (ret)
+			return ret;
+
+		phy->alt_mem_map10 = enable;
+
+		return 0;
+	case V4L2_CID_ALT_MEM_MAP_12:
+		ret = des->ops->set_phy_alt_mem_map12(des, phy, ctrl->val);
+		if (ret)
+			return ret;
+
+		phy->alt_mem_map10 = enable;
+
+		return 0;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct v4l2_subdev_core_ops max_des_phy_core_ops = {
 	.log_status = max_des_phy_log_status,
 };
@@ -81,12 +135,37 @@ static const struct media_entity_operations max_des_phy_entity_ops = {
 	.has_pad_interdep = v4l2_subdev_has_pad_interdep,
 };
 
+static const struct v4l2_ctrl_ops max_des_phy_ctrl_ops = {
+	.s_ctrl = max_des_phy_set_ctrl,
+};
+
+#define CTRL_BOOL(_id, _name) \
+	{						\
+		.ops = &max_des_phy_ctrl_ops,		\
+		.id = (_id),				\
+		.name = (_name),			\
+		.type = V4L2_CTRL_TYPE_BOOLEAN,		\
+		.min = 0,				\
+		.max = 1,				\
+		.step = 1,				\
+		.def = 0,				\
+	}
+
+static struct v4l2_ctrl_config max_des_phy_ctrls[] = {
+	CTRL_BOOL(V4L2_CID_ALT_MEM_MAP_8, "Alternate mapping for 8-bit DT"),
+	CTRL_BOOL(V4L2_CID_ALT2_MEM_MAP_8, "Second alternate mapping for 8-bit DT"),
+	CTRL_BOOL(V4L2_CID_ALT_MEM_MAP_10, "Alternate mapping for 10-bit DT"),
+	CTRL_BOOL(V4L2_CID_ALT_MEM_MAP_12, "Alternate mapping for 12-bit DT"),
+};
+
 int max_des_phy_register_v4l2_sd(struct max_des_priv *priv,
 				 struct max_des_phy *phy,
 				 struct max_component *comp,
 				 bool attach_notifier)
 {
 	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
 
 	comp->priv = priv;
 	comp->sd_ops = &max_des_phy_subdev_ops;
@@ -106,6 +185,17 @@ int max_des_phy_register_v4l2_sd(struct max_des_priv *priv,
 		comp->notifier_comps = priv->links_comps;
 		comp->num_notifier_eps = des->ops->num_links;
 	}
+
+	ret = v4l2_ctrl_handler_init(&comp->ctrl_handler, ARRAY_SIZE(max_des_phy_ctrls));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(max_des_phy_ctrls); i++)
+		v4l2_ctrl_new_custom(&comp->ctrl_handler,
+				     &max_des_phy_ctrls[i], NULL);
+
+	comp->sd.ctrl_handler = &comp->ctrl_handler;
+	v4l2_ctrl_handler_setup(&comp->ctrl_handler);
 
 	return max_component_register_v4l2_sd(comp);
 }
@@ -179,10 +269,5 @@ static int max_des_phy_parse_src_dt_endpoint(struct max_des_priv *priv,
 int max_des_phy_parse_dt(struct max_des_priv *priv, struct max_des_phy *phy,
 			 struct fwnode_handle *fwnode)
 {
-	phy->alt_mem_map8 = fwnode_property_read_bool(fwnode, "maxim,alt-mem-map8");
-	phy->alt2_mem_map8 = fwnode_property_read_bool(fwnode, "maxim,alt2-mem-map8");
-	phy->alt_mem_map10 = fwnode_property_read_bool(fwnode, "maxim,alt-mem-map10");
-	phy->alt_mem_map12 = fwnode_property_read_bool(fwnode, "maxim,alt-mem-map12");
-
 	return max_des_phy_parse_src_dt_endpoint(priv, phy, fwnode);
 }

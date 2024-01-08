@@ -350,17 +350,41 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	if (ret)
 		return ret;
 
-	/* Set alternate memory map modes. */
-	val  = phy->alt_mem_map12 ? BIT(0) : 0;
-	val |= phy->alt_mem_map8 ? BIT(1) : 0;
-	val |= phy->alt_mem_map10 ? BIT(2) : 0;
-	val |= phy->alt2_mem_map8 ? BIT(4) : 0;
-	reg = 0x933 + 0x40 * index;
-	ret = max96724_update_bits(priv, reg, GENMASK(2, 0), val);
-	if (ret)
-		return ret;
-
 	return 0;
+}
+
+static int max96724_set_phy_alt_mem_map(struct max_des *des, struct max_des_phy *phy,
+					unsigned int bit, bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = phy->index;
+	unsigned int mask = BIT(bit);
+
+	return max96724_update_bits(priv, 0x933 + 0x40 * index, mask, enable ? mask : 0);
+}
+
+static int max96724_set_phy_alt_mem_map12(struct max_des *des, struct max_des_phy *phy,
+					  bool enable)
+{
+	return max96724_set_phy_alt_mem_map(des, phy, 0, enable);
+}
+
+static int max96724_set_phy_alt_mem_map8(struct max_des *des, struct max_des_phy *phy,
+					 bool enable)
+{
+	return max96724_set_phy_alt_mem_map(des, phy, 1, enable);
+}
+
+static int max96724_set_phy_alt_mem_map10(struct max_des *des, struct max_des_phy *phy,
+					  bool enable)
+{
+	return max96724_set_phy_alt_mem_map(des, phy, 2, enable);
+}
+
+static int max96724_set_phy_alt2_mem_map8(struct max_des *des, struct max_des_phy *phy,
+					  bool enable)
+{
+	return max96724_set_phy_alt_mem_map(des, phy, 4, enable);
 }
 
 static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
@@ -610,6 +634,10 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.set_phy_enable = max96724_set_phy_enable,
+	.set_phy_alt_mem_map8 = max96724_set_phy_alt_mem_map8,
+	.set_phy_alt2_mem_map8 = max96724_set_phy_alt2_mem_map8,
+	.set_phy_alt_mem_map10 = max96724_set_phy_alt_mem_map10,
+	.set_phy_alt_mem_map12 = max96724_set_phy_alt_mem_map12,
 	.set_pipe_link = max96724_set_pipe_link,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_phy = max96724_set_pipe_phy,
