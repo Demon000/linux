@@ -79,8 +79,7 @@ void max_des_pipe_phy_xbar_unregister_v4l2_sd(struct max_des_priv *priv,
 int max_des_phy_register_v4l2_sd(struct max_des_priv *priv,
 				 struct max_des_phy *phy,
 				 struct max_component *comp,
-				 bool attach_notifier,
-				 struct v4l2_device *v4l2_dev);
+				 bool attach_notifier);
 void max_des_phy_unregister_v4l2_sd(struct max_des_priv *priv,
 				    struct max_component *comp);
 

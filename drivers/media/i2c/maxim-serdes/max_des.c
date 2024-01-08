@@ -99,7 +99,7 @@ static int max_des_register_async_v4l2(struct max_des_priv *priv)
 
 		comp = &priv->phys_comp[i];
 
-		ret = max_des_phy_register_v4l2_sd(priv, phy, comp, attach_notifier, NULL);
+		ret = max_des_phy_register_v4l2_sd(priv, phy, comp, attach_notifier);
 		if (ret)
 			return ret;
 
@@ -144,6 +144,13 @@ static int max_des_register_pipe_phy_xbar(struct max_des_priv *priv,
 	/* Create xbar->PHY links. */
 	offset = 0;
 	for (i = 0; i < des->ops->num_phys; i++) {
+		struct max_des_phy *phy = &des->phys[i];
+
+		if (!phy->enabled) {
+			offset++;
+			continue;
+		}
+
 		other_comp = &priv->phys_comp[i];
 
 		ret = max_components_link(comp, offset, other_comp, 0);
@@ -228,19 +235,6 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 	if (priv->num_bound_phys != des->num_enabled_phys)
 		return 0;
 
-	for (i = 0; i < des->ops->num_phys; i++) {
-		struct max_des_phy *phy = &des->phys[i];
-
-		if (phy->enabled)
-			continue;
-
-		comp = &priv->phys_comp[i];
-
-		ret = max_des_phy_register_v4l2_sd(priv, phy, comp, false, v4l2_dev);
-		if (ret)
-			return ret;
-	}
-
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
@@ -305,17 +299,6 @@ void max_des_unregister_v4l2(struct max_des_priv *priv)
 		comp = &priv->pipes_comp[i];
 
 		max_des_pipe_unregister_v4l2_sd(priv, comp);
-	}
-
-	for (i = 0; i < des->ops->num_phys; i++) {
-		struct max_des_phy *phy = &des->phys[i];
-
-		if (phy->enabled)
-			continue;
-
-		comp = &priv->phys_comp[i];
-
-		max_des_phy_unregister_v4l2_sd(priv, comp);
 	}
 }
 
