@@ -65,41 +65,15 @@ patternProperties:
   '^phy@[0-9a-f]+$':
     type: object
     additionalProperties: false
-    description: |
-      A PHY receives data from multiple pipes.
 
     properties:
-      maxim,alt-mem-map8:
-        type: boolean
-        description: Alternative memory mapping for 8bit types.
-
-      maxim,alt-mem-map10:
-        type: boolean
-        description: Alternative memory mapping for 8bit types.
-
-      maxim,alt-mem-map12:
-        type: boolean
-        description: Alternative memory mapping for 10bit types.
+      reg:
+        description: The phy id.
+        maxItems: 1
 
   '^pipe@[0-9a-f]+$':
     type: object
     additionalProperties: false
-    description: |
-      A pipe can carry multiple video streams with each stream having
-      different virtual channels and data types.
-
-      A pipe operates in one of the following modes:
-       - Mode 1: Streams with the same bpp of up to 24 bpp.
-       - Mode 2: Streams with 16, 14, 12, 10, 8 bpp, with streams less than
-                 16 bpp being zero-padded.
-       - Mode 3: Streams with two different bpp rates, one being double
-                 the other, with the highest possible bpp being 24.
-      Only modes 1 and 3 carry data at full bandwidth.
-
-      Each pipe receives data from one link.
-
-      Each pipe outputs data to a PHY, and multiple pipes can output data
-      to the same PHY.
 
     properties:
       reg:
