@@ -190,63 +190,6 @@ exit:
 	return max_component_set_routing(comp, state, which, routing);
 }
 
-static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
-					      struct v4l2_subdev_krouting *routing)
-{
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
-	struct v4l2_subdev_route *route;
-	struct max_des_phy *phy;
-	u64 *pads_streams;
-	unsigned int i;
-	int ret;
-
-	routing->num_routes = max(comp->num_source_pads, des->num_enabled_phys);
-
-	routing->routes = kcalloc(routing->num_routes, sizeof(*routing->routes),
-				  GFP_KERNEL);
-	if (!routing->routes)
-		return -ENOMEM;
-
-	pads_streams = kcalloc(comp->num_pads, sizeof(*pads_streams), GFP_KERNEL);
-	if (!pads_streams) {
-		kfree(routing->routes);
-		return -ENOMEM;
-	}
-
-	pr_err("comp: %s, sink_pads_start: %u, num_sink_pads: %u\n",
-		comp->sd.name, comp->sink_pads_start, comp->num_sink_pads);
-	pr_err("comp: %s, source_pads_start: %u, num_source_pads: %u\n",
-		comp->sd.name, comp->source_pads_start, comp->num_source_pads);
-	pr_err("comp: %s, num_enabled_phys: %u\n",
-		comp->sd.name, des->num_enabled_phys);
-
-	for (i = 0; i < routing->num_routes; i++) {
-		route = &routing->routes[i];
-
-		phy = des->enabled_phys[i % des->num_enabled_phys];
-
-		route->sink_pad = pipe_id_to_pad(comp, i % comp->num_sink_pads);
-		route->sink_stream = ffz(pads_streams[route->sink_pad]);
-
-		route->source_pad = phy_id_to_pad(comp, phy->index);
-		route->source_stream = ffz(pads_streams[route->source_pad]);
-		route->flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE;
-
-		pads_streams[route->sink_pad] |= BIT_ULL(route->sink_stream);
-		pads_streams[route->source_pad] |= BIT_ULL(route->source_stream);
-
-		pr_err("comp: %s, i: %u, %u/%u -> %u/%u\n",
-			comp->sd.name, i,
-			route->sink_pad, route->sink_stream,
-			route->source_pad, route->source_stream);
-	}
-
-	kfree(pads_streams);
-
-	return ret;
-}
-
 static struct max_des_pipe *
 max_des_find_pipe_by_pad_stream(struct max_component *comp,
 				struct v4l2_subdev_state *state,
@@ -460,7 +403,6 @@ int max_des_pipe_phy_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->prefix = priv->name;
 	comp->name = "pipe_phy_xbar";
 	comp->index = 0;
-	comp->init_routing = max_des_pipe_phy_xbar_init_routing;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1;
 
 	return max_component_register_v4l2_sd(comp);
