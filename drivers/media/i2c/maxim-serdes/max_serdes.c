@@ -213,10 +213,14 @@ int max_component_init_cfg(struct v4l2_subdev *sd, struct v4l2_subdev_state *sta
 	struct v4l2_subdev_krouting routing;
 	int ret;
 
-	ret = max_component_init_routing(comp, &routing);
+	if (comp->init_routing)
+		ret = comp->init_routing(comp, &routing);
+	else
+		ret = max_component_init_routing(comp, &routing);
+
 	if (!ret) {
-		ret = max_component_set_validate_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
-							 &routing);
+		ret = v4l2_subdev_call(sd, pad, set_routing, state,
+				       V4L2_SUBDEV_FORMAT_ACTIVE, &routing);
 		kfree(routing.routes);
 		if (ret)
 			return ret;
