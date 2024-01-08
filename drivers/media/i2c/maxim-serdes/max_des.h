@@ -78,6 +78,14 @@ struct max_des_ops {
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_phy_enable)(struct max_des *des, struct max_des_phy *phy,
 			      bool enable);
+	int (*set_phy_alt_mem_map8)(struct max_des *des, struct max_des_phy *phy,
+				    bool enable);
+	int (*set_phy_alt2_mem_map8)(struct max_des *des, struct max_des_phy *phy,
+				     bool enable);
+	int (*set_phy_alt_mem_map10)(struct max_des *des, struct max_des_phy *phy,
+				     bool enable);
+	int (*set_phy_alt_mem_map12)(struct max_des *des, struct max_des_phy *phy,
+				     bool enable);
 	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
 			     struct max_des_link *link);
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
