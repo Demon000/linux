@@ -22,6 +22,8 @@ struct max_component {
 	const struct v4l2_subdev_ops *sd_ops;
 	const struct v4l2_subdev_internal_ops *internal_ops;
 	const struct media_entity_operations *mc_ops;
+	int (*init_routing)(struct max_component *comp,
+			    struct v4l2_subdev_krouting *routing);
 
 	void *priv;
 	struct device *dev;

@@ -58,27 +58,8 @@ exit:
 	return max_component_set_routing(comp, state, which, routing);
 }
 
-static int max_ser_phy_pipe_xbar_init_cfg(struct v4l2_subdev *sd,
-					  struct v4l2_subdev_state *state)
-{
-	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev_krouting routing;
-	int ret;
-
-	ret = max_component_init_routing(comp, &routing);
-	if (ret)
-		return ret;
-
-	ret = max_ser_phy_pipe_xbar_set_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
-						&routing);
-
-	kfree(routing.routes);
-
-	return ret;
-}
-
 static const struct v4l2_subdev_pad_ops max_ser_phy_pipe_xbar_pad_ops = {
-	.init_cfg = max_ser_phy_pipe_xbar_init_cfg,
+	.init_cfg = max_component_init_cfg,
 	.set_routing = max_ser_phy_pipe_xbar_set_routing,
 	.enable_streams = max_component_streams_enable,
 	.disable_streams = max_component_streams_disable,

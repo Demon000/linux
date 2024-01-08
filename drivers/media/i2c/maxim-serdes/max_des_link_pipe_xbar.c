@@ -115,27 +115,8 @@ static int max_des_link_pipe_xbar_init_routing(struct max_component *comp,
 	return 0;
 }
 
-static int max_des_link_pipe_xbar_init_cfg(struct v4l2_subdev *sd,
-					   struct v4l2_subdev_state *state)
-{
-	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev_krouting routing;
-	int ret;
-
-	ret = max_des_link_pipe_xbar_init_routing(comp, &routing);
-	if (ret)
-		return ret;
-
-	ret = max_des_link_pipe_xbar_set_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
-						 &routing);
-
-	kfree(routing.routes);
-
-	return ret;
-}
-
 static const struct v4l2_subdev_pad_ops max_des_link_pipe_xbar_pad_ops = {
-	.init_cfg = max_des_link_pipe_xbar_init_cfg,
+	.init_cfg = max_component_init_cfg,
 	.set_routing = max_des_link_pipe_xbar_set_routing,
 	.enable_streams = max_component_streams_enable,
 	.disable_streams = max_component_streams_disable,
@@ -167,6 +148,7 @@ int max_des_link_pipe_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->prefix = priv->name;
 	comp->name = "link_pipe_xbar";
 	comp->index = 0;
+	comp->init_routing = max_des_link_pipe_xbar_init_routing;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_NO_N_TO_1 |
 				 V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX;
 

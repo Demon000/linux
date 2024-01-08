@@ -247,25 +247,6 @@ static int max_des_pipe_phy_xbar_init_routing(struct max_component *comp,
 	return ret;
 }
 
-static int max_des_pipe_phy_xbar_init_cfg(struct v4l2_subdev *sd,
-					  struct v4l2_subdev_state *state)
-{
-	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev_krouting routing;
-	int ret;
-
-	ret = max_des_pipe_phy_xbar_init_routing(comp, &routing);
-	if (ret)
-		return ret;
-
-	ret = max_des_pipe_phy_xbar_set_routing(sd, state, V4L2_SUBDEV_FORMAT_ACTIVE,
-						&routing);
-
-	kfree(routing.routes);
-
-	return ret;
-}
-
 static struct max_des_pipe *
 max_des_find_pipe_by_pad_stream(struct max_component *comp,
 				struct v4l2_subdev_state *state,
@@ -444,7 +425,7 @@ static int max_des_pipe_phy_xbar_disable_streams(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
-	.init_cfg = max_des_pipe_phy_xbar_init_cfg,
+	.init_cfg = max_component_init_cfg,
 	.set_routing = max_des_pipe_phy_xbar_set_routing,
 	.enable_streams = max_des_pipe_phy_xbar_enable_streams,
 	.disable_streams = max_des_pipe_phy_xbar_disable_streams,
@@ -479,6 +460,7 @@ int max_des_pipe_phy_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->prefix = priv->name;
 	comp->name = "pipe_phy_xbar";
 	comp->index = 0;
+	comp->init_routing = max_des_pipe_phy_xbar_init_routing;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1;
 
 	return max_component_register_v4l2_sd(comp);
