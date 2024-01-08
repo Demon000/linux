@@ -375,9 +375,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		pipe = &des->pipes[i];
 		pipe->index = i;
-		pipe->phy_id = i % des->ops->num_phys;
-		pipe->stream_id = i % MAX_SERDES_STREAMS_NUM;
-		pipe->link_id = i;
 	}
 
 	for (i = 0; i < des->ops->num_links; i++) {
