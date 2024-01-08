@@ -107,7 +107,6 @@ struct max_des {
 	unsigned int num_streams_per_link;
 
 	unsigned int num_enabled_phys;
-	struct max_des_phy **enabled_phys;
 
 	struct max_des_phy *phys;
 	struct max_des_pipe *pipes;

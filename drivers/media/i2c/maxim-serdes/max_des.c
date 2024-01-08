@@ -417,15 +417,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		}
 	}
 
-	des->enabled_phys = devm_kcalloc(priv->dev, des->num_enabled_phys,
-					 sizeof(*des->enabled_phys), GFP_KERNEL);
-
-	index = 0;
-	for (i = 0; i < des->num_enabled_phys; i++) {
-		phy = &des->phys[i];
-		des->enabled_phys[index++] = phy;
-	}
-
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 		struct fwnode_handle *ep;
