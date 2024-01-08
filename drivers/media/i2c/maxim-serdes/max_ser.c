@@ -156,6 +156,8 @@ int max_ser_register_v4l2(struct max_ser_priv *priv, struct v4l2_device *v4l2_de
 	unsigned int i;
 	int ret;
 
+	/* TODO: properly unregister all registered devices in case of error. */
+
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 

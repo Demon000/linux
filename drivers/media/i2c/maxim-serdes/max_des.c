@@ -231,6 +231,8 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 	if (priv->num_bound_phys != des->num_enabled_phys)
 		return 0;
 
+	/* TODO: properly unregister all registered devices in case of error. */
+
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
