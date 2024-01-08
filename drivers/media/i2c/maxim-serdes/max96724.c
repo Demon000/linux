@@ -495,8 +495,9 @@ static int max96724_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
+	unsigned int mask = BIT(index);
 
-	return max96724_update_bits(priv, 0xf4, BIT(index), BIT(index));
+	return max96724_update_bits(priv, 0xf4, mask, enable ? mask : 0);
 }
 
 static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
