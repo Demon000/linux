@@ -406,13 +406,22 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		comp = &priv->phys_comp[index];
 		comp->fwnode = fwnode;
 
-		des->enabled_phys[des->num_enabled_phys++] = phy;
+		des->num_enabled_phys++;
 
 		ret = max_des_phy_parse_dt(priv, phy, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
+	}
+
+	des->enabled_phys = devm_kcalloc(priv->dev, des->num_enabled_phys,
+					 sizeof(*des->enabled_phys), GFP_KERNEL);
+
+	index = 0;
+	for (i = 0; i < des->num_enabled_phys; i++) {
+		phy = &des->phys[i];
+		des->enabled_phys[index++] = phy;
 	}
 
 	device_for_each_child_node(priv->dev, fwnode) {
