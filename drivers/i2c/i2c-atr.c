@@ -218,12 +218,10 @@ static int i2c_atr_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 	struct i2c_atr_alias_pair *c2a;
 
 	c2a = i2c_atr_find_mapping_by_addr(&chan->alias_list, addr);
-	if (!c2a) {
-		dev_err(atr->dev, "client 0x%02x not mapped!\n", addr);
-		return -ENXIO;
-	}
+	if (c2a)
+		addr = c2a->alias;
 
-	return i2c_smbus_xfer(parent, c2a->alias, flags, read_write, command,
+	return i2c_smbus_xfer(parent, addr, flags, read_write, command,
 			      size, data);
 }
 
