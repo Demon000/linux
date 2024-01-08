@@ -197,6 +197,13 @@ static int max_des_register_link_pipe_xbar(struct max_des_priv *priv,
 	/* Create link->xbar links. */
 	offset = 0;
 	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled) {
+			offset += des->num_streams_per_link;
+			continue;
+		}
+
 		other_comp = &priv->links_comp[i];
 
 		ret = max_components_link(other_comp, 0, comp, offset);
@@ -247,6 +254,9 @@ int max_des_register_v4l2(struct max_des_priv *priv, struct v4l2_device *v4l2_de
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
 
+		if (!link->enabled)
+			continue;
+
 		comp = &priv->links_comp[i];
 
 		ret = max_des_link_register_v4l2_sd(priv, link, comp, v4l2_dev);
@@ -281,6 +291,11 @@ void max_des_unregister_v4l2(struct max_des_priv *priv)
 	max_des_pipe_phy_xbar_unregister_v4l2_sd(priv, &priv->pipe_phy_xbar_comp);
 
 	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled)
+			continue;
+
 		comp = &priv->links_comp[i];
 
 		max_des_link_unregister_v4l2_sd(priv, comp);
