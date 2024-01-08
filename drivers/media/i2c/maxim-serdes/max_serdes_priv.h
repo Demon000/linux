@@ -7,6 +7,7 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
+#include <media/v4l2-ctrls.h>
 
 #include "max_serdes.h"
 
@@ -14,6 +15,7 @@
 #define MAX_SERDES_PRIV_H
 
 #define sd_max_component(sd) container_of(sd, struct max_component, sd)
+#define ctrl_max_component(ctrl) container_of(ctrl->handler, struct max_component, ctrl_handler)
 
 struct max_component {
 	struct v4l2_subdev sd;
@@ -31,6 +33,7 @@ struct max_component {
 	struct v4l2_device *v4l2_dev;
 	struct fwnode_handle *fwnode;
 
+	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_async_notifier notifier;
 	struct max_component **notifier_comps;
 	struct fwnode_handle **notifier_eps;

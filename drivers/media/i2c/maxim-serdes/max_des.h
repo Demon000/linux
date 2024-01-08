@@ -78,7 +78,6 @@ struct max_des_ops {
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_phy_enable)(struct max_des *des, struct max_des_phy *phy,
 			      bool enable);
-	int (*init_pipe)(struct max_des *des, struct max_des_pipe *pipe);
 	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
 			     struct max_des_link *link);
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
@@ -91,6 +90,16 @@ struct max_des_ops {
 			      unsigned int i, struct max_des_dt_vc_remap *remap);
 	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				     unsigned int i, bool enable);
+	int (*set_pipe_dbl8_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				    bool enable);
+	int (*set_pipe_dbl8_mode_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				         bool enable);
+	int (*set_pipe_dbl10_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				     bool enable);
+	int (*set_pipe_dbl10_mode_enable)(struct max_des *des, struct max_des_pipe *pipe,
+					  bool enable);
+	int (*set_pipe_dbl12_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				     bool enable);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 	int (*post_init)(struct max_des *des);
 };

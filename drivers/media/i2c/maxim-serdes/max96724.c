@@ -500,25 +500,33 @@ static int max96724_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 	return max96724_update_bits(priv, 0xf4, mask, enable ? mask : 0);
 }
 
-static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
+static int max96724_set_pipe_dbl8_enable(struct max_des *des, struct max_des_pipe *pipe,
+					 bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int mask = BIT(index) << 4;
+
+	return max96724_update_bits(priv, 0x414, mask, enable ? mask : 0);
+}
+
+static int max96724_set_pipe_dbl8_mode_enable(struct max_des *des, struct max_des_pipe *pipe,
+					      bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int mask = BIT(index) << 4;;
+
+	return max96724_update_bits(priv, 0x417, mask, enable ? mask : 0);
+}
+
+static int max96724_set_pipe_dbl10_enable(struct max_des *des, struct max_des_pipe *pipe,
+					  bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
 	unsigned int reg, mask;
-	int ret;
 
-	/* Set 8bit double mode. */
-	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x414, mask, pipe->dbl8 ? mask : 0);
-	if (ret)
-		return ret;
-
-	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x417, mask, pipe->dbl8mode ? mask : 0);
-	if (ret)
-		return ret;
-
-	/* Set 10bit double mode. */
 	if (index == 3) {
 		reg = 0x41d;
 		mask = BIT(4);
@@ -533,20 +541,41 @@ static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 		mask = BIT(4);
 	}
 
-	ret = max96724_update_bits(priv, reg,
-				   mask | (mask << 1),
-				   (pipe->dbl10 ? mask : 0) |
-				   (pipe->dbl10mode ? (mask << 1) : 0));
-	if (ret)
-		return ret;
+	return max96724_update_bits(priv, reg, mask, enable ? mask : 0);
+}
 
-	/* Set 12bit double mode. */
-	mask = BIT(index);
-	ret = max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
-	if (ret)
-		return ret;
+static int max96724_set_pipe_dbl10_mode_enable(struct max_des *des, struct max_des_pipe *pipe,
+					       bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int reg, mask;
 
-	return 0;
+	if (index == 3) {
+		reg = 0x41d;
+		mask = BIT(5);
+	} else if (index == 2) {
+		reg = 0x41e;
+		mask = BIT(7);
+	} else if (index == 1) {
+		reg = 0x41f;
+		mask = BIT(7);
+	} else {
+		reg = 0x41f;
+		mask = BIT(5);
+	}
+
+	return max96724_update_bits(priv, reg, mask, enable ? mask : 0);
+}
+
+static int max96724_set_pipe_dbl12_enable(struct max_des *des, struct max_des_pipe *pipe,
+					bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int mask = BIT(index);
+
+	return max96724_update_bits(priv, 0x41f, mask, enable ? mask : 0);
 }
 
 static int max96724_select_links(struct max_des *des, unsigned int mask)
@@ -581,13 +610,17 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.set_phy_enable = max96724_set_phy_enable,
-	.init_pipe = max96724_init_pipe,
 	.set_pipe_link = max96724_set_pipe_link,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_enable = max96724_set_pipe_enable,
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remap_enable = max96724_set_pipe_remap_enable,
+	.set_pipe_dbl8_enable = max96724_set_pipe_dbl8_enable,
+	.set_pipe_dbl8_mode_enable = max96724_set_pipe_dbl8_mode_enable,
+	.set_pipe_dbl10_enable = max96724_set_pipe_dbl10_enable,
+	.set_pipe_dbl10_mode_enable = max96724_set_pipe_dbl10_mode_enable,
+	.set_pipe_dbl12_enable = max96724_set_pipe_dbl12_enable,
 	.select_links = max96724_select_links,
 };
 

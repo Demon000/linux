@@ -40,10 +40,6 @@ static int max_des_init(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
-		ret = des->ops->init_pipe(des, pipe);
-		if (ret)
-			return ret;
-
 		/*
 		 * Pipes will be enabled dynamically.
 		 */
@@ -451,33 +447,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		priv->links_comps[index] = comp;
 
 		ret = max_des_link_parse_dt(priv, link, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
-			return ret;
-		}
-	}
-
-	device_for_each_child_node(priv->dev, fwnode) {
-		struct device_node *of_node = to_of_node(fwnode);
-
-		if (!of_node_name_eq(of_node, "pipe"))
-			continue;
-
-		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret) {
-			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
-			continue;
-		}
-
-		if (index >= des->ops->num_pipes) {
-			dev_err(priv->dev, "Invalid pipe %u\n", index);
-			fwnode_handle_put(fwnode);
-			return -EINVAL;
-		}
-
-		pipe = &des->pipes[index];
-
-		ret = max_des_pipe_parse_dt(priv, pipe, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
