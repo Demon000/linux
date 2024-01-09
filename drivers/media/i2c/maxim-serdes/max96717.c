@@ -829,56 +829,66 @@ static int max96717_set_pipe_stream_id(struct max_ser *ser, struct max_ser_pipe 
 	return max96717_update_bits(priv, 0x53 + 0x4 * index, 0x7, stream_id);
 }
 
-static int max96717_init_pipe(struct max_ser *ser, struct max_ser_pipe *pipe)
+static int max96717_set_pipe_dbl8_enable(struct max_ser *ser, struct max_ser_pipe *pipe,
+					 bool enable)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int reg, mask;
+	unsigned int mask = BIT(index);
+
+	return max96717_update_bits(priv, 0x312, mask, enable ? mask : 0);
+}
+
+static int max96717_set_pipe_dbl10_enable(struct max_ser *ser, struct max_ser_pipe *pipe,
+					  bool enable)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int mask = BIT(index);
+
+	return max96717_update_bits(priv, 0x313, mask, enable ? mask : 0);
+}
+
+static int max96717_set_pipe_dbl12_enable(struct max_ser *ser, struct max_ser_pipe *pipe,
+					  bool enable)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int mask = BIT(index + 4);
+
+	return max96717_update_bits(priv, 0x313, mask, enable ? mask : 0);
+}
+
+static int max96717_set_pipe_bpp(struct max_ser *ser, struct max_ser_pipe *pipe,
+				 unsigned int bpp)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int reg = 0x31c + index;
+	unsigned int mask = BIT(5);
 	int ret;
 
-	/* Set 8bit double mode. */
-	mask = BIT(index);
-	ret = max96717_update_bits(priv, 0x312, mask, pipe->dbl8 ? mask : 0);
+	ret = max96717_update_bits(priv, reg, mask, bpp ? mask : 0);
 	if (ret)
 		return ret;
 
-	/* Set 10bit double mode. */
-	mask = BIT(index);
-	ret = max96717_update_bits(priv, 0x313, mask, pipe->dbl10 ? mask : 0);
+	return max96717_update_bits(priv, reg, GENMASK(4, 0), bpp);
+}
+
+static int max96717_set_pipe_soft_bpp(struct max_ser *ser, struct max_ser_pipe *pipe,
+				      unsigned int bpp)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int reg = 0x100 + 0x8 * index;
+	unsigned int mask = BIT(3);
+	int ret;
+
+	ret = max96717_update_bits(priv, reg, mask, bpp ? 0 : mask);
 	if (ret)
 		return ret;
 
-	/* Set 12bit double mode. */
-	mask = BIT(index) << 4;
-	ret = max96717_update_bits(priv, 0x313, mask, pipe->dbl12 ? mask : 0);
-	if (ret)
-		return ret;
-
-	/* Set override soft BPP. */
-	reg = 0x31c + index;
-	mask = BIT(5);
-	ret = max96717_update_bits(priv, reg, mask, pipe->soft_bpp ? mask : 0);
-	if (ret)
-		return ret;
-
-	/* Set soft BPP. */
-	ret = max96717_update_bits(priv, reg, GENMASK(4, 0), pipe->soft_bpp);
-	if (ret)
-		return ret;
-
-	/* Set override BPP. */
-	reg = 0x100 + 0x8 * index;
-	mask = BIT(3);
-	ret = max96717_update_bits(priv, reg, mask, pipe->bpp ? 0 : mask);
-	if (ret)
-		return ret;
-
-	/* Set BPP. */
-	ret = max96717_update_bits(priv, reg + 1, GENMASK(5, 0), pipe->bpp);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max96717_update_bits(priv, reg + 1, GENMASK(5, 0), bpp);
 }
 
 static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -1006,11 +1016,15 @@ static const struct max_ser_ops max96717_ops = {
 	.set_pipe_dt = max96717_set_pipe_dt,
 	.set_pipe_dt_enable = max96717_set_pipe_dt_enable,
 	.set_pipe_vcs = max96717_set_pipe_vcs,
+	.set_pipe_dbl8_enable = max96717_set_pipe_dbl8_enable,
+	.set_pipe_dbl10_enable = max96717_set_pipe_dbl10_enable,
+	.set_pipe_dbl12_enable = max96717_set_pipe_dbl12_enable,
+	.set_pipe_bpp = max96717_set_pipe_bpp,
+	.set_pipe_soft_bpp = max96717_set_pipe_soft_bpp,
 	.set_phy_enable = max96717_set_phy_enable,
 	.init = max96717_init,
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
-	.init_pipe = max96717_init_pipe,
 };
 
 static int max96717_probe(struct i2c_client *client)

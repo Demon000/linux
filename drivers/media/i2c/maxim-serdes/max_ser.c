@@ -32,14 +32,6 @@ static int max_ser_init(struct max_ser_priv *priv)
 			return ret;
 	}
 
-	for (i = 0; i < ser->ops->num_pipes; i++) {
-		struct max_ser_pipe *pipe = &ser->pipes[i];
-
-		ret = ser->ops->init_pipe(ser, pipe);
-		if (ret)
-			return ret;
-	}
-
 	if (ser->ops->post_init) {
 		ret = ser->ops->post_init(ser);
 		if (ret)
@@ -329,33 +321,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		priv->phys_comps[index] = comp;
 
 		ret = max_ser_phy_parse_dt(priv, phy, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
-			return ret;
-		}
-	}
-
-	device_for_each_child_node(priv->dev, fwnode) {
-		struct device_node *of_node = to_of_node(fwnode);
-
-		if (!of_node_name_eq(of_node, "pipe"))
-			continue;
-
-		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret) {
-			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
-			continue;
-		}
-
-		if (index >= ser->ops->num_pipes) {
-			dev_err(priv->dev, "Invalid pipe %u\n", index);
-			fwnode_handle_put(fwnode);
-			return -EINVAL;
-		}
-
-		pipe = &ser->pipes[index];
-
-		ret = max_ser_pipe_parse_dt(priv, pipe, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
