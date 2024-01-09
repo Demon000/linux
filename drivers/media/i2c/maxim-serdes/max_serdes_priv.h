@@ -67,9 +67,6 @@ const struct max_format *max_format_by_code(u32 code);
 const struct max_format *max_format_by_dt(u8 dt);
 u8 max_format_dt_by_code(u32 code);
 
-void max_set_priv_name(char *name, const char *label, struct i2c_client *client);
-void max_set_name_i2c_client(char *name, size_t size, struct i2c_client *client);
-
 int max_component_register_v4l2_sd(struct max_component *comp);
 void max_component_unregister_v4l2_sd(struct max_component *comp);
 

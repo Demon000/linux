@@ -95,30 +95,19 @@ u8 max_format_dt_by_code(u32 code)
 }
 EXPORT_SYMBOL_GPL(max_format_dt_by_code);
 
-void max_set_name_i2c_client(char *name, size_t size, struct i2c_client *client)
-{
-	snprintf(name, size, "%s %d-%04x", client->dev.driver->name,
-		 i2c_adapter_id(client->adapter), client->addr);
-}
-EXPORT_SYMBOL_GPL(max_set_name_i2c_client);
-
-void max_set_priv_name(char *name, const char *label, struct i2c_client *client)
-{
-	size_t size = V4L2_SUBDEV_NAME_SIZE;
-
-	if (label)
-		strscpy(name, label, size);
-	else
-		max_set_name_i2c_client(name, size, client);
-}
-EXPORT_SYMBOL_GPL(max_set_priv_name);
-
 static void max_comp_set_name(struct max_component *comp)
 {
 	struct v4l2_subdev *sd = &comp->sd;
 
-	snprintf(sd->name, sizeof(sd->name), "%s %s%u",
-		 comp->prefix, comp->name, comp->index);
+	if (comp->prefix)
+		snprintf(sd->name, sizeof(sd->name), "%s %s%u",
+			 comp->prefix, comp->name, comp->index);
+	else
+		snprintf(sd->name, sizeof(sd->name), "%s %d-%04x %s%u",
+			 comp->client->dev.driver->name,
+			 i2c_adapter_id(comp->client->adapter),
+			 comp->client->addr,
+			 comp->name, comp->index);
 }
 
 struct max_component_asc {

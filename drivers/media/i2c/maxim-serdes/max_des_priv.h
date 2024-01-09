@@ -21,7 +21,7 @@ struct max_des_priv {
 	struct i2c_atr *atr;
 	struct max_des *des;
 
-	char name[V4L2_SUBDEV_NAME_SIZE];
+	const char *name;
 
 	struct v4l2_async_notifier notifier;
 	struct mutex lock;

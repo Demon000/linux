@@ -24,7 +24,7 @@ struct max_ser_priv {
 	struct i2c_atr *atr;
 	struct max_ser *ser;
 
-	char name[V4L2_SUBDEV_NAME_SIZE];
+	const char *name;
 
 	struct mutex lock;
 

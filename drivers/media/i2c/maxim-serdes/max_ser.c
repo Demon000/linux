@@ -270,14 +270,12 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 	struct max_component *comp;
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
-	const char *label = NULL;
 	unsigned int i;
 	u32 index;
 	u32 val;
 	int ret;
 
-	fwnode_property_read_string(fwnode, "label", &label);
-	max_set_priv_name(priv->name, label, priv->client);
+	fwnode_property_read_string(fwnode, "label", &priv->name);
 
 	val = device_property_read_bool(priv->dev, "maxim,tunnel-mode");
 	if (val && !ser->ops->supports_tunnel_mode) {
