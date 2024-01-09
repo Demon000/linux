@@ -72,22 +72,26 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	unsigned int num_dt_remaps;
 	unsigned int pipe_id;
 	unsigned int phy_id;
-	unsigned int idx;
-	unsigned int i, j;
+	unsigned int i = 0;
+	unsigned int j;
+	u32 source_code;
+	u32 sink_code;
 	bool enable;
 	int ret;
 
-	idx = 0;
 	for_each_active_route(&state->routing, route) {
-		sink_config = &state->stream_configs.configs[idx];
+		sink_code = 0;
 
-		idx += 2;
+		sink_config = max_find_stream_config(state, route->sink_pad,
+						     route->sink_stream);
+		if (sink_config)
+			sink_code = sink_config->fmt.code;
 
 		pipe_id = pad_to_pipe_id(comp, route->sink_pad);
 		if (pipe_id != pipe->index)
 			continue;
 
-		num_dt_remaps = max_des_code_num_remaps(sink_config->fmt.code);
+		num_dt_remaps = max_des_code_num_remaps(sink_code);
 
 		num_remaps += num_dt_remaps;
 	}
@@ -101,10 +105,19 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	if (!remaps)
 		return -ENOMEM;
 
-	idx = 0;
 	for_each_active_route(&state->routing, route) {
-		sink_config = &state->stream_configs.configs[idx++];
-		source_config = &state->stream_configs.configs[idx++];
+		sink_code = 0;
+		source_code = 0;
+
+		sink_config = max_find_stream_config(state, route->sink_pad,
+						     route->sink_stream);
+		if (sink_config)
+			sink_code = sink_config->fmt.code;
+
+		source_config = max_find_stream_config(state, route->source_pad,
+						       route->source_stream);
+		if (source_config)
+			source_code = source_config->fmt.code;
 
 		phy_id = pad_to_phy_id(comp, route->source_pad);
 		pipe_id = pad_to_pipe_id(comp, route->sink_pad);
@@ -112,15 +125,15 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 		if (pipe_id != pipe->index)
 			continue;
 
-		if (sink_streams_mask & BIT_ULL(sink_config->stream))
+		if (sink_streams_mask & BIT_ULL(route->sink_stream))
 			enable = sink_stream_enable;
 		else
 			enable = source_config->enabled;
 
-		num_dt_remaps = max_des_code_num_remaps(sink_config->fmt.code);
+		num_dt_remaps = max_des_code_num_remaps(sink_code);
 
-		sink_dt = max_format_dt_by_code(sink_config->fmt.code);
-		source_dt = max_format_dt_by_code(source_config->fmt.code);
+		sink_dt = max_format_dt_by_code(sink_code);
+		source_dt = max_format_dt_by_code(source_code);
 
 		for (j = 0; j < num_dt_remaps; j++) {
 			struct max_des_dt_vc_remap *remap = &remaps[i + j];
