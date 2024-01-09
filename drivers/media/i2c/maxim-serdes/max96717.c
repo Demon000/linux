@@ -961,11 +961,6 @@ static int max96717_init(struct max_ser *ser)
 			return ret;
 	}
 
-	/* Reset pipe to ports mapping. */
-	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
-	if (ret)
-		return ret;
-
 	/* Set PHY mode. */
 	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
 				   priv->info->phys_configs_reg_val[ser->phys_config]);
