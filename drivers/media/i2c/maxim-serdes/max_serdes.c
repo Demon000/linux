@@ -546,7 +546,7 @@ max_find_stream_config(struct v4l2_subdev_state *state, u32 pad, u32 stream)
 
 
 	if (i == configs->num_configs)
-		return 0;
+		return NULL;
 
 	return config;
 }
