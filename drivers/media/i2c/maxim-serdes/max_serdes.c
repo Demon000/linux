@@ -529,13 +529,14 @@ int max_components_link(struct max_component *source, unsigned int source_offset
 EXPORT_SYMBOL_GPL(max_components_link);
 
 struct v4l2_subdev_stream_config *
-max_find_stream_config(struct v4l2_subdev_state *state, u32 pad, u32 stream)
+max_find_stream_config(struct v4l2_subdev_stream_configs *configs,
+		       u32 pad, u32 stream)
 {
-	struct v4l2_subdev_stream_configs *configs;
 	struct v4l2_subdev_stream_config *config;
 	unsigned int i;
 
-	configs = &state->stream_configs;
+	if (!configs)
+		return NULL;
 
 	for (i = 0; i < configs->num_configs; i++) {
 		config = &configs->configs[i];

@@ -57,7 +57,8 @@ static unsigned int max_des_code_num_remaps(u32 code)
 }
 
 static int max_des_pipe_update_remaps(struct max_component *comp,
-				      struct v4l2_subdev_state *state,
+				      struct v4l2_subdev_krouting *routing,
+				      struct v4l2_subdev_stream_configs *stream_configs,
 				      struct max_des_pipe *pipe,
 				      u64 sink_streams_mask,
 				      bool sink_stream_enable)
@@ -79,10 +80,10 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	bool enable;
 	int ret;
 
-	for_each_active_route(&state->routing, route) {
+	for_each_active_route(routing, route) {
 		sink_code = 0;
 
-		sink_config = max_find_stream_config(state, route->sink_pad,
+		sink_config = max_find_stream_config(stream_configs, route->sink_pad,
 						     route->sink_stream);
 		if (sink_config)
 			sink_code = sink_config->fmt.code;
@@ -105,16 +106,16 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 	if (!remaps)
 		return -ENOMEM;
 
-	for_each_active_route(&state->routing, route) {
+	for_each_active_route(routing, route) {
 		sink_code = 0;
 		source_code = 0;
 
-		sink_config = max_find_stream_config(state, route->sink_pad,
+		sink_config = max_find_stream_config(stream_configs, route->sink_pad,
 						     route->sink_stream);
 		if (sink_config)
 			sink_code = sink_config->fmt.code;
 
-		source_config = max_find_stream_config(state, route->source_pad,
+		source_config = max_find_stream_config(stream_configs, route->source_pad,
 						       route->source_stream);
 		if (source_config)
 			source_code = source_config->fmt.code;
@@ -127,8 +128,10 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 
 		if (sink_streams_mask & BIT_ULL(route->sink_stream))
 			enable = sink_stream_enable;
-		else
+		else if (source_config)
 			enable = source_config->enabled;
+		else
+			enable = false;
 
 		num_dt_remaps = max_des_code_num_remaps(sink_code);
 
@@ -137,6 +140,14 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 
 		for (j = 0; j < num_dt_remaps; j++) {
 			struct max_des_dt_vc_remap *remap = &remaps[i + j];
+			u32 from_vc = 0;
+			u32 to_vc = 0;
+
+			if (sink_config)
+				from_vc = sink_config->vc;
+
+			if (source_config)
+				to_vc = source_config->vc;
 
 			if (j == 1)
 				sink_dt = source_dt = MIPI_CSI2_DT_FS;
@@ -144,9 +155,9 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 				sink_dt = source_dt = MIPI_CSI2_DT_FE;
 
 			remap->from_dt = sink_dt;
-			remap->from_vc = sink_config->vc;
+			remap->from_vc = from_vc;
 			remap->to_dt = source_dt;
-			remap->to_vc = source_config->vc;
+			remap->to_vc = to_vc;
 			remap->phy = phy_id;
 			remap->enabled = enable;
 		}
@@ -162,7 +173,7 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 }
 
 static int max_des_pipes_update_remaps(struct max_component *comp,
-				       struct v4l2_subdev_state *state)
+				       struct v4l2_subdev_krouting *routing)
 {
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
@@ -172,7 +183,7 @@ static int max_des_pipes_update_remaps(struct max_component *comp,
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
-		ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
+		ret = max_des_pipe_update_remaps(comp, routing, NULL, pipe, 0, false);
 		if (ret)
 			return ret;
 	}
@@ -195,7 +206,7 @@ static int max_des_pipe_phy_xbar_set_routing(struct v4l2_subdev *sd,
 	if (which != V4L2_SUBDEV_FORMAT_ACTIVE)
 		goto exit;
 
-	ret = max_des_pipes_update_remaps(comp, state);
+	ret = max_des_pipes_update_remaps(comp, routing);
 	if (ret)
 		return ret;
 
@@ -239,7 +250,7 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 	u32 old_vc;
 	int ret;
 
-	config = max_find_stream_config(state, vc->pad, vc->stream);
+	config = max_find_stream_config(&state->stream_configs, vc->pad, vc->stream);
 	if (!config)
 		return -EINVAL;
 
@@ -253,7 +264,8 @@ static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
 	if (!pipe)
 		return -EINVAL;
 
-	ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
+	ret = max_des_pipe_update_remaps(comp, &state->routing, &state->stream_configs,
+					 pipe, 0, false);
 	if (ret)
 		config->vc = old_vc;
 
@@ -270,7 +282,7 @@ static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
 	struct max_des_pipe *pipe;
 	int ret;
 
-	config = max_find_stream_config(state, format->pad, format->stream);
+	config = max_find_stream_config(&state->stream_configs, format->pad, format->stream);
 	if (!config)
 		return -EINVAL;
 
@@ -284,7 +296,8 @@ static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
 	if (!pipe)
 		return -EINVAL;
 
-	ret = max_des_pipe_update_remaps(comp, state, pipe, 0, false);
+	ret = max_des_pipe_update_remaps(comp, &state->routing, &state->stream_configs,
+					 pipe, 0, false);
 	if (ret)
 		config->fmt = old_fmt;
 
@@ -333,8 +346,8 @@ static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *c
 								    sink_pad,
 								    &streams_mask);
 
-		ret = max_des_pipe_update_remaps(comp, state, pipe,
-						 sink_streams_mask, enable);
+		ret = max_des_pipe_update_remaps(comp, &state->routing, &state->stream_configs,
+						 pipe, sink_streams_mask, enable);
 		if (ret)
 			return ret;
 	}
