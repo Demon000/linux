@@ -104,8 +104,6 @@ static int max_des_phy_set_ctrl(struct v4l2_ctrl *ctrl)
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static const struct v4l2_subdev_core_ops max_des_phy_core_ops = {
