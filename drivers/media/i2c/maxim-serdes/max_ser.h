@@ -61,6 +61,16 @@ struct max_ser_ops {
 	int (*set_pipe_dt_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int i, bool enable);
 	int (*set_pipe_vcs)(struct max_ser *ser, struct max_ser_pipe *pipe, u32 vcs);
+	int (*set_pipe_dbl8_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+				    bool enable);
+	int (*set_pipe_dbl10_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+				     bool enable);
+	int (*set_pipe_dbl12_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+				     bool enable);
+	int (*set_pipe_bpp)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			    unsigned int bpp);
+	int (*set_pipe_soft_bpp)(struct max_ser *ser, struct max_ser_pipe *pipe,
+				 unsigned int bpp);
 	int (*set_phy_enable)(struct max_ser *ser, struct max_ser_phy *phy, bool enable);
 
 	int (*init)(struct max_ser *ser);

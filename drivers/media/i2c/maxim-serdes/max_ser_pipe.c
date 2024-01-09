@@ -8,6 +8,12 @@
 #include "max_ser_priv.h"
 #include "max_serdes.h"
 
+#define V4L2_CID_DBL_8			(V4L2_CID_USER_BASE | 0x1001)
+#define V4L2_CID_DBL_10			(V4L2_CID_USER_BASE | 0x1002)
+#define V4L2_CID_DBL_12			(V4L2_CID_USER_BASE | 0x1003)
+#define V4L2_CID_BPP			(V4L2_CID_USER_BASE | 0x1004)
+#define V4L2_CID_SOFT_BPP		(V4L2_CID_USER_BASE | 0x1005)
+
 static int max_ser_pipe_log_status(struct v4l2_subdev *sd)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
@@ -115,6 +121,61 @@ static int max_ser_pipe_disable_streams(struct v4l2_subdev *sd,
 						       streams_mask, false);
 }
 
+static int max_ser_pipe_set_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max_component *comp = ctrl_max_component(ctrl);
+	struct max_ser_priv *priv = comp->priv;
+	struct max_ser *ser = priv->ser;
+	struct max_ser_pipe *pipe = &ser->pipes[comp->index];
+	bool enable = ctrl->val;
+	int ret;
+
+	switch (ctrl->id) {
+	case V4L2_CID_DBL_8:
+		ret = ser->ops->set_pipe_dbl8_enable(ser, pipe, enable);
+		if (ret)
+			return ret;
+
+		pipe->dbl8 = enable;
+
+		return 0;
+	case V4L2_CID_DBL_10:
+		ret = ser->ops->set_pipe_dbl10_enable(ser, pipe, enable);
+		if (ret)
+			return ret;
+
+		pipe->dbl10 = enable;
+
+		return 0;
+	case V4L2_CID_DBL_12:
+		ret = ser->ops->set_pipe_dbl12_enable(ser, pipe, enable);
+		if (ret)
+			return ret;
+
+		pipe->dbl12 = enable;
+
+		return 0;
+	case V4L2_CID_BPP:
+		ret = ser->ops->set_pipe_bpp(ser, pipe, ctrl->val);
+		if (ret)
+			return ret;
+
+		pipe->bpp = ctrl->val;
+
+		return 0;
+	case V4L2_CID_SOFT_BPP:
+		ret = ser->ops->set_pipe_soft_bpp(ser, pipe, ctrl->val);
+		if (ret)
+			return ret;
+
+		pipe->soft_bpp = ctrl->val;
+
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct v4l2_subdev_core_ops max_ser_pipe_core_ops = {
 	.log_status = max_ser_pipe_log_status,
 };
@@ -137,11 +198,50 @@ static const struct media_entity_operations max_ser_pipe_entity_ops = {
 	.has_pad_interdep = v4l2_subdev_has_pad_interdep,
 };
 
+static const struct v4l2_ctrl_ops max_ser_pipe_ctrl_ops = {
+	.s_ctrl = max_ser_pipe_set_ctrl,
+};
+
+#define CTRL_BOOL(_id, _name) \
+	{						\
+		.ops = &max_ser_pipe_ctrl_ops,		\
+		.id = (_id),				\
+		.name = (_name),			\
+		.type = V4L2_CTRL_TYPE_BOOLEAN,		\
+		.min = 0,				\
+		.max = 1,				\
+		.step = 1,				\
+		.def = 0,				\
+	}
+
+#define CTRL_BPP(_id, _name) \
+	{						\
+		.ops = &max_ser_pipe_ctrl_ops,		\
+		.id = (_id),				\
+		.name = (_name),			\
+		.type = V4L2_CTRL_TYPE_INTEGER,		\
+		.min = 0,				\
+		.max = 24,				\
+		.step = 1,				\
+		.def = 0,				\
+	}
+
+static struct v4l2_ctrl_config max_ser_pipe_ctrls[] = {
+	CTRL_BOOL(V4L2_CID_DBL_8, "Process BPP = 8 as 16"),
+	CTRL_BOOL(V4L2_CID_DBL_10, "Process BPP = 10 as 20"),
+	CTRL_BOOL(V4L2_CID_DBL_12, "Process BPP = 12 as 24"),
+	CTRL_BPP(V4L2_CID_BPP, "BPP override"),
+	CTRL_BPP(V4L2_CID_SOFT_BPP, "Software BPP override"),
+};
+
 int max_ser_pipe_register_v4l2_sd(struct max_ser_priv *priv,
 				  struct max_ser_pipe *pipe,
 				  struct max_component *comp,
 				  struct v4l2_device *v4l2_dev)
 {
+	unsigned int i;
+	int ret;
+
 	comp->priv = priv;
 	comp->sd_ops = &max_ser_pipe_subdev_ops;
 	comp->mc_ops = &max_ser_pipe_entity_ops;
@@ -155,6 +255,17 @@ int max_ser_pipe_register_v4l2_sd(struct max_ser_priv *priv,
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
 				 V4L2_SUBDEV_ROUTING_NO_STREAM_MIX;
 
+	ret = v4l2_ctrl_handler_init(&comp->ctrl_handler, ARRAY_SIZE(max_ser_pipe_ctrls));
+	if (ret)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(max_ser_pipe_ctrls); i++)
+		v4l2_ctrl_new_custom(&comp->ctrl_handler,
+				     &max_ser_pipe_ctrls[i], NULL);
+
+	comp->sd.ctrl_handler = &comp->ctrl_handler;
+	v4l2_ctrl_handler_setup(&comp->ctrl_handler);
+
 	return max_component_register_v4l2_sd(comp);
 }
 
@@ -162,32 +273,4 @@ void max_ser_pipe_unregister_v4l2_sd(struct max_ser_priv *priv,
 				     struct max_component *comp)
 {
 	max_component_unregister_v4l2_sd(comp);
-}
-
-int max_ser_pipe_parse_dt(struct max_ser_priv *priv, struct max_ser_pipe *pipe,
-			  struct fwnode_handle *fwnode)
-{
-	unsigned int val;
-
-	val = 0;
-	fwnode_property_read_u32(fwnode, "maxim,soft-bpp", &val);
-	if (val > 24) {
-		dev_err(priv->dev, "Invalid soft bpp %u\n", val);
-		return -EINVAL;
-	}
-	pipe->soft_bpp = val;
-
-	val = 0;
-	fwnode_property_read_u32(fwnode, "maxim,bpp", &val);
-	if (val > 24) {
-		dev_err(priv->dev, "Invalid bpp %u\n", val);
-		return -EINVAL;
-	}
-	pipe->bpp = val;
-
-	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
-
-	return 0;
 }

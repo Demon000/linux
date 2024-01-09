@@ -78,8 +78,6 @@ int max_ser_link_register_v4l2_sd(struct max_ser_priv *priv,
 void max_ser_link_unregister_v4l2_sd(struct max_ser_priv *priv,
 				     struct max_component *comp);
 
-int max_ser_pipe_parse_dt(struct max_ser_priv *priv, struct max_ser_pipe *pipe,
-			  struct fwnode_handle *fwnode);
 int max_ser_phy_parse_dt(struct max_ser_priv *priv, struct max_ser_phy *phy,
 			 struct fwnode_handle *fwnode);
 
