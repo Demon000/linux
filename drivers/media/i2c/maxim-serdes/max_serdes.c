@@ -245,8 +245,12 @@ struct v4l2_subdev *max_component_get_remote_sd(struct max_component *comp,
 EXPORT_SYMBOL_GPL(max_component_get_remote_sd);
 
 int max_component_validate_routing(struct max_component *comp,
+				   enum v4l2_subdev_format_whence which,
 				   struct v4l2_subdev_krouting *routing)
 {
+	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && comp->enabled_source_streams)
+		return -EBUSY;
+
 	if (routing->num_routes > V4L2_FRAME_DESC_ENTRY_MAX)
 		return -EINVAL;
 
@@ -259,9 +263,6 @@ int max_component_set_routing(struct max_component *comp,
 			      enum v4l2_subdev_format_whence which,
 			      struct v4l2_subdev_krouting *routing)
 {
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && comp->enabled_source_streams)
-		return -EBUSY;
-
 	return v4l2_subdev_set_routing(&comp->sd, state, routing);
 }
 EXPORT_SYMBOL_GPL(max_component_set_routing);
@@ -274,7 +275,7 @@ int max_component_set_validate_routing(struct v4l2_subdev *sd,
 	struct max_component *comp = v4l2_get_subdevdata(sd);
 	int ret;
 
-	ret = max_component_validate_routing(comp, routing);
+	ret = max_component_validate_routing(comp, which, routing);
 	if (ret)
 		return ret;
 

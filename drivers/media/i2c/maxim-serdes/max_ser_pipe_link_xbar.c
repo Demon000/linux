@@ -37,7 +37,7 @@ static int max_ser_pipe_link_xbar_set_routing(struct v4l2_subdev *sd,
 	unsigned int pipe_id;
 	int ret;
 
-	ret = max_component_validate_routing(comp, routing);
+	ret = max_component_validate_routing(comp, which, routing);
 	if (ret)
 		return ret;
 

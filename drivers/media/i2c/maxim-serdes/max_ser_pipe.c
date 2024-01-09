@@ -52,7 +52,7 @@ static int max_ser_pipe_set_routing(struct v4l2_subdev *sd,
 	struct max_component *comp = v4l2_get_subdevdata(sd);
 	int ret;
 
-	ret = max_component_validate_routing(comp, routing);
+	ret = max_component_validate_routing(comp, which, routing);
 	if (ret)
 		return ret;
 

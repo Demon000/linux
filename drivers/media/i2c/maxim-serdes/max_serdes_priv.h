@@ -76,6 +76,7 @@ int max_components_link(struct max_component *source, unsigned int source_offset
 int max_component_init_routing(struct max_component *comp,
 			       struct v4l2_subdev_krouting *routing);
 int max_component_validate_routing(struct max_component *comp,
+				   enum v4l2_subdev_format_whence which,
 				   struct v4l2_subdev_krouting *routing);
 int max_component_set_routing(struct max_component *comp,
 			      struct v4l2_subdev_state *state,
