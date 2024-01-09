@@ -971,11 +971,6 @@ static int max96717_init(struct max_ser *ser)
 	if (ret)
 		return ret;
 
-	/* Disable pipes. */
-	ret = max96717_write(priv, 0x311, 0x00);
-	if (ret)
-		return ret;
-
 	/* Set PHY mode. */
 	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
 				   priv->info->phys_configs_reg_val[ser->phys_config]);
