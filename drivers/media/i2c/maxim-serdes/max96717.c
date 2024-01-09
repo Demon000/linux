@@ -961,11 +961,6 @@ static int max96717_init(struct max_ser *ser)
 			return ret;
 	}
 
-	/* Disable ports. */
-	ret = max96717_update_bits(priv, 0x308, GENMASK(5, 4), 0x00);
-	if (ret)
-		return ret;
-
 	/* Reset pipe to ports mapping. */
 	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
 	if (ret)

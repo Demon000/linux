@@ -51,7 +51,8 @@ struct max_ser_ops {
 			       const char *name);
 	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy,
 			      const char *name);
-	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe, bool enable);
+	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			       bool enable);
 	int (*set_pipe_phy)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			    struct max_ser_phy *phy);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
