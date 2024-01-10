@@ -138,9 +138,6 @@ static int max_comp_notifier_bound(struct v4l2_async_notifier *notifier,
 	sink = &dest_comp->sd.entity.pads[dest_comp->sink_pads_start];
 	dest_comp->remote_sd = sd;
 
-	pr_err("notifier bound, dest_comp: %s, remote_sd: %s, creating links\n",
-		dest_comp->sd.name, dest_comp->remote_sd->name);
-
 	return v4l2_create_fwnode_links_to_pad(sd, sink, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
 }
 
