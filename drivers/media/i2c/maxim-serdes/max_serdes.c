@@ -205,9 +205,7 @@ int max_component_init_cfg(struct v4l2_subdev *sd, struct v4l2_subdev_state *sta
 		ret = max_component_init_routing(comp, &routing);
 
 	if (!ret) {
-		ret = v4l2_subdev_call(sd, pad, set_routing, state,
-				       V4L2_SUBDEV_FORMAT_ACTIVE, &routing);
-		kfree(routing.routes);
+		ret = v4l2_subdev_set_routing(&comp->sd, state, &routing);
 		if (ret)
 			return ret;
 	}
@@ -407,6 +405,7 @@ error:
 int max_component_register_v4l2_sd(struct max_component *comp)
 {
 	struct v4l2_subdev *sd = &comp->sd;
+	struct v4l2_subdev_state *state;
 	unsigned int i;
 	int ret;
 
@@ -461,6 +460,19 @@ int max_component_register_v4l2_sd(struct max_component *comp)
 	ret = v4l2_subdev_init_finalize(sd);
 	if (ret)
 		goto error;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+	/*
+	 * Call set_routing just to initialize an empty routing configuration.
+	 * This can't be done in init_cfg since that gets called to initialize
+	 * try states too, which we don't want to.
+	 * Downside is an extra memory copy.
+	 */
+	ret = v4l2_subdev_call(sd, pad, set_routing, state,
+			       V4L2_SUBDEV_FORMAT_ACTIVE, &state->routing);
+	v4l2_subdev_unlock_state(state);
+	if (ret)
+		return ret;
 
 	ret = max_component_register_notifier(comp);
 	if (ret)
