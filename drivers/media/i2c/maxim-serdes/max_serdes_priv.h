@@ -105,6 +105,9 @@ struct v4l2_subdev_stream_config *
 max_find_stream_config(struct v4l2_subdev_stream_configs *configs,
 		       u32 pad, u32 stream);
 
+int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd);
+
 static inline int max_component_is_pad_sink(struct max_component *comp, unsigned int pad)
 {
 	return comp->sink_pads_start <= pad && pad < comp->sink_pads_end;

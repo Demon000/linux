@@ -402,6 +402,85 @@ error:
 	return ret;
 }
 
+int max_component_get_sink_pad_frame_desc(struct max_component *comp,
+					  unsigned int pad,
+					  struct v4l2_mbus_frame_desc *fd)
+{
+	struct v4l2_subdev *remote_sd;
+	u32 remote_pad;
+
+	/* Find the remote subdev and pad for this sink pad. */
+	remote_sd = max_component_get_remote_sd(comp, pad, &remote_pad);
+	if (!remote_sd)
+		return -ENODEV;
+
+	/* Get the remote subdev's frame descriptors. */
+	return v4l2_subdev_call(remote_sd, pad, get_frame_desc, remote_pad, fd);
+}
+EXPORT_SYMBOL_GPL(max_component_get_sink_pad_frame_desc);
+
+int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct v4l2_subdev_state *state;
+	struct v4l2_subdev_route *route;
+	u64 streams_mask = 0;
+	unsigned int i, j;
+	int ret = 0;
+
+	if (!max_component_is_pad_source(comp, pad))
+		return -EINVAL;
+
+	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	/* Find all source streams for this pad. */
+	for_each_active_route(&state->routing, route) {
+		if (route->source_pad != pad)
+			continue;
+
+		streams_mask |= BIT_ULL(route->source_stream);
+	}
+
+	for (i = comp->sink_pads_start; i < comp->sink_pads_end; i++) {
+		struct v4l2_mbus_frame_desc remote_fd;
+		u64 source_streams = streams_mask;
+		u64 sink_streams;
+
+		/* Find all sink streams routed to this pad's source streams. */
+		sink_streams = v4l2_subdev_state_xlate_streams(state, pad, i,
+							       &source_streams);
+
+		ret = max_component_get_sink_pad_frame_desc(comp, i, &remote_fd);
+		if (ret)
+			goto exit;
+
+		for (j = 0; j < remote_fd.num_entries; j++) {
+			/*
+			 * If the frame descriptor is not for a sink stream
+			 * which is routed to this pad's source streams, skip.
+			 */
+			if (!(sink_streams & BIT_ULL(remote_fd.entry[j].stream)))
+				continue;
+
+			if (fd->num_entries == V4L2_FRAME_DESC_ENTRY_MAX) {
+				ret = -E2BIG;
+				goto exit;
+			}
+
+			fd->entry[fd->num_entries++] = remote_fd.entry[j];
+		}
+	}
+
+exit:
+	v4l2_subdev_unlock_state(state);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(max_component_get_frame_desc);
+
 int max_component_register_v4l2_sd(struct max_component *comp)
 {
 	struct v4l2_subdev *sd = &comp->sd;

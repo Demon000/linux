@@ -402,6 +402,7 @@ static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
 	.set_fmt = max_des_pipe_phy_xbar_set_fmt,
 	.get_vc = v4l2_subdev_get_vc,
 	.set_vc = max_des_pipe_phy_xbar_set_vc,
+	.get_frame_desc = max_component_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops max_des_pipe_phy_xbar_subdev_ops = {
