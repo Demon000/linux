@@ -169,7 +169,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 
 	/* Configure a lane count. */
 	/* TODO: Add support CPHY mode. */
-	ret = max9296a_update_bits(priv, 0x44a + 0x40 * index / 2, GENMASK(7, 6),
+	ret = max9296a_update_bits(priv, 0x44a + 0x40 * phy->index, GENMASK(7, 6),
 				   FIELD_PREP(GENMASK(7, 6), num_data_lanes - 1));
 	if (ret)
 		return ret;
@@ -186,7 +186,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		shift = 4 * (index % 2);
 	}
 
-	reg = 0x333 + index / 2;
+	reg = 0x333 + phy->index;
 
 	ret = max9296a_update_bits(priv, reg, mask << shift, val << shift);
 	if (ret)
@@ -203,7 +203,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		shift = 4 * (index % 2);
 	}
 
-	reg = 0x335 + index / 2;
+	reg = 0x335 + phy->index;
 
 	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
@@ -236,12 +236,12 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		return ret;
 
 	/* Disable initial deskew. */
-	ret = max9296a_write(priv, 0x443 + 0x40 * index / 2, 0x07);
+	ret = max9296a_write(priv, 0x443 + 0x40 * phy->index, 0x07);
 	if (ret)
 		return ret;
 
 	/* Disable periodic deskew. */
-	ret = max9296a_write(priv, 0x444 + 0x40 * index / 2, 0x01);
+	ret = max9296a_write(priv, 0x444 + 0x40 * phy->index, 0x01);
 	if (ret)
 		return ret;
 
