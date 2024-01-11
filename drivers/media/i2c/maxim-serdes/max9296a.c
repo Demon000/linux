@@ -174,6 +174,8 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
+	/* Configure lane mapping. */
+	/* TODO: Add support for lane swapping. */
 	if (num_data_lanes == 4) {
 		mask = 0xff;
 		val = 0xe4;
@@ -186,12 +188,11 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 
 	reg = 0x333 + index / 2;
 
-	/* Configure lane mapping. */
-	/* TODO: Add support for lane swapping. */
 	ret = max9296a_update_bits(priv, reg, mask << shift, val << shift);
 	if (ret)
 		return ret;
 
+	/* Configure lane polarity. */
 	if (num_data_lanes == 4) {
 		mask = 0x3f;
 		clk_bit = 5;
@@ -204,7 +205,6 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 
 	reg = 0x335 + index / 2;
 
-	/* Configure lane polarity. */
 	val = 0;
 	for (i = 0; i < num_data_lanes + 1; i++)
 		if (phy->mipi.lane_polarities[i])
