@@ -101,6 +101,12 @@ static int max9296a_reset(struct max9296a_priv *priv)
 	return 0;
 }
 
+static unsigned int max9296a_pipe_id(struct max9296a_priv *priv,
+				     struct max_des_pipe *pipe)
+{
+	return pipe->index;
+}
+
 static int max9296a_mipi_enable(struct max_des_priv *des_priv, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des_priv);
@@ -265,7 +271,7 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 				    struct max_des_dt_vc_remap *remap,
 				    unsigned int i)
 {
-	unsigned int index = pipe->index;
+	unsigned int index = max9296a_pipe_id(priv, pipe);
 	unsigned int reg, val, shift, mask;
 	unsigned int phy_id = remap->phy * 2;
 	int ret;
@@ -327,7 +333,7 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 			      struct max_des_pipe *pipe)
 {
 	struct max9296a_priv *priv = des_to_priv(des_priv);
-	unsigned int index = pipe->index;
+	unsigned int index = max9296a_pipe_id(priv, pipe);
 	unsigned int reg, mask;
 	int ret;
 
