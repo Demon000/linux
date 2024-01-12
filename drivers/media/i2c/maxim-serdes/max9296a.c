@@ -12,7 +12,6 @@
 
 #include "max_des.h"
 
-#define MAX9296A_DPLL_FREQ		2500
 #define MAX9296A_PIPES_NUM		4
 
 struct max9296a_priv {
@@ -367,7 +366,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 	/* Set DPLL frequency. */
 	reg = 0x31d + 0x3 * master_phy;
 	ret = max9296a_update_bits(priv, reg, GENMASK(4, 0),
-				   MAX9296A_DPLL_FREQ / 100);
+				   div_u64(phy->link_frequency, 100000000));
 	if (ret)
 		return ret;
 
