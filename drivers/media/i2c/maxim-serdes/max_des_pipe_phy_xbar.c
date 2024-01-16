@@ -144,10 +144,10 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 			u32 to_vc = 0;
 
 			if (sink_config)
-				from_vc = sink_config->vc;
+				from_vc = 0;
 
 			if (source_config)
-				to_vc = source_config->vc;
+				to_vc = 0;
 
 			if (j == 1)
 				sink_dt = source_dt = MIPI_CSI2_DT_FS;
@@ -238,38 +238,6 @@ max_des_find_pipe_by_pad_stream(struct max_component *comp,
 	pipe_id = pad_to_pipe_id(comp, sink_pad);
 
 	return &des->pipes[pipe_id];
-}
-
-static int max_des_pipe_phy_xbar_set_vc(struct v4l2_subdev *sd,
-					struct v4l2_subdev_state *state,
-					struct v4l2_subdev_vc *vc)
-{
-	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev_stream_config *config;
-	struct max_des_pipe *pipe;
-	u32 old_vc;
-	int ret;
-
-	config = max_find_stream_config(&state->stream_configs, vc->pad, vc->stream);
-	if (!config)
-		return -EINVAL;
-
-	old_vc = config->vc;
-	config->vc = vc->vc;
-
-	if (vc->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return 0;
-
-	pipe = max_des_find_pipe_by_pad_stream(comp, state, vc->pad, vc->stream);
-	if (!pipe)
-		return -EINVAL;
-
-	ret = max_des_pipe_update_remaps(comp, &state->routing, &state->stream_configs,
-					 pipe, 0, false);
-	if (ret)
-		config->vc = old_vc;
-
-	return ret;
 }
 
 static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
@@ -400,8 +368,6 @@ static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
 	.disable_streams = max_des_pipe_phy_xbar_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_des_pipe_phy_xbar_set_fmt,
-	.get_vc = v4l2_subdev_get_vc,
-	.set_vc = max_des_pipe_phy_xbar_set_vc,
 	.get_frame_desc = max_component_get_frame_desc,
 };
 
