@@ -304,6 +304,8 @@ static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *c
 	 * for it, and update the remaps.
 	 */
 	for (i = 0; i < des->ops->num_pipes; i++) {
+		u64 source_streams = streams_mask;
+
 		if (!(pipes & BIT_ULL(i)))
 			continue;
 
@@ -312,7 +314,7 @@ static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *c
 		sink_pad = pipe_id_to_pad(comp, pipe->index);
 		sink_streams_mask = v4l2_subdev_state_xlate_streams(state, pad,
 								    sink_pad,
-								    &streams_mask);
+								    &source_streams);
 
 		ret = max_des_pipe_update_remaps(comp, &state->routing, &state->stream_configs,
 						 pipe, sink_streams_mask, enable);
