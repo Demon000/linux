@@ -1,0 +1,90 @@
+
+&deser_ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* FPDLink RX ${nport} */
+	port@${nport} {
+		reg = <${nport}>;
+
+		deser_fpd_in_${nport}: endpoint {
+			remote-endpoint = <&ub953_out_${nport}>;
+		};
+	};
+};
+
+&deser_links {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	/* FPDLink RX ${nport} */
+	link@${nport} {
+		reg = <${nport}>;
+		i2c-alias = <${i2c-alias}>;
+
+		ti,rx-mode = <3>;
+
+		serializer_${nport}: serializer {
+			compatible = "ti,ds90ub953-q1";
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			#clock-cells = <0>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					ub953_in_${nport}: endpoint {
+						clock-lanes = <0>;
+						data-lanes = <1 2>;
+						remote-endpoint = <&sensor_out_${nport}>;
+						clock-noncontinuous;
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+
+					ub953_out_${nport}: endpoint {
+						remote-endpoint = <&deser_fpd_in_${nport}>;
+					};
+				};
+			};
+
+			i2c {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				imx219@10 {
+					compatible = "sony,imx219";
+					reg = <0x10>;
+
+					clocks = <&clk_cam_24M>;
+					clock-names = "xclk";
+
+					VANA-supply = <&cam1_reg>;	/* 2.8v */
+					VDIG-supply = <&cam_dummy_reg>;	/* 1.8v */
+					VDDL-supply = <&cam_dummy_reg>;	/* 1.2v */
+
+					rotation = <180>;
+					orientation = <2>;
+
+					port {
+						sensor_out_${nport}: endpoint {
+							clock-lanes = <0>;
+							data-lanes = <1 2>;
+							clock-noncontinuous;
+							link-frequencies =
+								/bits/ 64 <456000000>;
+							remote-endpoint = <&ub953_in_${nport}>;
+						};
+					};
+				};
+			};
+		};
+	};
+};

@@ -1,0 +1,75 @@
+
+/ {
+	clk_fusion_25M_fixed: fixed-clock-fusion-25M {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+};
+
+&csi0 {
+	status = "okay";
+	brcm,media-controller;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port {
+			csi_ep: endpoint {
+				remote-endpoint = <&ds90ub960_0_csi_out>;
+				clock-lanes = <0>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&i2c_csi_dsi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+	//clock-frequency = <400000>;
+
+	deser: deser@30 {
+		compatible = "ti,ds90ub960-q1";
+
+		reg-names = "main";
+		reg       = <0x30>;
+
+		clock-names = "refclk";
+		clocks = <&clk_fusion_25M_fixed>;
+
+		i2c-alias-pool = <0x4a 0x4b 0x4c 0x4d 0x4e 0x4f>;
+
+		deser_ports: ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* CSI-2 */
+			port@4 {
+				reg = <4>;
+				ds90ub960_0_csi_out: endpoint {
+					clock-lanes = <0>;
+					data-lanes = <1 2 3 4>;
+					link-frequencies = /bits/ 64 <600000000>;
+					remote-endpoint = <&csi_ep>;
+				};
+			};
+		};
+
+		deser_links: links {
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+};
+
+/ {
+	clk_cam_24M: fixed-clock-cam-0-24M {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+};
