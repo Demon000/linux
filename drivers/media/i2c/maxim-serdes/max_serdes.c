@@ -419,30 +419,25 @@ int max_component_get_sink_pad_frame_desc(struct max_component *comp,
 }
 EXPORT_SYMBOL_GPL(max_component_get_sink_pad_frame_desc);
 
-int max_component_get_sink_stream_frame_entry(struct max_component *comp,
-					      unsigned int pad, unsigned int stream,
-					      struct v4l2_mbus_frame_desc_entry *entry)
+int max_component_get_stream_frame_entry(struct max_component *comp,
+					 unsigned int stream,
+					 struct v4l2_mbus_frame_desc *fd,
+					 struct v4l2_mbus_frame_desc_entry *entry)
 {
-	struct v4l2_mbus_frame_desc fd;
 	unsigned int i;
-	int ret;
 
-	ret = max_component_get_sink_pad_frame_desc(comp, pad, &fd);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < fd.num_entries; i++)
-		if (fd.entry[i].stream == stream)
+	for (i = 0; i < fd->num_entries; i++)
+		if (fd->entry[i].stream == stream)
 			break;
 
-	if (i == fd.num_entries)
+	if (i == fd->num_entries)
 		return -EINVAL;
 
-	*entry = fd.entry[i];
+	*entry = fd->entry[i];
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_component_get_sink_stream_frame_entry);
+EXPORT_SYMBOL_GPL(max_component_get_stream_frame_entry);
 
 int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_frame_desc *fd)
