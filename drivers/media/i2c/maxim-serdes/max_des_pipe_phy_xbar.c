@@ -143,6 +143,14 @@ static int max_des_pipe_update_remaps(struct max_component *comp,
 			u32 from_vc = 0;
 			u32 to_vc = 0;
 
+			/*
+			 * TODO:
+			 * Find original vc and dt by running
+			 * max_component_get_sink_stream_frame_entry.
+			 * Find remapped vc by evaluating each stream's
+			 * stream_group and assigning the first unused VC to it.
+			 */
+
 			if (sink_config)
 				from_vc = 0;
 
@@ -370,6 +378,10 @@ static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
 	.disable_streams = max_des_pipe_phy_xbar_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_des_pipe_phy_xbar_set_fmt,
+	/*
+	 * TODO: add custom implementation that takes into account
+	 * stream group.
+	 */
 	.get_frame_desc = max_component_get_frame_desc,
 };
 
