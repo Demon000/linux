@@ -554,16 +554,21 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
 	bool ro_subdev = test_bit(V4L2_FL_SUBDEV_RO_DEVNODE, &vdev->flags);
 	bool streams_subdev = sd->flags & V4L2_SUBDEV_FL_STREAMS;
+	bool stream_group_subdev = streams_subdev &&
+				   (sd->flags & V4L2_SUBDEV_FL_STREAM_GROUP);
 	bool client_supports_streams = subdev_fh->client_caps &
 				       V4L2_SUBDEV_CLIENT_CAP_STREAMS;
 	int rval;
 
 	/*
-	 * If the streams API is not enabled, remove V4L2_SUBDEV_CAP_STREAMS.
+	 * If the streams API is not enabled, remove V4L2_SUBDEV_CAP_STREAMS
+	 * and V4L2_SUBDEV_FL_STREAM_GROUP.
 	 * Remove this when the API is no longer experimental.
 	 */
-	if (!v4l2_subdev_enable_streams_api)
+	if (!v4l2_subdev_enable_streams_api) {
 		streams_subdev = false;
+		stream_group_subdev = false;
+	}
 
 	switch (cmd) {
 	case VIDIOC_SUBDEV_QUERYCAP: {
@@ -573,7 +578,8 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 		cap->version = LINUX_VERSION_CODE;
 		cap->capabilities =
 			(ro_subdev ? V4L2_SUBDEV_CAP_RO_SUBDEV : 0) |
-			(streams_subdev ? V4L2_SUBDEV_CAP_STREAMS : 0);
+			(streams_subdev ? V4L2_SUBDEV_CAP_STREAMS : 0) |
+			(stream_group_subdev ? V4L2_SUBDEV_CAP_STREAM_GROUP : 0);
 
 		return 0;
 	}
@@ -945,6 +951,10 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 		for (i = 0; i < routing->num_routes; ++i) {
 			const struct v4l2_subdev_route *route = &routes[i];
 			const struct media_pad *pads = sd->entity.pads;
+
+			if (!(sd->flags & V4L2_SUBDEV_FL_STREAM_GROUP) &&
+			    route->stream_group)
+				return -EINVAL;
 
 			if (route->sink_stream > V4L2_SUBDEV_MAX_STREAM_ID ||
 			    route->source_stream > V4L2_SUBDEV_MAX_STREAM_ID)

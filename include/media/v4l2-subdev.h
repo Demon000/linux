@@ -974,6 +974,12 @@ struct v4l2_subdev_internal_ops {
  * - Multiple streams per pad are supported
  */
 #define V4L2_SUBDEV_FL_STREAMS			(1U << 4)
+/*
+ * Set this flag if subdev supports stream grouping. This means that the
+ * driver supports grouping multiple streams together by handling the
+ * stream_group member of v4l2_subdev_route.
+ */
+#define V4L2_SUBDEV_FL_STREAM_GROUP		(1U << 5)
 
 struct regulator_bulk_data;
 

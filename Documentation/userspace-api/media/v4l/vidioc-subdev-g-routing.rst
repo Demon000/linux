@@ -109,9 +109,12 @@ On a successful ``VIDIOC_SUBDEV_G_ROUTING`` call the driver updates the
     * - __u32
       - ``flags``
       - Route enable/disable flags
+    * - __u32
+      - ``stream_group``
+      - Stream group number.
 	:ref:`v4l2_subdev_routing_flags <v4l2-subdev-routing-flags>`.
     * - __u32
-      - ``reserved``\ [5]
+      - ``reserved``\ [4]
       - Reserved for future extensions. Applications and drivers must set
 	the array to zero.
 

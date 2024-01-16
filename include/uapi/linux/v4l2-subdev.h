@@ -193,6 +193,9 @@ struct v4l2_subdev_capability {
 /* The v4l2 sub-device supports routing and multiplexed streams. */
 #define V4L2_SUBDEV_CAP_STREAMS			0x00000002
 
+/* The v4l2 sub-device supports grouping streams. */
+#define V4L2_SUBDEV_CAP_STREAM_GROUP		0x00000004
+
 /*
  * Is the route active? An active route will start when streaming is enabled
  * on a video node.
@@ -207,6 +210,7 @@ struct v4l2_subdev_capability {
  * @source_pad: the source pad index
  * @source_stream: the source stream identifier
  * @flags: route flags V4L2_SUBDEV_ROUTE_FL_*
+ * @stream_group: the stream group identifier
  * @reserved: drivers and applications must zero this array
  */
 struct v4l2_subdev_route {
@@ -215,7 +219,8 @@ struct v4l2_subdev_route {
 	__u32 source_pad;
 	__u32 source_stream;
 	__u32 flags;
-	__u32 reserved[5];
+	__u32 stream_group;
+	__u32 reserved[4];
 };
 
 /**
