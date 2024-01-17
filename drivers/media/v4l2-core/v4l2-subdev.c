@@ -956,6 +956,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 			    route->stream_group)
 				return -EINVAL;
 
+			if (route->stream_group > V4L2_SUBDEV_MAX_STREAM_ID)
+				return -EINVAL;
+
 			if (route->sink_stream > V4L2_SUBDEV_MAX_STREAM_ID ||
 			    route->source_stream > V4L2_SUBDEV_MAX_STREAM_ID)
 				return -EINVAL;
