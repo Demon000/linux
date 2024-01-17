@@ -1031,6 +1031,16 @@
 			g-rx-fifo-size = <558>;
 			g-tx-fifo-size = <512 512 512 512 512 256 256>;
 		};
+
+		pisp_be: pisp_be@880000  {
+			compatible = "raspberrypi,pispbe";
+			reg = <0x10 0x00880000  0x0 0x4000>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&firmware_clocks 7>;
+			clocks-names = "isp_be";
+			status = "okay";
+			/*iommus = <&iommu2>;*/
+		};
 	};
 
 	clocks {
