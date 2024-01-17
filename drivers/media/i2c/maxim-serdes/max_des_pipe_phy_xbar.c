@@ -46,6 +46,82 @@ static int max_des_pipe_set_remaps(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_get_stream_group(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_krouting *routing,
+				    unsigned int pad, unsigned int stream,
+				    unsigned int *stream_group)
+{
+	struct v4l2_subdev_route *route;
+	bool found;
+
+
+	for_each_active_route(routing, route) {
+		if (route->source_pad == pad && route->source_stream == stream) {
+			*stream_group = route->stream_group;
+			found = true;
+		}
+	}
+
+	if (!found)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int max_des_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				  struct v4l2_mbus_frame_desc *fd)
+{
+	struct v4l2_subdev_state *state;
+	unsigned int stream_groups[MAX_SERDES_VC_ID_NUM] = { 0 };
+	unsigned int vc_ids[MAX_SERDES_VC_ID_NUM] = { 0 };
+	unsigned int stream_group_index = 0;
+	u64 stream_groups_mask = 0;
+	u64 vc_ids_mask = 0;
+	unsigned int i, j;
+	int ret;
+
+	ret = max_component_get_frame_desc(sd, pad, fd);
+	if (ret)
+		return ret;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	for (i = 0; i < fd->num_entries; i++) {
+		unsigned int stream_group;
+		unsigned int vc_id;
+
+		ret = max_des_get_stream_group(sd, &state->routing, pad,
+					       fd->entry[i].stream,
+					       &stream_group);
+		if (ret)
+			goto exit;
+
+		if (stream_groups_mask & BIT(stream_group)) {
+			for (j = 0; j < MAX_SERDES_VC_ID_NUM; j++)
+				if (stream_groups[j] == stream_group)
+					vc_id = vc_ids[j];
+
+		} else {
+			if (stream_group_index == MAX_SERDES_VC_ID_NUM)
+				goto exit;
+
+			stream_groups_mask |= BIT(stream_group);
+
+			stream_groups[stream_group_index] = stream_group;
+			vc_id = ffz(vc_ids_mask);
+			vc_ids[stream_group_index] = vc_id;
+			vc_ids_mask |= BIT(vc_id);
+
+			stream_group_index++;
+		}
+	}
+
+exit:
+	v4l2_subdev_unlock_state(state);
+
+	return ret;
+}
+
 static unsigned int max_des_code_num_remaps(u32 code)
 {
 	u8 dt = max_format_dt_by_code(code);
@@ -378,11 +454,7 @@ static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
 	.disable_streams = max_des_pipe_phy_xbar_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_des_pipe_phy_xbar_set_fmt,
-	/*
-	 * TODO: add custom implementation that takes into account
-	 * stream group.
-	 */
-	.get_frame_desc = max_component_get_frame_desc,
+	.get_frame_desc = max_des_get_frame_desc,
 };
 
 static const struct v4l2_subdev_ops max_des_pipe_phy_xbar_subdev_ops = {
