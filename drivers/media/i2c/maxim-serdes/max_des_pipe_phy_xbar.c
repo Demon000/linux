@@ -59,6 +59,7 @@ static int max_des_get_stream_group(struct v4l2_subdev *sd,
 		if (route->source_pad == pad && route->source_stream == stream) {
 			*stream_group = route->stream_group;
 			found = true;
+			break;
 		}
 	}
 
