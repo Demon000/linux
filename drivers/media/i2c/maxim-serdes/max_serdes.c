@@ -473,24 +473,43 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 		sink_streams = v4l2_subdev_state_xlate_streams(state, pad, i,
 							       &source_streams);
 
+		/* Get the frame descriptor of the remote side of this sink pad. */
 		ret = max_component_get_sink_pad_frame_desc(comp, i, &remote_fd);
 		if (ret)
 			goto exit;
 
 		for (j = 0; j < remote_fd.num_entries; j++) {
+			u32 sink_stream = remote_fd.entry[j].stream;
+			u32 source_stream;
+			u32 source_pad;
+
 			/*
-			 * If the frame descriptor is not for a sink stream
+			 * If the frame entry is not for a sink stream
 			 * which is routed to this pad's source streams, skip.
 			 */
-			if (!(sink_streams & BIT_ULL(remote_fd.entry[j].stream)))
+			if (!(sink_streams & BIT_ULL(sink_stream)))
 				continue;
+
+			/*
+			 * Translate back from this sink pad to the source pad to find
+			 * the source stream.
+			 */
+			ret = v4l2_subdev_routing_find_opposite_end(&state->routing,
+								    i, sink_stream,
+								    &source_pad,
+								    &source_stream);
+			if (ret)
+				goto exit;
 
 			if (fd->num_entries == V4L2_FRAME_DESC_ENTRY_MAX) {
 				ret = -E2BIG;
 				goto exit;
 			}
 
-			fd->entry[fd->num_entries++] = remote_fd.entry[j];
+			fd->entry[fd->num_entries] = remote_fd.entry[j];
+			fd->entry[fd->num_entries].stream = source_stream;
+
+			fd->num_entries++;
 		}
 	}
 
