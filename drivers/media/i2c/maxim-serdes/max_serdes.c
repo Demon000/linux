@@ -484,13 +484,6 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 			u32 source_pad;
 
 			/*
-			 * If the frame entry is not for a sink stream
-			 * which is routed to this pad's source streams, skip.
-			 */
-			if (!(sink_streams & BIT_ULL(sink_stream)))
-				continue;
-
-			/*
 			 * Translate back from this sink pad to the source pad to find
 			 * the source stream.
 			 */
@@ -500,6 +493,9 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 								    &source_stream);
 			if (ret)
 				goto exit;
+
+			if (source_pad != pad)
+				continue;
 
 			if (fd->num_entries == V4L2_FRAME_DESC_ENTRY_MAX) {
 				ret = -E2BIG;
