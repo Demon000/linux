@@ -105,8 +105,10 @@ static int max_des_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 					vc_id = vc_ids[j];
 
 		} else {
-			if (stream_group_index == MAX_SERDES_VC_ID_NUM)
+			if (stream_group_index == MAX_SERDES_VC_ID_NUM) {
+				ret = -E2BIG;
 				goto exit;
+			}
 
 			stream_groups_mask |= BIT(stream_group);
 
