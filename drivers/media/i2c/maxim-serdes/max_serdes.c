@@ -423,9 +423,8 @@ int max_component_get_sink_pad_frame_desc(struct max_component *comp,
 }
 EXPORT_SYMBOL_GPL(max_component_get_sink_pad_frame_desc);
 
-int max_component_get_stream_frame_entry(struct max_component *comp,
+int max_component_get_stream_frame_entry(struct v4l2_mbus_frame_desc *fd,
 					 unsigned int stream,
-					 struct v4l2_mbus_frame_desc *fd,
 					 struct v4l2_mbus_frame_desc_entry *entry)
 {
 	unsigned int i;
@@ -443,44 +442,41 @@ int max_component_get_stream_frame_entry(struct max_component *comp,
 }
 EXPORT_SYMBOL_GPL(max_component_get_stream_frame_entry);
 
-int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
-				 struct v4l2_mbus_frame_desc *fd)
+int max_component_routing_get_frame_desc(struct v4l2_subdev *sd,
+					 struct v4l2_subdev_krouting *routing,
+					 unsigned int pad,
+					 struct v4l2_mbus_frame_desc *fd)
 {
 	struct max_component *comp = v4l2_get_subdevdata(sd);
-	struct v4l2_subdev_state *state;
 	struct v4l2_subdev_route *route;
-	u64 streams_mask = 0;
+	u64 sink_pads_mask = 0;
 	unsigned int i, j;
-	int ret = 0;
+	int ret;
 
 	if (!max_component_is_pad_source(comp, pad))
 		return -EINVAL;
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
-
-	state = v4l2_subdev_lock_and_get_active_state(sd);
+	fd->num_entries = 0;
 
 	/* Find all source streams for this pad. */
-	for_each_active_route(&state->routing, route) {
+	for_each_active_route(routing, route) {
 		if (route->source_pad != pad)
 			continue;
 
-		streams_mask |= BIT_ULL(route->source_stream);
+		sink_pads_mask |= BIT_ULL(route->sink_pad);
 	}
 
 	for (i = comp->sink_pads_start; i < comp->sink_pads_end; i++) {
 		struct v4l2_mbus_frame_desc remote_fd;
-		u64 source_streams = streams_mask;
-		u64 sink_streams;
 
-		/* Find all sink streams routed to this pad's source streams. */
-		sink_streams = v4l2_subdev_state_xlate_streams(state, pad, i,
-							       &source_streams);
+		if (!(sink_pads_mask & BIT_ULL(i)))
+			continue;
 
 		/* Get the frame descriptor of the remote side of this sink pad. */
 		ret = max_component_get_sink_pad_frame_desc(comp, i, &remote_fd);
 		if (ret)
-			goto exit;
+			continue;
 
 		for (j = 0; j < remote_fd.num_entries; j++) {
 			u32 sink_stream = remote_fd.entry[j].stream;
@@ -491,20 +487,18 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 			 * Translate back from this sink pad to the source pad to find
 			 * the source stream.
 			 */
-			ret = v4l2_subdev_routing_find_opposite_end(&state->routing,
+			ret = v4l2_subdev_routing_find_opposite_end(routing,
 								    i, sink_stream,
 								    &source_pad,
 								    &source_stream);
 			if (ret)
-				goto exit;
+				continue;
 
 			if (source_pad != pad)
 				continue;
 
-			if (fd->num_entries == V4L2_FRAME_DESC_ENTRY_MAX) {
-				ret = -E2BIG;
-				goto exit;
-			}
+			if (fd->num_entries == V4L2_FRAME_DESC_ENTRY_MAX)
+				return -E2BIG;
 
 			fd->entry[fd->num_entries] = remote_fd.entry[j];
 			fd->entry[fd->num_entries].stream = source_stream;
@@ -513,7 +507,20 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 		}
 	}
 
-exit:
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max_component_routing_get_frame_desc);
+
+int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_mbus_frame_desc *fd)
+{
+	struct v4l2_subdev_state *state;
+	int ret;
+
+	state = v4l2_subdev_lock_and_get_active_state(sd);
+
+	ret = max_component_routing_get_frame_desc(sd, &state->routing, pad, fd);
+
 	v4l2_subdev_unlock_state(state);
 
 	return ret;

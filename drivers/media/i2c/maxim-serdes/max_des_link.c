@@ -66,7 +66,7 @@ int max_des_link_register_v4l2_sd(struct max_des_priv *priv,
 	comp->name = "link";
 	comp->index = link->index;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
-				 V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX;
+				 V4L2_SUBDEV_ROUTING_NO_STREAM_MIX;
 
 	return max_component_register_v4l2_sd(comp);
 }
