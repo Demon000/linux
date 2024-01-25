@@ -91,7 +91,7 @@ static int max_des_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 		unsigned int stream_group;
 		unsigned int vc_id;
 
-		if (fd.type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2)
+		if (fd->type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2)
 			continue;
 
 		ret = max_des_get_stream_group(sd, &state->routing, pad,
