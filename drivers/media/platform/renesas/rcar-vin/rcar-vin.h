@@ -183,9 +183,11 @@ struct rvin_info {
  * @vdev:		V4L2 video device associated with VIN
  * @v4l2_dev:		V4L2 device
  * @ctrl_handler:	V4L2 control handler
- * @notifier:		V4L2 asynchronous subdevs notifier
  *
- * @parallel:		parallel input subdevice descriptor
+ * @parallel:		Parallel input subdevice descriptor
+ * @remotes:		Array of pairs of async connection and subdev pointers
+ *			to remote subdevices on CSI-2 or CS-ISP.
+ * @notifier:		V4L2 asynchronous subdevs notifier
  *
  * @group:		Gen3 CSI group
  * @id:			Gen3 group id for this VIN
@@ -222,9 +224,13 @@ struct rvin_dev {
 	struct video_device vdev;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_async_notifier notifier;
 
 	struct rvin_parallel_entity parallel;
+	struct {
+		struct v4l2_async_connection *asc;
+		struct v4l2_subdev *subdev;
+	} remotes[RVIN_REMOTES_MAX];
+	struct v4l2_async_notifier notifier;
 
 	struct rvin_group *group;
 	unsigned int id;
@@ -272,12 +278,8 @@ struct rvin_dev {
  *
  * @mdev:		media device which represents the group
  *
- * @lock:		protects the count, notifier, vin and csi members
- * @count:		number of enabled VIN instances found in DT
- * @notifier:		group notifier for CSI-2 async connections
+ * @lock:		Protects the vin member
  * @vin:		VIN instances which are part of the group
- * @remotes:		array of pairs of async connection and subdev pointers
- *			to all remote subdevices.
  */
 struct rvin_group {
 	struct kref refcount;
@@ -285,14 +287,7 @@ struct rvin_group {
 	struct media_device mdev;
 
 	struct mutex lock;
-	unsigned int count;
-	struct v4l2_async_notifier notifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
-
-	struct {
-		struct v4l2_async_connection *asc;
-		struct v4l2_subdev *subdev;
-	} remotes[RVIN_REMOTES_MAX];
 };
 
 int rvin_dma_register(struct rvin_dev *vin, int irq);
