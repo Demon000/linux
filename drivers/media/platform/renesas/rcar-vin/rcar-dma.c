@@ -178,6 +178,28 @@ static bool rvin_scaler_needed(const struct rvin_dev *vin)
 		 vin->compose.height == vin->format.height);
 }
 
+static struct v4l2_subdev *rvin_remote_subdev(const struct rvin_dev *vin)
+{
+	struct media_pad *pad;
+
+	if (!vin->info->use_mc)
+		return vin->parallel.subdev;
+
+	pad = media_pad_remote_pad_first(&vin->pad);
+	if (!pad)
+		return NULL;
+
+	return media_entity_to_v4l2_subdev(pad->entity);
+}
+
+static bool rvin_remote_is_parallel(const struct rvin_dev *vin)
+{
+	if (!vin->parallel.subdev)
+		return false;
+
+	return rvin_remote_subdev(vin) == vin->parallel.subdev;
+}
+
 struct vin_coeff {
 	unsigned short xs_value;
 	u32 coeff_set[24];
@@ -762,7 +784,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
-		if (!vin->is_csi &&
+		if (rvin_remote_is_parallel(vin) &&
 		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV8_BT656;
 		else
@@ -775,7 +797,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		break;
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 		/* BT.656 10bit YCbCr422 or BT.601 10bit YCbCr422 */
-		if (!vin->is_csi &&
+		if (rvin_remote_is_parallel(vin) &&
 		    vin->parallel.mbus_type == V4L2_MBUS_BT656)
 			vnmc |= VNMC_INF_YUV10_BT656;
 		else
@@ -801,13 +823,13 @@ static int rvin_setup(struct rvin_dev *vin)
 		case VNMC_INF_YUV10_BT656:
 		case VNMC_INF_YUV16:
 		case VNMC_INF_RGB666:
-			if (vin->is_csi) {
+			if (!rvin_remote_is_parallel(vin)) {
 				vin_err(vin, "Invalid setting in MIPI CSI2\n");
 				return -EINVAL;
 			}
 			break;
 		case VNMC_INF_RAW8:
-			if (!vin->is_csi) {
+			if (rvin_remote_is_parallel(vin)) {
 				vin_err(vin, "Invalid setting in Digital Pins\n");
 				return -EINVAL;
 			}
@@ -823,7 +845,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	else
 		dmr2 = VNDMR2_FTEV | VNDMR2_VLV(1);
 
-	if (!vin->is_csi) {
+	if (rvin_remote_is_parallel(vin)) {
 		/* Hsync Signal Polarity Select */
 		if (!(vin->parallel.bus.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW))
 			dmr2 |= VNDMR2_HPS;
@@ -914,10 +936,10 @@ static int rvin_setup(struct rvin_dev *vin)
 
 		if (vin->info->model == RCAR_GEN3) {
 			/* Select between CSI-2 and parallel input */
-			if (vin->is_csi)
-				vnmc &= ~VNMC_DPINE;
-			else
+			if (rvin_remote_is_parallel(vin))
 				vnmc |= VNMC_DPINE;
+			else
+				vnmc &= ~VNMC_DPINE;
 		}
 	}
 
@@ -1347,14 +1369,16 @@ static int rvin_mc_validate_format(struct rvin_dev *vin, struct v4l2_subdev *sd,
 
 static int rvin_set_stream(struct rvin_dev *vin, int on)
 {
-	struct v4l2_subdev *sd;
+	struct v4l2_subdev *sd = rvin_remote_subdev(vin);
 	struct media_pad *pad;
 	int ret;
 
+	if (!sd)
+		return -EPIPE;
+
 	/* No media controller used, simply pass operation to subdevice. */
 	if (!vin->info->use_mc) {
-		ret = v4l2_subdev_call(vin->parallel.subdev, video, s_stream,
-				       on);
+		ret = v4l2_subdev_call(sd, video, s_stream, on);
 
 		return ret == -ENOIOCTLCMD ? 0 : ret;
 	}
@@ -1362,8 +1386,6 @@ static int rvin_set_stream(struct rvin_dev *vin, int on)
 	pad = media_pad_remote_pad_first(&vin->pad);
 	if (!pad)
 		return -EPIPE;
-
-	sd = media_entity_to_v4l2_subdev(pad->entity);
 
 	if (!on) {
 		video_device_pipeline_stop(&vin->vdev);

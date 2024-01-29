@@ -807,7 +807,6 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 		for (i = 0; i < RCAR_VIN_NUM; i++) {
 			if (group->vin[i] &&
 			    group->vin[i]->parallel.subdev == sd) {
-				group->vin[i]->is_csi = false;
 				ret = 0;
 				goto out;
 			}
@@ -865,8 +864,6 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 		ret = rvin_set_channel_routing(group->vin[master_id], chsel);
 		if (ret)
 			goto out;
-
-		vin->is_csi = true;
 	}
 out:
 	mutex_unlock(&group->lock);
