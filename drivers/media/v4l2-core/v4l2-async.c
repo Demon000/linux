@@ -176,15 +176,16 @@ static LIST_HEAD(notifier_list);
 static DEFINE_MUTEX(list_lock);
 
 static struct v4l2_async_connection *
-v4l2_async_find_match(struct v4l2_async_notifier *notifier,
-		      struct v4l2_subdev *sd)
+__v4l2_async_find_in_list(struct v4l2_async_notifier *notifier,
+			  struct v4l2_subdev *sd,
+			  struct list_head *list)
 {
 	bool (*match)(struct v4l2_async_notifier *notifier,
 		      struct v4l2_subdev *sd,
 		      struct v4l2_async_match_desc *match);
 	struct v4l2_async_connection *asc;
 
-	list_for_each_entry(asc, &notifier->waiting_list, asc_entry) {
+	list_for_each_entry(asc, list, asc_entry) {
 		/* bus_type has been verified valid before */
 		switch (asc->match.type) {
 		case V4L2_ASYNC_MATCH_TYPE_I2C:
@@ -205,6 +206,20 @@ v4l2_async_find_match(struct v4l2_async_notifier *notifier,
 	}
 
 	return NULL;
+}
+
+static struct v4l2_async_connection *
+v4l2_async_find_match(struct v4l2_async_notifier *notifier,
+		      struct v4l2_subdev *sd)
+{
+	return __v4l2_async_find_in_list(notifier, sd, &notifier->waiting_list);
+}
+
+static struct v4l2_async_connection *
+v4l2_async_find_done(struct v4l2_async_notifier *notifier,
+		     struct v4l2_subdev *sd)
+{
+	return __v4l2_async_find_in_list(notifier, sd, &notifier->done_list);
 }
 
 /* Compare two async match descriptors for equivalence */
@@ -274,13 +289,14 @@ v4l2_async_nf_can_complete(struct v4l2_async_notifier *notifier)
 }
 
 /*
- * Complete the master notifier if possible. This is done when all async
+ * Complete the master notifiers if possible. This is done when all async
  * sub-devices have been bound; v4l2_device is also available then.
  */
 static int
 v4l2_async_nf_try_complete(struct v4l2_async_notifier *notifier)
 {
-	struct v4l2_async_notifier *__notifier = notifier;
+	struct v4l2_async_notifier *n;
+	int ret;
 
 	/* Quick check whether there are still more sub-devices here. */
 	if (!list_empty(&notifier->waiting_list))
@@ -290,24 +306,38 @@ v4l2_async_nf_try_complete(struct v4l2_async_notifier *notifier)
 		dev_dbg(notifier_dev(notifier),
 			"v4l2-async: trying to complete\n");
 
-	/* Check the entire notifier tree; find the root notifier first. */
-	while (notifier->parent)
-		notifier = notifier->parent;
+	/*
+	 * Notifiers without a parent are either a subnotifier that have not
+	 * yet been associated with it is a root notifier or a root notifier
+	 * itself. If it is a root notifier try to complete it.
+	 */
+	if (!notifier->parent) {
+		/* This is root if it has v4l2_dev. */
+		if (!notifier->v4l2_dev) {
+			dev_dbg(notifier_dev(notifier),
+				"v4l2-async: V4L2 device not available\n");
+			return 0;
+		}
 
-	/* This is root if it has v4l2_dev. */
-	if (!notifier->v4l2_dev) {
-		dev_dbg(notifier_dev(__notifier),
-			"v4l2-async: V4L2 device not available\n");
-		return 0;
+		/* Is everything ready? */
+		if (!v4l2_async_nf_can_complete(notifier))
+			return 0;
+
+		dev_dbg(notifier_dev(notifier), "v4l2-async: complete\n");
+
+		return v4l2_async_nf_call_complete(notifier);
 	}
 
-	/* Is everything ready? */
-	if (!v4l2_async_nf_can_complete(notifier))
-		return 0;
+	/* Try to complete all notifiers containing the subdevices. */
+	list_for_each_entry(n, &notifier_list, notifier_entry) {
+		if (v4l2_async_find_done(n, notifier->sd)) {
+			ret = v4l2_async_nf_try_complete(n);
+			if (ret)
+				return ret;
+		}
+	}
 
-	dev_dbg(notifier_dev(__notifier), "v4l2-async: complete\n");
-
-	return v4l2_async_nf_call_complete(notifier);
+	return 0;
 }
 
 static int
