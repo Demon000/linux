@@ -176,81 +176,6 @@ out:
 	kref_put(&group->refcount, rvin_group_release);
 }
 
-static int rvin_group_entity_to_remote_id(struct rvin_dev *vin,
-					  struct media_entity *entity)
-{
-	struct v4l2_subdev *sd;
-	unsigned int i;
-
-	sd = media_entity_to_v4l2_subdev(entity);
-
-	for (i = 0; i < RVIN_REMOTES_MAX; i++)
-		if (vin->remotes[i].subdev == sd)
-			return i;
-
-	return -ENODEV;
-}
-
-static int rvin_group_parse_of(struct rvin_dev *vin, unsigned int port,
-			       unsigned int id)
-{
-	struct fwnode_handle *ep, *fwnode;
-	struct v4l2_fwnode_endpoint vep = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY,
-	};
-	struct v4l2_async_connection *asc;
-	int ret;
-
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
-	if (!ep)
-		return 0;
-
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
-	fwnode_handle_put(ep);
-	if (ret) {
-		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	asc = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
-				       struct v4l2_async_connection);
-	if (IS_ERR(asc)) {
-		ret = PTR_ERR(asc);
-		goto out;
-	}
-
-	vin->remotes[vep.base.id].asc = asc;
-
-	vin_dbg(vin, "Add device %pOF to slot %u\n",
-		to_of_node(fwnode), vep.base.id);
-out:
-	fwnode_handle_put(fwnode);
-
-	return ret;
-}
-
-static int rvin_group_notifier_init(struct rvin_dev *vin, unsigned int port,
-				    unsigned int max_id)
-{
-	unsigned int id;
-	int ret;
-
-	for (id = 0; id < max_id; id++) {
-		ret = rvin_group_parse_of(vin, port, id);
-		if (ret)
-			return ret;
-	}
-
-	/* Make sure at least one remote was described. */
-	for (id = 0; id < max_id; id++)
-		if (vin->remotes[id].asc)
-			return 0;
-
-	return -ENODEV;
-}
-
 /* -----------------------------------------------------------------------------
  * Controls
  */
@@ -315,6 +240,81 @@ static int rvin_create_controls(struct rvin_dev *vin, struct v4l2_subdev *subdev
 /* -----------------------------------------------------------------------------
  * Async notifier
  */
+
+static int rvin_remote_entity_to_id(struct rvin_dev *vin,
+				    struct media_entity *entity)
+{
+	struct v4l2_subdev *sd;
+	unsigned int i;
+
+	sd = media_entity_to_v4l2_subdev(entity);
+
+	for (i = 0; i < RVIN_REMOTES_MAX; i++)
+		if (vin->remotes[i].subdev == sd)
+			return i;
+
+	return -ENODEV;
+}
+
+static int rvin_remote_parse_of(struct rvin_dev *vin, unsigned int port,
+				unsigned int id)
+{
+	struct fwnode_handle *ep, *fwnode;
+	struct v4l2_fwnode_endpoint vep = {
+		.bus_type = V4L2_MBUS_CSI2_DPHY,
+	};
+	struct v4l2_async_connection *asc;
+	int ret;
+
+	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(vin->dev), port, id, 0);
+	if (!ep)
+		return 0;
+
+	fwnode = fwnode_graph_get_remote_endpoint(ep);
+	ret = v4l2_fwnode_endpoint_parse(ep, &vep);
+	fwnode_handle_put(ep);
+	if (ret) {
+		vin_err(vin, "Failed to parse %pOF\n", to_of_node(fwnode));
+		ret = -EINVAL;
+		goto out;
+	}
+
+	asc = v4l2_async_nf_add_fwnode(&vin->notifier, fwnode,
+				       struct v4l2_async_connection);
+	if (IS_ERR(asc)) {
+		ret = PTR_ERR(asc);
+		goto out;
+	}
+
+	vin->remotes[vep.base.id].asc = asc;
+
+	vin_dbg(vin, "Add device %pOF to slot %u\n",
+		to_of_node(fwnode), vep.base.id);
+out:
+	fwnode_handle_put(fwnode);
+
+	return ret;
+}
+
+static int rvin_remote_notifier_init(struct rvin_dev *vin, unsigned int port,
+				     unsigned int max_id)
+{
+	unsigned int id;
+	int ret;
+
+	for (id = 0; id < max_id; id++) {
+		ret = rvin_remote_parse_of(vin, port, id);
+		if (ret)
+			return ret;
+	}
+
+	/* Make sure at least one remote was described. */
+	for (id = 0; id < max_id; id++)
+		if (vin->remotes[id].asc)
+			return 0;
+
+	return -ENODEV;
+}
 
 static int rvin_find_pad(struct v4l2_subdev *sd, int direction)
 {
@@ -638,7 +638,7 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 
 	mutex_lock(&group->lock);
 
-	csi_id = rvin_group_entity_to_remote_id(vin, link->source->entity);
+	csi_id = rvin_remote_entity_to_id(vin, link->source->entity);
 	if (csi_id == -ENODEV) {
 		struct v4l2_subdev *sd;
 
@@ -804,7 +804,7 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	have_parallel = ret != -ENODEV;
 
 
-	ret = rvin_group_notifier_init(vin, 1, RVIN_CSI_MAX);
+	ret = rvin_remote_notifier_init(vin, 1, RVIN_CSI_MAX);
 	if (ret && ret != -ENODEV)
 		goto err_group;
 	have_remote = ret != -ENODEV;
@@ -859,7 +859,7 @@ static int rvin_isp_init(struct rvin_dev *vin)
 	if (ret)
 		goto err_controls;
 
-	ret = rvin_group_notifier_init(vin, 2, RVIN_ISP_MAX);
+	ret = rvin_remote_notifier_init(vin, 2, RVIN_ISP_MAX);
 	if (ret)
 		goto err_group;
 
