@@ -64,9 +64,7 @@ static void rvin_group_cleanup(struct rvin_group *group)
 	mutex_destroy(&group->lock);
 }
 
-static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
-			   int (*link_setup)(struct rvin_dev *),
-			   const struct media_device_ops *ops)
+static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 {
 	struct media_device *mdev = &group->mdev;
 	const struct of_device_id *match;
@@ -82,10 +80,8 @@ static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin,
 
 	vin_dbg(vin, "found %u enabled VIN's in DT", group->count);
 
-	group->link_setup = link_setup;
-
 	mdev->dev = vin->dev;
-	mdev->ops = ops;
+	mdev->ops = vin->info->media_ops;
 
 	match = of_match_node(vin->dev->driver->of_match_table,
 			      vin->dev->of_node);
@@ -114,9 +110,7 @@ static void rvin_group_release(struct kref *kref)
 	mutex_unlock(&rvin_group_lock);
 }
 
-static int rvin_group_get(struct rvin_dev *vin,
-			  int (*link_setup)(struct rvin_dev *),
-			  const struct media_device_ops *ops)
+static int rvin_group_get(struct rvin_dev *vin)
 {
 	struct rvin_group *group;
 	u32 id;
@@ -148,7 +142,7 @@ static int rvin_group_get(struct rvin_dev *vin,
 			goto err_group;
 		}
 
-		ret = rvin_group_init(group, vin, link_setup, ops);
+		ret = rvin_group_init(group, vin);
 		if (ret) {
 			kfree(group);
 			vin_err(vin, "Failed to initialize group\n");
@@ -246,7 +240,7 @@ static int rvin_group_notify_complete(struct v4l2_async_notifier *notifier)
 		}
 	}
 
-	return vin->group->link_setup(vin);
+	return vin->info->link_setup(vin);
 }
 
 static void rvin_group_notify_unbind(struct v4l2_async_notifier *notifier,
@@ -963,7 +957,7 @@ static int rvin_csi2_init(struct rvin_dev *vin)
 	if (ret < 0)
 		return ret;
 
-	ret = rvin_group_get(vin, rvin_csi2_setup_links, &rvin_csi2_media_ops);
+	ret = rvin_group_get(vin);
 	if (ret)
 		goto err_controls;
 
@@ -1055,7 +1049,7 @@ static int rvin_isp_init(struct rvin_dev *vin)
 	if (ret < 0)
 		return ret;
 
-	ret = rvin_group_get(vin, rvin_isp_setup_links, NULL);
+	ret = rvin_group_get(vin);
 	if (ret)
 		goto err_controls;
 
@@ -1161,6 +1155,8 @@ static const struct rvin_info rcar_info_r8a774e1 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a774e1_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 };
 
 static const struct rvin_group_route rcar_info_r8a7795_routes[] = {
@@ -1178,6 +1174,8 @@ static const struct rvin_info rcar_info_r8a7795 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7795_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1196,6 +1194,8 @@ static const struct rvin_info rcar_info_r8a7796 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a7796_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1214,6 +1214,8 @@ static const struct rvin_info rcar_info_r8a77965 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77965_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1227,6 +1229,8 @@ static const struct rvin_info rcar_info_r8a77970 = {
 	.use_mc = true,
 	.max_width = 4096,
 	.max_height = 4096,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.routes = rcar_info_r8a77970_routes,
 };
 
@@ -1242,6 +1246,8 @@ static const struct rvin_info rcar_info_r8a77980 = {
 	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.routes = rcar_info_r8a77980_routes,
 };
 
@@ -1257,6 +1263,8 @@ static const struct rvin_info rcar_info_r8a77990 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77990_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1271,6 +1279,8 @@ static const struct rvin_info rcar_info_r8a77995 = {
 	.max_width = 4096,
 	.max_height = 4096,
 	.routes = rcar_info_r8a77995_routes,
+	.media_ops = &rvin_csi2_media_ops,
+	.link_setup = rvin_csi2_setup_links,
 	.scaler = rvin_scaler_gen3,
 };
 
@@ -1281,6 +1291,7 @@ static const struct rvin_info rcar_info_r8a779a0 = {
 	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
+	.link_setup = rvin_isp_setup_links,
 };
 
 static const struct rvin_info rcar_info_r8a779g0 = {
@@ -1290,6 +1301,7 @@ static const struct rvin_info rcar_info_r8a779g0 = {
 	.nv12 = true,
 	.max_width = 4096,
 	.max_height = 4096,
+	.link_setup = rvin_isp_setup_links,
 };
 
 static const struct of_device_id rvin_of_id_table[] = {

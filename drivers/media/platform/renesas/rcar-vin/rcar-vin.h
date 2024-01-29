@@ -156,6 +156,8 @@ struct rvin_group_route {
  * @max_height:		max input height the VIN supports
  * @routes:		list of possible routes from the CSI-2 recivers to
  *			all VINs. The list mush be NULL terminated.
+ * @media_ops:		Pointer to media device operation structure to use.
+ * @link_setup:		Callback to create all links for the media graph
  * @scaler:		Optional scaler
  */
 struct rvin_info {
@@ -167,6 +169,8 @@ struct rvin_info {
 	unsigned int max_width;
 	unsigned int max_height;
 	const struct rvin_group_route *routes;
+	const struct media_device_ops *media_ops;
+	int (*link_setup)(struct rvin_dev *vin);
 	void (*scaler)(struct rvin_dev *vin);
 };
 
@@ -274,7 +278,6 @@ struct rvin_dev {
  * @count:		number of enabled VIN instances found in DT
  * @notifier:		group notifier for CSI-2 async connections
  * @vin:		VIN instances which are part of the group
- * @link_setup:		Callback to create all links for the media graph
  * @remotes:		array of pairs of async connection and subdev pointers
  *			to all remote subdevices.
  */
@@ -287,8 +290,6 @@ struct rvin_group {
 	unsigned int count;
 	struct v4l2_async_notifier notifier;
 	struct rvin_dev *vin[RCAR_VIN_NUM];
-
-	int (*link_setup)(struct rvin_dev *vin);
 
 	struct {
 		struct v4l2_async_connection *asc;
