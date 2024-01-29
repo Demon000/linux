@@ -58,12 +58,6 @@
 static DEFINE_MUTEX(rvin_group_lock);
 static struct rvin_group *rvin_group_data;
 
-static void rvin_group_cleanup(struct rvin_group *group)
-{
-	media_device_cleanup(&group->mdev);
-	mutex_destroy(&group->lock);
-}
-
 static int rvin_group_init(struct rvin_group *group, struct rvin_dev *vin)
 {
 	struct media_device *mdev = &group->mdev;
@@ -103,7 +97,8 @@ static void rvin_group_release(struct kref *kref)
 
 	rvin_group_data = NULL;
 
-	rvin_group_cleanup(group);
+	media_device_cleanup(&group->mdev);
+	mutex_destroy(&group->lock);
 
 	kfree(group);
 
@@ -558,15 +553,6 @@ static int rvin_parallel_subdevice_attach(struct rvin_dev *vin,
 	return 0;
 }
 
-static void rvin_parallel_subdevice_detach(struct rvin_dev *vin)
-{
-	rvin_v4l2_unregister(vin);
-	vin->parallel.subdev = NULL;
-
-	if (!vin->info->use_mc)
-		rvin_free_controls(vin);
-}
-
 static int rvin_parallel_notify_complete(struct v4l2_async_notifier *notifier)
 {
 	struct rvin_dev *vin = v4l2_dev_to_vin(notifier->v4l2_dev);
@@ -611,7 +597,11 @@ static void rvin_parallel_notify_unbind(struct v4l2_async_notifier *notifier,
 	vin_dbg(vin, "unbind parallel subdev %s\n", subdev->name);
 
 	mutex_lock(&vin->lock);
-	rvin_parallel_subdevice_detach(vin);
+	rvin_v4l2_unregister(vin);
+	vin->parallel.subdev = NULL;
+
+	if (!vin->info->use_mc)
+		rvin_free_controls(vin);
 	mutex_unlock(&vin->lock);
 }
 
