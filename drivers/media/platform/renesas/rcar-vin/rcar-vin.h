@@ -202,7 +202,6 @@ struct rvin_info {
  * @sequence:		V4L2 buffers sequence number
  * @state:		keeps track of operation state
  *
- * @is_csi:		flag to mark the VIN as using a CSI-2 subdevice
  * @chsel:		Cached value of the current CSI-2 channel selection
  *
  * @mbus_code:		media bus format code
@@ -246,7 +245,6 @@ struct rvin_dev {
 	unsigned int sequence;
 	enum rvin_dma_state state;
 
-	bool is_csi;
 	unsigned int chsel;
 
 	u32 mbus_code;
