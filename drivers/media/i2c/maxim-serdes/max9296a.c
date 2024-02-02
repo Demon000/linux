@@ -31,6 +31,7 @@ struct max9296a_chip_info {
 	bool phy0_first_lanes_on_master_phy;
 	bool polarity_on_physical_lanes;
 	bool supports_tunnel_mode;
+	bool fix_tx_ids;
 };
 
 #define des_to_priv(des) \
@@ -520,7 +521,6 @@ static int max9296a_select_links(struct max_des_priv *des_priv,
 }
 
 static const struct max_des_ops max9296a_ops = {
-	.fix_tx_ids = true,
 	.mipi_enable = max9296a_mipi_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
@@ -560,6 +560,7 @@ static int max9296a_probe(struct i2c_client *client)
 
 	*ops = max9296a_ops;
 
+	ops->fix_tx_ids = priv->info->fix_tx_ids;
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_links = priv->info->num_links;
@@ -586,6 +587,7 @@ static int max9296a_remove(struct i2c_client *client)
 
 static const struct max9296a_chip_info max9296a_info = {
 	.phy0_first_lanes_on_master_phy = true,
+	.fix_tx_ids = true,
 	.num_pipes = 4,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 2,
