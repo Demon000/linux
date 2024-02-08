@@ -225,7 +225,7 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		master_phy = 1;
 		slave_phy = 0;
 	} else if (phy->index == 1) {
-		master_phy  = 2;
+		master_phy = 2;
 		slave_phy = 3;
 	} else {
 		return -EINVAL;
