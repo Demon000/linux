@@ -160,6 +160,12 @@ static int max9296a_init(struct max_des_priv *des_priv)
 	if (ret)
 		return ret;
 
+	if (priv->info->num_pipes == 1) {
+		ret = max9296a_update_bits(priv, 0x160, BIT(0), 0x00);
+		if (ret)
+			return ret;
+	}
+
 	/* Disable link auto-select. */
 	ret = max9296a_update_bits(priv, 0x10, BIT(4), 0);
 	if (ret)
@@ -496,8 +502,18 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
+	if (priv->info->num_pipes == 1) {
+		mask = BIT(0);
+		ret = max9296a_update_bits(priv, 0x160, mask, mask);
+		if (ret)
+			return ret;
+	}
+
 	/* Set source stream. */
-	reg = 0x50 + index;
+	if (priv->info->num_pipes == 1)
+		reg = 0x161;
+	else
+		reg = 0x50 + index;
 	ret = max9296a_update_bits(priv, reg, GENMASK(1, 0), pipe->stream_id);
 	if (ret)
 		return ret;
