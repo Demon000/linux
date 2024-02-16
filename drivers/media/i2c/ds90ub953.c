@@ -736,6 +736,22 @@ static int ub953_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int ub953_set_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_state *state,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct v4l2_fract *ival;
+
+	if (fi->pad != UB953_PAD_TPG)
+		return -ENOTTY;
+
+	ival = v4l2_subdev_state_get_interval(state, fi->pad, fi->stream);
+
+	*ival = fi->interval;
+
+	return 0;
+}
+
 static int ub953_init_state(struct v4l2_subdev *sd,
 			    struct v4l2_subdev_state *state)
 {
@@ -835,9 +851,9 @@ static int ub953_enable_tpg(struct ub953_data *priv)
 	struct v4l2_subdev *sd = &priv->sd;
 	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *fmt;
+	struct v4l2_fract *ival;
 	const u8 num_cbars = 8;
 	const u8 vc = 0; /* Always VC 0 for now */
-	const u16 fps = 30;
 	const u8 vbp = 33;
 	const u8 vfp = 10;
 	const u16 tot_blanking = vbp + vfp + 2;
@@ -855,6 +871,8 @@ static int ub953_enable_tpg(struct ub953_data *priv)
 	if (!fmt)
 		return -EINVAL;
 
+	ival = v4l2_subdev_state_get_interval(state, UB953_PAD_TPG, 0);
+
 	fmt_info = ub953_find_format(fmt->code);
 	if (!fmt_info) {
 		dev_err(dev, "unsupported TPG format %#x\n", fmt->code);
@@ -865,7 +883,13 @@ static int ub953_enable_tpg(struct ub953_data *priv)
 	bar_size = rounddown(line_size / num_cbars, fmt_info->block_size);
 	act_lpf = fmt->height;
 	tot_lpf = act_lpf + tot_blanking;
-	line_pd = 100000000u / fps / tot_lpf;
+	line_pd = div_u64((u64)100000000u * ival->numerator,
+			  ival->denominator * tot_lpf);
+
+	if (line_pd > 0xffff) {
+		dev_err(dev, "Line period over the limit: %u\n", line_pd);
+		return -EINVAL;
+	}
 
 	if (fmt->width * fmt_info->bitspp % 8 != 0) {
 		dev_err(dev, "Invalid TPG width\n");
@@ -972,6 +996,8 @@ static const struct v4l2_subdev_pad_ops ub953_pad_ops = {
 	.get_frame_desc = ub953_get_frame_desc,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = ub953_set_fmt,
+	.get_frame_interval = v4l2_subdev_get_frame_interval,
+	.set_frame_interval = ub953_set_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops ub953_subdev_core_ops = {
