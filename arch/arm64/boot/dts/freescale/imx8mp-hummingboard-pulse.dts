@@ -529,6 +529,7 @@
 		};
 	};
 
+#if 0
 	phy@2 {
 		reg = <2>;
 
@@ -542,6 +543,7 @@
 			};
 		};
 	};
+#endif
 };
 
 &isi_0 {
@@ -563,6 +565,7 @@
 	};
 };
 
+#if 0
 &mipi_csi_1 {
 	status = "okay";
 
@@ -577,6 +580,7 @@
 		};
 	};
 };
+#endif
 
 &vpu_g1 {
 	status = "disabled";
