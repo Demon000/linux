@@ -453,12 +453,12 @@ static int max96724_set_pipe_remap_enable(struct max_des *des,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, val;
+	unsigned int reg, mask;
 
 	/* Enable remap. */
 	reg = 0x90b + 0x40 * index + i / 8;
-	val = BIT(i % 8);
-	return max96724_update_bits(priv, reg, val, val);
+	mask = BIT(i % 8);
+	return max96724_update_bits(priv, reg, mask, enable ? mask : 0);
 }
 
 static int max96724_set_pipe_link(struct max_des *des, struct max_des_pipe *pipe,
