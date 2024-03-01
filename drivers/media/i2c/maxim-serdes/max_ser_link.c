@@ -10,16 +10,14 @@
 
 static int max_ser_link_registered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_ser_priv *priv = comp->priv;
+	struct max_ser_priv *priv = sd_ser_priv(sd);
 
 	return max_ser_register_v4l2(priv, sd->v4l2_dev);
 }
 
 static void max_ser_link_unregistered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_ser_priv *priv = comp->priv;
+	struct max_ser_priv *priv = sd_ser_priv(sd);
 
 	max_ser_unregister_v4l2(priv);
 }

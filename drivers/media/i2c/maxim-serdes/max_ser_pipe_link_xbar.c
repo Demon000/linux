@@ -30,8 +30,8 @@ static int max_ser_pipe_link_xbar_set_routing(struct v4l2_subdev *sd,
 					      struct v4l2_subdev_krouting *routing)
 {
 	struct max_component *comp = sd_max_component(sd);
-	struct max_ser_priv *priv = comp->priv;
-	struct max_ser *ser = priv->ser;
+	struct max_ser_priv *priv = sd_ser_priv(sd);
+	struct max_ser *ser = sd_ser(sd);
 	struct v4l2_subdev_route *route;
 	unsigned int stream_id;
 	unsigned int pipe_id;

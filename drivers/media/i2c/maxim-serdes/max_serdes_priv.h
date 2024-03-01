@@ -16,6 +16,7 @@
 
 #define sd_max_component(sd) container_of(sd, struct max_component, sd)
 #define ctrl_max_component(ctrl) container_of(ctrl->handler, struct max_component, ctrl_handler)
+#define ctrl_sd(ctrl) &ctrl_max_component(ctrl)->sd
 
 struct max_component {
 	struct v4l2_subdev sd;

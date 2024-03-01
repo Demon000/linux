@@ -39,6 +39,10 @@ struct max_ser_priv {
 	struct fwnode_handle **phys_eps;
 };
 
+#define sd_ser_priv(sd) ((struct max_ser_priv *)(sd_max_component(sd)->priv))
+#define sd_ser(sd) (sd_ser_priv(sd)->ser)
+#define sd_ser_data(sd, name) (&sd_ser(sd)->name[sd_max_component(sd)->index])
+
 int max_ser_register_v4l2(struct max_ser_priv *priv, struct v4l2_device *v4l2_dev);
 void max_ser_unregister_v4l2(struct max_ser_priv *priv);
 

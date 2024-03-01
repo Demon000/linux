@@ -9,10 +9,7 @@
 
 static int max_des_link_log_status(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
-	struct max_des_link *link = &des->links[comp->index];
+	struct max_des_link *link = sd_des_data(sd, links);
 
 	v4l2_info(sd, "index: %u\n", link->index);
 	v4l2_info(sd, "enabled: %u\n", link->enabled);

@@ -18,10 +18,8 @@
 
 static int max_des_phy_log_status(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
-	struct max_des_phy *phy = &des->phys[comp->index];
+	struct max_des_phy *phy = sd_des_data(sd, phys);
+	struct max_des *des = sd_des(sd);
 	int ret;
 
 	v4l2_info(sd, "index: %u\n", phy->index);
@@ -45,26 +43,23 @@ static int max_des_phy_log_status(struct v4l2_subdev *sd)
 
 static int max_des_phy_registered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_des_priv *priv = comp->priv;
+	struct max_des_priv *priv = sd_des_priv(sd);
 
 	return max_des_register_v4l2(priv, sd->v4l2_dev);
 }
 
 static void max_des_phy_unregistered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = sd_max_component(sd);
-	struct max_des_priv *priv = comp->priv;
+	struct max_des_priv *priv = sd_des_priv(sd);
 
 	max_des_unregister_v4l2(priv);
 }
 
 static int max_des_phy_set_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct max_component *comp = ctrl_max_component(ctrl);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
-	struct max_des_phy *phy = &des->phys[comp->index];
+	struct v4l2_subdev *sd = ctrl_sd(ctrl);
+	struct max_des_phy *phy = sd_des_data(sd, phys);
+	struct max_des *des = sd_des(sd);
 	bool enable = ctrl->val;
 	int ret;
 

@@ -40,6 +40,10 @@ struct max_des_priv {
 	struct fwnode_handle **links_eps;
 };
 
+#define sd_des_priv(sd) ((struct max_des_priv *)(sd_max_component(sd)->priv))
+#define sd_des(sd) (sd_des_priv(sd)->des)
+#define sd_des_data(sd, name) (&sd_des(sd)->name[sd_max_component(sd)->index])
+
 int max_des_i2c_atr_init(struct max_des_priv *priv);
 void max_des_i2c_atr_deinit(struct max_des_priv *priv);
 

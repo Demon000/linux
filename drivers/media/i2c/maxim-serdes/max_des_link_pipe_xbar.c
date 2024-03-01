@@ -50,8 +50,8 @@ static int max_des_link_pipe_xbar_set_routing(struct v4l2_subdev *sd,
 					      struct v4l2_subdev_krouting *routing)
 {
 	struct max_component *comp = sd_max_component(sd);
-	struct max_des_priv *priv = comp->priv;
-	struct max_des *des = priv->des;
+	struct max_des_priv *priv = sd_des_priv(sd);
+	struct max_des *des = sd_des(sd);
 	struct v4l2_subdev_route *route;
 	unsigned int stream_id;
 	unsigned int link_id;
