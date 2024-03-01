@@ -91,7 +91,7 @@ int max_ser_phy_pipe_xbar_register_v4l2_sd(struct max_ser_priv *priv,
 	comp->num_sink_pads = ser->ops->num_phys;
 	comp->prefix = priv->name;
 	comp->name = "phy_pipe_xbar";
-	comp->index = 0;
+	comp->unique = true;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_NO_N_TO_1 |
 				 V4L2_SUBDEV_ROUTING_NO_SOURCE_STREAM_MIX;
 

@@ -45,6 +45,7 @@ struct max_component {
 	const char *prefix;
 	const char *name;
 	unsigned int index;
+	bool unique;
 
 	struct media_pad *pads;
 	u64 *pads_enabled_streams;

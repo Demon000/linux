@@ -489,7 +489,7 @@ int max_des_pipe_phy_xbar_register_v4l2_sd(struct max_des_priv *priv,
 	comp->num_sink_pads = des->ops->num_pipes;
 	comp->prefix = priv->name;
 	comp->name = "pipe_phy_xbar";
-	comp->index = 0;
+	comp->unique = true;
 	comp->routing_disallow = V4L2_SUBDEV_ROUTING_ONLY_1_TO_1;
 
 	return max_component_register_v4l2_sd(comp);

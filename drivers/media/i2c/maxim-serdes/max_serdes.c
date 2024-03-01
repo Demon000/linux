@@ -98,16 +98,20 @@ EXPORT_SYMBOL_GPL(max_format_dt_by_code);
 static void max_comp_set_name(struct max_component *comp)
 {
 	struct v4l2_subdev *sd = &comp->sd;
+	char index_str[3] = { 0 };
+
+	if (!comp->unique)
+		snprintf(index_str, sizeof(index_str), "%u", comp->index);
 
 	if (comp->prefix)
-		snprintf(sd->name, sizeof(sd->name), "%s %s%u",
-			 comp->prefix, comp->name, comp->index);
+		snprintf(sd->name, sizeof(sd->name), "%s %s%s",
+			 comp->prefix, comp->name, index_str);
 	else
-		snprintf(sd->name, sizeof(sd->name), "%s %d-%04x %s%u",
+		snprintf(sd->name, sizeof(sd->name), "%s %d-%04x %s%s",
 			 comp->client->dev.driver->name,
 			 i2c_adapter_id(comp->client->adapter),
 			 comp->client->addr,
-			 comp->name, comp->index);
+			 comp->name, index_str);
 }
 
 struct max_component_asc {
