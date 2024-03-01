@@ -679,7 +679,6 @@ max_find_stream_config(struct v4l2_subdev_stream_configs *configs,
 			break;
 	}
 
-
 	if (i == configs->num_configs)
 		return NULL;
 
