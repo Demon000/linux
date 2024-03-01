@@ -29,7 +29,7 @@ static int max_ser_phy_pipe_xbar_set_routing(struct v4l2_subdev *sd,
 					     enum v4l2_subdev_format_whence which,
 					     struct v4l2_subdev_krouting *routing)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_ser_priv *priv = comp->priv;
 	struct max_ser *ser = priv->ser;
 	struct v4l2_subdev_route *route;

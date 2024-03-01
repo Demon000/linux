@@ -286,7 +286,7 @@ static int max_des_pipe_phy_xbar_set_routing(struct v4l2_subdev *sd,
 					     enum v4l2_subdev_format_whence which,
 					     struct v4l2_subdev_krouting *routing)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	int ret;
 
 	ret = max_component_validate_routing(comp, which, routing);
@@ -357,7 +357,7 @@ static int max_des_pipe_phy_xbar_enable_streams(struct v4l2_subdev *sd,
 						struct v4l2_subdev_state *state,
 						u32 pad, u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	u64 streams;
 	int ret;
 
@@ -376,7 +376,7 @@ static int max_des_pipe_phy_xbar_disable_streams(struct v4l2_subdev *sd,
 						 struct v4l2_subdev_state *state,
 						 u32 pad, u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	u64 streams;
 	int ret;
 

@@ -10,7 +10,7 @@
 
 static int max_ser_phy_log_status(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_ser_priv *priv = comp->priv;
 	struct max_ser *ser = priv->ser;
 	struct max_ser_phy *phy = &ser->phys[comp->index];
@@ -49,7 +49,7 @@ static int max_ser_phy_enable_streams(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_state *state, u32 pad,
 				      u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_ser_priv *priv = comp->priv;
 	struct max_ser *ser = priv->ser;
 	struct max_ser_phy *phy = &ser->phys[comp->index];
@@ -72,7 +72,7 @@ static int max_ser_phy_disable_streams(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_state *state, u32 pad,
 				       u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_ser_priv *priv = comp->priv;
 	struct max_ser *ser = priv->ser;
 	struct max_ser_phy *phy = &ser->phys[comp->index];

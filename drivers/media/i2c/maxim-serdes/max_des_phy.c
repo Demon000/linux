@@ -18,7 +18,7 @@
 
 static int max_des_phy_log_status(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy = &des->phys[comp->index];
@@ -45,7 +45,7 @@ static int max_des_phy_log_status(struct v4l2_subdev *sd)
 
 static int max_des_phy_registered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 
 	return max_des_register_v4l2(priv, sd->v4l2_dev);
@@ -53,7 +53,7 @@ static int max_des_phy_registered(struct v4l2_subdev *sd)
 
 static void max_des_phy_unregistered(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 
 	max_des_unregister_v4l2(priv);

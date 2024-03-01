@@ -199,7 +199,7 @@ EXPORT_SYMBOL_GPL(max_component_init_routing);
 
 int max_component_init_cfg(struct v4l2_subdev *sd, struct v4l2_subdev_state *state)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct v4l2_subdev_krouting routing;
 	int ret;
 
@@ -271,7 +271,7 @@ int max_component_set_validate_routing(struct v4l2_subdev *sd,
 				       enum v4l2_subdev_format_whence which,
 				       struct v4l2_subdev_krouting *routing)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	int ret;
 
 	ret = max_component_validate_routing(comp, which, routing);
@@ -345,7 +345,7 @@ int max_component_streams_enable(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_state *state, u32 pad,
 				 u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 
 	max_component_set_enabled_streams(comp, pad, streams_mask, true);
 
@@ -358,7 +358,7 @@ int max_component_streams_disable(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state, u32 pad,
 				  u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 
 	max_component_set_enabled_streams(comp, pad, streams_mask, false);
 
@@ -447,7 +447,7 @@ int max_component_routing_get_frame_desc(struct v4l2_subdev *sd,
 					 unsigned int pad,
 					 struct v4l2_mbus_frame_desc *fd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct v4l2_subdev_route *route;
 	u64 sink_pads_mask = 0;
 	unsigned int i, j;

@@ -15,7 +15,7 @@
 
 static int max_des_pipe_log_status(struct v4l2_subdev *sd)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe = &des->pipes[comp->index];
@@ -73,7 +73,7 @@ static int max_des_pipe_enable_streams(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_state *state, u32 pad,
 				       u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe = &des->pipes[comp->index];
@@ -96,7 +96,7 @@ static int max_des_pipe_disable_streams(struct v4l2_subdev *sd,
 					struct v4l2_subdev_state *state, u32 pad,
 					u64 streams_mask)
 {
-	struct max_component *comp = v4l2_get_subdevdata(sd);
+	struct max_component *comp = sd_max_component(sd);
 	struct max_des_priv *priv = comp->priv;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe = &des->pipes[comp->index];
