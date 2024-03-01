@@ -459,7 +459,10 @@ int max_component_routing_get_frame_desc(struct v4l2_subdev *sd,
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 	fd->num_entries = 0;
 
-	/* Find all source streams for this pad. */
+	/*
+	 * Find all sink pads connected to this source pad to reduce the number
+	 * of calls to get_frame_desc.
+	 */
 	for_each_active_route(routing, route) {
 		if (route->source_pad != pad)
 			continue;
