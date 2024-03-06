@@ -31,6 +31,7 @@ static const struct v4l2_subdev_pad_ops max_des_link_pad_ops = {
 	.enable_streams = max_component_streams_enable,
 	.disable_streams = max_component_streams_disable,
 	.get_fmt = v4l2_subdev_get_fmt,
+	.set_fmt = max_component_set_fmt,
 	.get_frame_desc = max_component_get_frame_desc,
 };
 

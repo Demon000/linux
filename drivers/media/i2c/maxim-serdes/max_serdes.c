@@ -530,6 +530,23 @@ int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 }
 EXPORT_SYMBOL_GPL(max_component_get_frame_desc);
 
+int max_component_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *state,
+			  struct v4l2_subdev_format *format)
+{
+	struct v4l2_mbus_framefmt *fmt;
+
+	fmt = v4l2_subdev_state_get_stream_format(state, format->pad,
+						  format->stream);
+	if (!fmt)
+		return -EINVAL;
+
+	*fmt = format->format;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max_component_set_fmt);
+
 int max_component_register_v4l2_sd(struct max_component *comp)
 {
 	struct v4l2_subdev *sd = &comp->sd;

@@ -97,6 +97,7 @@ static const struct v4l2_subdev_pad_ops max_ser_phy_pad_ops = {
 	.enable_streams = max_ser_phy_enable_streams,
 	.disable_streams = max_ser_phy_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
+	.set_fmt = max_component_set_fmt,
 	.get_frame_desc = max_component_get_frame_desc,
 };
 

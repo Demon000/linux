@@ -304,22 +304,6 @@ exit:
 	return max_component_set_routing(comp, state, which, routing);
 }
 
-static int max_des_pipe_phy_xbar_set_fmt(struct v4l2_subdev *sd,
-					 struct v4l2_subdev_state *state,
-					 struct v4l2_subdev_format *format)
-{
-	struct v4l2_mbus_framefmt *fmt;
-
-	fmt = v4l2_subdev_state_get_stream_format(state, format->pad,
-						  format->stream);
-	if (!fmt)
-		return -EINVAL;
-
-	*fmt = format->format;
-
-	return 0;
-}
-
 static int max_des_enable_pipe_remaps_for_source_streams(struct max_component *comp,
 							 struct v4l2_subdev_state *state,
 							 u32 pad, u64 streams_mask,
@@ -397,7 +381,7 @@ static const struct v4l2_subdev_pad_ops max_des_pipe_phy_xbar_pad_ops = {
 	.enable_streams = max_des_pipe_phy_xbar_enable_streams,
 	.disable_streams = max_des_pipe_phy_xbar_disable_streams,
 	.get_fmt = v4l2_subdev_get_fmt,
-	.set_fmt = max_des_pipe_phy_xbar_set_fmt,
+	.set_fmt = max_component_set_fmt,
 	.get_frame_desc = max_des_get_frame_desc,
 };
 

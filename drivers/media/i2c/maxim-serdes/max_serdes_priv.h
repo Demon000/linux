@@ -115,6 +115,9 @@ int max_component_routing_get_frame_desc(struct v4l2_subdev *sd,
 					 struct v4l2_mbus_frame_desc *fd);
 int max_component_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_frame_desc *fd);
+int max_component_set_fmt(struct v4l2_subdev *sd,
+			  struct v4l2_subdev_state *state,
+			  struct v4l2_subdev_format *format);
 
 static inline int max_component_is_pad_sink(struct max_component *comp, unsigned int pad)
 {
