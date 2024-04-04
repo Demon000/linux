@@ -1184,6 +1184,9 @@ static int imx219_enable_streams(struct v4l2_subdev *sd,
 {
 	struct imx219 *imx219 = to_imx219(sd);
 
+	if (v4l2_subdev_is_streaming(sd))
+		return 0;
+
 	return imx219_start_streaming(imx219, state);
 }
 
