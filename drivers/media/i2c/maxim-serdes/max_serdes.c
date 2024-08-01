@@ -3,6 +3,8 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/module.h>
+
 #include "max_serdes.h"
 
 #include <media/mipi-csi2.h>
@@ -77,3 +79,7 @@ const struct max_format *max_format_by_dt(u8 dt)
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(max_format_by_dt);
+
+MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
+MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
+MODULE_LICENSE("GPL");
