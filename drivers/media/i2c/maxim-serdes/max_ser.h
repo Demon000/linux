@@ -101,22 +101,4 @@ int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
 int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
 			   bool fix_tx_ids);
 
-static inline struct max_ser_pipe *max_ser_pipe_by_id(struct max_ser *ser,
-						      unsigned int index)
-{
-	return &ser->pipes[index];
-}
-
-static inline struct max_ser_phy *max_ser_phy_by_id(struct max_ser *ser,
-						    unsigned int index)
-{
-	return &ser->phys[index];
-}
-
-static inline struct max_ser_phy *max_ser_pipe_phy(struct max_ser *ser,
-						   struct max_ser_pipe *pipe)
-{
-	return max_ser_phy_by_id(ser, pipe->phy_id);
-}
-
 #endif // MAX_SER_H
