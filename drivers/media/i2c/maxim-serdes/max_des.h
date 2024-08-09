@@ -79,6 +79,8 @@ struct max_des_ops {
 	bool supports_pipe_stream_autoselect;
 	bool supports_tunnel_mode;
 
+	struct max_phys_configs phys_configs;
+
 	int (*log_status)(struct max_des *des, const char *name);
 	int (*log_pipe_status)(struct max_des *des, struct max_des_pipe *pipe,
 			       const char *name);
@@ -105,6 +107,7 @@ struct max_des {
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
 
+	unsigned int phys_config;
 	bool pipe_stream_autoselect;
 	bool active;
 };

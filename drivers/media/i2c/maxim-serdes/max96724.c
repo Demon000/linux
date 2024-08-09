@@ -179,70 +179,30 @@ static int max96724_mipi_enable(struct max_des *des, bool enable)
 	return 0;
 }
 
-struct max96724_lane_config {
-	unsigned int lanes[MAX96724_PHYS_NUM];
-	unsigned int clock_lane[MAX96724_PHYS_NUM];
-	unsigned int bit;
+static const unsigned int max96724_phys_configs_reg_val[] = {
+	BIT(2),
+	BIT(3),
+	BIT(0),
+	BIT(2),
+	BIT(3),
+	BIT(4),
 };
 
-static const struct max96724_lane_config max96724_lane_configs[] = {
-
+static const struct max_phy_configs max96724_phys_configs[] = {
 	/*
 	 * PHY 1 can be in 4-lane mode (combining lanes of PHY 0 and PHY 1)
 	 * but only use the data lanes of PHY0, while continuing to use the
 	 * clock lane of PHY 1.
 	 * Specifying clock-lanes as 5 turns on alternate clocking mode.
 	 */
-	{ { 0, 2, 4, 0 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 }, BIT(2) },
-	{ { 0, 2, 2, 2 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 }, BIT(3) },
+	{ { 0, 2, 4, 0 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
+	{ { 0, 2, 2, 2 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
 
-	{ { 2, 2, 2, 2 }, { 0, 0, 0, 0 }, BIT(0) },
-	{ { 0, 4, 4, 0 }, { 0, 0, 0, 0 }, BIT(2) },
-	{ { 0, 4, 2, 2 }, { 0, 0, 0, 0 }, BIT(3) },
-	{ { 2, 2, 4, 0 }, { 0, 0, 0, 0 }, BIT(4) },
+	{ { 2, 2, 2, 2 } },
+	{ { 0, 4, 4, 0 } },
+	{ { 0, 4, 2, 2 } },
+	{ { 2, 2, 4, 0 } },
 };
-
-static int max96724_init_lane_config(struct max96724_priv *priv)
-{
-	unsigned int num_lane_configs = ARRAY_SIZE(max96724_lane_configs);
-	struct max_des *des = &priv->des;
-	struct max_des_phy *phy;
-	unsigned int i, j;
-	int ret;
-
-	for (i = 0; i < num_lane_configs; i++) {
-		bool matching = true;
-
-		for (j = 0; j < des->ops->num_phys; j++) {
-			phy = &des->phys[j];
-
-			if (!phy->enabled)
-				continue;
-
-			if (phy->mipi.num_data_lanes == max96724_lane_configs[i].lanes[j] &&
-			    phy->mipi.clock_lane == max96724_lane_configs[i].clock_lane[j])
-				continue;
-
-			matching = false;
-			break;
-		}
-
-		if (matching)
-			break;
-	}
-
-	if (i == num_lane_configs) {
-		dev_err(priv->dev, "Invalid lane configuration\n");
-		return -EINVAL;
-	}
-
-	ret = max96724_update_bits(priv, 0x8a0, 0x1f,
-				   max96724_lane_configs[i].bit);
-	if (ret)
-		return ret;
-
-	return 0;
-}
 
 static int max96724_init(struct max_des *des)
 {
@@ -265,7 +225,12 @@ static int max96724_init(struct max_des *des)
 	if (ret)
 		return ret;
 
-	ret = max96724_init_lane_config(priv);
+	/* Set PHY mode. */
+	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
+		return -EINVAL;
+
+	ret = max96724_update_bits(priv, 0x8a0, 0x1f,
+				   max96724_phys_configs_reg_val[des->phys_config]);
 	if (ret)
 		return ret;
 
@@ -591,6 +556,10 @@ static const struct max_des_ops max96724_ops = {
 	.supports_pipe_link_remap = true,
 	.supports_pipe_stream_autoselect = true,
 	.supports_tunnel_mode = true,
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96724_phys_configs),
+		.configs = max96724_phys_configs,
+	},
 	.log_pipe_status = max96724_log_pipe_status,
 	.log_phy_status = max96724_log_phy_status,
 	.mipi_enable = max96724_mipi_enable,
