@@ -390,7 +390,6 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	if (ret)
 		return ret;
 
-
 	if (dpll_freq > 1500000000ull) {
 		/* Enable initial deskew with 2 x 32k UI. */
 		ret = max9296a_write(priv, 0x443 + 0x40 * phy->index, 0x81);
