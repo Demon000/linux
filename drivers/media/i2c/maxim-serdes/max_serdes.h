@@ -8,8 +8,8 @@
 #ifndef MAX_SERDES_H
 #define MAX_SERDES_H
 
-#define MAX_SERDES_STREAMS_NUM     4
-#define MAX_SERDES_VC_ID_NUM	   4
+#define MAX_SERDES_STREAMS_NUM 		4
+#define MAX_SERDES_VC_ID_NUM		4
 
 struct max_i2c_xlate {
 	u8 src;
