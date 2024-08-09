@@ -125,27 +125,16 @@ static unsigned int max9296a_pipe_id(struct max9296a_priv *priv,
 static int max9296a_mipi_enable(struct max_des *des, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int mask;
 	int ret;
 
-	if (enable) {
-		ret = max9296a_update_bits(priv, 0x313, 0x02, 0x02);
-		if (ret)
-			return ret;
+	mask = BIT(1);
+	ret = max9296a_update_bits(priv, 0x313, mask, enable ? mask : 0);
+	if (ret)
+		return ret;
 
-		ret = max9296a_update_bits(priv, 0x330, 0x80, 0x80);
-		if (ret)
-			return ret;
-	} else {
-		ret = max9296a_update_bits(priv, 0x330, 0x80, 0x00);
-		if (ret)
-			return ret;
-
-		ret = max9296a_update_bits(priv, 0x313, 0x02, 0x00);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	mask = BIT(7);
+	return max9296a_update_bits(priv, 0x330, mask, enable ? mask : 0);
 }
 
 static int max9296a_init(struct max_des *des)

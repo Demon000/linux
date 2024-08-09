@@ -156,27 +156,16 @@ static int max96724_log_phy_status(struct max_des *des,
 static int max96724_mipi_enable(struct max_des *des, bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int mask;
 	int ret;
 
-	if (enable) {
-		ret = max96724_update_bits(priv, 0x40b, 0x02, 0x02);
-		if (ret)
-			return ret;
+	mask = BIT(1);
+	ret = max96724_update_bits(priv, 0x40b, mask, enable ? mask : 0);
+	if (ret)
+		return ret;
 
-		ret = max96724_update_bits(priv, 0x8a0, 0x80, 0x80);
-		if (ret)
-			return ret;
-	} else {
-		ret = max96724_update_bits(priv, 0x8a0, 0x80, 0x00);
-		if (ret)
-			return ret;
-
-		ret = max96724_update_bits(priv, 0x40b, 0x02, 0x00);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	mask = BIT(7);
+	return max96724_update_bits(priv, 0x8a0, mask, enable ? mask : 0);
 }
 
 static const unsigned int max96724_phys_configs_reg_val[] = {
