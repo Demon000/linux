@@ -166,20 +166,10 @@ static int max9296a_init(struct max_des *des)
 	return 0;
 }
 
-static int max9296a_init_phy(struct max_des *des,
-			     struct max_des_phy *phy)
+static int max9296a_get_phy_master_slave(struct max_des_phy *phy,
+					 unsigned int *master_phy,
+					 unsigned int *slave_phy)
 {
-	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int dpll_freq = phy->link_frequency * 2;
-	unsigned int master_phy, slave_phy;
-	unsigned int master_shift, slave_shift;
-	unsigned int reg, val, mask;
-	unsigned int clk_bit, lane_0_bit, lane_2_bit;
-	unsigned int used_data_lanes = 0;
-	unsigned int i;
-	int ret;
-
 	/*
 	 * MAX9296A has four PHYs, but does not support single-PHY configurations,
 	 * only double-PHY configurations, even when only using two lanes.
@@ -215,14 +205,34 @@ static int max9296a_init_phy(struct max_des *des,
 	 * PHY1 Lane 1 = D3
 	 */
 	if (phy->index == 0) {
-		master_phy = 1;
-		slave_phy = 0;
+		*master_phy = 1;
+		*slave_phy = 0;
 	} else if (phy->index == 1) {
-		master_phy = 2;
-		slave_phy = 3;
+		*master_phy = 2;
+		*slave_phy = 3;
 	} else {
 		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
+	unsigned int dpll_freq = phy->link_frequency * 2;
+	unsigned int master_phy, slave_phy;
+	unsigned int master_shift, slave_shift;
+	unsigned int reg, val, mask;
+	unsigned int clk_bit, lane_0_bit, lane_2_bit;
+	unsigned int used_data_lanes = 0;
+	unsigned int i;
+	int ret;
+
+	ret = max9296a_get_phy_master_slave(phy, &master_phy, &slave_phy);
+	if (ret)
+		return ret;
 
 	/* Configure a lane count. */
 	/* TODO: Add support CPHY mode. */
