@@ -142,11 +142,6 @@ static int max9296a_init(struct max_des *des)
 	struct max9296a_priv *priv = des_to_priv(des);
 	int ret;
 
-	/* Disable all PHYs. */
-	ret = max9296a_update_bits(priv, 0x332, GENMASK(7, 4), 0x00);
-	if (ret)
-		return ret;
-
 	/* Disable all pipes. */
 	ret = max9296a_update_bits(priv, 0x2, GENMASK(7, 4), 0x00);
 	if (ret)

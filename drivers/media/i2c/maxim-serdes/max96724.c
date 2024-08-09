@@ -226,6 +226,15 @@ static int max96724_init(struct max_des *des)
 	return 0;
 }
 
+static unsigned int max96724_phy_hw_data_lanes(struct max_des_phy *phy)
+{
+	if (phy->index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
+	    phy->mipi.num_data_lanes == 2)
+		return 4;
+	else
+		return phy->mipi.num_data_lanes;
+}
+
 static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -238,13 +247,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int i;
 	int ret;
 
-	/* Configure a lane count. */
-	/* TODO: Add support CPHY mode. */
-	if (index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
-	    phy->mipi.num_data_lanes == 2)
-		num_hw_data_lanes = 4;
-	else
-		num_hw_data_lanes = phy->mipi.num_data_lanes;
+	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
 
 	reg = 0x90a + 0x40 * index;
 	shift = 6;
