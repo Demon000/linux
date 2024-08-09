@@ -122,7 +122,7 @@ static unsigned int max9296a_pipe_id(struct max9296a_priv *priv,
 	return priv->info->pipe_hw_ids[pipe->index];
 }
 
-static int max9296a_mipi_enable(struct max_des *des, bool enable)
+static int max9296a_set_enable(struct max_des *des, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int mask;
@@ -619,7 +619,7 @@ static int max9296a_select_links(struct max_des *des,
 }
 
 static const struct max_des_ops max9296a_ops = {
-	.mipi_enable = max9296a_mipi_enable,
+	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
 	.init_pipe = max9296a_init_pipe,

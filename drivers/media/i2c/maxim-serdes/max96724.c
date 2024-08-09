@@ -153,7 +153,7 @@ static int max96724_log_phy_status(struct max_des *des,
 	return 0;
 }
 
-static int max96724_mipi_enable(struct max_des *des, bool enable)
+static int max96724_set_enable(struct max_des *des, bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int mask;
@@ -551,7 +551,7 @@ static const struct max_des_ops max96724_ops = {
 	},
 	.log_pipe_status = max96724_log_pipe_status,
 	.log_phy_status = max96724_log_phy_status,
-	.mipi_enable = max96724_mipi_enable,
+	.set_enable = max96724_set_enable,
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.init_pipe = max96724_init_pipe,
