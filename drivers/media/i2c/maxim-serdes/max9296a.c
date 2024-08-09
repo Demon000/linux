@@ -219,7 +219,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int master_phy, slave_phy;
 	unsigned int master_shift, slave_shift;
-	unsigned int reg, val, mask;
+	unsigned int reg, val;
 	unsigned int clk_bit, lane_0_bit, lane_2_bit;
 	unsigned int used_data_lanes = 0;
 	unsigned int i;
@@ -413,13 +413,24 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	val |= phy->alt_mem_map10 ? BIT(2) : 0;
 	ret = max9296a_update_bits(priv, 0x433 + 0x40 * master_phy, GENMASK(2, 0), val);
 
-	/* Enable PHY. */
-	mask = (BIT(master_phy) | BIT(slave_phy)) << 4;
-	ret = max9296a_update_bits(priv, 0x332, mask, mask);
+	return 0;
+}
+
+static int max9296a_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
+				   bool enable)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int master_phy, slave_phy;
+	unsigned int mask;
+	int ret;
+
+	ret = max9296a_get_phy_master_slave(phy, &master_phy, &slave_phy);
 	if (ret)
 		return ret;
 
-	return 0;
+	/* Enable PHY. */
+	mask = (BIT(master_phy) | BIT(slave_phy)) << 4;
+	return max9296a_update_bits(priv, 0x332, mask, enable ? mask : 0);
 }
 
 static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
@@ -616,6 +627,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
+	.set_phy_enable = max9296a_set_phy_enable,
 	.init_pipe = max9296a_init_pipe,
 	.init_link = max9296a_init_link,
 	.update_pipe_remaps = max9296a_update_pipe_remaps,
