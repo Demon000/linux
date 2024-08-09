@@ -198,11 +198,6 @@ static int max96724_init(struct max_des *des)
 	struct max96724_priv *priv = des_to_priv(des);
 	int ret;
 
-	/* Disable all PHYs. */
-	ret = max96724_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
-	if (ret)
-		return ret;
-
 	ret = max96724_update_bits(priv, 0xf4, BIT(4),
 				   des->pipe_stream_autoselect
 				   ? BIT(4) : 0x00);
@@ -361,7 +356,19 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	if (ret)
 		return ret;
 
-	/* Enable PHY. */
+	return 0;
+}
+
+static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
+				   bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = phy->index;
+	unsigned int num_hw_data_lanes;
+	unsigned int mask, shift;
+
+	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
+
 	shift = 4;
 	if (num_hw_data_lanes == 4)
 		/* PHY 1 -> bits [1:0] */
@@ -370,11 +377,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	else
 		mask = 0x1 << (index + shift);
 
-	ret = max96724_update_bits(priv, 0x8a2, mask, mask);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max96724_update_bits(priv, 0x8a2, mask, enable ? mask : 0);
 }
 
 static int max96724_init_pipe_remap(struct max96724_priv *priv,
@@ -556,6 +559,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_enable = max96724_set_enable,
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
+	.set_phy_enable = max96724_set_phy_enable,
 	.init_pipe = max96724_init_pipe,
 	.update_pipe_remaps = max96724_update_pipe_remaps,
 	.select_links = max96724_select_links,
