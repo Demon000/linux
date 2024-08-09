@@ -103,7 +103,7 @@ static int __max_des_mipi_update(struct max_des_priv *priv)
 
 	des->active = enable;
 
-	return des->ops->mipi_enable(des, enable);
+	return des->ops->set_enable(des, enable);
 }
 
 static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
