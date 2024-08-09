@@ -13,6 +13,7 @@
 #include "max_des.h"
 
 /* TODO: backport fixes from MAX96724. */
+/* TODO: add phys_configs */
 
 #define MAX9296A_PIPES_NUM		4
 

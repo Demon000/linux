@@ -1033,6 +1033,49 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	return 0;
 }
 
+static int max_des_find_phys_config(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+	const struct max_phy_configs *configs = des->ops->phys_configs.configs;
+	unsigned int num_phys_configs = des->ops->phys_configs.num_configs;
+	struct max_des_phy *phy;
+	unsigned int i, j;
+
+	if (!num_phys_configs)
+		return 0;
+
+	for (i = 0; i < num_phys_configs; i++) {
+		bool matching = true;
+
+		for (j = 0; j < des->ops->num_phys; j++) {
+			phy = &des->phys[j];
+
+			if (!phy->enabled)
+				continue;
+
+			if (phy->mipi.num_data_lanes == configs[i].lanes[j] &&
+			    phy->mipi.clock_lane == configs[i].clock_lane[j])
+				continue;
+
+			matching = false;
+
+			break;
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == num_phys_configs) {
+		dev_err(priv->dev, "Invalid lane configuration\n");
+		return -EINVAL;
+	}
+
+	des->phys_config = i;
+
+	return 0;
+}
+
 static int max_des_parse_dt(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
@@ -1127,6 +1170,10 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			return ret;
 		}
 	}
+
+	ret = max_des_find_phys_config(priv);
+	if (ret)
+		return ret;
 
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
