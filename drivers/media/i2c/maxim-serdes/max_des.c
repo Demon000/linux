@@ -264,15 +264,18 @@ static int max_des_init(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_phys; i++) {
 		struct max_des_phy *phy = &des->phys[i];
 
-		if (!phy->enabled)
-			continue;
+		if (phy->enabled) {
+			if (!phy->bus_config_parsed) {
+				dev_err(priv->dev, "Cannot turn on unconfigured PHY\n");
+				return -EINVAL;
+			}
 
-		if (!phy->bus_config_parsed) {
-			dev_err(priv->dev, "Cannot turn on unconfigured PHY\n");
-			return -EINVAL;
+			ret = des->ops->init_phy(des, phy);
+			if (ret)
+				return ret;
 		}
 
-		ret = des->ops->init_phy(des, phy);
+		ret = des->ops->set_phy_enable(des, phy, phy->enabled);
 		if (ret)
 			return ret;
 	}
