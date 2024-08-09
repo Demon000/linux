@@ -258,8 +258,6 @@ static int max_des_init(struct max_des_priv *priv)
 			if (!link->enabled)
 				continue;
 
-
-
 			ret = priv->ops->init_link(priv, link);
 			if (ret)
 				return ret;
