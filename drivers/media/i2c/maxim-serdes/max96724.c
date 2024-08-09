@@ -226,8 +226,7 @@ static int max96724_init(struct max_des *des)
 	return 0;
 }
 
-static int max96724_init_phy(struct max_des *des,
-			     struct max_des_phy *phy)
+static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
