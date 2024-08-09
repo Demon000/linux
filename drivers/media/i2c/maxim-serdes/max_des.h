@@ -86,7 +86,7 @@ struct max_des_ops {
 			       const char *name);
 	int (*log_phy_status)(struct max_des *des, struct max_des_phy *phy,
 			      const char *name);
-	int (*mipi_enable)(struct max_des *des, bool enable);
+	int (*set_enable)(struct max_des *des, bool enable);
 	int (*init)(struct max_des *des);
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*init_pipe)(struct max_des *des, struct max_des_pipe *pipe);
