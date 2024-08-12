@@ -14,9 +14,6 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
-/* TODO: remove */
-#define MAX_DES_REMAPS_NUM		16
-
 #define MAX_DES_SOURCE_PAD		0
 #define MAX_DES_SINK_PAD		1
 #define MAX_DES_PAD_NUM			2
@@ -46,7 +43,7 @@ struct max_des_pipe {
 	unsigned int phy_id;
 	unsigned int stream_id;
 	unsigned int link_id;
-	struct max_des_dt_vc_remap remaps[MAX_DES_REMAPS_NUM];
+	struct max_des_dt_vc_remap *remaps;
 	unsigned int num_remaps;
 	bool dbl8;
 	bool dbl10;
@@ -76,7 +73,6 @@ struct max_des_ops {
 	unsigned int num_links;
 	unsigned int num_remaps_per_pipe;
 	bool fix_tx_ids;
-	bool supports_pipe_link_remap;
 	bool supports_pipe_stream_autoselect;
 	bool supports_tunnel_mode;
 
@@ -93,8 +89,19 @@ struct max_des_ops {
 	int (*set_phy_enable)(struct max_des *des, struct max_des_phy *phy,
 			      bool enable);
 	int (*init_pipe)(struct max_des *des, struct max_des_pipe *pipe);
+	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
+			     struct max_des_link *link);
+	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
+				  unsigned int stream_id);
+	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
+			    struct max_des_phy *phy);
+	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
+			       bool enable);
+	int (*set_pipe_remap)(struct max_des *des, struct max_des_pipe *pipe,
+			      unsigned int i, struct max_des_dt_vc_remap *remap);
+	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				     unsigned int i, bool enable);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
-	int (*update_pipe_remaps)(struct max_des *des, struct max_des_pipe *pipe);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 	int (*post_init)(struct max_des *des);
 };
