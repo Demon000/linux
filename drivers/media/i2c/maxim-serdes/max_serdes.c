@@ -85,6 +85,18 @@ const struct max_format *max_format_by_dt(u8 dt)
 }
 EXPORT_SYMBOL_GPL(max_format_by_dt);
 
+u8 max_format_dt_by_code(u32 code)
+{
+	const struct max_format *fmt;
+
+	fmt = max_format_by_code(code);
+	if (!fmt)
+		return 0;
+
+	return fmt->dt;
+}
+EXPORT_SYMBOL_GPL(max_format_dt_by_code);
+
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
