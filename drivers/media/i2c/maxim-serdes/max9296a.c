@@ -142,17 +142,6 @@ static int max9296a_init(struct max_des *des)
 	struct max9296a_priv *priv = des_to_priv(des);
 	int ret;
 
-	/* Disable all pipes. */
-	ret = max9296a_update_bits(priv, 0x2, GENMASK(7, 4), 0x00);
-	if (ret)
-		return ret;
-
-	if (priv->info->num_pipes == 1) {
-		ret = max9296a_update_bits(priv, 0x160, BIT(0), 0x00);
-		if (ret)
-			return ret;
-	}
-
 	/* Disable link auto-select. */
 	ret = max9296a_update_bits(priv, 0x10, BIT(4), 0);
 	if (ret)
@@ -433,11 +422,12 @@ static int max9296a_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
 	return max9296a_update_bits(priv, 0x332, mask, enable ? mask : 0);
 }
 
-static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
-				    struct max_des_pipe *pipe,
-				    struct max_des_dt_vc_remap *remap,
-				    unsigned int i)
+static int max9296a_set_pipe_remap(struct max_des *des,
+				   struct max_des_pipe *pipe,
+				   unsigned int i,
+				   struct max_des_dt_vc_remap *remap)
 {
+	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
 	unsigned int reg, val, shift, mask;
 	unsigned int phy_id;
@@ -469,51 +459,31 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 	shift = (i % 4) * 2;
 	mask = 0x3 << shift;
 	val = (phy_id & 0x3) << shift;
-	ret = max9296a_update_bits(priv, reg, mask, val);
-	if (ret)
-		return ret;
 
-	/* Enable remap. */
-	reg = 0x40b + 0x40 * index + i / 8;
-	val = BIT(i % 8);
-	ret = max9296a_update_bits(priv, reg, val, val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max9296a_update_bits(priv, reg, mask, val);
 }
 
-static int max9296a_update_pipe_remaps(struct max_des *des,
-				       struct max_des_pipe *pipe)
-{
-	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < pipe->num_remaps; i++) {
-		struct max_des_dt_vc_remap *remap = &pipe->remaps[i];
-
-		ret = max9296a_init_pipe_remap(priv, pipe, remap, i);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int max9296a_init_pipe(struct max_des *des,
-			      struct max_des_pipe *pipe)
+static int max9296a_set_pipe_remap_enable(struct max_des *des,
+					  struct max_des_pipe *pipe,
+					  unsigned int i, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
-	unsigned int reg, mask;
-	int ret;
+	unsigned int reg, val;
 
-	/* Enable pipe. */
-	mask = BIT(index + 4);
-	ret = max9296a_update_bits(priv, 0x2, mask, mask);
-	if (ret)
-		return ret;
+	reg = 0x40b + 0x40 * index + i / 8;
+	val = BIT(i % 8);
+
+	return max9296a_update_bits(priv, reg, val, val);
+}
+
+static int max9296a_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
+				    bool enable)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+	unsigned int mask;
+	int ret;
 
 	if (priv->info->num_pipes == 1) {
 		mask = BIT(0);
@@ -522,14 +492,32 @@ static int max9296a_init_pipe(struct max_des *des,
 			return ret;
 	}
 
-	/* Set source stream. */
+	mask = BIT(index + 4);
+
+	return max9296a_update_bits(priv, 0x2, mask, enable ? mask : 0);
+}
+
+static int max9296a_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
+				       unsigned int stream_id)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+	unsigned int reg;
+
 	if (priv->info->num_pipes == 1)
 		reg = 0x161;
 	else
 		reg = 0x50 + index;
-	ret = max9296a_update_bits(priv, reg, GENMASK(1, 0), pipe->stream_id);
-	if (ret)
-		return ret;
+
+	return max9296a_update_bits(priv, reg, GENMASK(1, 0), pipe->stream_id);
+}
+
+static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+	unsigned int mask;
+	int ret;
 
 	/* Set 8bit double mode. */
 	mask = BIT(index) << 4;
@@ -629,8 +617,11 @@ static const struct max_des_ops max9296a_ops = {
 	.init_phy = max9296a_init_phy,
 	.set_phy_enable = max9296a_set_phy_enable,
 	.init_pipe = max9296a_init_pipe,
+	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
+	.set_pipe_enable = max9296a_set_pipe_enable,
+	.set_pipe_remap = max9296a_set_pipe_remap,
+	.set_pipe_remap_enable = max9296a_set_pipe_remap_enable,
 	.init_link = max9296a_init_link,
-	.update_pipe_remaps = max9296a_update_pipe_remaps,
 	.select_links = max9296a_select_links,
 };
 
