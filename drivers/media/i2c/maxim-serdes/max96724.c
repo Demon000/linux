@@ -528,11 +528,8 @@ static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 
 	/* Set 12bit double mode. */
 	mask = BIT(index);
-	ret = max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
-	if (ret)
-		return ret;
 
-	return 0;
+	return max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
 }
 
 static int max96724_select_links(struct max_des *des,
