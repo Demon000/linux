@@ -126,7 +126,7 @@ exit:
 	return ret;
 }
 
-static int max_des_update_pipe_remaps(struct max_des_priv *priv,
+static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 				      struct max_des_pipe *pipe)
 {
 	struct max_des *des = priv->des;
@@ -290,7 +290,7 @@ static int max_des_init(struct max_des_priv *priv)
 		if (ret)
 			return ret;
 
-		ret = max_des_update_pipe_remaps(priv, pipe);
+		ret = max_des_pipe_update_remaps(priv, pipe);
 		if (ret)
 			return ret;
 	}
@@ -484,7 +484,7 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&priv->lock);
 
-	ret = max_des_update_pipe_remaps(priv, pipe);
+	ret = max_des_pipe_update_remaps(priv, pipe);
 
 	mutex_unlock(&priv->lock);
 
