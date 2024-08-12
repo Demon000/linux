@@ -126,49 +126,107 @@ exit:
 	return ret;
 }
 
+static int max_des_pipe_set_remaps(struct max_des_priv *priv,
+				   struct max_des_pipe *pipe,
+				   struct max_des_dt_vc_remap *remaps,
+				   unsigned int num_remaps)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < num_remaps; i++) {
+		struct max_des_dt_vc_remap *remap = &remaps[i];
+
+		ret = des->ops->set_pipe_remap(des, pipe, i, remap);
+		if (ret)
+			return ret;
+
+		ret = des->ops->set_pipe_remap_enable(des, pipe, i, true);
+		if (ret)
+			return ret;
+	}
+
+	for (i = num_remaps; i < des->ops->num_remaps_per_pipe; i++) {
+		ret = des->ops->set_pipe_remap_enable(des, pipe, i, false);
+		if (ret)
+			return ret;
+	}
+
+	if (pipe->remaps)
+		devm_kfree(priv->dev, pipe->remaps);
+
+	pipe->remaps = remaps;
+	pipe->num_remaps = num_remaps;
+
+	return 0;
+}
+
+static unsigned int max_des_code_num_remaps(u32 code)
+{
+	u8 dt = max_format_dt_by_code(code);
+
+	if (dt == 0 || dt == MIPI_CSI2_DT_EMBEDDED_8B)
+		return 1;
+
+	return 3;
+}
+
 static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 				      struct max_des_pipe *pipe)
 {
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[pipe->link_id];
 	struct max_des_subdev_priv *sd_priv;
-	unsigned int i;
-
-	pipe->num_remaps = 0;
+	struct max_des_dt_vc_remap *remaps;
+	unsigned int num_remaps = 0;
+	unsigned int num_dt_remaps;
+	unsigned int i, j;
+	int ret;
+	u8 dt;
 
 	if (link->tunnel_mode)
 		return 0;
 
 	for_each_subdev(priv, sd_priv) {
-		unsigned int num_remaps;
-
 		if (sd_priv->pipe_id != pipe->index)
 			continue;
 
 		if (!sd_priv->fmt)
 			continue;
 
-		if (sd_priv->fmt->dt == MIPI_CSI2_DT_EMBEDDED_8B)
-			num_remaps = 1;
-		else
-			num_remaps = 3;
+		num_dt_remaps = max_des_code_num_remaps(sd_priv->fmt->code);
 
-		for (i = 0; i < num_remaps; i++) {
-			struct max_des_dt_vc_remap *remap;
-			unsigned int dt;
+		num_remaps += num_dt_remaps;
+	}
 
-			if (pipe->num_remaps == MAX_DES_REMAPS_NUM) {
-				dev_err(priv->dev, "Too many remaps\n");
-				return -EINVAL;
-			}
+	if (num_remaps >= des->ops->num_remaps_per_pipe) {
+		dev_err(priv->dev, "Too many remaps\n");
+		return -EINVAL;
+	}
 
-			remap = &pipe->remaps[pipe->num_remaps++];
+	remaps = devm_kcalloc(priv->dev, num_remaps, sizeof(*remaps), GFP_KERNEL);
+	if (!remaps)
+		return -ENOMEM;
 
-			if (i == 0)
+	i = 0;
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->pipe_id != pipe->index)
+			continue;
+
+		if (!sd_priv->fmt)
+			continue;
+
+		num_dt_remaps = max_des_code_num_remaps(sd_priv->fmt->code);
+
+		for (j = 0; j < num_dt_remaps; j++) {
+			struct max_des_dt_vc_remap *remap = &remaps[i + j];
+
+			if (j == 0)
 				dt = sd_priv->fmt->dt;
-			else if (i == 1)
+			else if (j == 1)
 				dt = MIPI_CSI2_DT_FS;
-			else
+			else if (j == 2)
 				dt = MIPI_CSI2_DT_FE;
 
 			remap->from_dt = dt;
@@ -177,9 +235,15 @@ static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 			remap->to_vc = sd_priv->dst_vc_id;
 			remap->phy = sd_priv->phy_id;
 		}
+
+		i += num_dt_remaps;
 	}
 
-	return des->ops->update_pipe_remaps(des, pipe);
+	ret = max_des_pipe_set_remaps(priv, pipe, remaps, num_remaps);
+	if (ret)
+		devm_kfree(priv->dev, remaps);
+
+	return ret;
 }
 
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
@@ -283,12 +347,36 @@ static int max_des_init(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 
-		if (!pipe->enabled)
-			continue;
-
 		ret = des->ops->init_pipe(des, pipe);
 		if (ret)
 			return ret;
+
+		ret = des->ops->set_pipe_enable(des, pipe, pipe->enabled);
+		if (ret)
+			return ret;
+
+		if (!pipe->enabled)
+			continue;
+
+		if (des->ops->set_pipe_link) {
+			struct max_des_link *link = &des->links[pipe->link_id];
+
+			ret = des->ops->set_pipe_link(des, pipe, link);
+			if (ret)
+				return ret;
+		}
+
+		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
+		if (ret)
+			return ret;
+
+		if (des->ops->set_pipe_phy) {
+			struct max_des_phy *phy = &des->phys[pipe->phy_id];
+
+			ret = des->ops->set_pipe_phy(des, pipe, phy);
+			if (ret)
+				return ret;
+		}
 
 		ret = max_des_pipe_update_remaps(priv, pipe);
 		if (ret)
@@ -786,7 +874,7 @@ static int max_des_parse_pipe_link_remap_dt(struct max_des_priv *priv,
 
 	val = pipe->link_id;
 	ret = fwnode_property_read_u32(fwnode, "maxim,link-id", &val);
-	if (!ret && !des->ops->supports_pipe_link_remap) {
+	if (!ret && !des->ops->set_pipe_link) {
 		dev_err(priv->dev, "Pipe link remapping is not supported\n");
 		return -EINVAL;
 	}
