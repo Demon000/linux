@@ -74,6 +74,7 @@ struct max_des_ops {
 	unsigned int num_phys;
 	unsigned int num_pipes;
 	unsigned int num_links;
+	unsigned int num_remaps_per_pipe;
 	bool fix_tx_ids;
 	bool supports_pipe_link_remap;
 	bool supports_pipe_stream_autoselect;
