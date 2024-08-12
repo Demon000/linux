@@ -13,7 +13,6 @@
 #include "max_des.h"
 
 /* TODO: backport fixes from MAX96724. */
-/* TODO: add phys_configs */
 
 #define MAX9296A_PIPES_NUM		4
 
@@ -31,6 +30,7 @@ struct max9296a_chip_info {
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int num_links;
+	struct max_phys_configs phys_configs;
 	bool phy0_first_lanes_on_master_phy;
 	bool polarity_on_physical_lanes;
 	bool supports_tunnel_mode;
@@ -660,6 +660,7 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_links = priv->info->num_links;
 	ops->supports_tunnel_mode = priv->info->supports_tunnel_mode;
+	ops->phys_configs = priv->info->phys_configs;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -676,7 +677,23 @@ static void max9296a_remove(struct i2c_client *client)
 	max_des_remove(&priv->des);
 }
 
+static const struct max_phy_configs max9296a_phys_configs[] = {
+	{ { 4, 4 } },
+	{ { 2, 4 } },
+	{ { 4, 2 } },
+	{ { 2, 2 } },
+};
+
+static const struct max_phy_configs max96714_phys_configs[] = {
+	{ { 4 } },
+	{ { 2 } },
+};
+
 static const struct max9296a_chip_info max9296a_info = {
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
+		.configs = max9296a_phys_configs,
+	},
 	.phy0_first_lanes_on_master_phy = true,
 	.fix_tx_ids = true,
 	.num_pipes = 4,
@@ -686,6 +703,10 @@ static const struct max9296a_chip_info max9296a_info = {
 };
 
 static const struct max9296a_chip_info max96714_info = {
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96714_phys_configs),
+		.configs = max96714_phys_configs,
+	},
 	.polarity_on_physical_lanes = true,
 	.supports_tunnel_mode = true,
 	.num_pipes = 1,
