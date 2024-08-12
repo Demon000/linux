@@ -547,6 +547,7 @@ static const struct max_des_ops max96724_ops = {
 	.num_phys = 4,
 	.num_pipes = 4,
 	.num_links = 4,
+	.num_remaps_per_pipe = 16,
 	.supports_pipe_link_remap = true,
 	.supports_pipe_stream_autoselect = true,
 	.supports_tunnel_mode = true,
