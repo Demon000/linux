@@ -391,16 +391,14 @@ static int max96724_set_pipe_remap(struct max_des *des,
 	/* Set source Data Type and Virtual Channel. */
 	/* TODO: implement extended Virtual Channel. */
 	reg = 0x90d + 0x40 * index + i * 2;
-	ret = max96724_write(priv, reg,
-			     MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
+	ret = max96724_write(priv, reg, MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
 	if (ret)
 		return ret;
 
 	/* Set destination Data Type and Virtual Channel. */
 	/* TODO: implement extended Virtual Channel. */
 	reg = 0x90e + 0x40 * index + i * 2;
-	ret = max96724_write(priv, reg,
-			     MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
+	ret = max96724_write(priv, reg, MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
 	if (ret)
 		return ret;
 
