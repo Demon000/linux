@@ -196,11 +196,13 @@ static const struct max_phy_configs max96724_phys_configs[] = {
 static int max96724_init(struct max_des *des)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int mask;
 	int ret;
 
-	ret = max96724_update_bits(priv, 0xf4, BIT(4),
+	mask = BIT(4);
+	ret = max96724_update_bits(priv, 0xf4, mask,
 				   des->pipe_stream_autoselect
-				   ? BIT(4) : 0x00);
+				   ? mask : 0x00);
 	if (ret)
 		return ret;
 
