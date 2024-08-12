@@ -322,7 +322,8 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	}
 
 	/* Put DPLL block into reset. */
-	ret = max96724_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x00);
+	reg = 0x1c00 + 0x100 * index;
+	ret = max96724_update_bits(priv, reg, BIT(0), 0x00);
 	if (ret)
 		return ret;
 
