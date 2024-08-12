@@ -526,7 +526,33 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
-	return 0;
+	/* Set 8bit double mode. */
+	mask = BIT(index) << 4;
+	ret = max9296a_update_bits(priv, 0x31c, mask, pipe->dbl8 ? mask : 0);
+	if (ret)
+		return ret;
+
+	mask = BIT(index) << 4;
+	ret = max9296a_update_bits(priv, 0x31f, mask, pipe->dbl8mode ? mask : 0);
+	if (ret)
+		return ret;
+
+	/* Set 10bit double mode. */
+	mask = BIT(index);
+	ret = max9296a_update_bits(priv, 0x327, mask, pipe->dbl10 ? mask : 0);
+	if (ret)
+		return ret;
+
+	mask = BIT(index) << 4;
+	ret = max9296a_update_bits(priv, 0x327, mask, pipe->dbl10mode ? mask : 0);
+	if (ret)
+		return ret;
+
+	/* Set 12bit double mode. */
+	/* TODO: check support for double mode on MAX96714. */
+	mask = BIT(index);
+
+	return max9296a_update_bits(priv, 0x328, mask, pipe->dbl12 ? mask : 0);
 }
 
 static int max9296a_init_link(struct max_des_priv *des_priv,
