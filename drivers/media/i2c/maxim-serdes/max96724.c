@@ -530,8 +530,7 @@ static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 	return max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
 }
 
-static int max96724_select_links(struct max_des *des,
-				 unsigned int mask)
+static int max96724_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	int ret;
