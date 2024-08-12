@@ -596,8 +596,7 @@ static int max9296a_init_link(struct max_des *des,
 	return 0;
 }
 
-static int max9296a_select_links(struct max_des *des,
-				 unsigned int mask)
+static int max9296a_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 
