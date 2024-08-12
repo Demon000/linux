@@ -199,6 +199,7 @@ static int max96724_init(struct max_des *des)
 	unsigned int mask;
 	int ret;
 
+	/* Set stream autoselect. */
 	mask = BIT(4);
 	ret = max96724_update_bits(priv, 0xf4, mask,
 				   des->pipe_stream_autoselect
