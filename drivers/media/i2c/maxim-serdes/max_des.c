@@ -33,6 +33,7 @@ struct max_des_channel {
 
 	struct max_des_priv *priv;
 	const struct max_format *fmt;
+	struct v4l2_mbus_framefmt framefmt;
 	const char *label;
 
 	struct media_pad pads[MAX_DES_PAD_NUM];
@@ -545,6 +546,7 @@ static int max_des_get_fmt(struct v4l2_subdev *sd,
 	if (!channel->fmt)
 		return -EINVAL;
 
+	format->format = channel->framefmt;
 	format->format.code = channel->fmt->code;
 
 	return 0;
@@ -578,10 +580,13 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	fmt = max_format_by_code(format->format.code);
-	if (!fmt)
+	if (!fmt){
+		v4l2_err(sd, "Wrong format requested: %d", format->format.code);
 		return -EINVAL;
+	}
 
 	channel->fmt = fmt;
+	channel->framefmt = format->format;
 
 	v4l2_ctrl_s_ctrl_int64(channel->pixel_rate_ctrl,
 			       max_des_get_pixel_rate(channel));
