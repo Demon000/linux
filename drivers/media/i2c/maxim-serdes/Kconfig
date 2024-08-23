@@ -44,7 +44,7 @@ config VIDEO_MAX96717
 	  module will be called max96717.
 
 config VIDEO_MAX96724
-	tristate "Maxim MAX96712 Quad GMSL2 Deserializer support"
+	tristate "Maxim MAX96724 Quad GMSL2 Deserializer support"
 	select VIDEO_MAXIM_DES
 	help
 	  This driver supports the Maxim MAX96724 Quad GMSL2 Deserializer.
