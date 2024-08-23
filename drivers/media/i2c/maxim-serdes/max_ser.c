@@ -11,6 +11,8 @@
 #include <linux/module.h>
 
 #include <media/mipi-csi2.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
 
 #include "max_ser.h"
 #include "max_serdes.h"
