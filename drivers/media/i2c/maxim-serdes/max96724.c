@@ -471,6 +471,7 @@ static int max96724_set_pipe_link(struct max_des *des, struct max_des_pipe *pipe
 
 	reg = 0xf0 + index / 2;
 	shift = 4 * (index % 2);
+	shift += 2;
 
 	return max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
 				    link->index << shift);
