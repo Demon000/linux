@@ -1217,7 +1217,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	if (!priv->sd_privs)
 		return -ENOMEM;
 
-	i = 0;
+	sd_priv = priv->sd_privs;
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
@@ -1230,7 +1230,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		sd_priv = &priv->sd_privs[i++];
 		sd_priv->fwnode = fwnode;
 		sd_priv->priv = priv;
 		sd_priv->index = index;
@@ -1255,6 +1254,8 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
+
+		sd_priv++;
 	}
 
 	return 0;
