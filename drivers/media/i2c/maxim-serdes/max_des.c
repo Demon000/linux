@@ -175,6 +175,35 @@ static unsigned int max_des_code_num_remaps(u32 code)
 	return 3;
 }
 
+static int max_des_pipe_update_phy_tunnel(struct max_des_priv *priv,
+					  struct max_des_pipe *pipe)
+{
+	struct max_des *des = priv->des;
+	struct max_des_subdev_priv *prev_sd_priv = NULL;
+	struct max_des_subdev_priv *sd_priv = NULL;
+
+
+	/*
+	 * Check that all sd_privs of a pipe that's routed from a tunnel
+	 * link have the same destination phy.
+	 */
+
+	for_each_subdev(priv, sd_priv) {
+		if (sd_priv->pipe_id != pipe->index)
+			continue;
+
+		if (prev_sd_priv && prev_sd_priv->phy_id != sd_priv->phy_id)
+			return -EINVAL;
+
+		prev_sd_priv = sd_priv;
+	}
+
+	if (!sd_priv)
+		return 0;
+
+	return des->ops->set_pipe_phy(des, pipe, &des->phys[sd_priv->phy_id]);
+}
+
 static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 				      struct max_des_pipe *pipe)
 {
@@ -189,7 +218,7 @@ static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 	u8 dt;
 
 	if (link->tunnel_mode)
-		return 0;
+		return max_des_pipe_update_phy_tunnel(priv, pipe);
 
 	for_each_subdev(priv, sd_priv) {
 		if (sd_priv->pipe_id != pipe->index)
