@@ -361,14 +361,6 @@ static int max_des_init(struct max_des_priv *priv)
 		if (!pipe->enabled)
 			continue;
 
-		if (des->ops->set_pipe_link) {
-			struct max_des_link *link = &des->links[pipe->link_id];
-
-			ret = des->ops->set_pipe_link(des, pipe, link);
-			if (ret)
-				return ret;
-		}
-
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
 			return ret;
@@ -866,31 +858,6 @@ static int max_des_parse_phy_dt(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_parse_pipe_link_remap_dt(struct max_des_priv *priv,
-					    struct max_des_pipe *pipe,
-					    struct fwnode_handle *fwnode)
-{
-	struct max_des *des = priv->des;
-	u32 val;
-	int ret;
-
-	val = pipe->link_id;
-	ret = fwnode_property_read_u32(fwnode, "maxim,link-id", &val);
-	if (!ret && !des->ops->set_pipe_link) {
-		dev_err(priv->dev, "Pipe link remapping is not supported\n");
-		return -EINVAL;
-	}
-
-	if (val >= des->ops->num_links) {
-		dev_err(priv->dev, "Invalid link %u\n", val);
-		return -EINVAL;
-	}
-
-	pipe->link_id = val;
-
-	return 0;
-}
-
 static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
@@ -921,10 +888,6 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 	pipe->dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
 	pipe->dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
-
-	ret = max_des_parse_pipe_link_remap_dt(priv, pipe, fwnode);
-	if (ret)
-		return ret;
 
 	return 0;
 }

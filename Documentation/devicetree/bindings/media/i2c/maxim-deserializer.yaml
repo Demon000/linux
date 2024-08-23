@@ -95,13 +95,6 @@ patternProperties:
           The PHY id to which this pipe will output its data.
           The default PHY id will be the same as the pipe id.
 
-      maxim,link-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: |
-          The link id from which the pipe will receive its data.
-          The default link id will be the same as the pipe id.
-          Some chips might not support using a different link than the default.
-
       maxim,stream-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: |
