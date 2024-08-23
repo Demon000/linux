@@ -423,13 +423,6 @@ static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
 	unsigned int reg, shift;
-	int ret;
-
-	shift = index * 2;
-	ret = max96724_update_bits(priv, 0x8ca, GENMASK(1, 0) << shift,
-				   phy->index << shift);
-	if (ret)
-		return ret;
 
 	shift = 4;
 	reg = 0x939 + 0x40 * index;
