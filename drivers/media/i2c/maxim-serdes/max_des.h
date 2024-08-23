@@ -71,7 +71,6 @@ struct max_des_ops {
 	unsigned int num_links;
 	unsigned int num_remaps_per_pipe;
 	bool fix_tx_ids;
-	bool supports_pipe_stream_autoselect;
 	bool supports_tunnel_mode;
 
 	struct max_phys_configs phys_configs;
@@ -116,7 +115,6 @@ struct max_des {
 	struct max_des_link *links;
 
 	unsigned int phys_config;
-	bool pipe_stream_autoselect;
 	bool active;
 };
 
