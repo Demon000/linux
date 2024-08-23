@@ -196,16 +196,7 @@ static const struct max_phy_configs max96724_phys_configs[] = {
 static int max96724_init(struct max_des *des)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int mask;
 	int ret;
-
-	/* Set stream autoselect. */
-	mask = BIT(4);
-	ret = max96724_update_bits(priv, 0xf4, mask,
-				   des->pipe_stream_autoselect
-				   ? mask : 0x00);
-	if (ret)
-		return ret;
 
 	/* Set PHY mode. */
 	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
@@ -550,7 +541,6 @@ static const struct max_des_ops max96724_ops = {
 	.num_pipes = 4,
 	.num_links = 4,
 	.num_remaps_per_pipe = 16,
-	.supports_pipe_stream_autoselect = true,
 	.supports_tunnel_mode = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max96724_phys_configs),
