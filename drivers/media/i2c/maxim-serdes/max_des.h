@@ -5,9 +5,7 @@
 
 #include <linux/i2c-atr.h>
 
-#include <media/v4l2-ctrls.h>
-#include <media/v4l2-fwnode.h>
-#include <media/v4l2-subdev.h>
+#include <media/v4l2-mediabus.h>
 
 #include "max_serdes.h"
 

@@ -11,6 +11,9 @@
 #include <linux/regmap.h>
 
 #include <media/mipi-csi2.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-fwnode.h>
+#include <media/v4l2-subdev.h>
 
 #include "max_des.h"
 #include "max_ser.h"
