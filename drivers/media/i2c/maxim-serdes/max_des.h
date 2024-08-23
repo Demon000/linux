@@ -38,7 +38,6 @@ struct max_des_link {
 
 struct max_des_pipe {
 	unsigned int index;
-	unsigned int phy_id;
 	unsigned int stream_id;
 	unsigned int link_id;
 	struct max_des_dt_vc_remap *remaps;

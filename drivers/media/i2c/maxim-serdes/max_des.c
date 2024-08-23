@@ -365,14 +365,6 @@ static int max_des_init(struct max_des_priv *priv)
 		if (ret)
 			return ret;
 
-		if (des->ops->set_pipe_phy) {
-			struct max_des_phy *phy = &des->phys[pipe->phy_id];
-
-			ret = des->ops->set_pipe_phy(des, pipe, phy);
-			if (ret)
-				return ret;
-		}
-
 		ret = max_des_pipe_update_remaps(priv, pipe);
 		if (ret)
 			return ret;
@@ -639,7 +631,6 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
-		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
 		v4l2_info(sd, "\tdbl8: %u\n", pipe->dbl8);
@@ -862,17 +853,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
-	struct max_des *des = priv->des;
 	u32 val;
-	int ret;
-
-	val = pipe->phy_id;
-	fwnode_property_read_u32(fwnode, "maxim,phy-id", &val);
-	if (val >= des->ops->num_phys) {
-		dev_err(priv->dev, "Invalid PHY %u\n", val);
-		return -EINVAL;
-	}
-	pipe->phy_id = val;
 
 	val = pipe->stream_id;
 	fwnode_property_read_u32(fwnode, "maxim,stream-id", &val);
@@ -933,7 +914,7 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 	pipe = &des->pipes[val];
 	pipe->enabled = true;
 
-	val = pipe->phy_id;
+	val = sd_priv->pipe_id % des->ops->num_phys;
 	fwnode_property_read_u32(fwnode, "maxim,phy-id", &val);
 	if (val >= des->ops->num_phys) {
 		dev_err(priv->dev, "Invalid PHY %u\n", val);
@@ -1149,7 +1130,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		pipe = &des->pipes[i];
 		pipe->index = i;
-		pipe->phy_id = i % des->ops->num_phys;
 		pipe->stream_id = i % MAX_SERDES_STREAMS_NUM;
 		pipe->link_id = i % des->ops->num_links;
 	}

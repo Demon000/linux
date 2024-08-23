@@ -89,12 +89,6 @@ patternProperties:
         description: The pipe id.
         maxItems: 1
 
-      maxim,phy-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: |
-          The PHY id to which this pipe will output its data.
-          The default PHY id will be the same as the pipe id.
-
       maxim,stream-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: |
