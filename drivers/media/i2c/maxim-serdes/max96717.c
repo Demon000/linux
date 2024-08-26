@@ -980,43 +980,6 @@ static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
 	return 0;
 }
 
-static int max96717_init_lane_config(struct max96717_priv *priv)
-{
-	struct max_ser *ser = &priv->ser;
-	struct max_ser_phy *phy;
-	unsigned int i, j;
-	int ret;
-
-	for (i = 0; i < priv->info->num_lane_configs; i++) {
-		bool matching = true;
-
-		for (j = 0; j < priv->info->num_phys; j++) {
-			phy = &ser->phys[j];
-
-			if (phy->enabled && phy->mipi.num_data_lanes !=
-			    priv->info->lane_configs[i][j]) {
-				matching = false;
-				break;
-			}
-		}
-
-		if (matching)
-			break;
-	}
-
-	if (i == priv->info->num_lane_configs) {
-		dev_err(priv->dev, "Invalid lane configuration\n");
-		return -EINVAL;
-	}
-
-	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
-				   priv->info->phy_configs[i]);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max96717_init_i2c_xlate(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1045,6 +1008,16 @@ static int max96717_init_i2c_xlate(struct max_ser *ser)
 
 	return 0;
 }
+
+static const unsigned int max96717_phys_configs_reg_val[] = {
+	0b000,
+	0b000,
+};
+
+static const struct max_phy_configs max96717_phys_configs[] = {
+	{ { 4 } },
+	{ { 2 } },
+};
 
 static int max96717_init(struct max_ser *ser)
 {
@@ -1086,7 +1059,12 @@ static int max96717_init(struct max_ser *ser)
 	if (ret)
 		return ret;
 
-	ret = max96717_init_lane_config(priv);
+	/* Set PHY mode. */
+	if (ser->phys_config >= ARRAY_SIZE(max96717_phys_configs_reg_val))
+		return -EINVAL;
+
+	ret = max96717_update_bits(priv, 0x330, GENMASK(2, 0),
+				   max96717_phys_configs_reg_val[ser->phys_config]);
 	if (ret)
 		return ret;
 
@@ -1130,6 +1108,10 @@ static const struct pinmux_ops max96717_mux_ops = {
 
 static const struct max_ser_ops max96717_ops = {
 	.num_i2c_xlates = 2,
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96717_phys_configs),
+		.configs = max96717_phys_configs,
+	},
 	.log_status = max96717_log_status,
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
@@ -1246,15 +1228,6 @@ static const struct max96717_chip_info max96717_info = {
 	.pipe_hw_ids = { 2 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
-	.num_lane_configs = 2,
-	.lane_configs = {
-		{ 4 },
-		{ 2 },
-	},
-	.phy_configs = {
-		0b000,
-		0b000,
-	},
 };
 
 static const struct max96717_chip_info max9295a_info = {
@@ -1263,15 +1236,6 @@ static const struct max96717_chip_info max9295a_info = {
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
-	.num_lane_configs = 2,
-	.lane_configs = {
-		{ 4 },
-		{ 2 },
-	},
-	.phy_configs = {
-		0b000,
-		0b000,
-	},
 };
 
 static const struct of_device_id max96717_of_ids[] = {
