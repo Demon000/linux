@@ -88,7 +88,7 @@ static inline struct max_des_subdev_priv *sd_to_max_des(struct v4l2_subdev *sd)
 	return container_of(sd, struct max_des_subdev_priv, sd);
 }
 
-static int __max_des_mipi_update(struct max_des_priv *priv)
+static int max_des_ch_update(struct max_des_priv *priv)
 {
 	struct max_des_subdev_priv *sd_priv;
 	struct max_des *des = priv->des;
@@ -121,7 +121,7 @@ static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
 
 	sd_priv->active = enable;
 
-	ret = __max_des_mipi_update(priv);
+	ret = max_des_ch_update(priv);
 
 exit:
 	mutex_unlock(&priv->lock);
@@ -349,11 +349,11 @@ static int max_des_init(struct max_des_priv *priv)
 	unsigned int i;
 	int ret;
 
-	ret = __max_des_mipi_update(priv);
+	ret = des->ops->init(des);
 	if (ret)
 		return ret;
 
-	ret = des->ops->init(des);
+	ret = max_des_ch_update(priv);
 	if (ret)
 		return ret;
 
