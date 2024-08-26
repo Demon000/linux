@@ -39,7 +39,6 @@ struct max96717_chip_info {
 	bool supports_noncontinuous_clock;
 	bool supports_pkt_cnt;
 	unsigned int num_pipes;
-	unsigned int num_dts_per_pipe;
 	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
@@ -627,87 +626,6 @@ static int max96717_set_pipe_enable(struct max_ser *ser,
 	return max96717_update_bits(priv, 0x2, mask, enable ? mask : 0);
 }
 
-static int max96717_set_pipe_dt_en(struct max96717_priv *priv,
-				   struct max_ser_pipe *pipe,
-				   unsigned int i, bool en)
-{
-	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int reg, mask;
-
-	if (i < 2) {
-		reg = 0x314 + index * 2 + i;
-		mask = BIT(6);
-	} else {
-		i -= 2;
-
-		reg = 0x3dc + i;
-		mask = BIT(6);
-	}
-
-	return max96717_update_bits(priv, reg, mask, en ? mask : 0);
-}
-
-static int max96717_set_pipe_dt(struct max96717_priv *priv,
-				struct max_ser_pipe *pipe,
-				unsigned int i)
-{
-	unsigned int index = max96717_pipe_id(priv, pipe);
-	u32 dt = pipe->dts[i];
-	unsigned int reg;
-
-	if (i < 2) {
-		reg = 0x314 + index * 2 + i;
-	} else {
-		i -= 2;
-
-		reg = 0x3dc + i;
-	}
-
-	return max96717_update_bits(priv, reg, GENMASK(5, 0), dt);
-}
-
-static int max96717_update_pipe_dts(struct max_ser *ser,
-				    struct max_ser_pipe *pipe)
-{
-	struct max96717_priv *priv = ser_to_priv(ser);
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < pipe->num_dts; i++) {
-		ret = max96717_set_pipe_dt(priv, pipe, i);
-		if (ret)
-			return ret;
-
-		ret = max96717_set_pipe_dt_en(priv, pipe, i, true);
-		if (ret)
-			return ret;
-	}
-
-	/* Disable unused DTs. */
-	for (i = pipe->num_dts; i < ser->ops->num_dts_per_pipe; i++) {
-		ret = max96717_set_pipe_dt_en(priv, pipe, i, false);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int max96717_update_pipe_vcs(struct max_ser *ser,
-				    struct max_ser_pipe *pipe)
-{
-	struct max96717_priv *priv = ser_to_priv(ser);
-	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int reg = 0x309 + 0x2 * index;
-	int ret;
-
-	ret = max96717_write(priv, reg, (pipe->vcs >> 0) & 0xff);
-	if (ret)
-		return ret;
-
-	return max96717_write(priv, reg + 0x1, (pipe->vcs >> 8) & 0xff);
-}
-
 static int max96717_log_status(struct max_ser *ser, const char *name)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1107,8 +1025,6 @@ static const struct max_ser_ops max96717_ops = {
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
 	.set_pipe_enable = max96717_set_pipe_enable,
-	.update_pipe_dts = max96717_update_pipe_dts,
-	.update_pipe_vcs = max96717_update_pipe_vcs,
 	.init = max96717_init,
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
@@ -1151,7 +1067,6 @@ static int max96717_probe(struct i2c_client *client)
 	ops->supports_tunnel_mode = priv->info->supports_tunnel_mode;
 	ops->supports_noncontinuous_clock = priv->info->supports_noncontinuous_clock;
 	ops->num_pipes = priv->info->num_pipes;
-	ops->num_dts_per_pipe = priv->info->num_dts_per_pipe;
 	ops->num_phys = priv->info->num_phys;
 	priv->ser.ops = ops;
 
@@ -1215,7 +1130,6 @@ static const struct max96717_chip_info max96717_info = {
 	.supports_tunnel_mode = true,
 	.supports_noncontinuous_clock = true,
 	.num_pipes = 1,
-	.num_dts_per_pipe = 4,
 	.pipe_hw_ids = { 2 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },
@@ -1223,7 +1137,6 @@ static const struct max96717_chip_info max96717_info = {
 
 static const struct max96717_chip_info max9295a_info = {
 	.num_pipes = 4,
-	.num_dts_per_pipe = 2,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 1,
 	.phy_hw_ids = { 1 },

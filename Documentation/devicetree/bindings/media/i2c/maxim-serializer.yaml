@@ -120,13 +120,6 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/uint32
         description: The pipe id to output data to.
 
-      maxim,vc-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: The virtual channel id.
-        default: 0
-        min: 0
-        max: 3
-
       ports:
         $ref: /schemas/graph.yaml#/properties/ports
         properties:
