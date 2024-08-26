@@ -750,6 +750,48 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
 	return 0;
 }
 
+static int max_ser_find_phys_config(struct max_ser_priv *priv)
+{
+	struct max_ser *ser = priv->ser;
+	const struct max_phy_configs *configs = ser->ops->phys_configs.configs;
+	unsigned int num_phys_configs = ser->ops->phys_configs.num_configs;
+	struct max_ser_phy *phy;
+	unsigned int i, j;
+
+	if (!num_phys_configs)
+		return 0;
+
+	for (i = 0; i < num_phys_configs; i++) {
+		bool matching = true;
+
+		for (j = 0; j < ser->ops->num_phys; j++) {
+			phy = &ser->phys[j];
+
+			if (!phy->enabled)
+				continue;
+
+			if (phy->mipi.num_data_lanes == configs[i].lanes[j])
+				continue;
+
+			matching = false;
+
+			break;
+		}
+
+		if (matching)
+			break;
+	}
+
+	if (i == num_phys_configs) {
+		dev_err(priv->dev, "Invalid lane configuration\n");
+		return -EINVAL;
+	}
+
+	ser->phys_config = i;
+
+	return 0;
+}
+
 static int max_ser_parse_dt(struct max_ser_priv *priv)
 {
 	struct max_ser *ser = priv->ser;
@@ -809,6 +851,10 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 			return ret;
 		}
 	}
+
+	ret = max_ser_find_phys_config(priv);
+	if (ret)
+		return ret;
 
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);

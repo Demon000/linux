@@ -56,6 +56,8 @@ struct max_ser_ops {
 	bool supports_tunnel_mode;
 	bool supports_noncontinuous_clock;
 
+	struct max_phys_configs phys_configs;
+
 	int (*log_status)(struct max_ser *ser, const char *name);
 	int (*log_pipe_status)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			       const char *name);
@@ -86,6 +88,7 @@ struct max_ser {
 	struct max_ser_phy *phys;
 	struct max_ser_pipe *pipes;
 
+	unsigned int phys_config;
 	bool tunnel_mode;
 };
 
