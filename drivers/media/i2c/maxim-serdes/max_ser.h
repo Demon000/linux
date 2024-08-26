@@ -59,13 +59,14 @@ struct max_ser_ops {
 			       const char *name);
 	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy,
 			      const char *name);
-	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe, bool enable);
 	int (*init)(struct max_ser *ser);
 	int (*init_i2c_xlate)(struct max_ser *ser);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_enable)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
 	int (*init_pipe)(struct max_ser *ser, struct max_ser_pipe *pipe);
+	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			       bool enable);
 	int (*post_init)(struct max_ser *ser);
 };
 
