@@ -1024,12 +1024,12 @@ static const struct max_ser_ops max96717_ops = {
 	.log_status = max96717_log_status,
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
-	.set_pipe_enable = max96717_set_pipe_enable,
 	.init = max96717_init,
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
 	.set_phy_enable = max96717_set_phy_enable,
 	.init_pipe = max96717_init_pipe,
+	.set_pipe_enable = max96717_set_pipe_enable,
 	.post_init = max96717_post_init,
 };
 
