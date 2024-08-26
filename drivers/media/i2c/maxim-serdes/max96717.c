@@ -841,14 +841,17 @@ static int max96717_init_phy(struct max_ser *ser,
 			return ret;
 	}
 
-	/* Enable PHY. */
-	shift = 4;
-	mask = BIT(index) << shift;
-	ret = max96717_update_bits(priv, 0x308, mask, mask);
-	if (ret)
-		return ret;
-
 	return 0;
+}
+
+static int max96717_set_phy_enable(struct max_ser *ser, struct max_ser_phy *phy,
+				   bool enable)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_phy_id(priv, phy);
+	unsigned int mask = BIT(index) << 4;
+
+	return max96717_update_bits(priv, 0x308, mask, enable ? mask : 0);
 }
 
 static int max96717_init_pipe_stream_id(struct max96717_priv *priv,
@@ -1073,11 +1076,6 @@ static int max96717_init(struct max_ser *ser)
 			return ret;
 	}
 
-	/* Disable ports. */
-	ret = max96717_update_bits(priv, 0x308, GENMASK(5, 4), 0x00);
-	if (ret)
-		return ret;
-
 	/* Reset pipe to ports mapping. */
 	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
 	if (ret)
@@ -1141,6 +1139,7 @@ static const struct max_ser_ops max96717_ops = {
 	.init = max96717_init,
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
+	.set_phy_enable = max96717_set_phy_enable,
 	.init_pipe = max96717_init_pipe,
 	.post_init = max96717_post_init,
 };
