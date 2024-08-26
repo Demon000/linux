@@ -932,10 +932,6 @@ static int max96717_init_pipe(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	ret = max96717_set_pipe_enable(ser, pipe, false);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -1051,11 +1047,6 @@ static int max96717_init(struct max_ser *ser)
 
 	/* Reset pipe to ports mapping. */
 	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
-	if (ret)
-		return ret;
-
-	/* Disable pipes. */
-	ret = max96717_write(priv, 0x311, 0x00);
 	if (ret)
 		return ret;
 
