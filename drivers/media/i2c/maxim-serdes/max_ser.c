@@ -483,15 +483,18 @@ static int max_ser_init(struct max_ser_priv *priv)
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 
-		if (!phy->enabled)
-			continue;
+		if (phy->enabled) {
+			if (!phy->bus_config_parsed) {
+				dev_err(priv->dev, "Cannot turn on unconfigured PHY\n");
+				return -EINVAL;
+			}
 
-		if (!phy->bus_config_parsed) {
-			dev_err(priv->dev, "Cannot turn on unconfigured PHY\n");
-			return -EINVAL;
+			ret = ser->ops->init_phy(ser, phy);
+			if (ret)
+				return ret;
 		}
 
-		ret = ser->ops->init_phy(ser, phy);
+		ret = ser->ops->set_phy_enable(ser, phy, phy->enabled);
 		if (ret)
 			return ret;
 	}
