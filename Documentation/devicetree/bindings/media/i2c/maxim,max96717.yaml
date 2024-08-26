@@ -81,9 +81,6 @@ allOf:
             maxim,pipe-id:
               min: 0
               max: 0
-            maxim,vc-id:
-              min: 0
-              max: 15
 
   - if:
       properties:
@@ -104,8 +101,5 @@ allOf:
         '^channel@[0-9a-f]+$':
           properties:
             maxim,pipe-id:
-              min: 0
-              max: 3
-            maxim,vc-id:
               min: 0
               max: 3

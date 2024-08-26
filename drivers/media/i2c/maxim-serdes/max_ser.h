@@ -34,9 +34,6 @@ struct max_ser_pipe {
 	unsigned int index;
 	unsigned int phy_id;
 	unsigned int stream_id;
-	unsigned int *dts;
-	unsigned int num_dts;
-	unsigned int vcs;
 	unsigned int soft_bpp;
 	unsigned int bpp;
 	bool dbl8;
@@ -50,7 +47,6 @@ struct max_ser;
 
 struct max_ser_ops {
 	unsigned int num_pipes;
-	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
 	unsigned int num_i2c_xlates;
 	bool supports_tunnel_mode;
@@ -64,8 +60,6 @@ struct max_ser_ops {
 	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy,
 			      const char *name);
 	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe, bool enable);
-	int (*update_pipe_dts)(struct max_ser *ser, struct max_ser_pipe *pipe);
-	int (*update_pipe_vcs)(struct max_ser *ser, struct max_ser_pipe *pipe);
 	int (*init)(struct max_ser *ser);
 	int (*init_i2c_xlate)(struct max_ser *ser);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
