@@ -502,6 +502,10 @@ static int max_ser_init(struct max_ser_priv *priv)
 	for (i = 0; i < ser->ops->num_pipes; i++) {
 		struct max_ser_pipe *pipe = &ser->pipes[i];
 
+		ret = ser->ops->set_pipe_enable(ser, pipe, false);
+		if (ret)
+			return ret;
+
 		if (!pipe->enabled)
 			continue;
 
