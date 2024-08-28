@@ -24,7 +24,7 @@ const struct regmap_config max_ser_i2c_regmap = {
 };
 EXPORT_SYMBOL_GPL(max_ser_i2c_regmap);
 
-struct max_ser_subdev_priv {
+struct max_ser_channel {
 	struct v4l2_subdev sd;
 	unsigned int index;
 	struct fwnode_handle *fwnode;
@@ -47,34 +47,34 @@ struct max_ser_priv {
 
 	struct i2c_atr *atr;
 
-	unsigned int num_subdevs;
+	unsigned int num_channels;
 	struct mutex lock;
 
-	struct max_ser_subdev_priv *sd_privs;
+	struct max_ser_channel *channels;
 };
 
-static struct max_ser_subdev_priv *next_subdev(struct max_ser_priv *priv,
-						struct max_ser_subdev_priv *sd_priv)
+static struct max_ser_channel *next_channel(struct max_ser_priv *priv,
+					    struct max_ser_channel *channel)
 {
-	if (!sd_priv)
-		sd_priv = &priv->sd_privs[0];
+	if (!channel)
+		channel = &priv->channels[0];
 	else
-		sd_priv++;
+		channel++;
 
-	for (; sd_priv < priv->sd_privs + priv->num_subdevs; sd_priv++) {
-		if (sd_priv->fwnode)
-			return sd_priv;
+	for (; channel < priv->channels + priv->num_channels; channel++) {
+		if (channel->fwnode)
+			return channel;
 	}
 
 	return NULL;
 }
 
-#define for_each_subdev(priv, sd_priv) \
-	for ((sd_priv) = NULL; ((sd_priv) = next_subdev((priv), (sd_priv))); )
+#define for_each_channel(priv, channel) \
+	for ((channel) = NULL; ((channel) = next_channel((priv), (channel))); )
 
-static inline struct max_ser_subdev_priv *sd_to_max_ser(struct v4l2_subdev *sd)
+static inline struct max_ser_channel *sd_to_max_ser(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct max_ser_subdev_priv, sd);
+	return container_of(sd, struct max_ser_channel, sd);
 }
 
 static int max_ser_i2c_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
@@ -163,12 +163,12 @@ static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 static int max_ser_update_pipe_active(struct max_ser_priv *priv,
 				      struct max_ser_pipe *pipe)
 {
-	struct max_ser_subdev_priv *sd_priv;
+	struct max_ser_channel *channel;
 	struct max_ser *ser = priv->ser;
 	bool enable = 0;
 
-	for_each_subdev(priv, sd_priv) {
-		if (sd_priv->pipe_id == pipe->index && sd_priv->active) {
+	for_each_channel(priv, channel) {
+		if (channel->pipe_id == pipe->index && channel->active) {
 			enable = 1;
 			break;
 		}
@@ -182,19 +182,19 @@ static int max_ser_update_pipe_active(struct max_ser_priv *priv,
 	return ser->ops->set_pipe_enable(ser, pipe, enable);
 }
 
-static int max_ser_ch_enable(struct max_ser_subdev_priv *sd_priv, bool enable)
+static int max_ser_ch_enable(struct max_ser_channel *channel, bool enable)
 {
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
-	struct max_ser_pipe *pipe = &ser->pipes[sd_priv->pipe_id];
+	struct max_ser_pipe *pipe = &ser->pipes[channel->pipe_id];
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
 
-	if (sd_priv->active == enable)
+	if (channel->active == enable)
 		goto exit;
 
-	sd_priv->active = enable;
+	channel->active = enable;
 
 	ret = max_ser_update_pipe_active(priv, pipe);
 
@@ -206,26 +206,26 @@ exit:
 
 static int max_ser_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct max_ser_subdev_priv *sd_priv = sd_to_max_ser(sd);
+	struct max_ser_channel *channel = sd_to_max_ser(sd);
 
-	return max_ser_ch_enable(sd_priv, enable);
+	return max_ser_ch_enable(channel, enable);
 }
 
 static int max_ser_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
 
 	if (format->pad == MAX_SER_SOURCE_PAD) {
 		format->format.code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
-	if (!sd_priv->fmt)
+	if (!channel->fmt)
 		return -EINVAL;
 
-	format->format.code = sd_priv->fmt->code;
+	format->format.code = channel->fmt->code;
 
 	return 0;
 }
@@ -234,7 +234,7 @@ static int max_ser_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
 	const struct max_format *fmt;
 
 	if (format->pad != MAX_SER_SINK_PAD)
@@ -244,7 +244,7 @@ static int max_ser_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	sd_priv->fmt = fmt;
+	channel->fmt = fmt;
 
 	return 0;
 }
@@ -269,8 +269,8 @@ static int max_ser_enum_mbus_code(struct v4l2_subdev *sd,
 
 static int max_ser_log_status(struct v4l2_subdev *sd)
 {
-	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
 	unsigned int i;
 	int ret;
@@ -287,14 +287,14 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	}
 	v4l2_info(sd, "\n");
 
-	for_each_subdev(priv, sd_priv) {
-		v4l2_info(sd, "channel: %u\n", sd_priv->index);
-		v4l2_info(sd, "\tfwnode: %pfw\n", sd_priv->fwnode);
-		v4l2_info(sd, "\tlabel: %s\n", sd_priv->label);
-		v4l2_info(sd, "\tactive: %u\n", sd_priv->active);
-		v4l2_info(sd, "\tfmt: %s\n", sd_priv->fmt ? sd_priv->fmt->name : NULL);
-		v4l2_info(sd, "\tdt: 0x%02x\n", sd_priv->fmt ? sd_priv->fmt->dt : 0);
-		v4l2_info(sd, "\tpipe_id: %u\n", sd_priv->pipe_id);
+	for_each_channel(priv, channel) {
+		v4l2_info(sd, "channel: %u\n", channel->index);
+		v4l2_info(sd, "\tfwnode: %pfw\n", channel->fwnode);
+		v4l2_info(sd, "\tlabel: %s\n", channel->label);
+		v4l2_info(sd, "\tactive: %u\n", channel->active);
+		v4l2_info(sd, "\tfmt: %s\n", channel->fmt ? channel->fmt->name : NULL);
+		v4l2_info(sd, "\tdt: 0x%02x\n", channel->fmt ? channel->fmt->dt : 0);
+		v4l2_info(sd, "\tpipe_id: %u\n", channel->pipe_id);
 		v4l2_info(sd, "\n");
 	}
 
@@ -342,8 +342,8 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_ser_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
 	unsigned int val;
 	int ret;
@@ -360,8 +360,8 @@ static int max_ser_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int max_ser_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
 
 	return ser->ops->reg_write(ser, reg->reg, reg->val);
@@ -447,70 +447,70 @@ static int max_ser_init(struct max_ser_priv *priv)
 	return 0;
 }
 
-static void max_ser_set_sd_name(struct max_ser_subdev_priv *sd_priv)
+static void max_ser_set_sd_name(struct max_ser_channel *channel)
 {
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_priv *priv = channel->priv;
 	struct i2c_client *client = priv->client;
 
-	if (sd_priv->label) {
-		strscpy(sd_priv->sd.name, sd_priv->label, sizeof(sd_priv->sd.name));
+	if (channel->label) {
+		strscpy(channel->sd.name, channel->label, sizeof(channel->sd.name));
 		return;
 	}
 
-	snprintf(sd_priv->sd.name, sizeof(sd_priv->sd.name), "%s %d-%04x:%u",
+	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
 		 client->dev.driver->name, i2c_adapter_id(client->adapter),
-		 client->addr, sd_priv->index);
+		 client->addr, channel->index);
 }
 
-static int max_ser_v4l2_register_sd(struct max_ser_subdev_priv *sd_priv)
+static int max_ser_v4l2_register_sd(struct max_ser_channel *channel)
 {
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_priv *priv = channel->priv;
 	int ret;
 
-	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max_ser_subdev_ops);
-	max_ser_set_sd_name(sd_priv);
-	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	sd_priv->sd.entity.ops = &max_ser_media_ops;
-	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sd_priv->sd.fwnode = sd_priv->fwnode;
-	fwnode_handle_get(sd_priv->sd.fwnode);
+	v4l2_i2c_subdev_init(&channel->sd, priv->client, &max_ser_subdev_ops);
+	max_ser_set_sd_name(channel);
+	channel->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	channel->sd.entity.ops = &max_ser_media_ops;
+	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	channel->sd.fwnode = channel->fwnode;
+	fwnode_handle_get(channel->sd.fwnode);
 
-	sd_priv->pads[MAX_SER_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
-	sd_priv->pads[MAX_SER_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
+	channel->pads[MAX_SER_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
+	channel->pads[MAX_SER_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
 
-	v4l2_set_subdevdata(&sd_priv->sd, sd_priv);
+	v4l2_set_subdevdata(&channel->sd, channel);
 
-	ret = media_entity_pads_init(&sd_priv->sd.entity, MAX_SER_PAD_NUM, sd_priv->pads);
+	ret = media_entity_pads_init(&channel->sd.entity, MAX_SER_PAD_NUM, channel->pads);
 	if (ret)
 		goto error;
 
-	ret = v4l2_async_register_subdev(&sd_priv->sd);
+	ret = v4l2_async_register_subdev(&channel->sd);
 	if (ret)
 		goto error;
 
 	return 0;
 
 error:
-	media_entity_cleanup(&sd_priv->sd.entity);
-	fwnode_handle_put(sd_priv->sd.fwnode);
+	media_entity_cleanup(&channel->sd.entity);
+	fwnode_handle_put(channel->sd.fwnode);
 
 	return ret;
 }
 
-static void max_ser_v4l2_unregister_sd(struct max_ser_subdev_priv *sd_priv)
+static void max_ser_v4l2_unregister_sd(struct max_ser_channel *channel)
 {
-	v4l2_async_unregister_subdev(&sd_priv->sd);
-	media_entity_cleanup(&sd_priv->sd.entity);
-	fwnode_handle_put(sd_priv->sd.fwnode);
+	v4l2_async_unregister_subdev(&channel->sd);
+	media_entity_cleanup(&channel->sd.entity);
+	fwnode_handle_put(channel->sd.fwnode);
 }
 
 static int max_ser_v4l2_register(struct max_ser_priv *priv)
 {
-	struct max_ser_subdev_priv *sd_priv;
+	struct max_ser_channel *channel;
 	int ret;
 
-	for_each_subdev(priv, sd_priv) {
-		ret = max_ser_v4l2_register_sd(sd_priv);
+	for_each_channel(priv, channel) {
+		ret = max_ser_v4l2_register_sd(channel);
 		if (ret)
 			return ret;
 	}
@@ -520,10 +520,10 @@ static int max_ser_v4l2_register(struct max_ser_priv *priv)
 
 static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 {
-	struct max_ser_subdev_priv *sd_priv;
+	struct max_ser_channel *channel;
 
-	for_each_subdev(priv, sd_priv)
-		max_ser_v4l2_unregister_sd(sd_priv);
+	for_each_channel(priv, channel)
+		max_ser_v4l2_unregister_sd(channel);
 }
 
 static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
@@ -572,27 +572,27 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 	return 0;
 }
 
-static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
+static int max_ser_parse_ch_dt(struct max_ser_channel *channel,
 			       struct fwnode_handle *fwnode)
 {
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
 	u32 val;
 
-	fwnode_property_read_string(fwnode, "label", &sd_priv->label);
+	fwnode_property_read_string(fwnode, "label", &channel->label);
 
-	val = sd_priv->pipe_id;
+	val = channel->pipe_id;
 	fwnode_property_read_u32(fwnode, "maxim,pipe-id", &val);
 	if (val >= ser->ops->num_pipes) {
 		dev_err(priv->dev, "Invalid pipe %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->pipe_id = val;
+	channel->pipe_id = val;
 
 	if (fwnode_property_read_bool(fwnode, "maxim,embedded-data"))
-		sd_priv->fmt = max_format_by_dt(MIPI_CSI2_DT_EMBEDDED_8B);
+		channel->fmt = max_format_by_dt(MIPI_CSI2_DT_EMBEDDED_8B);
 
 	pipe = &ser->pipes[val];
 	pipe->enabled = true;
@@ -603,12 +603,12 @@ static int max_ser_parse_ch_dt(struct max_ser_subdev_priv *sd_priv,
 	return 0;
 }
 
-static int max_ser_parse_sink_dt_endpoint(struct max_ser_subdev_priv *sd_priv,
+static int max_ser_parse_sink_dt_endpoint(struct max_ser_channel *channel,
 					  struct fwnode_handle *fwnode)
 {
-	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser_priv *priv = channel->priv;
 	struct max_ser *ser = priv->ser;
-	struct max_ser_pipe *pipe = &ser->pipes[sd_priv->pipe_id];
+	struct max_ser_pipe *pipe = &ser->pipes[channel->pipe_id];
 	struct max_ser_phy *phy = &ser->phys[pipe->phy_id];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
@@ -711,7 +711,7 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 	struct max_ser *ser = priv->ser;
 	const char *channel_node_name = "channel";
 	const char *pipe_node_name = "pipe";
-	struct max_ser_subdev_priv *sd_priv;
+	struct max_ser_channel *channel;
 	struct fwnode_handle *fwnode;
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
@@ -782,12 +782,12 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 			continue;
 		}
 
-		priv->num_subdevs++;
+		priv->num_channels++;
 	}
 
-	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
-				      sizeof(*priv->sd_privs), GFP_KERNEL);
-	if (!priv->sd_privs)
+	priv->channels = devm_kcalloc(priv->dev, priv->num_channels,
+				      sizeof(*priv->channels), GFP_KERNEL);
+	if (!priv->channels)
 		return -ENOMEM;
 
 	i = 0;
@@ -803,19 +803,19 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 			continue;
 		}
 
-		sd_priv = &priv->sd_privs[i++];
-		sd_priv->fwnode = fwnode;
-		sd_priv->priv = priv;
-		sd_priv->index = index;
-		sd_priv->pipe_id = index % ser->ops->num_pipes;
+		channel = &priv->channels[i++];
+		channel->fwnode = fwnode;
+		channel->priv = priv;
+		channel->index = index;
+		channel->pipe_id = index % ser->ops->num_pipes;
 
-		ret = max_ser_parse_ch_dt(sd_priv, fwnode);
+		ret = max_ser_parse_ch_dt(channel, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
 
-		ret = max_ser_parse_sink_dt_endpoint(sd_priv, fwnode);
+		ret = max_ser_parse_sink_dt_endpoint(channel, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
