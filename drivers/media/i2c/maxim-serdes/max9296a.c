@@ -122,6 +122,22 @@ static unsigned int max9296a_pipe_id(struct max9296a_priv *priv,
 	return priv->info->pipe_hw_ids[pipe->index];
 }
 
+static int max9296a_reg_read(struct max_des *des, unsigned int reg,
+			     unsigned int *val)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+
+	return regmap_read(priv->regmap, reg, val);
+}
+
+static int max9296a_reg_write(struct max_des *des, unsigned int reg,
+			      unsigned int val)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+
+	return regmap_write(priv->regmap, reg, val);
+}
+
 static int max9296a_set_enable(struct max_des *des, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
@@ -611,6 +627,8 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 }
 
 static const struct max_des_ops max9296a_ops = {
+	.reg_read = max9296a_reg_read,
+	.reg_write = max9296a_reg_write,
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,

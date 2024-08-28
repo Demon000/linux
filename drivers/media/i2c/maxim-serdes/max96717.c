@@ -626,6 +626,22 @@ static int max96717_set_pipe_enable(struct max_ser *ser,
 	return max96717_update_bits(priv, 0x2, mask, enable ? mask : 0);
 }
 
+static int max96717_reg_read(struct max_ser *ser, unsigned int reg,
+			     unsigned int *val)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+
+	return regmap_read(priv->regmap, reg, val);
+}
+
+static int max96717_reg_write(struct max_ser *ser, unsigned int reg,
+			      unsigned int val)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+
+	return regmap_write(priv->regmap, reg, val);
+}
+
 static int max96717_log_status(struct max_ser *ser, const char *name)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1021,6 +1037,8 @@ static const struct max_ser_ops max96717_ops = {
 		.num_configs = ARRAY_SIZE(max96717_phys_configs),
 		.configs = max96717_phys_configs,
 	},
+	.reg_read = max96717_reg_read,
+	.reg_write = max96717_reg_write,
 	.log_status = max96717_log_status,
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
