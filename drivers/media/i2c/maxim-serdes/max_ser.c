@@ -339,16 +339,16 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#if 0
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_ser_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
+	struct max_ser *ser = priv->ser;
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(priv->regmap, reg->reg, &val);
+	ret = ser->ops->reg_read(ser, reg->reg, &val);
 	if (ret)
 		return ret;
 
@@ -362,24 +362,17 @@ static int max_ser_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 {
 	struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_ser_priv *priv = sd_priv->priv;
-	int ret;
+	struct max_ser *ser = priv->ser;
 
-	ret = regmap_write(priv->regmap, reg->reg, reg->val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ser->ops->reg_write(ser, reg->reg, reg->val);
 }
-#endif
 #endif
 
 static const struct v4l2_subdev_core_ops max_ser_core_ops = {
 	.log_status = max_ser_log_status,
-#if 0
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = max_ser_g_register,
 	.s_register = max_ser_s_register,
-#endif
 #endif
 };
 

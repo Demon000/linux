@@ -54,6 +54,8 @@ struct max_ser_ops {
 
 	struct max_phys_configs phys_configs;
 
+	int (*reg_read)(struct max_ser *ser, unsigned int reg, unsigned int *val);
+	int (*reg_write)(struct max_ser *ser, unsigned int reg, unsigned int val);
 	int (*log_status)(struct max_ser *ser, const char *name);
 	int (*log_pipe_status)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			       const char *name);
