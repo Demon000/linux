@@ -707,16 +707,16 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
-#if 0
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_des_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des *des = priv->des;
 	unsigned int val;
 	int ret;
 
-	ret = regmap_read(priv->regmap, reg->reg, &val);
+	ret = des->ops->reg_read(des, reg->reg, &val);
 	if (ret)
 		return ret;
 
@@ -730,24 +730,17 @@ static int max_des_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_des_priv *priv = sd_priv->priv;
-	int ret;
+	struct max_des *des = priv->des;
 
-	ret = regmap_write(priv->regmap, reg->reg, reg->val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return des->ops->reg_write(des, reg->reg, reg->val);
 }
-#endif
 #endif
 
 static const struct v4l2_subdev_core_ops max_des_core_ops = {
 	.log_status = max_des_log_status,
-#if 0
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = max_des_g_register,
 	.s_register = max_des_s_register,
-#endif
 #endif
 };
 

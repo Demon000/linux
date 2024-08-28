@@ -104,6 +104,22 @@ static int max96724_reset(struct max96724_priv *priv)
 	return 0;
 }
 
+static int max96724_reg_read(struct max_des *des, unsigned int reg,
+			     unsigned int *val)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+
+	return regmap_read(priv->regmap, reg, val);
+}
+
+static int max96724_reg_write(struct max_des *des, unsigned int reg,
+			      unsigned int val)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+
+	return regmap_write(priv->regmap, reg, val);
+}
+
 static int max96724_log_pipe_status(struct max_des *des,
 				    struct max_des_pipe *pipe, const char *name)
 {
@@ -525,6 +541,8 @@ static const struct max_des_ops max96724_ops = {
 		.num_configs = ARRAY_SIZE(max96724_phys_configs),
 		.configs = max96724_phys_configs,
 	},
+	.reg_read = max96724_reg_read,
+	.reg_write = max96724_reg_write,
 	.log_pipe_status = max96724_log_pipe_status,
 	.log_phy_status = max96724_log_phy_status,
 	.set_enable = max96724_set_enable,

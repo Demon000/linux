@@ -74,6 +74,8 @@ struct max_des_ops {
 
 	struct max_phys_configs phys_configs;
 
+	int (*reg_read)(struct max_des *des, unsigned int reg, unsigned int *val);
+	int (*reg_write)(struct max_des *des, unsigned int reg, unsigned int val);
 	int (*log_status)(struct max_des *des, const char *name);
 	int (*log_pipe_status)(struct max_des *des, struct max_des_pipe *pipe,
 			       const char *name);
