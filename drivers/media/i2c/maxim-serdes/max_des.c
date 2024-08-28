@@ -23,7 +23,7 @@
 #define MAX_DES_LINK_FREQUENCY_DEFAULT		750000000ull
 #define MAX_DES_LINK_FREQUENCY_MAX		1250000000ull
 
-struct max_des_subdev_priv {
+struct max_des_channel {
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *pixel_rate_ctrl;
@@ -52,8 +52,8 @@ struct max_des_priv {
 
 	struct i2c_atr *atr;
 
-	struct max_des_subdev_priv *sd_privs;
-	unsigned int num_subdevs;
+	struct max_des_channel *channels;
+	unsigned int num_channels;
 	struct mutex lock;
 };
 
@@ -64,37 +64,37 @@ const struct regmap_config max_des_i2c_regmap = {
 };
 EXPORT_SYMBOL_GPL(max_des_i2c_regmap);
 
-static struct max_des_subdev_priv *next_subdev(struct max_des_priv *priv,
-					       struct max_des_subdev_priv *sd_priv)
+static struct max_des_channel *next_channel(struct max_des_priv *priv,
+					   struct max_des_channel *channel)
 {
-	if (!sd_priv)
-		sd_priv = &priv->sd_privs[0];
+	if (!channel)
+		channel = &priv->channels[0];
 	else
-		sd_priv++;
+		channel++;
 
-	for (; sd_priv < priv->sd_privs + priv->num_subdevs; sd_priv++) {
-		if (sd_priv->fwnode)
-			return sd_priv;
+	for (; channel < priv->channels + priv->num_channels; channel++) {
+		if (channel->fwnode)
+			return channel;
 	}
 
 	return NULL;
 }
 
-#define for_each_subdev(priv, sd_priv) \
-	for ((sd_priv) = NULL; ((sd_priv) = next_subdev((priv), (sd_priv))); )
+#define for_each_channel(priv, channel) \
+	for ((channel) = NULL; ((channel) = next_channel((priv), (channel))); )
 
-static inline struct max_des_subdev_priv *sd_to_max_des(struct v4l2_subdev *sd)
+static inline struct max_des_channel *sd_to_max_des(struct v4l2_subdev *sd)
 {
-	return container_of(sd, struct max_des_subdev_priv, sd);
+	return container_of(sd, struct max_des_channel, sd);
 }
 
-static int max_des_ch_update(struct max_des_priv *priv)
+static int max_des_channel_update(struct max_des_priv *priv)
 {
-	struct max_des_subdev_priv *sd_priv;
+	struct max_des_channel *channel;
 	struct max_des *des = priv->des;
 	bool enable = 0;
 
-	for_each_subdev(priv, sd_priv) {
+	for_each_channel(priv, channel) {
 		if (des->active) {
 			enable = 1;
 			break;
@@ -109,19 +109,19 @@ static int max_des_ch_update(struct max_des_priv *priv)
 	return des->ops->set_enable(des, enable);
 }
 
-static int max_des_ch_enable(struct max_des_subdev_priv *sd_priv, bool enable)
+static int max_des_channel_enable(struct max_des_channel *channel, bool enable)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
 
-	if (sd_priv->active == enable)
+	if (channel->active == enable)
 		goto exit;
 
-	sd_priv->active = enable;
+	channel->active = enable;
 
-	ret = max_des_ch_update(priv);
+	ret = max_des_channel_update(priv);
 
 exit:
 	mutex_unlock(&priv->lock);
@@ -179,29 +179,29 @@ static int max_des_pipe_update_phy_tunnel(struct max_des_priv *priv,
 					  struct max_des_pipe *pipe)
 {
 	struct max_des *des = priv->des;
-	struct max_des_subdev_priv *prev_sd_priv = NULL;
-	struct max_des_subdev_priv *sd_priv = NULL;
+	struct max_des_channel *prev_channel = NULL;
+	struct max_des_channel *channel = NULL;
 
 
 	/*
-	 * Check that all sd_privs of a pipe that's routed from a tunnel
+	 * Check that all channels of a pipe that's routed from a tunnel
 	 * link have the same destination phy.
 	 */
 
-	for_each_subdev(priv, sd_priv) {
-		if (sd_priv->pipe_id != pipe->index)
+	for_each_channel(priv, channel) {
+		if (channel->pipe_id != pipe->index)
 			continue;
 
-		if (prev_sd_priv && prev_sd_priv->phy_id != sd_priv->phy_id)
+		if (prev_channel && prev_channel->phy_id != channel->phy_id)
 			return -EINVAL;
 
-		prev_sd_priv = sd_priv;
+		prev_channel = channel;
 	}
 
-	if (!sd_priv)
+	if (!channel)
 		return 0;
 
-	return des->ops->set_pipe_phy(des, pipe, &des->phys[sd_priv->phy_id]);
+	return des->ops->set_pipe_phy(des, pipe, &des->phys[channel->phy_id]);
 }
 
 static int max_des_pipe_update_remaps(struct max_des_priv *priv,
@@ -209,7 +209,7 @@ static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[pipe->link_id];
-	struct max_des_subdev_priv *sd_priv;
+	struct max_des_channel *channel;
 	struct max_des_dt_vc_remap *remaps;
 	unsigned int num_remaps = 0;
 	unsigned int num_dt_remaps;
@@ -220,14 +220,14 @@ static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 	if (link->tunnel_mode)
 		return max_des_pipe_update_phy_tunnel(priv, pipe);
 
-	for_each_subdev(priv, sd_priv) {
-		if (sd_priv->pipe_id != pipe->index)
+	for_each_channel(priv, channel) {
+		if (channel->pipe_id != pipe->index)
 			continue;
 
-		if (!sd_priv->fmt)
+		if (!channel->fmt)
 			continue;
 
-		num_dt_remaps = max_des_code_num_remaps(sd_priv->fmt->code);
+		num_dt_remaps = max_des_code_num_remaps(channel->fmt->code);
 
 		num_remaps += num_dt_remaps;
 	}
@@ -242,30 +242,30 @@ static int max_des_pipe_update_remaps(struct max_des_priv *priv,
 		return -ENOMEM;
 
 	i = 0;
-	for_each_subdev(priv, sd_priv) {
-		if (sd_priv->pipe_id != pipe->index)
+	for_each_channel(priv, channel) {
+		if (channel->pipe_id != pipe->index)
 			continue;
 
-		if (!sd_priv->fmt)
+		if (!channel->fmt)
 			continue;
 
-		num_dt_remaps = max_des_code_num_remaps(sd_priv->fmt->code);
+		num_dt_remaps = max_des_code_num_remaps(channel->fmt->code);
 
 		for (j = 0; j < num_dt_remaps; j++) {
 			struct max_des_dt_vc_remap *remap = &remaps[i + j];
 
 			if (j == 0)
-				dt = sd_priv->fmt->dt;
+				dt = channel->fmt->dt;
 			else if (j == 1)
 				dt = MIPI_CSI2_DT_FS;
 			else if (j == 2)
 				dt = MIPI_CSI2_DT_FE;
 
 			remap->from_dt = dt;
-			remap->from_vc = sd_priv->src_vc_id;
+			remap->from_vc = channel->src_vc_id;
 			remap->to_dt = dt;
-			remap->to_vc = sd_priv->dst_vc_id;
-			remap->phy = sd_priv->phy_id;
+			remap->to_vc = channel->dst_vc_id;
+			remap->phy = channel->phy_id;
 		}
 
 		i += num_dt_remaps;
@@ -353,7 +353,7 @@ static int max_des_init(struct max_des_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = max_des_ch_update(priv);
+	ret = max_des_channel_update(priv);
 	if (ret)
 		return ret;
 
@@ -526,39 +526,39 @@ err_add_adapters:
 
 static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 {
-	struct max_des_subdev_priv *sd_priv = sd_to_max_des(sd);
+	struct max_des_channel *channel = sd_to_max_des(sd);
 
-	return max_des_ch_enable(sd_priv, enable);
+	return max_des_channel_enable(channel, enable);
 }
 
 static int max_des_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
 
 	if (format->pad == MAX_DES_SINK_PAD) {
 		format->format.code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
-	if (!sd_priv->fmt)
+	if (!channel->fmt)
 		return -EINVAL;
 
-	format->format.code = sd_priv->fmt->code;
+	format->format.code = channel->fmt->code;
 
 	return 0;
 }
 
-static u64 max_des_get_pixel_rate(struct max_des_subdev_priv *sd_priv)
+static u64 max_des_get_pixel_rate(struct max_des_channel *channel)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
-	struct max_des_phy *phy = &des->phys[sd_priv->phy_id];
+	struct max_des_phy *phy = &des->phys[channel->phy_id];
 	u8 bpp = 8;
 
-	if (sd_priv->fmt)
-		bpp = sd_priv->fmt->bpp;
+	if (channel->fmt)
+		bpp = channel->fmt->bpp;
 
 	return phy->link_frequency * 2 * phy->mipi.num_data_lanes / bpp;
 }
@@ -567,10 +567,10 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
-	struct max_des_pipe *pipe = &des->pipes[sd_priv->pipe_id];
+	struct max_des_pipe *pipe = &des->pipes[channel->pipe_id];
 	const struct max_format *fmt;
 	int ret;
 
@@ -581,10 +581,10 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	sd_priv->fmt = fmt;
+	channel->fmt = fmt;
 
-	v4l2_ctrl_s_ctrl_int64(sd_priv->pixel_rate_ctrl,
-			       max_des_get_pixel_rate(sd_priv));
+	v4l2_ctrl_s_ctrl_int64(channel->pixel_rate_ctrl,
+			       max_des_get_pixel_rate(channel));
 
 	mutex_lock(&priv->lock);
 
@@ -615,8 +615,8 @@ static int max_des_enum_mbus_code(struct v4l2_subdev *sd,
 
 static int max_des_log_status(struct v4l2_subdev *sd)
 {
-	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
 	unsigned int i, j;
 	int ret;
@@ -641,17 +641,17 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "\n");
 	}
 
-	for_each_subdev(priv, sd_priv) {
-		v4l2_info(sd, "channel: %u\n", sd_priv->index);
-		v4l2_info(sd, "\tfwnode: %pfw\n", sd_priv->fwnode);
-		v4l2_info(sd, "\tlabel: %s\n", sd_priv->label);
-		v4l2_info(sd, "\tactive: %u\n", sd_priv->active);
-		v4l2_info(sd, "\tfmt: %s\n", sd_priv->fmt ? sd_priv->fmt->name : NULL);
-		v4l2_info(sd, "\tdt: 0x%02x\n", sd_priv->fmt ? sd_priv->fmt->dt : 0);
-		v4l2_info(sd, "\tpipe_id: %u\n", sd_priv->pipe_id);
-		v4l2_info(sd, "\tphy_id: %u\n", sd_priv->phy_id);
-		v4l2_info(sd, "\tsrc_vc_id: %u\n", sd_priv->src_vc_id);
-		v4l2_info(sd, "\tdst_vc_id: %u\n", sd_priv->dst_vc_id);
+	for_each_channel(priv, channel) {
+		v4l2_info(sd, "channel: %u\n", channel->index);
+		v4l2_info(sd, "\tfwnode: %pfw\n", channel->fwnode);
+		v4l2_info(sd, "\tlabel: %s\n", channel->label);
+		v4l2_info(sd, "\tactive: %u\n", channel->active);
+		v4l2_info(sd, "\tfmt: %s\n", channel->fmt ? channel->fmt->name : NULL);
+		v4l2_info(sd, "\tdt: 0x%02x\n", channel->fmt ? channel->fmt->dt : 0);
+		v4l2_info(sd, "\tpipe_id: %u\n", channel->pipe_id);
+		v4l2_info(sd, "\tphy_id: %u\n", channel->phy_id);
+		v4l2_info(sd, "\tsrc_vc_id: %u\n", channel->src_vc_id);
+		v4l2_info(sd, "\tdst_vc_id: %u\n", channel->dst_vc_id);
 		v4l2_info(sd, "\n");
 	}
 
@@ -710,8 +710,8 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_des_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
-	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
 	unsigned int val;
 	int ret;
@@ -728,8 +728,8 @@ static int max_des_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 static int max_des_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
-	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
 
 	return des->ops->reg_write(des, reg->reg, reg->val);
@@ -764,86 +764,86 @@ static const struct media_entity_operations max_des_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static void max_des_set_sd_name(struct max_des_subdev_priv *sd_priv)
+static void max_des_set_sd_name(struct max_des_channel *channel)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	struct i2c_client *client = priv->client;
 
-	if (sd_priv->label) {
-		strscpy(sd_priv->sd.name, sd_priv->label, sizeof(sd_priv->sd.name));
+	if (channel->label) {
+		strscpy(channel->sd.name, channel->label, sizeof(channel->sd.name));
 		return;
 	}
 
-	snprintf(sd_priv->sd.name, sizeof(sd_priv->sd.name), "%s %d-%04x:%u",
+	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
 		 client->dev.driver->name, i2c_adapter_id(client->adapter),
-		 client->addr, sd_priv->index);
+		 client->addr, channel->index);
 }
 
-static int max_des_v4l2_register_sd(struct max_des_subdev_priv *sd_priv)
+static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 {
-	struct v4l2_ctrl_handler *hdl = &sd_priv->ctrl_handler;
-	u64 max_pixel_rate = max_des_get_pixel_rate(sd_priv);
-	struct max_des_priv *priv = sd_priv->priv;
+	struct v4l2_ctrl_handler *hdl = &channel->ctrl_handler;
+	u64 max_pixel_rate = max_des_get_pixel_rate(channel);
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
-	struct max_des_phy *phy = &des->phys[sd_priv->phy_id];
+	struct max_des_phy *phy = &des->phys[channel->phy_id];
 	int ret;
 
-	v4l2_i2c_subdev_init(&sd_priv->sd, priv->client, &max_des_subdev_ops);
-	max_des_set_sd_name(sd_priv);
-	sd_priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
-	sd_priv->sd.entity.ops = &max_des_media_ops;
-	sd_priv->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	sd_priv->sd.fwnode = sd_priv->fwnode;
-	fwnode_handle_get(sd_priv->sd.fwnode);
+	v4l2_i2c_subdev_init(&channel->sd, priv->client, &max_des_subdev_ops);
+	max_des_set_sd_name(channel);
+	channel->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
+	channel->sd.entity.ops = &max_des_media_ops;
+	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	channel->sd.fwnode = channel->fwnode;
+	fwnode_handle_get(channel->sd.fwnode);
 
-	sd_priv->sd.ctrl_handler = hdl;
+	channel->sd.ctrl_handler = hdl;
 	ret = v4l2_ctrl_handler_init(hdl, 1);
 	if (ret)
 		goto error;
 
 	v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ, 0, 0, &phy->link_frequency);
-	sd_priv->pixel_rate_ctrl = v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE,
+	channel->pixel_rate_ctrl = v4l2_ctrl_new_std(hdl, NULL, V4L2_CID_PIXEL_RATE,
 						     0, max_pixel_rate,
 						     1, max_pixel_rate);
 
-	sd_priv->pads[MAX_DES_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
-	sd_priv->pads[MAX_DES_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
+	channel->pads[MAX_DES_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
+	channel->pads[MAX_DES_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
 
-	v4l2_set_subdevdata(&sd_priv->sd, sd_priv);
+	v4l2_set_subdevdata(&channel->sd, channel);
 
-	ret = media_entity_pads_init(&sd_priv->sd.entity, MAX_DES_PAD_NUM, sd_priv->pads);
+	ret = media_entity_pads_init(&channel->sd.entity, MAX_DES_PAD_NUM, channel->pads);
 	if (ret)
 		goto error;
 
-	ret = v4l2_async_register_subdev(&sd_priv->sd);
+	ret = v4l2_async_register_subdev(&channel->sd);
 	if (ret)
 		goto error;
 
 	return 0;
 
 error:
-	media_entity_cleanup(&sd_priv->sd.entity);
-	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
-	fwnode_handle_put(sd_priv->sd.fwnode);
+	media_entity_cleanup(&channel->sd.entity);
+	v4l2_ctrl_handler_free(&channel->ctrl_handler);
+	fwnode_handle_put(channel->sd.fwnode);
 
 	return ret;
 }
 
-static void max_des_v4l2_unregister_sd(struct max_des_subdev_priv *sd_priv)
+static void max_des_v4l2_unregister_sd(struct max_des_channel *channel)
 {
-	v4l2_async_unregister_subdev(&sd_priv->sd);
-	media_entity_cleanup(&sd_priv->sd.entity);
-	v4l2_ctrl_handler_free(&sd_priv->ctrl_handler);
-	fwnode_handle_put(sd_priv->sd.fwnode);
+	v4l2_async_unregister_subdev(&channel->sd);
+	media_entity_cleanup(&channel->sd.entity);
+	v4l2_ctrl_handler_free(&channel->ctrl_handler);
+	fwnode_handle_put(channel->sd.fwnode);
 }
 
 static int max_des_v4l2_register(struct max_des_priv *priv)
 {
-	struct max_des_subdev_priv *sd_priv;
+	struct max_des_channel *channel;
 	int ret;
 
-	for_each_subdev(priv, sd_priv) {
-		ret = max_des_v4l2_register_sd(sd_priv);
+	for_each_channel(priv, channel) {
+		ret = max_des_v4l2_register_sd(channel);
 		if (ret)
 			return ret;
 	}
@@ -853,10 +853,10 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 
 static void max_des_v4l2_unregister(struct max_des_priv *priv)
 {
-	struct max_des_subdev_priv *sd_priv;
+	struct max_des_channel *channel;
 
-	for_each_subdev(priv, sd_priv)
-		max_des_v4l2_unregister_sd(sd_priv);
+	for_each_channel(priv, channel)
+		max_des_v4l2_unregister_sd(channel);
 }
 
 static int max_des_parse_phy_dt(struct max_des_priv *priv,
@@ -895,57 +895,57 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
+static int max_des_parse_ch_dt(struct max_des_channel *channel,
 			       struct fwnode_handle *fwnode)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe;
 	struct max_des_link *link;
 	struct max_des_phy *phy;
 	u32 val;
 
-	fwnode_property_read_string(fwnode, "label", &sd_priv->label);
+	fwnode_property_read_string(fwnode, "label", &channel->label);
 
 	/* TODO: implement extended Virtual Channel. */
-	val = sd_priv->src_vc_id;
+	val = channel->src_vc_id;
 	fwnode_property_read_u32(fwnode, "maxim,src-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
 		dev_err(priv->dev, "Invalid source virtual channel %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->src_vc_id = val;
+	channel->src_vc_id = val;
 
 	/* TODO: implement extended Virtual Channel. */
-	val = sd_priv->dst_vc_id;
+	val = channel->dst_vc_id;
 	fwnode_property_read_u32(fwnode, "maxim,dst-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
 		dev_err(priv->dev, "Invalid destination virtual channel %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->dst_vc_id = val;
+	channel->dst_vc_id = val;
 
-	val = sd_priv->pipe_id;
+	val = channel->pipe_id;
 	fwnode_property_read_u32(fwnode, "maxim,pipe-id", &val);
 	if (val >= des->ops->num_pipes) {
 		dev_err(priv->dev, "Invalid pipe %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->pipe_id = val;
+	channel->pipe_id = val;
 
 	pipe = &des->pipes[val];
 	pipe->enabled = true;
 
-	val = sd_priv->pipe_id % des->ops->num_phys;
+	val = channel->pipe_id % des->ops->num_phys;
 	fwnode_property_read_u32(fwnode, "maxim,phy-id", &val);
 	if (val >= des->ops->num_phys) {
 		dev_err(priv->dev, "Invalid PHY %u\n", val);
 		return -EINVAL;
 	}
-	sd_priv->phy_id = val;
+	channel->phy_id = val;
 
 	if (fwnode_property_read_bool(fwnode, "maxim,embedded-data"))
-		sd_priv->fmt = max_format_by_dt(MIPI_CSI2_DT_EMBEDDED_8B);
+		channel->fmt = max_format_by_dt(MIPI_CSI2_DT_EMBEDDED_8B);
 
 	phy = &des->phys[val];
 	phy->enabled = true;
@@ -956,12 +956,12 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 	return 0;
 }
 
-static int max_des_parse_sink_dt_endpoint(struct max_des_subdev_priv *sd_priv,
+static int max_des_parse_sink_dt_endpoint(struct max_des_channel *channel,
 					  struct fwnode_handle *fwnode)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
-	struct max_des_pipe *pipe = &des->pipes[sd_priv->pipe_id];
+	struct max_des_pipe *pipe = &des->pipes[channel->pipe_id];
 	struct max_des_link *link = &des->links[pipe->link_id];
 	struct fwnode_handle *ep, *channel_fwnode, *device_fwnode;
 	u32 val;
@@ -997,12 +997,12 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	return 0;
 }
 
-static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
+static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 					 struct fwnode_handle *fwnode)
 {
-	struct max_des_priv *priv = sd_priv->priv;
+	struct max_des_priv *priv = channel->priv;
 	struct max_des *des = priv->des;
-	struct max_des_phy *phy = &des->phys[sd_priv->phy_id];
+	struct max_des_phy *phy = &des->phys[channel->phy_id];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
@@ -1135,7 +1135,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	const char *channel_node_name = "channel";
 	const char *pipe_node_name = "pipe";
 	const char *phy_node_name = "phy";
-	struct max_des_subdev_priv *sd_priv;
+	struct max_des_channel *channel;
 	struct fwnode_handle *fwnode;
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
@@ -1231,15 +1231,15 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		priv->num_subdevs++;
+		priv->num_channels++;
 	}
 
-	priv->sd_privs = devm_kcalloc(priv->dev, priv->num_subdevs,
-				      sizeof(*priv->sd_privs), GFP_KERNEL);
-	if (!priv->sd_privs)
+	priv->channels = devm_kcalloc(priv->dev, priv->num_channels,
+				      sizeof(*priv->channels), GFP_KERNEL);
+	if (!priv->channels)
 		return -ENOMEM;
 
-	sd_priv = priv->sd_privs;
+	channel = priv->channels;
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
@@ -1252,32 +1252,32 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 			continue;
 		}
 
-		sd_priv->fwnode = fwnode;
-		sd_priv->priv = priv;
-		sd_priv->index = index;
-		sd_priv->src_vc_id = 0;
-		sd_priv->dst_vc_id = index % MAX_SERDES_VC_ID_NUM;
-		sd_priv->pipe_id = index % des->ops->num_pipes;
+		channel->fwnode = fwnode;
+		channel->priv = priv;
+		channel->index = index;
+		channel->src_vc_id = 0;
+		channel->dst_vc_id = index % MAX_SERDES_VC_ID_NUM;
+		channel->pipe_id = index % des->ops->num_pipes;
 
-		ret = max_des_parse_ch_dt(sd_priv, fwnode);
+		ret = max_des_parse_ch_dt(channel, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
 
-		ret = max_des_parse_sink_dt_endpoint(sd_priv, fwnode);
+		ret = max_des_parse_sink_dt_endpoint(channel, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
 
-		ret = max_des_parse_src_dt_endpoint(sd_priv, fwnode);
+		ret = max_des_parse_src_dt_endpoint(channel, fwnode);
 		if (ret) {
 			fwnode_handle_put(fwnode);
 			return ret;
 		}
 
-		sd_priv++;
+		channel++;
 	}
 
 	return 0;
