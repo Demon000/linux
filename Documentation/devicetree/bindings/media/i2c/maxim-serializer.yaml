@@ -91,17 +91,6 @@ patternProperties:
           receive data from PHY 0, while pipes 2 and 3 will receive data
           from PHY 1.
 
-      maxim,stream-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: |
-          The stream id which the pipe will use to transmit its frames.
-          On the deserializer side, each pipe will also have a stream id
-          which it will use to filter the frames.
-          Multiple pipes cannot use the same stream id.
-          The default stream id is the same as the pipe id.
-        min: 0
-        max: 3
-
   '^channel@[0-9a-f]+$':
     type: object
     additionalProperties: false
