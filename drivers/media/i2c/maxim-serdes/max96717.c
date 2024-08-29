@@ -788,12 +788,14 @@ static int max96717_set_phy_enable(struct max_ser *ser, struct max_ser_phy *phy,
 	return max96717_update_bits(priv, 0x308, mask, enable ? mask : 0);
 }
 
-static int max96717_init_pipe_stream_id(struct max96717_priv *priv,
-					struct max_ser_pipe *pipe)
+static int max96717_set_pipe_stream_id(struct max_ser *ser,
+				       struct max_ser_pipe *pipe,
+				       unsigned int stream_id)
 {
+	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
 
-	return max96717_write(priv, 0x53 + 0x4 * index, pipe->stream_id);
+	return max96717_write(priv, 0x53 + 0x4 * index, stream_id);
 }
 
 static int max96717_init_pipe(struct max_ser *ser,
@@ -861,51 +863,6 @@ static int max96717_init_pipe(struct max_ser *ser,
 	ret = max96717_update_bits(priv, reg + 1, GENMASK(5, 0), pipe->bpp);
 	if (ret)
 		return ret;
-
-	ret = max96717_init_pipe_stream_id(priv, pipe);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
-{
-	struct max_ser *ser = &priv->ser;
-	unsigned int used_stream_ids = 0;
-	struct max_ser_pipe *pipe;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ser->ops->num_pipes; i++) {
-		pipe = &ser->pipes[i];
-
-		if (!pipe->enabled)
-			continue;
-
-		if (used_stream_ids & BIT(pipe->stream_id)) {
-			dev_err(priv->dev, "Duplicate stream %u\n", pipe->index);
-			return -EINVAL;
-		}
-
-		used_stream_ids |= BIT(pipe->stream_id);
-	}
-
-	for (i = 0; i < ser->ops->num_pipes; i++) {
-		pipe = &ser->pipes[i];
-
-		if (pipe->enabled)
-			continue;
-
-		/* Stream ID already used, find a free one. */
-		/* TODO: check whether there is no unused stream ID? */
-		if (used_stream_ids & BIT(pipe->stream_id))
-			pipe->stream_id = ffz(used_stream_ids);
-
-		ret = max96717_init_pipe_stream_id(priv, pipe);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
@@ -998,13 +955,6 @@ static int max96717_init(struct max_ser *ser)
 
 static int max96717_post_init(struct max_ser *ser)
 {
-	struct max96717_priv *priv = ser_to_priv(ser);
-	int ret;
-
-	ret = max96717_init_pipes_stream_ids(priv);
-	if (ret)
-		return ret;
-
 	msleep(100);
 
 	return 0;
@@ -1048,6 +998,7 @@ static const struct max_ser_ops max96717_ops = {
 	.set_phy_enable = max96717_set_phy_enable,
 	.init_pipe = max96717_init_pipe,
 	.set_pipe_enable = max96717_set_pipe_enable,
+	.set_pipe_stream_id = max96717_set_pipe_stream_id,
 	.post_init = max96717_post_init,
 };
 
