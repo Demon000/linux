@@ -79,12 +79,6 @@ SER_LABEL: gmsl-serializer@SER_HEX_REG {
 		};
 	};
 
-	pipe@0 {
-		reg = <0>;
-
-		maxim,stream-id = <SER_INDEX>;
-	};
-
 	channel@0 {
 		reg = <0>;
 

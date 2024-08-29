@@ -875,16 +875,6 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
-	u32 val;
-
-	val = pipe->stream_id;
-	fwnode_property_read_u32(fwnode, "maxim,stream-id", &val);
-	if (val >= MAX_SERDES_STREAMS_NUM) {
-		dev_err(priv->dev, "Invalid stream %u\n", val);
-		return -EINVAL;
-	}
-	pipe->stream_id = val;
-
 	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
 	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
 	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
@@ -1152,7 +1142,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		pipe = &des->pipes[i];
 		pipe->index = i;
-		pipe->stream_id = i % MAX_SERDES_STREAMS_NUM;
+		pipe->stream_id = 0;
 		pipe->link_id = i % des->ops->num_links;
 	}
 

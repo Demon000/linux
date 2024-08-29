@@ -89,14 +89,6 @@ patternProperties:
         description: The pipe id.
         maxItems: 1
 
-      maxim,stream-id:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: |
-          The stream id which the pipe will use to receive its data.
-          The default stream id will be the same as the pipe id.
-        min: 0
-        max: 3
-
   '^channel@[0-9a-f]+$':
     type: object
     additionalProperties: false

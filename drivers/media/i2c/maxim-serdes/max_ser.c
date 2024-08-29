@@ -432,6 +432,10 @@ static int max_ser_init(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 
+		ret = ser->ops->set_pipe_stream_id(ser, pipe, pipe->stream_id);
+		if (ret)
+			return ret;
+
 		if (!pipe->enabled)
 			continue;
 
@@ -439,10 +443,6 @@ static int max_ser_init(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 	}
-
-	ret = ser->ops->post_init(ser);
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -540,14 +540,6 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 		return -EINVAL;
 	}
 	pipe->phy_id = val;
-
-	val = pipe->stream_id;
-	fwnode_property_read_u32(fwnode, "maxim,stream-id", &val);
-	if (val >= MAX_SERDES_STREAMS_NUM) {
-		dev_err(priv->dev, "Invalid stream %u\n", val);
-		return -EINVAL;
-	}
-	pipe->stream_id = val;
 
 	val = 0;
 	fwnode_property_read_u32(fwnode, "maxim,soft-bpp", &val);
