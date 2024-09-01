@@ -427,12 +427,17 @@ static int max_ser_init(struct max_ser_priv *priv)
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {
 		struct max_ser_pipe *pipe = &ser->pipes[i];
+		struct max_ser_phy *phy = &ser->phys[pipe->phy_id];
 
 		ret = ser->ops->set_pipe_enable(ser, pipe, false);
 		if (ret)
 			return ret;
 
 		ret = ser->ops->set_pipe_stream_id(ser, pipe, pipe->stream_id);
+		if (ret)
+			return ret;
+
+		ret = ser->ops->set_pipe_phy(ser, pipe, phy);
 		if (ret)
 			return ret;
 
