@@ -798,29 +798,35 @@ static int max96717_set_pipe_stream_id(struct max_ser *ser,
 	return max96717_write(priv, 0x53 + 0x4 * index, stream_id);
 }
 
-static int max96717_init_pipe(struct max_ser *ser,
-			      struct max_ser_pipe *pipe)
+static int max96717_set_pipe_phy(struct max_ser *ser,
+				 struct max_ser_pipe *pipe,
+				 struct max_ser_phy *phy)
 {
-	struct max_ser_phy *phy = &ser->phys[pipe->phy_id];
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	unsigned int phy_id = max96717_phy_id(priv, phy);
-	unsigned int reg, val, shift, mask;
+	unsigned int mask, val;
 	int ret;
 
-	/* Map pipe to PHY. */
 	mask = BIT(index);
 	val = phy_id == 1 ? mask : 0;
 	ret = max96717_update_bits(priv, 0x308, mask, val);
 	if (ret)
 		return ret;
 
-	/* Enable pipe output to PHY. */
-	shift = phy_id == 1 ? 4 : 0;
-	mask = BIT(index) << shift;
-	ret = max96717_update_bits(priv, 0x311, mask, mask);
-	if (ret)
-		return ret;
+	mask = BIT(index) | BIT(index + 4);
+	val = phy_id == 1 ? BIT(index + 4) : BIT(index);
+
+	return max96717_update_bits(priv, 0x311, mask, val);
+}
+
+static int max96717_init_pipe(struct max_ser *ser,
+			      struct max_ser_pipe *pipe)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int reg, mask;
+	int ret;
 
 	/* Set 8bit double mode. */
 	mask = BIT(index);
@@ -936,11 +942,6 @@ static int max96717_init(struct max_ser *ser)
 			return ret;
 	}
 
-	/* Reset pipe to ports mapping. */
-	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
-	if (ret)
-		return ret;
-
 	/* Set PHY mode. */
 	if (ser->phys_config >= ARRAY_SIZE(max96717_phys_configs_reg_val))
 		return -EINVAL;
@@ -999,6 +1000,7 @@ static const struct max_ser_ops max96717_ops = {
 	.init_pipe = max96717_init_pipe,
 	.set_pipe_enable = max96717_set_pipe_enable,
 	.set_pipe_stream_id = max96717_set_pipe_stream_id,
+	.set_pipe_phy = max96717_set_pipe_phy,
 	.post_init = max96717_post_init,
 };
 
