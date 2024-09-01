@@ -71,6 +71,8 @@ struct max_ser_ops {
 			       bool enable);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
+	int (*set_pipe_phy)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			    struct max_ser_phy *phy);
 	int (*post_init)(struct max_ser *ser);
 };
 
