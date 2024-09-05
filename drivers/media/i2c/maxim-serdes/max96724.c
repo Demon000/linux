@@ -5,6 +5,8 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
@@ -22,6 +24,8 @@ struct max96724_priv {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
+
+	struct gpio_desc *gpiod_pwdn;
 };
 
 struct max96724_chip_info {
@@ -640,6 +644,20 @@ static int max96724_probe(struct i2c_client *client)
 	priv->regmap = devm_regmap_init_i2c(client, &max_des_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "pwdn",
+						   GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->gpiod_pwdn))
+		return PTR_ERR(priv->gpiod_pwdn);
+
+	if (priv->gpiod_pwdn) {
+		/* PWDN must be held for 1us for reset */
+		udelay(1);
+
+		gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
+		/* Maximum power-up time (tLOCK) 4ms */
+		usleep_range(4000, 5000);
+	}
 
 	*ops = max96724_ops;
 
