@@ -764,7 +764,7 @@ static int rvin_setup(struct rvin_dev *vin)
 	 */
 	switch (vin->mbus_code) {
 	case MEDIA_BUS_FMT_YUYV8_1X16:
-		if (vin->is_csi)
+		if (true)
 			/* YCbCr422 8-bit */
 			vnmc |= VNMC_INF_YUV8_BT601;
 		else
@@ -773,7 +773,7 @@ static int rvin_setup(struct rvin_dev *vin)
 		input_is_yuv = true;
 		break;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
-		if (vin->is_csi)
+		if (true)
 			/* YCbCr422 8-bit */
 			vnmc |= VNMC_INF_YUV8_BT601;
 		else
