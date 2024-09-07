@@ -1210,10 +1210,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		}
 	}
 
-	ret = max_des_find_phys_config(priv);
-	if (ret)
-		return ret;
-
 	device_for_each_child_node(priv->dev, fwnode) {
 		struct device_node *of_node = to_of_node(fwnode);
 
@@ -1275,7 +1271,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		channel++;
 	}
 
-	return 0;
+	return max_des_find_phys_config(priv);
 }
 
 static int max_des_allocate(struct max_des_priv *priv)
