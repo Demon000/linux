@@ -114,7 +114,6 @@
 		__overlay__ {
 			phy@GMSL_PHY {
 				reg = <GMSL_PHY>;
-				max,alt-mem-map12;
 			};
 #if defined(GMSL_CAMERA_0)
 			#define DESER_CH_INDEX 0
