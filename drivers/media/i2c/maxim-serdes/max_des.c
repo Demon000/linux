@@ -894,6 +894,7 @@ static int max_des_parse_ch_dt(struct max_des_channel *channel,
 			       struct fwnode_handle *fwnode)
 {
 	struct max_des_priv *priv = channel->priv;
+	unsigned int index = channel->index;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe;
 	struct max_des_link *link;
@@ -903,7 +904,7 @@ static int max_des_parse_ch_dt(struct max_des_channel *channel,
 	fwnode_property_read_string(fwnode, "label", &channel->label);
 
 	/* TODO: implement extended Virtual Channel. */
-	val = channel->src_vc_id;
+	val = 0;
 	fwnode_property_read_u32(fwnode, "maxim,src-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
 		dev_err(priv->dev, "Invalid source virtual channel %u\n", val);
@@ -912,7 +913,7 @@ static int max_des_parse_ch_dt(struct max_des_channel *channel,
 	channel->src_vc_id = val;
 
 	/* TODO: implement extended Virtual Channel. */
-	val = channel->dst_vc_id;
+	val = index % MAX_SERDES_VC_ID_NUM;
 	fwnode_property_read_u32(fwnode, "maxim,dst-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
 		dev_err(priv->dev, "Invalid destination virtual channel %u\n", val);
@@ -920,7 +921,7 @@ static int max_des_parse_ch_dt(struct max_des_channel *channel,
 	}
 	channel->dst_vc_id = val;
 
-	val = channel->pipe_id;
+	val = index % des->ops->num_pipes;
 	fwnode_property_read_u32(fwnode, "maxim,pipe-id", &val);
 	if (val >= des->ops->num_pipes) {
 		dev_err(priv->dev, "Invalid pipe %u\n", val);
@@ -1246,9 +1247,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		channel->fwnode = fwnode;
 		channel->priv = priv;
 		channel->index = index;
-		channel->src_vc_id = 0;
-		channel->dst_vc_id = index % MAX_SERDES_VC_ID_NUM;
-		channel->pipe_id = index % des->ops->num_pipes;
 
 		ret = max_des_parse_ch_dt(channel, fwnode);
 		if (ret) {
