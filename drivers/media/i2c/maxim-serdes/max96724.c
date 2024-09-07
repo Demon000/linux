@@ -17,10 +17,19 @@
 
 struct max96724_priv {
 	struct max_des des;
+	const struct max96724_chip_info *info;
 
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
+};
+
+struct max96724_chip_info {
+	bool supports_tunnel_mode;
+	bool supports_pipe_stream_autoselect;
+	unsigned int num_pipes;
+	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
+			    struct max_des_phy *phy);
 };
 
 #define des_to_priv(des) \
@@ -215,11 +224,13 @@ static int max96724_init(struct max_des *des)
 	unsigned int mask;
 	int ret;
 
-	/* Enable stream autoselect. */
-	mask = BIT(4);
-	ret = max96724_update_bits(priv, 0xf4, mask, mask);
-	if (ret)
-		return ret;
+	if (priv->info->supports_pipe_stream_autoselect) {
+		/* Enable stream autoselect. */
+		mask = BIT(4);
+		ret = max96724_update_bits(priv, 0xf4, mask, mask);
+		if (ret)
+			return ret;
+	}
 
 	/* Set PHY mode. */
 	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
@@ -540,10 +551,8 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 
 static const struct max_des_ops max96724_ops = {
 	.num_phys = 4,
-	.num_pipes = 4,
 	.num_links = 4,
 	.num_remaps_per_pipe = 16,
-	.supports_tunnel_mode = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max96724_phys_configs),
 		.configs = max96724_phys_configs,
@@ -558,22 +567,43 @@ static const struct max_des_ops max96724_ops = {
 	.set_phy_enable = max96724_set_phy_enable,
 	.init_pipe = max96724_init_pipe,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
-	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_enable = max96724_set_pipe_enable,
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remap_enable = max96724_set_pipe_remap_enable,
 	.select_links = max96724_select_links,
 };
 
+static const struct max96724_chip_info max96724_info = {
+	.set_pipe_phy = max96724_set_pipe_phy,
+	.supports_tunnel_mode = true,
+	.supports_pipe_stream_autoselect = true,
+	.num_pipes = 4,
+};
+
+static const struct max96724_chip_info max96712_info = {
+	.num_pipes = 8,
+};
+
 static int max96724_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct max96724_priv *priv;
+	struct max_des_ops *ops;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	ops = devm_kzalloc(dev, sizeof(*ops), GFP_KERNEL);
+	if (!ops)
+		return -ENOMEM;
+
+	priv->info = device_get_match_data(dev);
+	if (!priv->info) {
+		dev_err(dev, "Failed to get match data\n");
+		return -ENODEV;
+	}
 
 	priv->dev = dev;
 	priv->client = client;
@@ -583,7 +613,11 @@ static int max96724_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	priv->des.ops = &max96724_ops;
+	*ops = max96724_ops;
+
+	ops->supports_tunnel_mode = priv->info->supports_tunnel_mode;
+	ops->num_pipes = priv->info->num_pipes;
+	priv->des.ops = ops;
 
 	ret = max96724_reset(priv);
 	if (ret)
@@ -600,7 +634,8 @@ static void max96724_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id max96724_of_table[] = {
-	{ .compatible = "maxim,max96724" },
+	{ .compatible = "maxim,max96724", .data = &max96724_info },
+	{ .compatible = "maxim,max96712", .data = &max96712_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max96724_of_table);
