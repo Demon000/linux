@@ -578,6 +578,7 @@ static int max_ser_parse_ch_dt(struct max_ser_channel *channel,
 			       struct fwnode_handle *fwnode)
 {
 	struct max_ser_priv *priv = channel->priv;
+	unsigned int index = channel->index;
 	struct max_ser *ser = priv->ser;
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
@@ -585,7 +586,7 @@ static int max_ser_parse_ch_dt(struct max_ser_channel *channel,
 
 	fwnode_property_read_string(fwnode, "label", &channel->label);
 
-	val = channel->pipe_id;
+	val = index % ser->ops->num_pipes;
 	fwnode_property_read_u32(fwnode, "maxim,pipe-id", &val);
 	if (val >= ser->ops->num_pipes) {
 		dev_err(priv->dev, "Invalid pipe %u\n", val);
@@ -805,7 +806,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		channel->fwnode = fwnode;
 		channel->priv = priv;
 		channel->index = index;
-		channel->pipe_id = index % ser->ops->num_pipes;
 
 		ret = max_ser_parse_ch_dt(channel, fwnode);
 		if (ret) {
