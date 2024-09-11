@@ -501,8 +501,8 @@ static int max_des_i2c_atr_init(struct max_des_priv *priv)
 
 	priv->atr = i2c_atr_new(priv->client->adapter, priv->dev,
 				&max_des_i2c_atr_ops, des->ops->num_links);
-	if (!priv->atr)
-		return -ENOMEM;
+	if (IS_ERR(priv->atr))
+		return PTR_ERR(priv->atr);
 
 	i2c_atr_set_driver_data(priv->atr, priv);
 
