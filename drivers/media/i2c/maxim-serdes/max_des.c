@@ -96,7 +96,7 @@ static int max_des_channel_update(struct max_des_priv *priv)
 	bool enable = 0;
 
 	for_each_channel(priv, channel) {
-		if (des->active) {
+		if (channel->active) {
 			enable = 1;
 			break;
 		}
