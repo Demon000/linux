@@ -196,10 +196,15 @@ static int max96724_set_enable(struct max_des *des, bool enable)
 static const unsigned int max96724_phys_configs_reg_val[] = {
 	BIT(2),
 	BIT(3),
+
 	BIT(0),
 	BIT(2),
 	BIT(3),
 	BIT(4),
+
+	BIT(2),
+	BIT(3),
+	BIT(2),
 };
 
 static const struct max_phy_configs max96724_phys_configs[] = {
@@ -216,6 +221,10 @@ static const struct max_phy_configs max96724_phys_configs[] = {
 	{ { 0, 4, 4, 0 } },
 	{ { 0, 4, 2, 2 } },
 	{ { 2, 2, 4, 0 } },
+
+	{ { 0, 3, 3, 0 } },
+	{ { 0, 3, 2, 2 } },
+	{ { 0, 3, 4, 0 } },
 };
 
 static int max96724_init(struct max_des *des)
@@ -248,6 +257,8 @@ static unsigned int max96724_phy_hw_data_lanes(struct max_des_phy *phy)
 {
 	if (phy->index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
 	    phy->mipi.num_data_lanes == 2)
+		return 4;
+	else if (phy->mipi.num_data_lanes == 3)
 		return 4;
 	else
 		return phy->mipi.num_data_lanes;
