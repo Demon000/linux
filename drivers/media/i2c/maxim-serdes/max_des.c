@@ -42,6 +42,13 @@ struct max_des_channel {
 	unsigned int phy_id;
 	unsigned int src_vc_id;
 	unsigned int dst_vc_id;
+
+	struct v4l2_async_notifier nf;
+	struct {
+		struct v4l2_subdev *sd;
+		unsigned int pad;
+		struct fwnode_handle *ep_fwnode;
+	} source;
 };
 
 struct max_des_priv {
@@ -86,6 +93,11 @@ static struct max_des_channel *next_channel(struct max_des_priv *priv,
 static inline struct max_des_channel *sd_to_max_des(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct max_des_channel, sd);
+}
+
+static inline struct max_des_channel *nf_to_max_des(struct v4l2_async_notifier *nf)
+{
+	return container_of(nf, struct max_des_channel, nf);
 }
 
 static int max_des_channel_update(struct max_des_priv *priv)
@@ -527,6 +539,11 @@ err_add_adapters:
 static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct max_des_channel *channel = sd_to_max_des(sd);
+	int ret;
+
+	ret = v4l2_subdev_call(channel->source.sd, video, s_stream, enable);
+	if (ret)
+		return ret;
 
 	return max_des_channel_enable(channel, enable);
 }
@@ -767,6 +784,88 @@ static const struct media_entity_operations max_des_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+static int max_des_notify_bound(struct v4l2_async_notifier *nf,
+			        struct v4l2_subdev *subdev,
+			        struct v4l2_async_connection *asd)
+{
+	struct max_des_channel *channel = nf_to_max_des(nf);
+	struct max_des_priv *priv = channel->priv;
+	int ret;
+
+	ret = media_entity_get_fwnode_pad(&subdev->entity,
+					  channel->source.ep_fwnode,
+					  MEDIA_PAD_FL_SOURCE);
+	if (ret < 0) {
+		dev_err(priv->dev, "Failed to find pad for %s\n", subdev->name);
+		return ret;
+	}
+
+	channel->source.sd = subdev;
+	channel->source.pad = ret;
+
+	ret = media_create_pad_link(&channel->source.sd->entity, channel->source.pad,
+				    &channel->sd.entity, MAX_DES_SINK_PAD,
+				    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
+	if (ret) {
+		dev_err(priv->dev, "Unable to link %s:%u -> %s:%u\n",
+			channel->source.sd->name, channel->source.pad,
+			channel->sd.name, MAX_DES_SINK_PAD);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void max_des_notify_unbind(struct v4l2_async_notifier *nf,
+				  struct v4l2_subdev *subdev,
+				  struct v4l2_async_connection *asd)
+{
+	struct max_des_channel *channel = nf_to_max_des(nf);
+
+	channel->source.sd = NULL;
+}
+
+static const struct v4l2_async_notifier_operations max_des_notify_ops = {
+	.bound = max_des_notify_bound,
+	.unbind = max_des_notify_unbind,
+};
+
+static int max_des_v4l2_notifier_register(struct max_des_channel *channel)
+{
+	struct max_des_priv *priv = channel->priv;
+	struct v4l2_async_connection *asc;
+	int ret;
+
+	v4l2_async_subdev_nf_init(&channel->nf, &channel->sd);
+
+	asc = v4l2_async_nf_add_fwnode(&channel->nf,
+				       channel->source.ep_fwnode,
+				       struct v4l2_async_connection);
+	if (IS_ERR(asc)) {
+		dev_err(priv->dev, "Failed to add subdev for source %u: %pe",
+			channel->index, asc);
+		v4l2_async_nf_cleanup(&channel->nf);
+		return PTR_ERR(asc);
+	}
+
+	channel->nf.ops = &max_des_notify_ops;
+
+	ret = v4l2_async_nf_register(&channel->nf);
+	if (ret) {
+		dev_err(priv->dev, "Failed to register subdev notifier");
+		v4l2_async_nf_cleanup(&channel->nf);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void max_des_v4l2_notifier_unregister(struct max_des_channel *channel)
+{
+	v4l2_async_nf_unregister(&channel->nf);
+	v4l2_async_nf_cleanup(&channel->nf);
+}
+
 static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 {
 	struct v4l2_ctrl_handler *hdl = &channel->ctrl_handler;
@@ -809,6 +908,12 @@ static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 	if (ret)
 		goto error;
 
+	ret = max_des_v4l2_notifier_register(channel);
+	if (ret) {
+		dev_err(priv->dev, "v4l2 subdev notifier register failed: %d\n", ret);
+		goto error;
+	}
+
 	ret = v4l2_async_register_subdev(&channel->sd);
 	if (ret)
 		goto error;
@@ -825,6 +930,7 @@ error:
 
 static void max_des_v4l2_unregister_sd(struct max_des_channel *channel)
 {
+	max_des_v4l2_notifier_unregister(channel);
 	v4l2_async_unregister_subdev(&channel->sd);
 	media_entity_cleanup(&channel->sd.entity);
 	v4l2_ctrl_handler_free(&channel->ctrl_handler);
@@ -953,6 +1059,12 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_channel *channel,
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
 		return -EINVAL;
+	}
+
+	channel->source.ep_fwnode = fwnode_graph_get_remote_endpoint(ep);
+	if (!channel->source.ep_fwnode) {
+		dev_err(priv->dev, "no remote endpoint\n");
+		return -ENODEV;
 	}
 
 	channel_fwnode = fwnode_graph_get_remote_port_parent(ep);
