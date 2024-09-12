@@ -54,6 +54,7 @@ struct max_des_phy {
 	unsigned int index;
 	s64 link_frequency;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
+	enum v4l2_mbus_type bus_type;
 	bool alt_mem_map8;
 	bool alt2_mem_map8;
 	bool alt_mem_map10;

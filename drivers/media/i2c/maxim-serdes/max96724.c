@@ -256,6 +256,7 @@ static unsigned int max96724_phy_hw_data_lanes(struct max_des_phy *phy)
 static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	bool is_cphy = phy->bus_type == V4L2_MBUS_CSI2_CPHY;
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
@@ -272,6 +273,11 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	mask = GENMASK(1, 0);
 	val = num_data_lanes - 1;
 	ret = max96724_update_bits(priv, reg, mask << shift, val << shift);
+	if (ret)
+		return ret;
+
+	mask = BIT(5);
+	ret = max96724_update_bits(priv, reg, mask, is_cphy ? mask : 0);
 	if (ret)
 		return ret;
 
@@ -324,7 +330,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	if (ret)
 		return ret;
 
-	if (dpll_freq > 1500000000ull) {
+	if (!is_cphy && dpll_freq > 1500000000ull) {
 		/* Enable initial deskew with 2 x 32k UI. */
 		ret = max96724_write(priv, 0x903 + 0x40 * index, 0x81);
 		if (ret)
@@ -342,6 +348,17 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 
 		/* Disable periodic deskew. */
 		ret = max96724_write(priv, 0x904 + 0x40 * index, 0x01);
+		if (ret)
+			return ret;
+	}
+
+	if (is_cphy) {
+		/* Configure C-PHY timings. */
+		ret = max96724_write(priv, 0x8ad, 0x3f);
+		if (ret)
+			return ret;
+
+		ret = max96724_write(priv, 0x8ae, 0x7d);
 		if (ret)
 			return ret;
 	}
