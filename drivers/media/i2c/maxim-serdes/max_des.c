@@ -34,7 +34,6 @@ struct max_des_channel {
 	struct max_des_priv *priv;
 	const struct max_format *fmt;
 	struct v4l2_mbus_framefmt framefmt;
-	const char *label;
 
 	struct media_pad pads[MAX_DES_PAD_NUM];
 
@@ -649,7 +648,6 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	for_each_channel(priv, channel) {
 		v4l2_info(sd, "channel: %u\n", channel->index);
 		v4l2_info(sd, "\tfwnode: %pfw\n", channel->fwnode);
-		v4l2_info(sd, "\tlabel: %s\n", channel->label);
 		v4l2_info(sd, "\tactive: %u\n", channel->active);
 		v4l2_info(sd, "\tfmt: %s\n", channel->fmt ? channel->fmt->name : NULL);
 		v4l2_info(sd, "\tdt: 0x%02x\n", channel->fmt ? channel->fmt->dt : 0);
@@ -769,37 +767,28 @@ static const struct media_entity_operations max_des_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
-static void max_des_set_sd_name(struct max_des_channel *channel)
-{
-	struct max_des_priv *priv = channel->priv;
-	struct i2c_client *client = priv->client;
-
-	if (channel->label) {
-		strscpy(channel->sd.name, channel->label, sizeof(channel->sd.name));
-		return;
-	}
-
-	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
-		 client->dev.driver->name, i2c_adapter_id(client->adapter),
-		 client->addr, channel->index);
-}
-
 static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 {
 	struct v4l2_ctrl_handler *hdl = &channel->ctrl_handler;
 	u64 max_pixel_rate = max_des_get_pixel_rate(channel);
 	struct max_des_priv *priv = channel->priv;
+	struct i2c_client *client = priv->client;
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy = &des->phys[channel->phy_id];
 	int ret;
 
-	v4l2_i2c_subdev_init(&channel->sd, priv->client, &max_des_subdev_ops);
-	max_des_set_sd_name(channel);
+	v4l2_subdev_init(&channel->sd, &max_des_subdev_ops);
+	channel->sd.owner = priv->dev->driver->owner;
+	channel->sd.dev = priv->dev;
 	channel->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	channel->sd.entity.ops = &max_des_media_ops;
 	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	channel->sd.fwnode = channel->fwnode;
 	fwnode_handle_get(channel->sd.fwnode);
+
+	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
+		 client->dev.driver->name, i2c_adapter_id(client->adapter),
+		 client->addr, channel->index);
 
 	channel->sd.ctrl_handler = hdl;
 	ret = v4l2_ctrl_handler_init(hdl, 1);
@@ -900,8 +889,6 @@ static int max_des_parse_ch_dt(struct max_des_channel *channel,
 	struct max_des_link *link;
 	struct max_des_phy *phy;
 	u32 val;
-
-	fwnode_property_read_string(fwnode, "label", &channel->label);
 
 	/* TODO: implement extended Virtual Channel. */
 	val = 0;
