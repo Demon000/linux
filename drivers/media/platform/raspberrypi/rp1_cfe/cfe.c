@@ -2217,14 +2217,14 @@ static int cfe_link_node_pads(struct cfe_device *cfe)
 	return 0;
 }
 
-static struct cfe_graph_entity * cfe_graph_find_entity(struct cfe_device *cfe,
+static struct cfe_graph_entity * cfe_graph_find_entity(struct cfe_device *dev,
 		       const struct fwnode_handle *fwnode)
 {
 	struct cfe_graph_entity *entity;
 	struct v4l2_async_connection *asd;
 	struct list_head *lists[] = {
-		&cfe->notifier.done_list,
-		&cfe->notifier.waiting_list
+		&dev->notifier.done_list,
+		&dev->notifier.waiting_list
 	};
 
 	unsigned int i;
@@ -2232,7 +2232,6 @@ static struct cfe_graph_entity * cfe_graph_find_entity(struct cfe_device *cfe,
 	for (i = 0; i < ARRAY_SIZE(lists); i++) {
 		list_for_each_entry(asd, lists[i], asc_entry) {
 			entity = to_cfe_entity(asd);
-			cfe_dbg("Try entity: %s\n", entity->subdev->name);
 			if (entity->asd.match.fwnode == fwnode)
 				return entity;
 		}
@@ -2352,7 +2351,7 @@ static int cfe_probe_complete(struct cfe_device *cfe)
 
 	cfe->v4l2_dev.notify = cfe_notify;
 
-	asd = list_last_entry(&cfe->notifier.done_list, struct v4l2_async_connection, asc_entry);
+	asd = list_first_entry(&cfe->notifier.done_list, struct v4l2_async_connection, asc_entry);
 	entity = to_cfe_entity(asd);
 	cfe->sensor = entity->subdev;
 
@@ -2387,10 +2386,8 @@ static int cfe_async_bound(struct v4l2_async_notifier *notifier,
 			   struct v4l2_subdev *subdev,
 			   struct v4l2_async_connection *asc)
 {
-	struct cfe_device *cfe = to_cfe_device(notifier->v4l2_dev);
 	struct cfe_graph_entity *entity = to_cfe_entity(asc);
 
-	cfe_dbg("subdev %s bound\n", subdev->name);
 	entity->entity = &subdev->entity;
 	entity->subdev = subdev;
 
