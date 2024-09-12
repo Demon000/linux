@@ -1000,9 +1000,10 @@ static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy = &des->phys[channel->phy_id];
 	struct v4l2_fwnode_endpoint v4l2_ep = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY
+		.bus_type = V4L2_MBUS_UNKNOWN
 	};
 	struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
+	enum v4l2_mbus_type bus_type;
 	struct fwnode_handle *ep;
 	u64 link_frequency;
 	unsigned int i;
@@ -1019,6 +1020,13 @@ static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 	if (ret) {
 		dev_err(priv->dev, "Could not parse v4l2 endpoint\n");
 		return ret;
+	}
+
+	bus_type = v4l2_ep.bus_type;
+	if (bus_type != V4L2_MBUS_CSI2_DPHY && bus_type != V4L2_MBUS_CSI2_CPHY) {
+		v4l2_fwnode_endpoint_free(&v4l2_ep);
+		dev_err(priv->dev, "Unsupported bus-type %u\n", bus_type);
+		return -EINVAL;
 	}
 
 	ret = 0;
@@ -1050,11 +1058,17 @@ static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 	}
 
 	if (!phy->bus_config_parsed) {
-		phy->mipi = v4l2_ep.bus.mipi_csi2;
+		phy->bus_type = bus_type;
+		phy->mipi = *mipi;
 		phy->link_frequency = link_frequency;
 		phy->bus_config_parsed = true;
 
 		return 0;
+	}
+
+	if (phy->bus_type != bus_type) {
+		dev_err(priv->dev, "PHY configured with differing bus type\n");
+		return -EINVAL;
 	}
 
 	if (phy->link_frequency != link_frequency) {
