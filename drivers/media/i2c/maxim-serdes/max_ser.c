@@ -32,7 +32,6 @@ struct max_ser_channel {
 	struct max_ser_priv *priv;
 	const struct max_format *fmt;
 	struct v4l2_mbus_framefmt framefmt;
-	const char *label;
 
 	struct media_pad pads[MAX_SER_PAD_NUM];
 
@@ -295,7 +294,6 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	for_each_channel(priv, channel) {
 		v4l2_info(sd, "channel: %u\n", channel->index);
 		v4l2_info(sd, "\tfwnode: %pfw\n", channel->fwnode);
-		v4l2_info(sd, "\tlabel: %s\n", channel->label);
 		v4l2_info(sd, "\tactive: %u\n", channel->active);
 		v4l2_info(sd, "\tfmt: %s\n", channel->fmt ? channel->fmt->name : NULL);
 		v4l2_info(sd, "\tdt: 0x%02x\n", channel->fmt ? channel->fmt->dt : 0);
@@ -457,33 +455,24 @@ static int max_ser_init(struct max_ser_priv *priv)
 	return 0;
 }
 
-static void max_ser_set_sd_name(struct max_ser_channel *channel)
-{
-	struct max_ser_priv *priv = channel->priv;
-	struct i2c_client *client = priv->client;
-
-	if (channel->label) {
-		strscpy(channel->sd.name, channel->label, sizeof(channel->sd.name));
-		return;
-	}
-
-	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
-		 client->dev.driver->name, i2c_adapter_id(client->adapter),
-		 client->addr, channel->index);
-}
-
 static int max_ser_v4l2_register_sd(struct max_ser_channel *channel)
 {
 	struct max_ser_priv *priv = channel->priv;
+	struct i2c_client *client = priv->client;
 	int ret;
 
-	v4l2_i2c_subdev_init(&channel->sd, priv->client, &max_ser_subdev_ops);
-	max_ser_set_sd_name(channel);
+	v4l2_subdev_init(&channel->sd, &max_ser_subdev_ops);
+	channel->sd.owner = priv->dev->driver->owner;
+	channel->sd.dev = priv->dev;
 	channel->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	channel->sd.entity.ops = &max_ser_media_ops;
 	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	channel->sd.fwnode = channel->fwnode;
 	fwnode_handle_get(channel->sd.fwnode);
+
+	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
+		 client->dev.driver->name, i2c_adapter_id(client->adapter),
+		 client->addr, channel->index);
 
 	channel->pads[MAX_SER_SOURCE_PAD].flags = MEDIA_PAD_FL_SOURCE;
 	channel->pads[MAX_SER_SINK_PAD].flags = MEDIA_PAD_FL_SINK;
@@ -583,8 +572,6 @@ static int max_ser_parse_ch_dt(struct max_ser_channel *channel,
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
 	u32 val;
-
-	fwnode_property_read_string(fwnode, "label", &channel->label);
 
 	val = index % ser->ops->num_pipes;
 	fwnode_property_read_u32(fwnode, "maxim,pipe-id", &val);
