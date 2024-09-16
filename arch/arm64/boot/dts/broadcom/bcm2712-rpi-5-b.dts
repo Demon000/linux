@@ -767,6 +767,34 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 #include "rpi5-csi0-imx219.dtsi"
 // #include "rpi5-csi0-ov5640.dtsi"
 
+#if 0
+#define max_des_ch_0_out cam_endpoint
+#define max_des cam_node
+#include "rpi5-csi0-max96724-max96717.dtsi"
+#undef max_des
+#undef max_des_ch_0_out
+
+#define i2c_csi_dsi0 max_ser_0_i2c_0
+#define cam_node real_cam_node
+#define cam_endpoint cam_0_out
+
+#include "rpi5-csi0-ov5640.dtsi"
+
+&cam_endpoint {
+	remote-endpoint = <&max_ser_0_ch_0_in>;
+};
+
+&cam_node {
+	status = "okay";
+
+	reset-gpios = <&max_ser_0 0 GPIO_ACTIVE_HIGH>;
+};
+
+#undef cam_endpoint
+#undef cam_node
+#undef i2c_csi_dsi0
+#endif
+
 &i2c_csi_dsi0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
