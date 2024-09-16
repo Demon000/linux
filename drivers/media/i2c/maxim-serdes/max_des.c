@@ -1058,7 +1058,7 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_channel *channel,
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_DES_SINK_PAD, 0, 0);
 	if (!ep) {
 		dev_err(priv->dev, "Not connected to subdevice\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	channel->source.ep_fwnode = fwnode_graph_get_remote_endpoint(ep);
