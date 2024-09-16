@@ -636,16 +636,7 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 				 struct max_ser_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
-	struct max_ser *ser = priv->ser;
 	unsigned int val;
-
-	val = pipe->phy_id;
-	fwnode_property_read_u32(fwnode, "maxim,phy-id", &val);
-	if (val >= ser->ops->num_phys) {
-		dev_err(priv->dev, "Invalid PHY %u\n", val);
-		return -EINVAL;
-	}
-	pipe->phy_id = val;
 
 	val = 0;
 	fwnode_property_read_u32(fwnode, "maxim,soft-bpp", &val);
