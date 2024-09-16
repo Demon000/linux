@@ -1346,8 +1346,6 @@ config VIDEO_SAA717X
 
 source "drivers/media/i2c/cx25840/Kconfig"
 
-source "drivers/media/i2c/maxim-serdes/Kconfig"
-
 endmenu
 
 menu "Video encoders"
@@ -1642,6 +1640,8 @@ config VIDEO_MAX96717
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called max96717.
+
+source "drivers/media/i2c/maxim-serdes/Kconfig"
 
 endmenu
 
