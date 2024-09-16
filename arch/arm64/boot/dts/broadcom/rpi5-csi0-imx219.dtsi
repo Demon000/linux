@@ -6,10 +6,6 @@
 };
 
 &i2c_csi_dsi0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-	status = "okay";
-
 	cam_node: imx219@10 {
 		compatible = "sony,imx219";
 		reg = <0x10>;
@@ -42,26 +38,4 @@
 		status = "disabled";
 		VANA-supply = <&cam0_reg>;
 	};
-};
-
-&csi0 {
-	status = "okay";
-	brcm,media-controller;
-
-	port {
-		csi_ep: endpoint {
-			remote-endpoint = <&cam_endpoint>;
-			clock-lanes = <0>;
-			data-lanes = <1 2>;
-			clock-noncontinuous;
-		};
-	};
-};
-
-&cam_node {
-	status = "okay";
-};
-
-&cam_endpoint {
-	remote-endpoint = <&csi_ep>;
 };
