@@ -1110,7 +1110,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_DES_SOURCE_PAD, 0, 0);
 	if (!ep) {
-		return 0;
+		return -EINVAL;
 	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &v4l2_ep);
