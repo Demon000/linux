@@ -1057,13 +1057,13 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_channel *channel,
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_DES_SINK_PAD, 0, 0);
 	if (!ep) {
-		dev_err(priv->dev, "Not connected to subdevice\n");
+		dev_err(priv->dev, "Failed to get local endpoint\n");
 		return 0;
 	}
 
 	channel->source.ep_fwnode = fwnode_graph_get_remote_endpoint(ep);
 	if (!channel->source.ep_fwnode) {
-		dev_err(priv->dev, "no remote endpoint\n");
+		dev_err(priv->dev, "Failed to get remote endpoint\n");
 		return -ENODEV;
 	}
 
@@ -1110,6 +1110,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_channel *channel,
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_DES_SOURCE_PAD, 0, 0);
 	if (!ep) {
+		dev_err(priv->dev, "Failed to get local endpoint\n");
 		return -EINVAL;
 	}
 

@@ -707,13 +707,14 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_channel *channel,
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_SER_SINK_PAD, 0, 0);
 	if (!ep) {
+		dev_err(priv->dev, "Failed to get local endpoint\n");
 		return 0;
 	}
 
 	remote_ep = fwnode_graph_get_remote_endpoint(ep);
 	fwnode_handle_put(ep);
 	if (!remote_ep) {
-		dev_err(priv->dev, "Not connected to subdevice\n");
+		dev_err(priv->dev, "Failed to get remote endpoint\n");
 		return -EINVAL;
 	}
 	channel->source.ep_fwnode = remote_ep;
