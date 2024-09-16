@@ -765,6 +765,7 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 };
 
 #include "rpi5-csi0-imx219.dtsi"
+// #include "rpi5-csi0-ov5640.dtsi"
 
 &i2c_csi_dsi0 {
 	#address-cells = <1>;
