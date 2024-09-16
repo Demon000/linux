@@ -1,0 +1,30 @@
+/* OV5640 Camera on CSI0 */
+
+&cam0_clk {
+	status = "okay";
+	clock-frequency = <24000000>;
+};
+
+&i2c_csi_dsi0 {
+	cam_node: ov5640@3c {
+		compatible = "ovti,ov5640";
+		reg = <0x3c>;
+		status = "disabled";
+
+		clocks = <&cam0_clk>;
+		clock-names = "xclk";
+
+		AVDD-supply = <&cam0_reg>;
+		DOVDD-supply = <&cam_dummy_reg>;
+		DVDD-supply = <&cam_dummy_reg>;
+
+		port {
+			cam_endpoint: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				clock-noncontinuous;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
+};
