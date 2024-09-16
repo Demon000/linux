@@ -707,7 +707,6 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_channel *channel,
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, MAX_SER_SINK_PAD, 0, 0);
 	if (!ep) {
-		fwnode_handle_put(ep);
 		return 0;
 	}
 
