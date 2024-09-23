@@ -150,6 +150,38 @@ static int max96724_log_pipe_status(struct max_des *des,
 	ret = ret & mask;
 	pr_info("%s: \tvideo_lock: %u\n", name, ret);
 
+	mask = BIT(index);
+
+	ret = max96724_read(priv, 0x11f0);
+	if (ret < 0)
+		return ret;
+
+	pr_info("%s: \tde_det: %u\n", name, !!(ret & mask));
+
+	ret = max96724_read(priv, 0x11f1);
+	if (ret < 0)
+		return ret;
+
+	pr_info("%s: \ths_det: %u\n", name, !!(ret & mask));
+
+	ret = max96724_read(priv, 0x11f2);
+	if (ret < 0)
+		return ret;
+
+	pr_info("%s: \tvs_det: %u\n", name, !!(ret & mask));
+
+	ret = max96724_read(priv, 0x11f3);
+	if (ret < 0)
+		return ret;
+
+	pr_info("%s: \ths_pol: %u\n", name, !!(ret & mask));
+
+	ret = max96724_read(priv, 0x11f4);
+	if (ret < 0)
+		return ret;
+
+	pr_info("%s: \tvs_pol: %u\n", name, !!(ret & mask));
+
 	return 0;
 }
 
