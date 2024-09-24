@@ -33,7 +33,6 @@ struct max_des_channel {
 
 	struct max_des_priv *priv;
 	const struct max_format *fmt;
-	struct v4l2_mbus_framefmt framefmt;
 
 	struct media_pad pads[MAX_DES_PAD_NUM];
 
@@ -548,26 +547,6 @@ static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 	return max_des_channel_enable(channel, enable);
 }
 
-static int max_des_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state,
-			   struct v4l2_subdev_format *format)
-{
-	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
-
-	if (format->pad == MAX_DES_SINK_PAD) {
-		format->format.code = MEDIA_BUS_FMT_FIXED;
-		return 0;
-	}
-
-	if (!channel->fmt)
-		return -EINVAL;
-
-	format->format = channel->framefmt;
-	format->format.code = channel->fmt->code;
-
-	return 0;
-}
-
 static u64 max_des_get_pixel_rate(struct max_des_channel *channel)
 {
 	struct max_des_priv *priv = channel->priv;
@@ -590,6 +569,7 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe = &des->pipes[channel->pipe_id];
 	const struct max_format *fmt;
+	struct v4l2_mbus_framefmt *f;
 	int ret;
 
 	if (format->pad != MAX_DES_SOURCE_PAD)
@@ -601,8 +581,12 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
+	f = v4l2_subdev_state_get_format(state, MAX_DES_SOURCE_PAD);
+	if (!f)
+		return -EINVAL;
+
 	channel->fmt = fmt;
-	channel->framefmt = format->format;
+	*f = format->format;
 
 	v4l2_ctrl_s_ctrl_int64(channel->pixel_rate_ctrl,
 			       max_des_get_pixel_rate(channel));
@@ -727,6 +711,31 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int max_des_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
+{
+	struct v4l2_mbus_framefmt *f;
+
+	static const struct v4l2_mbus_framefmt format = {
+		.width = 640,
+		.height = 480,
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
+		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.ycbcr_enc = V4L2_YCBCR_ENC_601,
+		.quantization = V4L2_QUANTIZATION_LIM_RANGE,
+		.xfer_func = V4L2_XFER_FUNC_SRGB,
+	};
+
+	f = v4l2_subdev_state_get_format(state, MAX_DES_SOURCE_PAD);
+	*f = format;
+
+	f = v4l2_subdev_state_get_format(state, MAX_DES_SINK_PAD);
+	f->code = MEDIA_BUS_FMT_FIXED;
+
+	return 0;
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_des_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
@@ -769,7 +778,7 @@ static const struct v4l2_subdev_video_ops max_des_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops max_des_pad_ops = {
-	.get_fmt = max_des_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_des_set_fmt,
 	.enum_mbus_code = max_des_enum_mbus_code,
 };
@@ -782,6 +791,10 @@ static const struct v4l2_subdev_ops max_des_subdev_ops = {
 
 static const struct media_entity_operations max_des_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
+};
+
+static const struct v4l2_subdev_internal_ops max_des_subdev_internal_ops = {
+	.init_state = max_des_init_state,
 };
 
 static int max_des_notify_bound(struct v4l2_async_notifier *nf,
@@ -883,6 +896,7 @@ static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 	channel->sd.entity.ops = &max_des_media_ops;
 	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	channel->sd.fwnode = channel->fwnode;
+	channel->sd.internal_ops = &max_des_subdev_internal_ops;
 	fwnode_handle_get(channel->sd.fwnode);
 
 	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
@@ -914,12 +928,19 @@ static int max_des_v4l2_register_sd(struct max_des_channel *channel)
 		goto error;
 	}
 
+	ret = v4l2_subdev_init_finalize(&channel->sd);
+	if (ret) {
+		goto error;
+	}
+
 	ret = v4l2_async_register_subdev(&channel->sd);
 	if (ret)
-		goto error;
+		goto err_sd_cleanup;
 
 	return 0;
 
+err_sd_cleanup:
+	v4l2_subdev_cleanup(&channel->sd);
 error:
 	media_entity_cleanup(&channel->sd.entity);
 	v4l2_ctrl_handler_free(&channel->ctrl_handler);
@@ -932,6 +953,7 @@ static void max_des_v4l2_unregister_sd(struct max_des_channel *channel)
 {
 	max_des_v4l2_notifier_unregister(channel);
 	v4l2_async_unregister_subdev(&channel->sd);
+	v4l2_subdev_cleanup(&channel->sd);
 	media_entity_cleanup(&channel->sd.entity);
 	v4l2_ctrl_handler_free(&channel->ctrl_handler);
 	fwnode_handle_put(channel->sd.fwnode);
