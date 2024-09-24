@@ -31,7 +31,6 @@ struct max_ser_channel {
 
 	struct max_ser_priv *priv;
 	const struct max_format *fmt;
-	struct v4l2_mbus_framefmt framefmt;
 
 	struct media_pad pads[MAX_SER_PAD_NUM];
 
@@ -228,32 +227,13 @@ static int max_ser_s_stream(struct v4l2_subdev *sd, int enable)
 	return max_ser_ch_enable(channel, enable);
 }
 
-static int max_ser_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state,
-			   struct v4l2_subdev_format *format)
-{
-	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
-
-	if (format->pad == MAX_SER_SOURCE_PAD) {
-		format->format.code = MEDIA_BUS_FMT_FIXED;
-		return 0;
-	}
-
-	if (!channel->fmt)
-		return -EINVAL;
-
-	format->format = channel->framefmt;
-	format->format.code = channel->fmt->code;
-
-	return 0;
-}
-
 static int max_ser_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max_ser_channel *channel = v4l2_get_subdevdata(sd);
 	const struct max_format *fmt;
+	struct v4l2_mbus_framefmt *f;
 
 	if (format->pad != MAX_SER_SINK_PAD)
 		return -EINVAL;
@@ -264,8 +244,12 @@ static int max_ser_set_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
+	f = v4l2_subdev_state_get_format(state, MAX_SER_SINK_PAD);
+	if (!f)
+		return -EINVAL;
+
 	channel->fmt = fmt;
-	channel->framefmt = format->format;
+	*f = format->format;
 
 	return 0;
 }
@@ -359,6 +343,31 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int max_ser_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
+{
+	struct v4l2_mbus_framefmt *f;
+
+	static const struct v4l2_mbus_framefmt format = {
+		.width = 640,
+		.height = 480,
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
+		.field = V4L2_FIELD_NONE,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.ycbcr_enc = V4L2_YCBCR_ENC_601,
+		.quantization = V4L2_QUANTIZATION_LIM_RANGE,
+		.xfer_func = V4L2_XFER_FUNC_SRGB,
+	};
+
+	f = v4l2_subdev_state_get_format(state, MAX_SER_SINK_PAD);
+	*f = format;
+
+	f = v4l2_subdev_state_get_format(state, MAX_SER_SOURCE_PAD);
+	f->code = MEDIA_BUS_FMT_FIXED;
+
+	return 0;
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_ser_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
@@ -401,7 +410,7 @@ static const struct v4l2_subdev_video_ops max_ser_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops max_ser_pad_ops = {
-	.get_fmt = max_ser_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_ser_set_fmt,
 	.enum_mbus_code = max_ser_enum_mbus_code,
 };
@@ -414,6 +423,10 @@ static const struct v4l2_subdev_ops max_ser_subdev_ops = {
 
 static const struct media_entity_operations max_ser_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
+};
+
+static const struct v4l2_subdev_internal_ops max_ser_subdev_internal_ops = {
+	.init_state = max_ser_init_state,
 };
 
 static int max_ser_init(struct max_ser_priv *priv)
@@ -567,6 +580,7 @@ static int max_ser_v4l2_register_sd(struct max_ser_channel *channel)
 	channel->sd.entity.ops = &max_ser_media_ops;
 	channel->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	channel->sd.fwnode = channel->fwnode;
+	channel->sd.internal_ops = &max_ser_subdev_internal_ops;
 	fwnode_handle_get(channel->sd.fwnode);
 
 	snprintf(channel->sd.name, sizeof(channel->sd.name), "%s %d-%04x:%u",
@@ -589,12 +603,18 @@ static int max_ser_v4l2_register_sd(struct max_ser_channel *channel)
 		goto error;
 	}
 
-	ret = v4l2_async_register_subdev(&channel->sd);
+	ret = v4l2_subdev_init_finalize(&channel->sd);
 	if (ret)
 		goto error;
 
+	ret = v4l2_async_register_subdev(&channel->sd);
+	if (ret)
+		goto err_sd_cleanup;
+
 	return 0;
 
+err_sd_cleanup:
+	v4l2_subdev_cleanup(&channel->sd);
 error:
 	media_entity_cleanup(&channel->sd.entity);
 	fwnode_handle_put(channel->sd.fwnode);
@@ -606,6 +626,7 @@ static void max_ser_v4l2_unregister_sd(struct max_ser_channel *channel)
 {
 	max_ser_v4l2_notifier_unregister(channel);
 	v4l2_async_unregister_subdev(&channel->sd);
+	v4l2_subdev_cleanup(&channel->sd);
 	media_entity_cleanup(&channel->sd.entity);
 	fwnode_handle_put(channel->sd.fwnode);
 }
