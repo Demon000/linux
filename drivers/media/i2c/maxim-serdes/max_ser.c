@@ -307,6 +307,12 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
+
+		if (!pipe->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\tactive: %u\n", pipe->enabled);
 		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
@@ -328,6 +334,12 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "phy: %u\n", phy->index);
 		v4l2_info(sd, "\tenabled: %u\n", phy->enabled);
+
+		if (!phy->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
 		v4l2_info(sd, "\tnoncontinuous_clock: %u\n",
