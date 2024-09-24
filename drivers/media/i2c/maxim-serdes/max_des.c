@@ -639,6 +639,12 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "link: %u\n", link->index);
 		v4l2_info(sd, "\tenabled: %u\n", link->enabled);
+
+		if (!link->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\ttunnel_mode: %u\n", link->tunnel_mode);
 		v4l2_info(sd, "\tser_xlate_enabled: %u\n", link->ser_xlate_enabled);
 		v4l2_info(sd, "\tser_xlate: src: 0x%02x dst: 0x%02x\n",
@@ -664,6 +670,12 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
+
+		if (!pipe->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
 		v4l2_info(sd, "\tdbl8: %u\n", pipe->dbl8);
@@ -693,6 +705,12 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "phy: %u\n", phy->index);
 		v4l2_info(sd, "\tenabled: %u\n", phy->enabled);
+
+		if (!phy->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\tlink_frequency: %llu\n", phy->link_frequency);
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
