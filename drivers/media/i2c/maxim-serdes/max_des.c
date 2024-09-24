@@ -549,7 +549,7 @@ static int max_des_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static int max_des_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
@@ -582,7 +582,7 @@ static u64 max_des_get_pixel_rate(struct max_des_channel *channel)
 }
 
 static int max_des_set_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_state *state,
 			   struct v4l2_subdev_format *format)
 {
 	struct max_des_channel *channel = v4l2_get_subdevdata(sd);
@@ -617,7 +617,7 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 }
 
 static int max_des_enum_mbus_code(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state,
+				  struct v4l2_subdev_state *state,
 				  struct v4l2_subdev_mbus_code_enum *code)
 {
 	const struct max_format *fmt;
