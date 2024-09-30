@@ -12,10 +12,6 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
-#define MAX_DES_SOURCE_PAD		0
-#define MAX_DES_SINK_PAD		1
-#define MAX_DES_PAD_NUM			2
-
 extern const struct regmap_config max_des_i2c_regmap;
 
 #define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))

@@ -17,6 +17,10 @@
 #include "max_ser.h"
 #include "max_serdes.h"
 
+#define MAX_SER_SOURCE_PAD	0
+#define MAX_SER_SINK_PAD	1
+#define MAX_SER_PAD_NUM		2
+
 const struct regmap_config max_ser_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
