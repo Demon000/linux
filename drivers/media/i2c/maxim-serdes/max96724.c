@@ -14,7 +14,6 @@
 
 #include "max_des.h"
 
-#define MAX96724_PHYS_NUM		4
 #define MAX96724_PHY1_ALT_CLOCK		5
 
 struct max96724_priv {
