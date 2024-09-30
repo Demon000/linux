@@ -19,6 +19,10 @@
 #include "max_ser.h"
 #include "max_serdes.h"
 
+#define MAX_DES_SOURCE_PAD		0
+#define MAX_DES_SINK_PAD		1
+#define MAX_DES_PAD_NUM			2
+
 #define MAX_DES_LINK_FREQUENCY_MIN		100000000ull
 #define MAX_DES_LINK_FREQUENCY_DEFAULT		750000000ull
 #define MAX_DES_LINK_FREQUENCY_MAX		1250000000ull

@@ -14,10 +14,6 @@
 #ifndef MAX_SER_H
 #define MAX_SER_H
 
-#define MAX_SER_SOURCE_PAD	0
-#define MAX_SER_SINK_PAD	1
-#define MAX_SER_PAD_NUM		2
-
 #define MAX_SER_MAX96717_DEV_ID			0xbf
 #define MAX_SER_MAX9265A_DEV_ID			0x91
 
