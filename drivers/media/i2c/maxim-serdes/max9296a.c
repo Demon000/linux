@@ -627,6 +627,7 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 }
 
 static const struct max_des_ops max9296a_ops = {
+	.num_remaps_per_pipe = 16,
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
 	.set_enable = max9296a_set_enable,
