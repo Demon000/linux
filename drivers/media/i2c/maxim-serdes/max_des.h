@@ -16,7 +16,7 @@ extern const struct regmap_config max_des_i2c_regmap;
 
 #define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
 
-struct max_des_dt_vc_remap {
+struct max_des_remap {
 	u8 from_dt;
 	u8 from_vc;
 	u8 to_dt;
@@ -29,14 +29,14 @@ struct max_des_link {
 	bool enabled;
 	struct max_i2c_xlate ser_xlate;
 	bool ser_xlate_enabled;
-	bool tunnel_mode;
 };
 
 struct max_des_pipe {
 	unsigned int index;
 	unsigned int stream_id;
 	unsigned int link_id;
-	struct max_des_dt_vc_remap *remaps;
+	unsigned int phy_id;
+	struct max_des_remap *remaps;
 	unsigned int num_remaps;
 	bool dbl8;
 	bool dbl10;
@@ -55,8 +55,8 @@ struct max_des_phy {
 	bool alt2_mem_map8;
 	bool alt_mem_map10;
 	bool alt_mem_map12;
-	bool bus_config_parsed;
 	bool enabled;
+	bool active;
 };
 
 struct max_des;
@@ -81,22 +81,23 @@ struct max_des_ops {
 	int (*set_enable)(struct max_des *des, bool enable);
 	int (*init)(struct max_des *des);
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
-	int (*set_phy_enable)(struct max_des *des, struct max_des_phy *phy,
-			      bool enable);
+	int (*set_phy_active)(struct max_des *des, struct max_des_phy *phy,
+			      bool active);
 	int (*init_pipe)(struct max_des *des, struct max_des_pipe *pipe);
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
 			    struct max_des_phy *phy);
+	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
+				   struct max_des_phy *phy);
 	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
 			       bool enable);
 	int (*set_pipe_remap)(struct max_des *des, struct max_des_pipe *pipe,
-			      unsigned int i, struct max_des_dt_vc_remap *remap);
+			      unsigned int i, struct max_des_remap *remap);
 	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				     unsigned int i, bool enable);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
 	int (*select_links)(struct max_des *des, unsigned int mask);
-	int (*post_init)(struct max_des *des);
 };
 
 struct max_des_priv;

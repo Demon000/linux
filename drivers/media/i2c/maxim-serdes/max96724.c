@@ -28,11 +28,10 @@ struct max96724_priv {
 };
 
 struct max96724_chip_info {
-	bool supports_tunnel_mode;
 	bool supports_pipe_stream_autoselect;
 	unsigned int num_pipes;
-	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
-			    struct max_des_phy *phy);
+	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
+				   struct max_des_phy *phy);
 };
 
 #define des_to_priv(des) \
@@ -242,7 +241,7 @@ static const unsigned int max96724_phys_configs_reg_val[] = {
 	BIT(2),
 };
 
-static const struct max_phy_configs max96724_phys_configs[] = {
+static const struct max_phys_config max96724_phys_configs[] = {
 	/*
 	 * PHY 1 can be in 4-lane mode (combining lanes of PHY 0 and PHY 1)
 	 * but only use the data lanes of PHY0, while continuing to use the
@@ -446,7 +445,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	return 0;
 }
 
-static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
+static int max96724_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 				   bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -470,7 +469,7 @@ static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
 static int max96724_set_pipe_remap(struct max_des *des,
 				   struct max_des_pipe *pipe,
 				   unsigned int i,
-				   struct max_des_dt_vc_remap *remap)
+				   struct max_des_remap *remap)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
@@ -516,6 +515,18 @@ static int max96724_set_pipe_remap_enable(struct max_des *des,
 
 static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 				 struct max_des_phy *phy)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int shift;
+
+	shift = index * 2;
+	return max96724_update_bits(priv, 0x8ca, GENMASK(1, 0) << shift,
+				    phy->index << shift);
+}
+
+static int max96724_set_pipe_tunnel_phy(struct max_des *des, struct max_des_pipe *pipe,
+					struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
@@ -627,8 +638,9 @@ static const struct max_des_ops max96724_ops = {
 	.set_enable = max96724_set_enable,
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
-	.set_phy_enable = max96724_set_phy_enable,
+	.set_phy_active = max96724_set_phy_active,
 	.init_pipe = max96724_init_pipe,
+	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_enable = max96724_set_pipe_enable,
 	.set_pipe_remap = max96724_set_pipe_remap,
@@ -637,8 +649,7 @@ static const struct max_des_ops max96724_ops = {
 };
 
 static const struct max96724_chip_info max96724_info = {
-	.set_pipe_phy = max96724_set_pipe_phy,
-	.supports_tunnel_mode = true,
+	.set_pipe_tunnel_phy = max96724_set_pipe_tunnel_phy,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
@@ -691,9 +702,8 @@ static int max96724_probe(struct i2c_client *client)
 	}
 
 	*ops = max96724_ops;
-
-	ops->supports_tunnel_mode = priv->info->supports_tunnel_mode;
 	ops->num_pipes = priv->info->num_pipes;
+	ops->set_pipe_tunnel_phy = priv->info->set_pipe_tunnel_phy;
 	priv->des.ops = ops;
 
 	ret = max96724_reset(priv);
