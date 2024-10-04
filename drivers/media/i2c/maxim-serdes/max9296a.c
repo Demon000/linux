@@ -421,7 +421,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	return 0;
 }
 
-static int max9296a_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
+static int max9296a_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 				   bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
@@ -441,7 +441,7 @@ static int max9296a_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
 static int max9296a_set_pipe_remap(struct max_des *des,
 				   struct max_des_pipe *pipe,
 				   unsigned int i,
-				   struct max_des_dt_vc_remap *remap)
+				   struct max_des_remap *remap)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
@@ -569,7 +569,6 @@ static int max9296a_init_link(struct max_des *des,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	unsigned int mask;
 	int ret;
 
 	/* RLMS Register Setting for 6Gbps GMSL2 Rate */
@@ -602,9 +601,7 @@ static int max9296a_init_link(struct max_des *des,
 		return ret;
 
 	if (priv->info->supports_tunnel_mode) {
-		mask = BIT(0);
-		ret = max9296a_update_bits(priv, 0x474, mask,
-					   link->tunnel_mode ? mask : 0);
+		ret = max9296a_update_bits(priv, 0x474, BIT(0), 0);
 		if (ret)
 			return ret;
 	}
@@ -633,7 +630,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
-	.set_phy_enable = max9296a_set_phy_enable,
+	.set_phy_active = max9296a_set_phy_active,
 	.init_pipe = max9296a_init_pipe,
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
@@ -696,14 +693,14 @@ static void max9296a_remove(struct i2c_client *client)
 	max_des_remove(&priv->des);
 }
 
-static const struct max_phy_configs max9296a_phys_configs[] = {
+static const struct max_phys_config max9296a_phys_configs[] = {
 	{ { 4, 4 } },
 	{ { 2, 4 } },
 	{ { 4, 2 } },
 	{ { 2, 2 } },
 };
 
-static const struct max_phy_configs max96714_phys_configs[] = {
+static const struct max_phys_config max96714_phys_configs[] = {
 	{ { 4 } },
 	{ { 2 } },
 };

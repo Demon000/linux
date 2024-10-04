@@ -22,30 +22,32 @@ extern const struct regmap_config max_ser_i2c_regmap;
 struct max_ser_phy {
 	unsigned int index;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
-	bool bus_config_parsed;
 	bool enabled;
+	bool active;
 };
 
 struct max_ser_pipe {
 	unsigned int index;
 	unsigned int phy_id;
 	unsigned int stream_id;
+	unsigned int *dts;
+	unsigned int num_dts;
+	unsigned int vcs;
 	unsigned int soft_bpp;
 	unsigned int bpp;
 	bool dbl8;
 	bool dbl10;
 	bool dbl12;
 	bool enabled;
-	bool active;
 };
 
 struct max_ser;
 
 struct max_ser_ops {
 	unsigned int num_pipes;
+	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
 	unsigned int num_i2c_xlates;
-	bool supports_tunnel_mode;
 	bool supports_noncontinuous_clock;
 
 	struct max_phys_configs phys_configs;
@@ -60,11 +62,17 @@ struct max_ser_ops {
 	int (*init)(struct max_ser *ser);
 	int (*init_i2c_xlate)(struct max_ser *ser);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
-	int (*set_phy_enable)(struct max_ser *ser, struct max_ser_phy *phy,
+	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
 	int (*init_pipe)(struct max_ser *ser, struct max_ser_pipe *pipe);
 	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			       bool enable);
+	int (*set_pipe_dt)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			   unsigned int i, unsigned int dt);
+	int (*set_pipe_dt_en)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			      unsigned int i, bool enable);
+	int (*set_pipe_vcs)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			    unsigned int vcs);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -86,7 +94,7 @@ struct max_ser {
 	struct max_ser_pipe *pipes;
 
 	unsigned int phys_config;
-	bool tunnel_mode;
+	unsigned int active;
 };
 
 int max_ser_probe(struct i2c_client *client, struct max_ser *ser);

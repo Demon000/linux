@@ -14,88 +14,31 @@
 
 #include "max_serdes.h"
 
-#define MAX_FMT(_code, _dt, _bpp, _dbl) 	\
-{						\
-	.name = __stringify(_code),		\
-	.code = MEDIA_BUS_FMT_ ## _code,	\
-	.dt = (_dt),				\
-	.bpp = (_bpp),				\
-	.dbl = (_dbl),				\
-}
-
-static const struct max_format max_formats[] = {
-	MAX_FMT(FIXED, MIPI_CSI2_DT_EMBEDDED_8B, 8, 1),
-	MAX_FMT(YUYV8_1X16, MIPI_CSI2_DT_YUV422_8B, 16, 0),
-	MAX_FMT(YUYV10_1X20, MIPI_CSI2_DT_YUV422_10B, 20, 0),
-	MAX_FMT(RGB565_1X16, MIPI_CSI2_DT_RGB565, 16, 0),
-	MAX_FMT(RGB666_1X18, MIPI_CSI2_DT_RGB666, 18, 0),
-	MAX_FMT(RGB888_1X24, MIPI_CSI2_DT_RGB888, 24, 0),
-	MAX_FMT(SBGGR8_1X8, MIPI_CSI2_DT_RAW8, 8, 1),
-	MAX_FMT(SGBRG8_1X8, MIPI_CSI2_DT_RAW8, 8, 1),
-	MAX_FMT(SGRBG8_1X8, MIPI_CSI2_DT_RAW8, 8, 1),
-	MAX_FMT(SRGGB8_1X8, MIPI_CSI2_DT_RAW8, 8, 1),
-	MAX_FMT(SBGGR10_1X10, MIPI_CSI2_DT_RAW10, 10, 1),
-	MAX_FMT(SGBRG10_1X10, MIPI_CSI2_DT_RAW10, 10, 1),
-	MAX_FMT(SGRBG10_1X10, MIPI_CSI2_DT_RAW10, 10, 1),
-	MAX_FMT(SRGGB10_1X10, MIPI_CSI2_DT_RAW10, 10, 1),
-	MAX_FMT(SBGGR12_1X12, MIPI_CSI2_DT_RAW12, 12, 1),
-	MAX_FMT(SGBRG12_1X12, MIPI_CSI2_DT_RAW12, 12, 1),
-	MAX_FMT(SGRBG12_1X12, MIPI_CSI2_DT_RAW12, 12, 1),
-	MAX_FMT(SRGGB12_1X12, MIPI_CSI2_DT_RAW12, 12, 1),
-	MAX_FMT(SBGGR14_1X14, MIPI_CSI2_DT_RAW14, 14, 0),
-	MAX_FMT(SGBRG14_1X14, MIPI_CSI2_DT_RAW14, 14, 0),
-	MAX_FMT(SGRBG14_1X14, MIPI_CSI2_DT_RAW14, 14, 0),
-	MAX_FMT(SRGGB14_1X14, MIPI_CSI2_DT_RAW14, 14, 0),
-	MAX_FMT(SBGGR16_1X16, MIPI_CSI2_DT_RAW16, 16, 0),
-	MAX_FMT(SGBRG16_1X16, MIPI_CSI2_DT_RAW16, 16, 0),
-	MAX_FMT(SGRBG16_1X16, MIPI_CSI2_DT_RAW16, 16, 0),
-	MAX_FMT(SRGGB16_1X16, MIPI_CSI2_DT_RAW16, 16, 0),
-};
-
-const struct max_format *max_format_by_index(unsigned int index)
+int max_get_fd_stream_entry(struct v4l2_subdev *sd,
+			    unsigned int pad, unsigned int stream,
+			    struct v4l2_mbus_frame_desc_entry *entry)
 {
-	if (index >= ARRAY_SIZE(max_formats))
-		return NULL;
-
-	return &max_formats[index];
-}
-EXPORT_SYMBOL_GPL(max_format_by_index);
-
-const struct max_format *max_format_by_code(u32 code)
-{
+	struct v4l2_mbus_frame_desc fd;
 	unsigned int i;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(max_formats); i++)
-		if (max_formats[i].code == code)
-			return &max_formats[i];
+	ret = v4l2_subdev_call(sd, pad, get_frame_desc, pad, &fd);
+	if (ret)
+		return ret;
 
-	return NULL;
+	if (fd.type != V4L2_MBUS_FRAME_DESC_TYPE_CSI2)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < fd.num_entries; i++) {
+		if (fd.entry[i].stream == stream) {
+			*entry = fd.entry[i];
+			return 0;
+		}
+	}
+
+	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(max_format_by_code);
-
-const struct max_format *max_format_by_dt(u8 dt)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(max_formats); i++)
-		if (max_formats[i].dt == dt)
-			return &max_formats[i];
-
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(max_format_by_dt);
-
-u8 max_format_dt_by_code(u32 code)
-{
-	const struct max_format *fmt;
-
-	fmt = max_format_by_code(code);
-	if (!fmt)
-		return 0;
-
-	return fmt->dt;
-}
-EXPORT_SYMBOL_GPL(max_format_dt_by_code);
+EXPORT_SYMBOL(max_get_fd_stream_entry);
 
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
