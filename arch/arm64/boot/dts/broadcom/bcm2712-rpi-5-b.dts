@@ -764,15 +764,15 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 	};
 };
 
-#include "rpi5-csi0-imx219.dtsi"
+// #include "rpi5-csi0-imx219.dtsi"
 // #include "rpi5-csi0-ov5640.dtsi"
 
-#if 0
-#define max_des_ch_0_out cam_endpoint
+#if 1
+#define max_des_phy_2_out cam_endpoint
 #define max_des cam_node
 #include "rpi5-csi0-max96724-max96717.dtsi"
 #undef max_des
-#undef max_des_ch_0_out
+#undef max_des_phy_2_out
 
 #define i2c_csi_dsi0 max_ser_0_i2c_0
 #define cam_node real_cam_node
@@ -781,7 +781,14 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 #include "rpi5-csi0-ov5640.dtsi"
 
 &cam_endpoint {
-	remote-endpoint = <&max_ser_0_ch_0_in>;
+	remote-endpoint = <&max_ser_0_phy_0_in>;
+};
+
+&max_ser_0_phy_0_in {
+	clock-lanes = <0>;
+	data-lanes = <1 2>;
+	clock-noncontinuous;
+	link-frequencies = /bits/ 64 <456000000>;
 };
 
 &cam_node {
@@ -812,6 +819,7 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 			clock-lanes = <0>;
 			data-lanes = <1 2>;
 			clock-noncontinuous;
+			link-frequencies = /bits/ 64 <750000000>;
 		};
 	};
 };
