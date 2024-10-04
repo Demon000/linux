@@ -22,41 +22,26 @@
 			reg = <0>;
 		};
 	};
-};
 
-&max_des {
-	max_des_ch_0: channel@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg = <0x0>;
-	};
-};
-
-&max_des_ch_0 {
-	maxim,phy-id = <2>;
-};
-
-&max_des_ch_0 {
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		port@0 {
-			reg = <0>;
+			reg = <0x0>;
 
-			max_des_ch_0_out: endpoint {
-				clock-lanes = <0>;
-				data-lanes = <1 2>;
-				link-frequencies = /bits/ 64 <750000000>;
+			max_des_link_0_in: endpoint {
+				remote-endpoint = <&max_ser_0_link_0_out>;
 			};
 		};
 
-		port@1 {
-			reg = <0x1>;
+		port@6 {
+			reg = <6>;
 
-			max_des_ch_0_in: endpoint {
-				remote-endpoint = <&max_ser_0_ch_0_out>;
+			max_des_phy_2_out: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <750000000>;
 			};
 		};
 	};
@@ -90,18 +75,8 @@
 			reg = <0x0>;
 		};
 	};
-};
 
-&max_ser_0 {
-	max_ser_0_ch_0: channel@0 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		reg = <0x0>;
-	};
-};
-
-&max_ser_0_ch_0 {
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -109,16 +84,16 @@
 		port@0 {
 			reg = <0x0>;
 
-			max_ser_0_ch_0_out: endpoint {
-				remote-endpoint = <&max_des_ch_0_in>;
+			max_ser_0_phy_0_in: endpoint {
+				remote-endpoint = <&cam_0_out>;
 			};
 		};
 
 		port@1 {
 			reg = <0x1>;
 
-			max_ser_0_ch_0_in: endpoint {
-				remote-endpoint = <&cam_0_out>;
+			max_ser_0_link_0_out: endpoint {
+				remote-endpoint = <&max_des_link_0_in>;
 			};
 		};
 	};
