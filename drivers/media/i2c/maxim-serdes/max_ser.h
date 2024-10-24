@@ -14,8 +14,22 @@
 #ifndef MAX_SER_H
 #define MAX_SER_H
 
+#define MAX_SER_REG0				0x0
+#define MAX_SER_REG0_DEV_ADDR			GENMASK(7, 1)
+
+#define MAX_SER_CTRL0				0x10
+#define MAX_SER_CTRL0_RESET_ALL			BIT(7)
+
+#define MAX_SER_REG13				0xd
 #define MAX_SER_MAX96717_DEV_ID			0xbf
 #define MAX_SER_MAX9265A_DEV_ID			0x91
+
+#define MAX_SER_CFGI_INFOFR_TR3			0x7b
+#define MAX_SER_CFGL_SPI_TR3			0x83
+#define MAX_SER_CFGC_CC_TR3			0x8b
+#define MAX_SER_CFGC_GPIO_TR3			0x93
+#define MAX_SER_CFGL_IIC_X_TR3			0xa3
+#define MAX_SER_CFGL_IIC_Y_TR3			0xab
 
 extern const struct regmap_config max_ser_i2c_regmap;
 
@@ -101,13 +115,12 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
 
 int max_ser_remove(struct max_ser *ser);
 
-int max_ser_reset(struct regmap *regmap);
+int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
+int max_ser_wait(struct i2c_adapter *adapter, u8 addr);
+int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
+			      unsigned int num_addrs, u8 *current_addr);
 
-int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr);
-int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
-			      u8 *addrs, unsigned int num_addrs);
-
-int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
-			   bool fix_tx_ids);
+int max_ser_change_address(struct i2c_adapter *adapter, u8 addr, u8 new_addr);
+int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr);
 
 #endif // MAX_SER_H
