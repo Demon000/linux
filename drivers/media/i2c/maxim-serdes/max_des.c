@@ -456,70 +456,62 @@ err_free_new_remaps:
 
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link,
-				       struct i2c_client *client,
-				       u8 new_addr)
+				       struct i2c_adapter *adapter,
+				       u8 power_up_addr, u8 new_addr)
 {
-	u8 power_up_addr = client->addr;
-	u8 addrs[] = { power_up_addr, new_addr };
 	struct max_des *des = priv->des;
-	struct regmap *regmap;
+	u8 addrs[] = { power_up_addr, new_addr };
+	u8 current_addr;
 	int ret;
-
-	regmap = regmap_init_i2c(client, &max_ser_i2c_regmap);
-	if (IS_ERR(regmap)) {
-		ret = PTR_ERR(regmap);
-		dev_err(priv->dev, "Failed to create I2C regmap: %d\n", ret);
-		return ret;
-	}
 
 	ret = des->ops->select_links(des, BIT(link->index));
 	if (ret)
-		goto err_regmap_exit;
+		return ret;
 
-	ret = max_ser_wait_for_multiple(client, regmap, addrs,
-					ARRAY_SIZE(addrs));
+	ret = max_ser_wait_for_multiple(adapter, addrs, ARRAY_SIZE(addrs),
+					&current_addr);
 	if (ret) {
 		dev_err(priv->dev,
-			"Failed waiting for serializer with new or old address: %d\n",
-			ret);
-		goto err_regmap_exit;
+			"Failed to wait for serializer at 0x%02x or 0x%02x: %d\n",
+			power_up_addr, new_addr, ret);
+		return ret;
 	}
 
-	ret = max_ser_reset(regmap);
+	ret = max_ser_reset(adapter, current_addr);
 	if (ret) {
 		dev_err(priv->dev, "Failed to reset serializer: %d\n", ret);
-		goto err_regmap_exit;
+		return ret;
 	}
 
-	ret = max_ser_wait(client, regmap, power_up_addr);
+	ret = max_ser_wait(adapter, power_up_addr);
 	if (ret) {
 		dev_err(priv->dev,
-			"Failed waiting for serializer with address 0x%02x: %d\n",
+			"Failed to wait for serializer at 0x%02x: %d\n",
 			power_up_addr, ret);
-		goto err_regmap_exit;
+		return ret;
 	}
 
-	ret = max_ser_change_address(client, regmap, new_addr,
-				     des->ops->fix_tx_ids);
+	ret = max_ser_change_address(adapter, power_up_addr, new_addr);
 	if (ret) {
 		dev_err(priv->dev,
-			"Failed to change serializer address from 0x%02x to 0x%02x: %d\n",
+			"Failed to change serializer from 0x%02x to 0x%02x: %d\n",
 			power_up_addr, new_addr, ret);
-		goto err_regmap_exit;
+		return ret;
 	}
 
-	ret = max_ser_wait(client, regmap, new_addr);
+	ret = max_ser_wait(adapter, new_addr);
 	if (ret) {
 		dev_err(priv->dev,
-			"Failed waiting for serializer with new address: %d\n",
-			ret);
-		goto err_regmap_exit;
+			"Failed to wait for serializer at 0x%02x: %d\n",
+			new_addr, ret);
+		return ret;
 	}
 
-	client->addr = power_up_addr;
-
-err_regmap_exit:
-	regmap_exit(regmap);
+	if (des->ops->fix_tx_ids) {
+		ret = max_ser_fix_tx_ids(adapter, new_addr);
+		if (ret)
+			return ret;
+	}
 
 	return ret;
 }
@@ -615,10 +607,9 @@ static int max_des_post_init(struct max_des_priv *priv)
 }
 
 static int max_des_ser_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
-					 const struct i2c_client *const_client,
+					 const struct i2c_client *client,
 					 u16 alias)
 {
-	struct i2c_client *client = (struct i2c_client *) const_client;
 	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
@@ -633,7 +624,8 @@ static int max_des_ser_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
 	link->ser_xlate.dst = client->addr;
 	link->ser_xlate_enabled = true;
 
-	return max_des_init_link_ser_xlate(priv, link, client, alias);
+	return max_des_init_link_ser_xlate(priv, link, client->adapter,
+					   client->addr, alias);
 }
 
 static void max_des_ser_atr_detach_client(struct i2c_atr *atr, u32 chan_id,

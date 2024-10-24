@@ -1338,70 +1338,131 @@ int max_ser_remove(struct max_ser *ser)
 }
 EXPORT_SYMBOL_GPL(max_ser_remove);
 
-int max_ser_reset(struct regmap *regmap)
+static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
+			    u16 reg, u8 *val)
 {
+	struct i2c_msg msg[2];
+	u8 buf[2];
 	int ret;
 
-	ret = regmap_update_bits(regmap, 0x10, 0x80, 0x80);
-	if (ret)
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+
+	msg[0].addr = addr;
+	msg[0].flags = 0;
+	msg[0].buf = buf;
+	msg[0].len = sizeof(buf);
+
+	msg[1].addr = addr;
+	msg[1].flags = I2C_M_RD;
+	msg[1].buf = buf;
+	msg[1].len = 1;
+
+	ret = i2c_transfer(adapter, msg, ARRAY_SIZE(msg));
+	if (ret < 0)
 		return ret;
 
-	msleep(50);
+	*val = buf[0];
 
 	return 0;
 }
+
+static int max_ser_write_reg(struct i2c_adapter *adapter, u8 addr,
+			     u16 reg, u8 val)
+{
+	struct i2c_msg msg[1];
+	u8 buf[3];
+	int ret;
+
+	buf[0] = reg >> 8;
+	buf[1] = reg & 0xff;
+	buf[2] = val;
+
+	msg[0].addr = addr;
+	msg[0].flags = 0;
+	msg[0].buf = buf;
+	msg[0].len = sizeof(buf);
+
+	ret = i2c_transfer(adapter, msg, ARRAY_SIZE(msg));
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int max_ser_reset(struct i2c_adapter *adapter, u8 addr)
+{
+	int ret;
+	u8 val;
+
+	ret = max_ser_read_reg(adapter, addr, MAX_SER_CTRL0, &val);
+	if (ret)
+		return ret;
+
+	val |= MAX_SER_CTRL0_RESET_ALL;
+
+	return max_ser_write_reg(adapter, addr, MAX_SER_CTRL0, val);
+}
 EXPORT_SYMBOL_GPL(max_ser_reset);
 
-int max_ser_wait_for_multiple(struct i2c_client *client, struct regmap *regmap,
-			      u8 *addrs, unsigned int num_addrs)
+int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
+			      unsigned int num_addrs, u8 *current_addr)
 {
-	unsigned int i, j, val;
+	unsigned int i, j;
 	int ret;
+	u8 val;
 
 	for (i = 0; i < 10; i++) {
 		for (j = 0; j < num_addrs; j++) {
-			client->addr = addrs[j];
-
-			ret = regmap_read(regmap, 0x0, &val);
-			if (ret >= 0)
+			ret = max_ser_read_reg(adapter, addrs[j], MAX_SER_REG0, &val);
+			if (!ret && val > 0) {
+				*current_addr = addrs[j];
 				return 0;
+			}
+
+			msleep(100);
 		}
-
-		msleep(100);
-
-		dev_err(&client->dev, "Retry %u waiting for serializer: %d\n", i, ret);
 	}
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(max_ser_wait_for_multiple);
 
-int max_ser_wait(struct i2c_client *client, struct regmap *regmap, u8 addr)
+int max_ser_wait(struct i2c_adapter *adapter, u8 addr)
 {
-	return max_ser_wait_for_multiple(client, regmap, &addr, 1);
+	u8 current_addr;
+
+	return max_ser_wait_for_multiple(adapter, &addr, 1, &current_addr);
 }
 EXPORT_SYMBOL_GPL(max_ser_wait);
 
-static int max_ser_get_dev_id(struct regmap *regmap, unsigned int *dev_id)
+static int max_ser_get_dev_id(struct i2c_adapter *adapter, u8 addr, u8 *dev_id)
 {
-	return regmap_read(regmap, 0xd, dev_id);
+	return max_ser_read_reg(adapter, addr, MAX_SER_REG13, dev_id);
 }
 
-static int max_ser_fix_tx_ids(struct regmap *regmap, u8 addr)
+int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr)
 {
-	unsigned int addr_regs[] = { 0x7b, 0x83, 0x8b, 0x93, 0xa3, 0xab };
-	unsigned int dev_id;
+	unsigned int addr_regs[] = {
+		MAX_SER_CFGI_INFOFR_TR3,
+		MAX_SER_CFGL_SPI_TR3,
+		MAX_SER_CFGC_CC_TR3,
+		MAX_SER_CFGC_GPIO_TR3,
+		MAX_SER_CFGL_IIC_X_TR3,
+		MAX_SER_CFGL_IIC_Y_TR3,
+	};
 	unsigned int i;
+	u8 dev_id;
 	int ret;
 
-	ret = max_ser_get_dev_id(regmap, &dev_id);
+	ret = max_ser_get_dev_id(adapter, addr, &dev_id);
 	if (ret)
 		return ret;
 
 	switch (dev_id) {
 	case MAX_SER_MAX9265A_DEV_ID:
 		for (i = 0; i < ARRAY_SIZE(addr_regs); i++) {
-			ret = regmap_write(regmap, addr_regs[i], addr);
+			ret = max_ser_write_reg(adapter, addr, addr_regs[i], addr);
 			if (ret)
 				return ret;
 		}
@@ -1413,25 +1474,20 @@ static int max_ser_fix_tx_ids(struct regmap *regmap, u8 addr)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(max_ser_fix_tx_ids);
 
-int max_ser_change_address(struct i2c_client *client, struct regmap *regmap, u8 addr,
-			   bool fix_tx_ids)
+int max_ser_change_address(struct i2c_adapter *adapter, u8 addr, u8 new_addr)
 {
 	int ret;
+	u8 val;
 
-	ret = regmap_write(regmap, 0x0, addr << 1);
+	ret = max_ser_read_reg(adapter, addr, MAX_SER_REG0, &val);
 	if (ret)
 		return ret;
 
-	client->addr = addr;
+	val |= FIELD_PREP(MAX_SER_REG0_DEV_ADDR, new_addr);
 
-	if (fix_tx_ids) {
-		ret = max_ser_fix_tx_ids(regmap, addr);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return max_ser_write_reg(adapter, addr, MAX_SER_REG0, val);
 }
 EXPORT_SYMBOL_GPL(max_ser_change_address);
 
