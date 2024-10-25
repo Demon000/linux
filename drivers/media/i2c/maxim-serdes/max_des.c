@@ -1315,11 +1315,13 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 	struct v4l2_ctrl_handler *hdl = &priv->ctrl_handler;
 	struct v4l2_subdev *sd = &priv->sd;
 	struct max_des *des = priv->des;
+	void *data = i2c_get_clientdata(priv->client);
 	unsigned int num_pads = max_des_num_pads(des);
 	unsigned int i;
 	int ret;
 
 	v4l2_i2c_subdev_init(sd, priv->client, &max_des_subdev_ops);
+	i2c_set_clientdata(priv->client, data);
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &max_des_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
