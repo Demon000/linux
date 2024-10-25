@@ -1005,11 +1005,13 @@ static int max_ser_v4l2_register(struct max_ser_priv *priv)
 {
 	struct v4l2_subdev *sd = &priv->sd;
 	struct max_ser *ser = priv->ser;
+	void *data = i2c_get_clientdata(priv->client);
 	unsigned int num_pads = max_ser_num_pads(ser);
 	unsigned int i;
 	int ret;
 
 	v4l2_i2c_subdev_init(sd, priv->client, &max_ser_subdev_ops);
+	i2c_set_clientdata(priv->client, data);
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &max_ser_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
