@@ -1591,17 +1591,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	u32 index;
 	int ret;
 
-	/*
-	 * TODO: figure out routing for a device with different number of
-	 * pipes and links, if needed. Logic makes the assumption that
-	 * each link can map to a single pipe.
-	 */
-	if (des->ops->num_pipes != des->ops->num_links) {
-		dev_err(priv->dev,
-			"Cannot have different number of links and pipes\n");
-		return -EINVAL;
-	}
-
 	for (i = 0; i < des->ops->num_phys; i++) {
 		phy = &des->phys[i];
 		phy->index = i;
