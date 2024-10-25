@@ -1117,7 +1117,6 @@ revert_link_update:
 				    !enable);
 	}
 
-
 err_revert_phy_active:
 	if (!streams_mask != !priv->streams_mask[pad])
 		max_des_set_phy_active(des, phy, !enable);
