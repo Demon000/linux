@@ -704,34 +704,6 @@ err_revert_streams_mask:
 	return ret;
 }
 
-static int max_ser_update_active(struct max_ser_priv *priv,
-				 u32 updated_pad, u64 streams_mask)
-{
-	struct max_ser *ser = priv->ser;
-	bool active = false;
-	unsigned int i;
-
-	for (i = 0; i < ser->ops->num_phys; i++) {
-		struct max_ser_phy *phy = &ser->phys[i];
-		unsigned int pad = max_ser_phy_to_pad(ser, phy);
-		u64 mask;
-
-		if (pad == updated_pad)
-			mask = streams_mask;
-		else
-			mask = priv->streams_mask[pad];
-
-		if (mask) {
-			active = true;
-			break;
-		}
-	}
-
-	ser->active = active;
-
-	return 0;
-}
-
 static int max_ser_update_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 updated_streams_mask, bool enable)
@@ -749,9 +721,7 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	else
 		priv->streams_mask[pad] &= ~updated_streams_mask;
 
-	ret = max_ser_update_active(priv, pad, priv->streams_mask[pad]);
-	if (ret)
-		goto err_revert_streams_mask;
+	ser->active = !!priv->streams_mask[pad];
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
@@ -792,9 +762,8 @@ err_revert_phy_update:
 				   !enable);
 	}
 
-	max_ser_update_active(priv, pad, streams_mask);
+	ser->active = !!streams_mask;
 
-err_revert_streams_mask:
 	priv->streams_mask[pad] = streams_mask;
 
 	return ret;
