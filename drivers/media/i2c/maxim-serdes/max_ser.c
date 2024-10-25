@@ -776,7 +776,7 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	return 0;
 
 err_revert_phy_update:
-	for (i = 0; i < ser->ops->num_phys; i++) {
+	for (i = 0; i < failed_phy_id; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 		u64 updated_sink_streams_mask = updated_streams_mask;
 		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
