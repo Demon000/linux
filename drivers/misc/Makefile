@@ -75,3 +75,4 @@ DTC_FLAGS_lan966x_pci		:= -Wno-interrupts_property
 lan966x-pci-objs		+= lan966x_pci.dtbo.o
 obj-$(CONFIG_MCHP_LAN966X_PCI)	+= lan966x-pci.o
 obj-y				+= keba/
+obj-$(CONFIG_MISC_RP1)		+= rp1/
