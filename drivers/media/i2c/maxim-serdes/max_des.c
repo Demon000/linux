@@ -1080,11 +1080,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		u64 updated_sink_streams_mask = updated_streams_mask;
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
-		v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
-						&updated_sink_streams_mask);
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
 
 		if (!updated_sink_streams_mask)
 			continue;
@@ -1103,11 +1105,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 revert_link_update:
 	for (i = 0; i < failed_link_id; i++) {
 		struct max_des_link *link = &des->links[i];
-		u64 updated_sink_streams_mask = updated_streams_mask;
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
-		v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
-						&updated_sink_streams_mask);
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
 
 		if (!updated_sink_streams_mask)
 			continue;
