@@ -1,0 +1,61 @@
+#define cam_label CONCAT(ser_label, _cam_${cam_idx})
+#define vcm_label CONCAT(ser_label, _vcm_${cam_idx})
+
+#define cam_out_label CONCAT(cam_label, _out)
+#define cam_out_remote_label ser_in_label_x(${cam_idx})
+
+#define i2c_label ser_i2c_label_x(${cam_idx})
+&ser_label {
+	i2c-atr {
+		i2c_label: i2c@${cam_idx} {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x${cam_idx}>;
+		};
+	};
+};
+
+#define i2c_csi_dsi0 i2c_label
+#define cam_node cam_label
+#define cam_endpoint cam_out_label
+#define vcm vcm_label
+#include "rpi5-csi0-imx219.dtsi"
+#undef vcm
+#undef cam_node
+#undef cam_endpoint
+#undef i2c_csi_dsi0
+
+#undef i2c_label
+
+&cam_label {
+	status = "okay";
+
+	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+};
+
+&cam_out_label {
+	remote-endpoint = <&cam_out_remote_label>;
+};
+
+&ser_label {
+	ports {
+		port@${cam_idx} {
+			reg = <0>;
+
+			cam_out_remote_label: endpoint {
+				remote-endpoint = <&cam_out_label>;
+			};
+		};
+	};
+};
+
+&cam_out_remote_label {
+	clock-lanes = <0>;
+	data-lanes = <1 2>;
+	clock-noncontinuous;
+	link-frequencies = /bits/ 64 <456000000>;
+};
+
+#undef cam_out_remote_label
+#undef cam_out_label
+#undef cam_label
