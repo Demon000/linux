@@ -1,0 +1,40 @@
+#define _CONCAT(a, b) a ## b
+#define CONCAT(a, b) _CONCAT(a, b)
+
+#define des_label max_des_${idx}
+#define des_in_label CONCAT(des_label, _in_)
+#define des_in_label_x(x) CONCAT(des_in_label, x)
+#define des_i2c_label CONCAT(des_label, _i2c_)
+#define des_i2c_label_x(x) CONCAT(des_i2c_label, x)
+
+&i2c_bus {
+	des_label: gmsl-deserializer@27 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		compatible = "maxim,max96724";
+		reg = <0x27>;
+	};
+};
+
+&des_label {
+	i2c-alias-pool = <0x40 0x41 0x42 0x43>;
+
+	i2c-atr {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+};
+
+${serializers}
+#undef des_label
+#undef des_in_label
+#undef des_i2c_label
+
+#undef _CONCAT
+#undef CONCAT
