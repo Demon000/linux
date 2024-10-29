@@ -1,0 +1,81 @@
+#define ser_label CONCAT(des_label, _ser_${ser_idx})
+
+#define ser_in_label CONCAT(ser_label, _in_)
+#define ser_in_label_x(x) CONCAT(ser_in_label, x)
+#define ser_out_label CONCAT(ser_label, _out)
+#define ser_out_remote_label des_in_label_x(${ser_idx})
+
+#define ser_i2c_label CONCAT(ser_label, _i2c_)
+#define ser_i2c_label_x(x) CONCAT(ser_i2c_label, x)
+
+#define i2c_label des_i2c_label_x(${ser_idx})
+&des_label {
+	i2c-atr {
+		i2c_label: i2c@${ser_idx} {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x${ser_idx}>;
+		};
+	};
+};
+
+&i2c_label {
+	ser_label: gmsl-serializer@40 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#gpio-cells = <2>;
+
+		compatible = "maxim,max96717";
+		reg = <0x40>;
+
+		gpio-controller;
+		gpio-ranges = <&ser_label 0 0 11>;
+	};
+};
+#undef i2c_label
+
+&ser_label {
+	i2c-alias-pool = <0x50 0x51>;
+
+	i2c-atr {
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+
+			ser_out_label: endpoint {
+				remote-endpoint = <&ser_out_remote_label>;
+			};
+		};
+	};
+};
+
+&des_label {
+	ports {
+		port@${ser_idx} {
+			reg = <0x${ser_idx}>;
+
+			ser_out_remote_label: endpoint {
+				remote-endpoint = <&ser_out_label>;
+			};
+		};
+	};
+};
+
+${cameras}
+#undef ser_i2c_label_x
+#undef ser_i2c_label
+
+#undef ser_out_remote_label
+#undef ser_out_label
+
+#undef ser_in_label_x
+#undef ser_in_label
+
+#undef ser_label
