@@ -764,49 +764,33 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 	};
 };
 
-// #include "rpi5-csi0-imx219.dtsi"
-// #include "rpi5-csi0-ov5640.dtsi"
-
-#if 1
-#define max_des_phy_2_out cam_endpoint
-#define max_des cam_node
-#include "rpi5-csi0-max96724-max96717.dtsi"
-#undef max_des
-#undef max_des_phy_2_out
-
-#define i2c_csi_dsi0 max_ser_0_i2c_0
-#define cam_node real_cam_node
-#define cam_endpoint cam_0_out
-
-#include "rpi5-csi0-ov5640.dtsi"
-
-&cam_endpoint {
-	remote-endpoint = <&max_ser_0_phy_0_in>;
-};
-
-&max_ser_0_phy_0_in {
-	clock-lanes = <0>;
-	data-lanes = <1 2>;
-	clock-noncontinuous;
-	link-frequencies = /bits/ 64 <456000000>;
-};
-
-&cam_node {
-	status = "okay";
-
-	reset-gpios = <&max_ser_0 0 GPIO_ACTIVE_HIGH>;
-};
-
-#undef cam_endpoint
-#undef cam_node
-#undef i2c_csi_dsi0
-#endif
-
 &i2c_csi_dsi0 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 
 	status = "okay";
+};
+
+#define i2c_bus i2c_csi_dsi0
+#include "cfg.dtsi"
+#undef i2c_bus
+
+&max_des_0 {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@6 {
+			reg = <6>;
+
+			max_des_phy_2_out: endpoint {
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <750000000>;
+				remote-endpoint = <&csi_ep>;
+			};
+		};
+	};
 };
 
 &csi0 {
@@ -815,19 +799,11 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 
 	port {
 		csi_ep: endpoint {
-			remote-endpoint = <&cam_endpoint>;
+			remote-endpoint = <&max_des_phy_2_out>;
 			clock-lanes = <0>;
 			data-lanes = <1 2>;
 			clock-noncontinuous;
 			link-frequencies = /bits/ 64 <750000000>;
 		};
 	};
-};
-
-&cam_node {
-	status = "okay";
-};
-
-&cam_endpoint {
-	remote-endpoint = <&csi_ep>;
 };
