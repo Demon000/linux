@@ -452,7 +452,6 @@ err_free_new_remaps:
 	devm_kfree(priv->dev, remaps);
 
 	return ret;
-
 }
 
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
