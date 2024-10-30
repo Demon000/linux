@@ -43,6 +43,7 @@ def read_template(dir: str, name: str, vars: vars_type) -> str:
 def write_cam(cam_cfg: any, idx: int, vars: vars_type, config_dir: str, out: TextIO):
     vars = {
         **vars,
+        **cam_cfg,
         'cam_idx': f'{idx:x}',
     }
 
@@ -52,6 +53,7 @@ def write_cam(cam_cfg: any, idx: int, vars: vars_type, config_dir: str, out: Tex
 def configure_ser(ser_cfg: any, idx: int, vars: vars_type, config_dir: str, out: TextIO):
     vars = {
         **vars,
+        **ser_cfg,
         'ser_idx': f'{idx:x}',
     }
 
@@ -65,6 +67,7 @@ def configure_ser(ser_cfg: any, idx: int, vars: vars_type, config_dir: str, out:
 
 def configure_deser(des_cfg: any, idx: int, config_dir: str, out: TextIO):
     vars = {
+        **des_cfg,
         'idx': f'{idx:x}',
     }
 
