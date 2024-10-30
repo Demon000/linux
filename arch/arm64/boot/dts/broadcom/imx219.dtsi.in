@@ -30,7 +30,7 @@
 &cam_label {
 	status = "okay";
 
-	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&ser_label ${reset_pin:0} GPIO_ACTIVE_HIGH>;
 };
 
 &cam_out_label {
