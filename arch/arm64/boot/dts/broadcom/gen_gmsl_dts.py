@@ -1,20 +1,36 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
+from functools import partial
 import json
 import re
 import sys
 from os import path
+from re import Match
 from typing import TextIO
 
 configs = sys.argv[1:]
 
 vars_type = dict[str, str | int]
 
+vars_regex = r'\${([a-zA-Z_$][\w$]*)(:(.+))?}'
+vars_compiled_regex = re.compile(vars_regex)
+
+def replace_var(vars: vars_type, m: Match):
+    key = m[1]
+    default_value = m[3]
+
+    if key in vars:
+        return str(vars[key])
+
+    if default_value is not None:
+        return default_value
+
+    raise ValueError(f'Key {key} has no value or default value')
+
 def replace_vars(data: str, vars: vars_type) -> str:
-    for key, value in vars.items():
-        data = re.sub(rf'\${{{key}}}', str(value), data)
-    return data
+    replace_var_fn = partial(replace_var, vars)
+    return vars_compiled_regex.sub(replace_var_fn, data)
 
 def read_template(dir: str, name: str, vars: vars_type) -> str:
     template_name = f'{name}.dtsi.in'
@@ -22,13 +38,7 @@ def read_template(dir: str, name: str, vars: vars_type) -> str:
     with open(template_path, 'r') as f:
         data = f.read()
 
-    data = replace_vars(data, vars)
-
-    leftover_replacements = re.findall(r'\${\S+}', data)
-    assert not leftover_replacements, \
-        f'Leftover varible replacements {leftover_replacements}'
-
-    return data
+    return replace_vars(data, vars)
 
 def write_cam(cam_cfg: any, idx: int, vars: vars_type, config_dir: str, out: TextIO):
     vars = {
