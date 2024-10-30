@@ -13,7 +13,7 @@ configs = sys.argv[1:]
 
 vars_type = dict[str, str | int]
 
-vars_regex = r'\${([a-zA-Z_$][\w$]*)(:(.+))?}'
+vars_regex = r'\${([a-zA-Z_$][\w$]*)(:(.+?))?}'
 vars_compiled_regex = re.compile(vars_regex)
 
 def replace_var(vars: vars_type, m: Match):
