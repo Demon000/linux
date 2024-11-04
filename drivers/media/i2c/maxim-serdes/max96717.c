@@ -20,7 +20,6 @@
 #define MAX96717_GPIO_NUM			11
 #define MAX96717_PIPES_NUM			4
 #define MAX96717_PHYS_NUM			2
-#define MAX96717_LANE_CONFIGS_NUM		4
 
 struct max96717_priv {
 	struct max_ser ser;
@@ -43,9 +42,6 @@ struct max96717_chip_info {
 	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
-	unsigned int num_lane_configs;
-	unsigned int lane_configs[MAX96717_LANE_CONFIGS_NUM][MAX96717_PHYS_NUM];
-	unsigned int phy_configs[MAX96717_LANE_CONFIGS_NUM];
 };
 
 #define ser_to_priv(ser) \
