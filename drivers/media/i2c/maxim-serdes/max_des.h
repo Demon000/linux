@@ -88,8 +88,6 @@ struct max_des_ops {
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
 			    struct max_des_phy *phy);
-	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
-				   struct max_des_phy *phy);
 	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
 			       bool enable);
 	int (*set_pipe_remap)(struct max_des *des, struct max_des_pipe *pipe,
