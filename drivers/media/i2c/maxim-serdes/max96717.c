@@ -33,10 +33,10 @@
 #define MAX96717_REG6_RCLKEN			BIT(5)
 
 #define MAX96717_I2C_2_X(x)			(0x42 + (x) * 0x2)
-#define MAX96717_I2C2_SRC			GENMASK(7, 1)
+#define MAX96717_I2C_2_SRC			GENMASK(7, 1)
 
 #define MAX96717_I2C_3_X(x)			(0x43 + (x) * 0x2)
-#define MAX96717_I2C3_DST			GENMASK(7, 1)
+#define MAX96717_I2C_3_DST			GENMASK(7, 1)
 
 #define MAX96717_TX3_P(p)			(0x53 + (p) * 0x4)
 #define MAX96717_TX3_TX_STR_SEL			GENMASK(1, 0)
@@ -1104,14 +1104,14 @@ static int max96717_init_i2c_xlate(struct max_ser *ser)
 		}
 
 		ret = max96717_update_bits(priv, MAX96717_I2C_2_X(i),
-					   MAX96717_I2C2_SRC,
-					   FIELD_PREP(MAX96717_I2C2_SRC, src));
+					   MAX96717_I2C_2_SRC,
+					   FIELD_PREP(MAX96717_I2C_2_SRC, src));
 		if (ret)
 			return ret;
 
 		ret = max96717_update_bits(priv, MAX96717_I2C_3_X(i),
-					   MAX96717_I2C3_DST,
-					   FIELD_PREP(MAX96717_I2C3_DST, dst));
+					   MAX96717_I2C_3_DST,
+					   FIELD_PREP(MAX96717_I2C_3_DST, dst));
 		if (ret)
 			return ret;
 	}
