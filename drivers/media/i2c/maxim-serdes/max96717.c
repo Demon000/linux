@@ -12,7 +12,6 @@
 #include <linux/pinctrl/pinconf-generic.h>
 
 #include "max_ser.h"
-#include "max_serdes.h"
 
 #define MAX96717_REG0				0x0
 
