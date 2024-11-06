@@ -14,7 +14,142 @@
 
 #include "max_des.h"
 
+#define MAX96724_REG0				0x0
+
+#define MAX96724_REG6				0x6
+#define MAX96724_REG6_LINK_EN			GENMASK(3, 0)
+
+#define MAX96724_PWR1				0x13
+#define MAX96724_PWR1_RESET_ALL			BIT(6)
+
+#define MAX96724_VIDEO_PIPE_SEL(p)		(0xf0 + (p) / 2)
+#define MAX96724_VIDEO_PIPE_SEL_STREAM(p) 	(GENMASK(1, 0) << (4 * ((p) % 2)))
+
+#define MAX96724_VIDEO_PIPE_EN			0xf4
+#define MAX96724_VIDEO_PIPE_EN_MASK(p)		BIT(p)
+#define MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL	BIT(4)
+
+#define MAX96724_VPRBS(p)			(0x1dc + (p) * 0x20)
+#define MAX96724_VPRBS_VIDEO_LOCK		BIT(0)
+
+#define MAX96724_BACKTOP12			0x40b
+#define MAX96724_BACKTOP12_CSI_OUT_EN		BIT(1)
+
+#define MAX96724_BACKTOP21			0x414
+#define MAX96724_BACKTOP21_BPP8DBL(p)		BIT(4 + (p))
+
+#define MAX96724_BACKTOP22(x)			(0x415 * (x) * 0x3)
+#define MAX96724_BACKTOP22_PHY_CSI_TX_DPLL	GENMASK(4, 0)
+#define MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN	BIT(5)
+
+#define MAX96724_BACKTOP24			0x417
+#define MAX96724_BACKTOP24_BPP8DBL_MODE(p)	BIT(4 + (p))
+
+#define MAX96724_BACKTOP30			0x41d
+#define MAX96724_BACKTOP30_BPP10DBL3		BIT(4)
+#define MAX96724_BACKTOP30_BPP10DBL3_MODE	BIT(5)
+
+#define MAX96724_BACKTOP31			0x41e
+#define MAX96724_BACKTOP31_BPP10DBL2		BIT(6)
+#define MAX96724_BACKTOP31_BPP10DBL2_MODE	BIT(7)
+
+#define MAX96724_BACKTOP32			0x41f
+#define MAX96724_BACKTOP32_BPP12(p)		BIT(p)
+#define MAX96724_BACKTOP32_BPP10DBL0		BIT(4)
+#define MAX96724_BACKTOP32_BPP10DBL0_MODE	BIT(5)
+#define MAX96724_BACKTOP32_BPP10DBL1		BIT(6)
+#define MAX96724_BACKTOP32_BPP10DBL1_MODE	BIT(7)
+
+#define MAX96724_MIPI_PHY0			0x8a0
+#define MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN	BIT(7)
+#define MAX96724_MIPI_PHY0_PHY_CONFIG		GENMASK(4, 0)
+#define MAX96724_MIPI_PHY0_PHY_4X2		BIT(0)
+#define MAX96724_MIPI_PHY0_PHY_2X4		BIT(2)
+#define MAX96724_MIPI_PHY0_PHY_1X4A_2X2		BIT(3)
+#define MAX96724_MIPI_PHY0_PHY_1X4B_2X2		BIT(4)
+
+#define MAX96724_MIPI_PHY2			0x8a2
+#define MAX96724_MIPI_PHY2_PHY_STDB_N_4(x)	(GENMASK(5, 4) << ((x) / 2 * 2))
+#define MAX96724_MIPI_PHY2_PHY_STDB_N_2(x)	(BIT(4 + (x)))
+
+#define MAX96724_MIPI_PHY3(x)			(0x8a3 + (x) / 2)
+#define MAX96724_MIPI_PHY3_PHY_LANE_MAP_4	GENMASK(7, 0)
+#define MAX96724_MIPI_PHY3_PHY_LANE_MAP_2(x)	(GENMASK(3, 0) << (4 * (x % 2)))
+
+#define MAX96724_MIPI_PHY5(x)			(0x8a5 + (x) / 2)
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4	GENMASK(5, 0)
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2(x)	(GENMASK(2, 0) << (3 * (x % 2)))
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK	5
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK	2
+
+#define MAX96724_MIPI_PHY13			0x8ad
+#define MAX96724_MIPI_PHY13_T_T3_PREBEGIN	GENMASK(5, 0)
+#define MAX96724_MIPI_PHY13_T_T3_PREBEGIN_64X7	FIELD_PREP(MAX96724_MIPI_PHY13_T_T3_PREBEGIN, 63)
+
+#define MAX96724_MIPI_PHY14			0x8ae
+#define MAX96724_MIPI_PHY14_T_T3_PREP		GENMASK(1, 0)
+#define MAX96724_MIPI_PHY14_T_T3_PREP_55NS	FIELD_PREP(MAX96724_MIPI_PHY14_T_T3_PREP, 0b01)
+#define MAX96724_MIPI_PHY14_T_T3_POST		GENMASK(6, 2)
+#define MAX96724_MIPI_PHY14_T_T3_POST_32X7	FIELD_PREP(MAX96724_MIPI_PHY14_T_T3_POST, 31)
+
+#define MAX96724_MIPI_CTRL_SEL			0x8ca
+#define MAX96724_MIPI_CTRL_SEL_MASK(p)		(GENMASK(1, 0) << ((p) * 2))
+
+#define MAX96724_MIPI_PHY25(x)			(0x8d0 + (x) / 2)
+#define MAX96724_MIPI_PHY25_CSI2_TX_PKT_CNT(x)	(GENMASK(3, 0) << (4 * ((x) % 2)))
+
+#define MAX96724_MIPI_PHY27(x)			(0x8d2 + (x) / 2)
+#define MAX96724_MIPI_PHY27_PHY_PKT_CNT(x)	(GENMASK(3, 0) << (4 * ((x) % 2)))
+
+#define MAX96724_MIPI_TX3(x)			(0x903 + (x) * 0x40)
+#define MAX96724_MIPI_TX3_DESKEW_INIT_WIDTH	GENMASK(2, 0)
+#define MAX96724_MIPI_TX3_DESKEW_INIT_8X32K	FIELD_PREP(MAX96724_MIPI_TX3_DESKEW_INIT_WIDTH, 0b001)
+#define MAX96724_MIPI_TX3_DESKEW_INIT_AUTO	BIT(7)
+
+#define MAX96724_MIPI_TX4(x)			(0x904 + (x) * 0x40)
+#define MAX96724_MIPI_TX4_DESKEW_PER_WIDTH	GENMASK(2, 0)
+#define MAX96724_MIPI_TX4_DESKEW_PER_2K		FIELD_PREP(MAX96724_MIPI_TX4_DESKEW_PER_WIDTH, 0b001)
+#define MAX96724_MIPI_TX4_DESKEW_PER_AUTO	BIT(7)
+
+#define MAX96724_MIPI_TX10(x)			(0x90a + (x) * 0x40)
+#define MAX96724_MIPI_TX10_CSI2_CPHY_EN		BIT(5)
+#define MAX96724_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
+
+#define MAX96724_MIPI_TX11(p, x)		(0x90b + (p) * 0x40 + (x) / 8)
+#define MAX96724_MIPI_TX11_MAP_EN(x)		BIT(x % 8)
+
+#define MAX96724_MIPI_TX13(p, x)		(0x90d + (p) * 0x40 + (x) * 0x2)
+#define MAX96724_MIPI_TX13_MAP_SRC_DT		GENMASK(5, 0)
+#define MAX96724_MIPI_TX13_MAP_SRC_VC		GENMASK(7, 6)
+
+#define MAX96724_MIPI_TX14(p, x)		(0x90e + (p) * 0x40 + (x) * 0x2)
+#define MAX96724_MIPI_TX14_MAP_DST_DT		GENMASK(5, 0)
+#define MAX96724_MIPI_TX14_MAP_DST_VC		GENMASK(7, 6)
+
+#define MAX96724_MIPI_TX45(p, x)		(0x92d + (p) * 0x40 + (x) / 4)
+#define MAX96724_MIPI_TX45_MAP_DPHY_DEST(x)	(GENMASK(1, 0) << (2 * (x % 4)))
+
+#define MAX96724_MIPI_TX51(x)			(0x933 + (x) * 0x40)
+#define MAX96724_MIPI_TX51_ALT_MEM_MAP_12	BIT(0)
+#define MAX96724_MIPI_TX51_ALT_MEM_MAP_8	BIT(1)
+#define MAX96724_MIPI_TX51_ALT_MEM_MAP_10	BIT(2)
+#define MAX96724_MIPI_TX51_ALT2_MEM_MAP_8	BIT(4)
+#define MAX96724_MIPI_TX51_ALT_MEM		GENMASK(4, 0)
+
+#define MAX96724_DE_DET				0x11f0
+#define MAX96724_HS_DET				0x11f1
+#define MAX96724_VS_DET				0x11f2
+#define MAX96724_HS_POL				0x11f3
+#define MAX96724_VS_POL				0x11f4
+#define MAX96724_DET(p)				BIT(p)
+
+#define MAX96724_DPLL_0(x)			(0x1c00 + (x) * 0x100)
+#define MAX96724_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
+
 #define MAX96724_PHY1_ALT_CLOCK		5
+
+#define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
+#define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
 struct max96724_priv {
 	struct max_des des;
@@ -80,7 +215,7 @@ static int max96724_wait_for_device(struct max96724_priv *priv)
 	int ret;
 
 	for (i = 0; i < 10; i++) {
-		ret = max96724_read(priv, 0x0);
+		ret = max96724_read(priv, MAX96724_REG0);
 		if (ret >= 0)
 			return 0;
 
@@ -100,7 +235,8 @@ static int max96724_reset(struct max96724_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = max96724_update_bits(priv, 0x13, 0x40, 0x40);
+	ret = max96724_update_bits(priv, MAX96724_PWR1, MAX96724_PWR1_RESET_ALL,
+				   MAX96724_PWR1_RESET_ALL);
 	if (ret)
 		return ret;
 
@@ -134,45 +270,43 @@ static int max96724_log_pipe_status(struct max_des *des,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, mask;
+	unsigned int mask;
 	int ret;
 
-	reg = 0x1dc + index * 0x20;
-	mask = BIT(0);
-	ret = max96724_read(priv, reg);
+	mask = MAX96724_VPRBS_VIDEO_LOCK;
+	ret = max96724_read(priv, MAX96724_VPRBS(index));
 	if (ret < 0)
 		return ret;
 
-	ret = ret & mask;
-	pr_info("%s: \tvideo_lock: %u\n", name, ret);
+	pr_info("%s: \tvideo_lock: %u\n", name, !!(ret & mask));
 
-	mask = BIT(index);
+	mask = MAX96724_DET(index);
 
-	ret = max96724_read(priv, 0x11f0);
+	ret = max96724_read(priv, MAX96724_DE_DET);
 	if (ret < 0)
 		return ret;
 
 	pr_info("%s: \tde_det: %u\n", name, !!(ret & mask));
 
-	ret = max96724_read(priv, 0x11f1);
+	ret = max96724_read(priv, MAX96724_HS_DET);
 	if (ret < 0)
 		return ret;
 
 	pr_info("%s: \ths_det: %u\n", name, !!(ret & mask));
 
-	ret = max96724_read(priv, 0x11f2);
+	ret = max96724_read(priv, MAX96724_VS_DET);
 	if (ret < 0)
 		return ret;
 
 	pr_info("%s: \tvs_det: %u\n", name, !!(ret & mask));
 
-	ret = max96724_read(priv, 0x11f3);
+	ret = max96724_read(priv, MAX96724_HS_POL);
 	if (ret < 0)
 		return ret;
 
 	pr_info("%s: \ths_pol: %u\n", name, !!(ret & mask));
 
-	ret = max96724_read(priv, 0x11f4);
+	ret = max96724_read(priv, MAX96724_VS_POL);
 	if (ret < 0)
 		return ret;
 
@@ -186,25 +320,20 @@ static int max96724_log_phy_status(struct max_des *des,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = phy->index;
-	unsigned int reg, mask, shift;
 	int ret;
 
-	reg = 0x8d0 + index / 2;
-	shift = 4 * (index % 2);
-	mask = GENMASK(3, 0);
-	ret = max96724_read(priv, reg);
+	ret = max96724_read(priv, MAX96724_MIPI_PHY25(index));
 	if (ret < 0)
 		return ret;
 
-	ret = (ret >> shift) & mask;
+	ret = field_get(MAX96724_MIPI_PHY25_CSI2_TX_PKT_CNT(index), ret);
 	pr_info("%s: \tcsi2_pkt_cnt: %u\n", name, ret);
 
-	reg += 2;
-	ret = max96724_read(priv, reg);
+	ret = max96724_read(priv, MAX96724_MIPI_PHY27(index));
 	if (ret < 0)
 		return ret;
 
-	ret = (ret >> shift) & mask;
+	ret = field_get(MAX96724_MIPI_PHY27_PHY_PKT_CNT(index), ret);
 	pr_info("%s: \tphy_pkt_cnt: %u\n", name, ret);
 
 	return 0;
@@ -213,30 +342,33 @@ static int max96724_log_phy_status(struct max_des *des,
 static int max96724_set_enable(struct max_des *des, bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int mask;
 	int ret;
 
-	mask = BIT(1);
-	ret = max96724_update_bits(priv, 0x40b, mask, enable ? mask : 0);
+	ret = max96724_update_bits(priv, MAX96724_BACKTOP12,
+				   MAX96724_BACKTOP12_CSI_OUT_EN,
+				   FIELD_PREP(MAX96724_BACKTOP12_CSI_OUT_EN,
+					      enable));
 	if (ret)
 		return ret;
 
-	mask = BIT(7);
-	return max96724_update_bits(priv, 0x8a0, mask, enable ? mask : 0);
+	return max96724_update_bits(priv, MAX96724_MIPI_PHY0,
+				    MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN,
+				    FIELD_PREP(MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN,
+					       enable));
 }
 
 static const unsigned int max96724_phys_configs_reg_val[] = {
-	BIT(2),
-	BIT(3),
+	MAX96724_MIPI_PHY0_PHY_2X4,
+	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
 
-	BIT(0),
-	BIT(2),
-	BIT(3),
-	BIT(4),
+	MAX96724_MIPI_PHY0_PHY_4X2,
+	MAX96724_MIPI_PHY0_PHY_2X4,
+	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
+	MAX96724_MIPI_PHY0_PHY_1X4B_2X2,
 
-	BIT(2),
-	BIT(3),
-	BIT(2),
+	MAX96724_MIPI_PHY0_PHY_2X4,
+	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
+	MAX96724_MIPI_PHY0_PHY_2X4,
 };
 
 static const struct max_phys_config max96724_phys_configs[] = {
@@ -262,13 +394,13 @@ static const struct max_phys_config max96724_phys_configs[] = {
 static int max96724_init(struct max_des *des)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int mask;
 	int ret;
 
 	if (priv->info->supports_pipe_stream_autoselect) {
 		/* Enable stream autoselect. */
-		mask = BIT(4);
-		ret = max96724_update_bits(priv, 0xf4, mask, mask);
+		ret = max96724_update_bits(priv, MAX96724_VIDEO_PIPE_EN,
+					   MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL,
+					   FIELD_PREP(MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL, 1));
 		if (ret)
 			return ret;
 	}
@@ -277,7 +409,8 @@ static int max96724_init(struct max_des *des)
 	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
 		return -EINVAL;
 
-	ret = max96724_update_bits(priv, 0x8a0, 0x1f,
+	ret = max96724_update_bits(priv, MAX96724_MIPI_PHY0,
+				   MAX96724_MIPI_PHY0_PHY_CONFIG,
 				   max96724_phys_configs_reg_val[des->phys_config]);
 	if (ret)
 		return ret;
@@ -303,7 +436,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
-	unsigned int reg, val, shift, mask, clk_bit;
+	unsigned int val, mask, clk_bit;
 	unsigned int index = phy->index;
 	unsigned int used_data_lanes = 0;
 	unsigned int i;
@@ -311,29 +444,25 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 
 	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
 
-	reg = 0x90a + 0x40 * index;
-	shift = 6;
-	mask = GENMASK(1, 0);
-	val = num_data_lanes - 1;
-	ret = max96724_update_bits(priv, reg, mask << shift, val << shift);
+	ret = max96724_update_bits(priv, MAX96724_MIPI_TX10(index),
+				   MAX96724_MIPI_TX10_CSI2_LANE_CNT,
+				   FIELD_PREP(MAX96724_MIPI_TX10_CSI2_LANE_CNT,
+					      num_data_lanes - 1));
 	if (ret)
 		return ret;
 
-	mask = BIT(5);
-	ret = max96724_update_bits(priv, reg, mask, is_cphy ? mask : 0);
+	ret = max96724_update_bits(priv, MAX96724_MIPI_TX10(index),
+				   MAX96724_MIPI_TX10_CSI2_CPHY_EN,
+				   FIELD_PREP(MAX96724_MIPI_TX10_CSI2_CPHY_EN,
+					      is_cphy));
 	if (ret)
 		return ret;
 
 	/* Configure lane mapping. */
-	if (num_hw_data_lanes == 4) {
-		mask = 0xff;
-		shift = 0;
-	} else {
-		mask = 0xf;
-		shift = 4 * (index % 2);
-	}
-
-	reg = 0x8a3 + index / 2;
+	if (num_hw_data_lanes == 4)
+		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_4;
+	else
+		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_2(index);
 
 	val = 0;
 	for (i = 0; i < num_hw_data_lanes ; i++) {
@@ -348,95 +477,114 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		used_data_lanes |= BIT(map);
 	}
 
-	ret = max96724_update_bits(priv, reg, mask << shift, val << shift);
+	ret = max96724_update_bits(priv, MAX96724_MIPI_PHY3(index),
+				   mask, field_prep(mask, val));
 	if (ret)
 		return ret;
 
 	/* Configure lane polarity. */
 	if (num_hw_data_lanes == 4) {
-		mask = 0x3f;
-		clk_bit = 5;
-		shift = 0;
+		mask = MAX96724_MIPI_PHY5_PHY_POL_MAP_4;
+		clk_bit = MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK;
 	} else {
-		mask = 0x7;
-		clk_bit = 2;
-		shift = 3 * (index % 2);
+		mask = MAX96724_MIPI_PHY5_PHY_POL_MAP_2(index);
+		clk_bit = MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK;
 	}
 
-	reg = 0x8a5 + index / 2;
-
 	val = 0;
-	for (i = 0; i < num_data_lanes + 1; i++)
-		if (phy->mipi.lane_polarities[i])
-			val |= BIT(i == 0 ? clk_bit : i < 3 ? i - 1 : i);
-	ret = max96724_update_bits(priv, reg, mask << shift, val << shift);
+	for (i = 0; i < num_data_lanes + 1; i++) {
+		if (!phy->mipi.lane_polarities[i])
+			continue;
+
+		if (i == 0)
+			val |= BIT(clk_bit);
+		else if (i < 3)
+			val |= BIT(i - 1);
+		else
+			val |= BIT(i);
+	}
+
+	ret = max96724_update_bits(priv, MAX96724_MIPI_PHY5(index),
+				   mask, field_prep(mask, val));
 	if (ret)
 		return ret;
 
 	if (!is_cphy && dpll_freq > 1500000000ull) {
 		/* Enable initial deskew with 2 x 32k UI. */
-		ret = max96724_write(priv, 0x903 + 0x40 * index, 0x81);
+		ret = max96724_write(priv, MAX96724_MIPI_TX3(index),
+				     MAX96724_MIPI_TX3_DESKEW_INIT_AUTO |
+				     MAX96724_MIPI_TX3_DESKEW_INIT_8X32K);
 		if (ret)
 			return ret;
 
 		/* Enable periodic deskew with 2 x 1k UI.. */
-		ret = max96724_write(priv, 0x904 + 0x40 * index, 0x81);
+		ret = max96724_write(priv, MAX96724_MIPI_TX4(index),
+				     MAX96724_MIPI_TX4_DESKEW_PER_AUTO |
+				     MAX96724_MIPI_TX4_DESKEW_PER_2K);
 		if (ret)
 			return ret;
 	} else {
 		/* Disable initial deskew. */
-		ret = max96724_write(priv, 0x903 + 0x40 * index, 0x07);
+		ret = max96724_write(priv, MAX96724_MIPI_TX3(index), 0x0);
 		if (ret)
 			return ret;
 
 		/* Disable periodic deskew. */
-		ret = max96724_write(priv, 0x904 + 0x40 * index, 0x01);
+		ret = max96724_write(priv, MAX96724_MIPI_TX4(index), 0x0);
 		if (ret)
 			return ret;
 	}
 
 	if (is_cphy) {
 		/* Configure C-PHY timings. */
-		ret = max96724_write(priv, 0x8ad, 0x3f);
+		ret = max96724_write(priv, MAX96724_MIPI_PHY13,
+				     MAX96724_MIPI_PHY13_T_T3_PREBEGIN_64X7);
 		if (ret)
 			return ret;
 
-		ret = max96724_write(priv, 0x8ae, 0x7d);
+		ret = max96724_write(priv, MAX96724_MIPI_PHY14,
+				     MAX96724_MIPI_PHY14_T_T3_PREP_55NS |
+				     MAX96724_MIPI_PHY14_T_T3_POST_32X7);
 		if (ret)
 			return ret;
 	}
 
 	/* Put DPLL block into reset. */
-	reg = 0x1c00 + 0x100 * index;
-	ret = max96724_update_bits(priv, reg, BIT(0), 0x00);
+	ret = max96724_update_bits(priv, MAX96724_DPLL_0(index),
+				   MAX96724_DPLL_0_CONFIG_SOFT_RST_N,
+				   FIELD_PREP(MAX96724_DPLL_0_CONFIG_SOFT_RST_N, 0));
 	if (ret)
 		return ret;
 
 	/* Set DPLL frequency. */
-	reg = 0x415 + 0x3 * index;
-	ret = max96724_update_bits(priv, reg, GENMASK(4, 0),
-				   div_u64(dpll_freq, 100000000));
+	ret = max96724_update_bits(priv, MAX96724_BACKTOP22(index),
+				   MAX96724_BACKTOP22_PHY_CSI_TX_DPLL,
+				   FIELD_PREP(MAX96724_BACKTOP22_PHY_CSI_TX_DPLL,
+					      div_u64(dpll_freq, 100000000)));
 	if (ret)
 		return ret;
 
 	/* Enable DPLL frequency. */
-	ret = max96724_update_bits(priv, reg, BIT(5), BIT(5));
+	ret = max96724_update_bits(priv, MAX96724_BACKTOP22(index),
+				   MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN,
+				   FIELD_PREP(MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN, 1));
 	if (ret)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	reg = 0x1c00 + 0x100 * index;
-	ret = max96724_update_bits(priv, reg, BIT(0), 0x01);
+	ret = max96724_update_bits(priv, MAX96724_DPLL_0(index),
+				   MAX96724_DPLL_0_CONFIG_SOFT_RST_N,
+				   FIELD_PREP(MAX96724_DPLL_0_CONFIG_SOFT_RST_N, 1));
 	if (ret)
 		return ret;
 
 	/* Set alternate memory map modes. */
-	val  = phy->alt_mem_map12 ? BIT(0) : 0;
-	val |= phy->alt_mem_map8 ? BIT(1) : 0;
-	val |= phy->alt_mem_map10 ? BIT(2) : 0;
-	val |= phy->alt2_mem_map8 ? BIT(4) : 0;
-	reg = 0x933 + 0x40 * index;
-	ret = max96724_update_bits(priv, reg, GENMASK(2, 0), val);
+	val  = FIELD_PREP(MAX96724_MIPI_TX51_ALT_MEM_MAP_12, phy->alt_mem_map12);
+	val |= FIELD_PREP(MAX96724_MIPI_TX51_ALT_MEM_MAP_8, phy->alt_mem_map8);
+	val |= FIELD_PREP(MAX96724_MIPI_TX51_ALT_MEM_MAP_10, phy->alt_mem_map10);
+	val |= FIELD_PREP(MAX96724_MIPI_TX51_ALT2_MEM_MAP_8, phy->alt2_mem_map8);
+	ret = max96724_update_bits(priv, MAX96724_MIPI_TX51(index),
+				   MAX96724_MIPI_TX51_ALT_MEM, val);
 	if (ret)
 		return ret;
 
@@ -449,19 +597,18 @@ static int max96724_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = phy->index;
 	unsigned int num_hw_data_lanes;
-	unsigned int mask, shift;
+	unsigned int mask;
 
 	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
 
-	shift = 4;
 	if (num_hw_data_lanes == 4)
 		/* PHY 1 -> bits [1:0] */
 		/* PHY 2 -> bits [3:2] */
-		mask = 0x3 << ((index / 2) * 2 + shift);
+		mask = MAX96724_MIPI_PHY2_PHY_STDB_N_4(index);
 	else
-		mask = 0x1 << (index + shift);
+		mask = MAX96724_MIPI_PHY2_PHY_STDB_N_2(index);
 
-	return max96724_update_bits(priv, 0x8a2, mask, enable ? mask : 0);
+	return max96724_update_bits(priv, MAX96724_MIPI_PHY2, mask, enable ? mask : 0);
 }
 
 static int max96724_set_pipe_remap(struct max_des *des,
@@ -471,30 +618,33 @@ static int max96724_set_pipe_remap(struct max_des *des,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, val, shift, mask;
 	int ret;
 
 	/* Set source Data Type and Virtual Channel. */
 	/* TODO: implement extended Virtual Channel. */
-	reg = 0x90d + 0x40 * index + i * 2;
-	ret = max96724_write(priv, reg, MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
+	ret = max96724_write(priv, MAX96724_MIPI_TX13(index, i),
+			     FIELD_PREP(MAX96724_MIPI_TX13_MAP_SRC_DT,
+					remap->from_dt) |
+			     FIELD_PREP(MAX96724_MIPI_TX13_MAP_SRC_VC,
+					remap->from_vc));
 	if (ret)
 		return ret;
 
 	/* Set destination Data Type and Virtual Channel. */
 	/* TODO: implement extended Virtual Channel. */
-	reg = 0x90e + 0x40 * index + i * 2;
-	ret = max96724_write(priv, reg, MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
+	ret = max96724_write(priv, MAX96724_MIPI_TX14(index, i),
+			     FIELD_PREP(MAX96724_MIPI_TX14_MAP_DST_DT,
+					remap->to_dt) |
+			     FIELD_PREP(MAX96724_MIPI_TX14_MAP_DST_VC,
+					remap->to_vc));
 	if (ret)
 		return ret;
 
 	/* Set destination PHY. */
-	reg = 0x92d + 0x40 * index + i / 4;
-	shift = (i % 4) * 2;
-	mask = 0x3 << shift;
-	val = (remap->phy & 0x3) << shift;
-
-	return max96724_update_bits(priv, reg, mask, val);
+	return max96724_update_bits(priv, MAX96724_MIPI_TX45(index, i),
+				    MAX96724_MIPI_TX45_MAP_DPHY_DEST(i),
+				    field_prep(MAX96724_MIPI_TX45_MAP_DPHY_DEST(i),
+					       remap->phy));
 }
 
 static int max96724_set_pipe_remap_enable(struct max_des *des,
@@ -503,12 +653,11 @@ static int max96724_set_pipe_remap_enable(struct max_des *des,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, mask;
 
-	reg = 0x90b + 0x40 * index + i / 8;
-	mask = BIT(i % 8);
-
-	return max96724_update_bits(priv, reg, mask, enable ? mask : 0);
+	return max96724_update_bits(priv, MAX96724_MIPI_TX11(index, i),
+				    MAX96724_MIPI_TX11_MAP_EN(i),
+				    field_prep(MAX96724_MIPI_TX11_MAP_EN(i),
+					       enable));
 }
 
 static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
@@ -516,11 +665,11 @@ static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int shift;
 
-	shift = index * 2;
-	return max96724_update_bits(priv, 0x8ca, GENMASK(1, 0) << shift,
-				    phy->index << shift);
+	return max96724_update_bits(priv, MAX96724_MIPI_CTRL_SEL,
+				    MAX96724_MIPI_CTRL_SEL_MASK(index),
+				    field_prep(MAX96724_MIPI_CTRL_SEL_MASK(index),
+					       phy->index));
 }
 
 static int max96724_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
@@ -528,9 +677,11 @@ static int max96724_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int mask = BIT(index);
 
-	return max96724_update_bits(priv, 0xf4, mask, enable ? mask : 0);
+	return max96724_update_bits(priv, MAX96724_VIDEO_PIPE_EN,
+				    MAX96724_VIDEO_PIPE_EN_MASK(index),
+				    field_prep(MAX96724_VIDEO_PIPE_EN_MASK(index),
+					       enable));
 }
 
 static int max96724_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
@@ -538,59 +689,65 @@ static int max96724_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, shift;
 
-	reg = 0xf0 + index / 2;
-	shift = 4 * (index % 2);
-
-	return max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
-				    stream_id << shift);
+	return max96724_update_bits(priv, MAX96724_VIDEO_PIPE_SEL(index),
+				    MAX96724_VIDEO_PIPE_SEL_STREAM(index),
+				    field_prep(MAX96724_VIDEO_PIPE_SEL_STREAM(index),
+					       stream_id));
 }
 
 static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
-	unsigned int reg, mask;
+	unsigned int reg, mask, mode_mask;
 	int ret;
 
 	/* Set 8bit double mode. */
-	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x414, mask, pipe->dbl8 ? mask : 0);
+	ret = max96724_update_bits(priv, MAX96724_BACKTOP21,
+				   MAX96724_BACKTOP21_BPP8DBL(index),
+				   field_prep(MAX96724_BACKTOP21_BPP8DBL(index),
+					      pipe->dbl8));
 	if (ret)
 		return ret;
 
-	mask = BIT(index) << 4;
-	ret = max96724_update_bits(priv, 0x417, mask, pipe->dbl8mode ? mask : 0);
+	ret = max96724_update_bits(priv, MAX96724_BACKTOP24,
+				   MAX96724_BACKTOP24_BPP8DBL_MODE(index),
+				   field_prep(MAX96724_BACKTOP24_BPP8DBL_MODE(index),
+					      pipe->dbl8mode));
 	if (ret)
 		return ret;
 
 	/* Set 10bit double mode. */
 	if (index == 3) {
-		reg = 0x41d;
-		mask = BIT(4);
+		reg = MAX96724_BACKTOP30;
+		mask = MAX96724_BACKTOP30_BPP10DBL3;
+		mode_mask = MAX96724_BACKTOP30_BPP10DBL3_MODE;
 	} else if (index == 2) {
-		reg = 0x41e;
-		mask = BIT(6);
+		reg = MAX96724_BACKTOP31;
+		mask = MAX96724_BACKTOP31_BPP10DBL2;
+		mode_mask = MAX96724_BACKTOP31_BPP10DBL2_MODE;
 	} else if (index == 1) {
-		reg = 0x41f;
-		mask = BIT(6);
+		reg = MAX96724_BACKTOP32;
+		mask = MAX96724_BACKTOP32_BPP10DBL1;
+		mode_mask = MAX96724_BACKTOP32_BPP10DBL1_MODE;
 	} else {
-		reg = 0x41f;
-		mask = BIT(4);
+		reg = MAX96724_BACKTOP32;
+		mask = MAX96724_BACKTOP32_BPP10DBL0;
+		mode_mask = MAX96724_BACKTOP32_BPP10DBL0_MODE;
 	}
 
-	ret = max96724_update_bits(priv, reg,
-				   mask | (mask << 1),
-				   (pipe->dbl10 ? mask : 0) |
-				   (pipe->dbl10mode ? (mask << 1) : 0));
+	ret = max96724_update_bits(priv, reg, mask | mode_mask,
+				   field_prep(mask, pipe->dbl10) |
+				   field_prep(mode_mask, pipe->dbl10mode));
 	if (ret)
 		return ret;
 
 	/* Set 12bit double mode. */
-	mask = BIT(index);
-
-	return max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
+	return max96724_update_bits(priv, MAX96724_BACKTOP32,
+				    MAX96724_BACKTOP32_BPP12(index),
+				    field_prep(MAX96724_BACKTOP32_BPP12(index),
+					       pipe->dbl12));
 }
 
 static int max96724_select_links(struct max_des *des, unsigned int mask)
@@ -598,7 +755,8 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 	struct max96724_priv *priv = des_to_priv(des);
 	int ret;
 
-	ret = max96724_update_bits(priv, 0x6, GENMASK(3, 0), mask);
+	ret = max96724_update_bits(priv, MAX96724_REG6, MAX96724_REG6_LINK_EN,
+				   field_prep(MAX96724_REG6_LINK_EN, mask));
 	if (ret)
 		return ret;
 
