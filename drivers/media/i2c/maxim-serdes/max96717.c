@@ -14,13 +14,6 @@
 #include "max_ser.h"
 #include "max_serdes.h"
 
-#define MAX96717_NAME				"max96717"
-#define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
-#define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
-#define MAX96717_GPIO_NUM			11
-#define MAX96717_PIPES_NUM			4
-#define MAX96717_PHYS_NUM			2
-
 #define MAX96717_REG0				0x0
 
 #define MAX96717_REG2				0x2
@@ -148,6 +141,13 @@
 #define MAX96717_PIO_SLEW_2			0x571
 #define MAX96717_PIO_SLEW_2_PIO010_SLEW		GENMASK(5, 4)
 #define MAX96717_PIO_SLEW_2_PIO011_SLEW		GENMASK(7, 6)
+
+#define MAX96717_NAME				"max96717"
+#define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
+#define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
+#define MAX96717_GPIO_NUM			11
+#define MAX96717_PIPES_NUM			4
+#define MAX96717_PHYS_NUM			2
 
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
