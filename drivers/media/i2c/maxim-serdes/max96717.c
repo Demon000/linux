@@ -149,6 +149,9 @@
 #define MAX96717_PIO_SLEW_2_PIO010_SLEW		GENMASK(5, 4)
 #define MAX96717_PIO_SLEW_2_PIO011_SLEW		GENMASK(7, 6)
 
+#define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
+#define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
+
 struct max96717_priv {
 	struct max_ser ser;
 	struct pinctrl_desc pctldesc;
@@ -212,16 +215,6 @@ static int max96717_update_bits(struct max96717_priv *priv, unsigned int reg,
 		dev_err(priv->dev, "update 0x%04x failed\n", reg);
 
 	return ret;
-}
-
-static unsigned int max96717_field_get(unsigned int val, unsigned int mask)
-{
-	return (val & mask) >> __ffs(mask);
-}
-
-static unsigned int max96717_field_prep(unsigned int val, unsigned int mask)
-{
-	return (val << __ffs(mask)) & mask;
 }
 
 static int max96717_wait_for_device(struct max96717_priv *priv)
@@ -489,7 +482,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			return ret;
 
-		val = max96717_field_get(ret, mask) == val;
+		val = field_get(mask, ret) == val;
 		if (!val)
 			return -EINVAL;
 
@@ -506,7 +499,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			return ret;
 
-		val = max96717_field_get(ret, mask) == val;
+		val = field_get(mask, ret) == val;
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
@@ -516,7 +509,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		if (ret < 0)
 			return ret;
 
-		val = max96717_field_get(val, mask);
+		val = field_get(mask, val);
 		break;
 	default:
 		return -ENOTSUPP;
@@ -546,7 +539,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
-		val = max96717_field_prep(val, mask);
+		val = field_prep(mask, val);
 
 		ret = max96717_update_bits(priv, reg, mask, val);
 		break;
@@ -557,7 +550,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 	case PIN_CONFIG_INPUT_ENABLE:
 	case PIN_CONFIG_OUTPUT:
-		val = max96717_field_prep(arg ? val : ~val, mask);
+		val = field_prep(mask, arg ? val : ~val);
 
 		ret = max96717_update_bits(priv, reg, mask, val);
 		break;
@@ -565,7 +558,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case MAX96717_PINCTRL_GMSL_RX_ID:
 	case PIN_CONFIG_SLEW_RATE:
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
-		val = max96717_field_prep(arg, mask);
+		val = field_prep(mask, arg);
 
 		ret = max96717_update_bits(priv, reg, mask, val);
 		break;
