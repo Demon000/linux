@@ -785,7 +785,7 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 
 			max_des_phy_2_out: endpoint {
 				clock-lanes = <0>;
-				data-lanes = <1 2>;
+				data-lanes = <1 2 3 4>;
 				link-frequencies = /bits/ 64 <750000000>;
 				remote-endpoint = <&csi_ep>;
 			};
@@ -801,7 +801,7 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 		csi_ep: endpoint {
 			remote-endpoint = <&max_des_phy_2_out>;
 			clock-lanes = <0>;
-			data-lanes = <1 2>;
+			data-lanes = <1 2 3 4>;
 			clock-noncontinuous;
 			link-frequencies = /bits/ 64 <750000000>;
 		};
