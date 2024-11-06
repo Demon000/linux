@@ -360,7 +360,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	} else {
 		mask = 0x7;
 		clk_bit = 2;
-		shift = 4 * (index % 2);
+		shift = 3 * (index % 2);
 	}
 
 	reg = 0x8a5 + index / 2;
