@@ -695,14 +695,10 @@ static void max9296a_remove(struct i2c_client *client)
 
 static const struct max_phys_config max9296a_phys_configs[] = {
 	{ { 4, 4 } },
-	{ { 2, 4 } },
-	{ { 4, 2 } },
-	{ { 2, 2 } },
 };
 
 static const struct max_phys_config max96714_phys_configs[] = {
 	{ { 4 } },
-	{ { 2 } },
 };
 
 static const struct max9296a_chip_info max9296a_info = {

@@ -1165,7 +1165,7 @@ static int max_ser_find_phys_config(struct max_ser_priv *priv)
 			if (!phy->enabled)
 				continue;
 
-			if (phy->mipi.num_data_lanes == config->lanes[j])
+			if (phy->mipi.num_data_lanes <= config->lanes[j])
 				continue;
 
 			matching = false;

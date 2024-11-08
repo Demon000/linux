@@ -1542,6 +1542,15 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 	return 0;
 }
 
+int max_des_phy_hw_data_lanes(struct max_des *des, struct max_des_phy *phy)
+{
+	const struct max_phys_configs *configs = &des->ops->phys_configs;
+	const struct max_phys_config *config = &configs->configs[des->phys_config];
+
+	return config->lanes[phy->index];
+}
+EXPORT_SYMBOL(max_des_phy_hw_data_lanes);
+
 static int max_des_find_phys_config(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
@@ -1562,7 +1571,7 @@ static int max_des_find_phys_config(struct max_des_priv *priv)
 			if (!phy->enabled)
 				continue;
 
-			if (phy->mipi.num_data_lanes == config->lanes[j] &&
+			if (phy->mipi.num_data_lanes <= config->lanes[j] &&
 			    phy->mipi.clock_lane == config->clock_lane[j])
 				continue;
 

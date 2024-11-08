@@ -358,16 +358,12 @@ static int max96724_set_enable(struct max_des *des, bool enable)
 }
 
 static const unsigned int max96724_phys_configs_reg_val[] = {
-	MAX96724_MIPI_PHY0_PHY_2X4,
 	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
+	MAX96724_MIPI_PHY0_PHY_2X4,
 
 	MAX96724_MIPI_PHY0_PHY_4X2,
-	MAX96724_MIPI_PHY0_PHY_2X4,
 	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
 	MAX96724_MIPI_PHY0_PHY_1X4B_2X2,
-
-	MAX96724_MIPI_PHY0_PHY_2X4,
-	MAX96724_MIPI_PHY0_PHY_1X4A_2X2,
 	MAX96724_MIPI_PHY0_PHY_2X4,
 };
 
@@ -378,17 +374,13 @@ static const struct max_phys_config max96724_phys_configs[] = {
 	 * clock lane of PHY 1.
 	 * Specifying clock-lanes as 5 turns on alternate clocking mode.
 	 */
-	{ { 0, 2, 4, 0 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
 	{ { 0, 2, 2, 2 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
+	{ { 0, 2, 4, 0 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
 
 	{ { 2, 2, 2, 2 } },
-	{ { 0, 4, 4, 0 } },
 	{ { 0, 4, 2, 2 } },
 	{ { 2, 2, 4, 0 } },
-
-	{ { 0, 3, 3, 0 } },
-	{ { 0, 3, 2, 2 } },
-	{ { 0, 3, 4, 0 } },
+	{ { 0, 4, 4, 0 } },
 };
 
 static int max96724_init(struct max_des *des)
@@ -418,17 +410,6 @@ static int max96724_init(struct max_des *des)
 	return 0;
 }
 
-static unsigned int max96724_phy_hw_data_lanes(struct max_des_phy *phy)
-{
-	if (phy->index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
-	    phy->mipi.num_data_lanes == 2)
-		return 4;
-	else if (phy->mipi.num_data_lanes == 3)
-		return 4;
-	else
-		return phy->mipi.num_data_lanes;
-}
-
 static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -442,7 +423,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int i;
 	int ret;
 
-	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
+	num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
 	ret = max96724_update_bits(priv, MAX96724_MIPI_TX10(index),
 				   MAX96724_MIPI_TX10_CSI2_LANE_CNT,
@@ -599,7 +580,7 @@ static int max96724_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 	unsigned int num_hw_data_lanes;
 	unsigned int mask;
 
-	num_hw_data_lanes = max96724_phy_hw_data_lanes(phy);
+	num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
 	if (num_hw_data_lanes == 4)
 		/* PHY 1 -> bits [1:0] */

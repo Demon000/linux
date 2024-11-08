@@ -117,4 +117,6 @@ int max_des_probe(struct i2c_client *client, struct max_des *des);
 
 int max_des_remove(struct max_des *des);
 
+int max_des_phy_hw_data_lanes(struct max_des *des, struct max_des_phy *phy);
+
 #endif // MAX_DES_H
