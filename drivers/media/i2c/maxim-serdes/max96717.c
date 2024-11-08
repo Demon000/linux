@@ -92,7 +92,6 @@
 #define MAX96717_FRONTTOP_20_SOFT_BPP		GENMASK(4, 0)
 
 #define MAX96717_MIPI_RX0			0x330
-#define MAX96717_MIPI_RX0_PHY_CONFIG		GENMASK(2, 0)
 #define MAX96717_MIPI_RX0_NONCONTCLK_EN		BIT(6)
 
 #define MAX96717_MIPI_RX1			0x331
@@ -164,6 +163,7 @@ struct max96717_priv {
 };
 
 struct max96717_chip_info {
+	bool supports_3_data_lanes;
 	bool supports_tunnel_mode;
 	bool supports_noncontinuous_clock;
 	bool supports_pkt_cnt;
@@ -906,6 +906,11 @@ static int max96717_init_phy(struct max_ser *ser,
 	unsigned int i;
 	int ret;
 
+	if (num_data_lanes == 3 && !priv->info->supports_3_data_lanes) {
+		dev_err(priv->dev, "Unsupported 3 data lane mode\n");
+		return -EINVAL;
+	}
+
 	/* Configure a lane count. */
 	ret = max96717_update_bits(priv, MAX96717_MIPI_RX1,
 				   MAX96717_MIPI_RX1_CTRL_NUM_LANES,
@@ -1111,14 +1116,8 @@ static int max96717_init_i2c_xlate(struct max_ser *ser)
 	return 0;
 }
 
-static const unsigned int max96717_phys_configs_reg_val[] = {
-	0b000,
-	0b000,
-};
-
 static const struct max_phys_config max96717_phys_configs[] = {
 	{ { 4 } },
-	{ { 2 } },
 };
 
 static int max96717_init(struct max_ser *ser)
@@ -1144,17 +1143,6 @@ static int max96717_init(struct max_ser *ser)
 		if (ret)
 			return ret;
 	}
-
-	/* Set PHY mode. */
-	if (ser->phys_config >= ARRAY_SIZE(max96717_phys_configs_reg_val))
-		return -EINVAL;
-
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX0,
-				   MAX96717_MIPI_RX0_PHY_CONFIG,
-				   FIELD_PREP(MAX96717_MIPI_RX0_PHY_CONFIG,
-					      max96717_phys_configs_reg_val[ser->phys_config]));
-	if (ret)
-		return ret;
 
 	return 0;
 }
@@ -1305,6 +1293,7 @@ static void max96717_remove(struct i2c_client *client)
 }
 
 static const struct max96717_chip_info max96717_info = {
+	.supports_3_data_lanes = true,
 	.supports_pkt_cnt = true,
 	.supports_tunnel_mode = true,
 	.supports_noncontinuous_clock = true,
