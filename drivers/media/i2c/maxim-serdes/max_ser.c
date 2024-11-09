@@ -1341,22 +1341,22 @@ EXPORT_SYMBOL_GPL(max_ser_remove);
 static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 			    u16 reg, u8 *val)
 {
-	struct i2c_msg msg[2];
-	u8 buf[2];
+	u8 buf[2] = { reg >> 8, reg & 0xff };
+	struct i2c_msg msg[2] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.buf = buf,
+			.len = sizeof(buf),
+		},
+		{
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.buf = buf,
+			.len = 1,
+		},
+	};
 	int ret;
-
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-
-	msg[0].addr = addr;
-	msg[0].flags = 0;
-	msg[0].buf = buf;
-	msg[0].len = sizeof(buf);
-
-	msg[1].addr = addr;
-	msg[1].flags = I2C_M_RD;
-	msg[1].buf = buf;
-	msg[1].len = 1;
 
 	ret = i2c_transfer(adapter, msg, ARRAY_SIZE(msg));
 	if (ret < 0)
@@ -1370,18 +1370,16 @@ static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 static int max_ser_write_reg(struct i2c_adapter *adapter, u8 addr,
 			     u16 reg, u8 val)
 {
-	struct i2c_msg msg[1];
-	u8 buf[3];
+	u8 buf[3] = { reg >> 8, reg & 0xff, val };
+	struct i2c_msg msg[1] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.buf = buf,
+			.len = sizeof(buf),
+		},
+	};
 	int ret;
-
-	buf[0] = reg >> 8;
-	buf[1] = reg & 0xff;
-	buf[2] = val;
-
-	msg[0].addr = addr;
-	msg[0].flags = 0;
-	msg[0].buf = buf;
-	msg[0].len = sizeof(buf);
 
 	ret = i2c_transfer(adapter, msg, ARRAY_SIZE(msg));
 	if (ret < 0)
