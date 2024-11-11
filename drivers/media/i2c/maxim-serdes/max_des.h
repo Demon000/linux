@@ -3,8 +3,6 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
-#include <linux/i2c-atr.h>
-
 #include <media/v4l2-mediabus.h>
 
 #include "max_serdes.h"

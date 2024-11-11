@@ -6,6 +6,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/i2c-atr.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/regmap.h>

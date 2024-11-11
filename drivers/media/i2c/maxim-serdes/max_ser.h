@@ -4,7 +4,6 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/i2c-atr.h>
 #include <linux/regmap.h>
 
 #include <media/v4l2-mediabus.h>

@@ -8,6 +8,7 @@
 #include "max_ser.h"
 
 #include <linux/delay.h>
+#include <linux/i2c-atr.h>
 #include <linux/module.h>
 
 #include <media/mipi-csi2.h>
