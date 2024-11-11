@@ -242,7 +242,7 @@ static int max96724_reset(struct max96724_priv *priv)
 		return ret;
 
 	ret = max96724_update_bits(priv, MAX96724_PWR1, MAX96724_PWR1_RESET_ALL,
-				   MAX96724_PWR1_RESET_ALL);
+				   FIELD_PREP(MAX96724_PWR1_RESET_ALL, 1));
 	if (ret)
 		return ret;
 
