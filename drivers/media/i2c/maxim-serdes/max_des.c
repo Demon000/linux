@@ -71,13 +71,6 @@ struct max_des_remap_context {
 	unsigned long dst_vc_ids_masks[MAX_DES_PHYS_NUM];
 };
 
-const struct regmap_config max_des_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
-EXPORT_SYMBOL_GPL(max_des_i2c_regmap);
-
 static inline struct max_des_asc *asc_to_max(struct v4l2_async_connection *asc)
 {
 	return container_of(asc, struct max_des_asc, base);

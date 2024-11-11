@@ -30,8 +30,6 @@
 #define MAX_SER_CFGL_IIC_X_TR3			0xa3
 #define MAX_SER_CFGL_IIC_Y_TR3			0xab
 
-extern const struct regmap_config max_ser_i2c_regmap;
-
 struct max_ser_phy {
 	unsigned int index;
 	struct v4l2_mbus_config_mipi_csi2 mipi;

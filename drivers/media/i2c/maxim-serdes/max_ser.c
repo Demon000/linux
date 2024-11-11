@@ -20,13 +20,6 @@
 
 #define MAX_SER_NUM_LINKS	1
 
-const struct regmap_config max_ser_i2c_regmap = {
-	.reg_bits = 16,
-	.val_bits = 8,
-	.max_register = 0x1f00,
-};
-EXPORT_SYMBOL_GPL(max_ser_i2c_regmap);
-
 struct max_ser_source {
 	struct v4l2_subdev *sd;
 	u16 pad;
