@@ -10,8 +10,6 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
-extern const struct regmap_config max_des_i2c_regmap;
-
 #define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
 
 struct max_des_remap {

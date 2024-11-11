@@ -151,6 +151,12 @@
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
+static const struct regmap_config max96724_i2c_regmap = {
+	.reg_bits = 16,
+	.val_bits = 8,
+	.max_register = 0x1f00,
+};
+
 struct max96724_priv {
 	struct max_des des;
 	const struct max96724_chip_info *info;
@@ -805,7 +811,7 @@ static int max96724_probe(struct i2c_client *client)
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
-	priv->regmap = devm_regmap_init_i2c(client, &max_des_i2c_regmap);
+	priv->regmap = devm_regmap_init_i2c(client, &max96724_i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
