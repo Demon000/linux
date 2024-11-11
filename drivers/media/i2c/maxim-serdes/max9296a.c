@@ -249,9 +249,9 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 
 	/* Configure lane mapping. */
 	/*
-	 * The lane of each PHY can be mapped to physical lanes 0, 1, 2,
-	 * and 3. This mapping is exclusive, multiple lanes, even if unused
-	 * cannot be mapped to the same physical lane.
+	 * The lane of each PHY can be mapped to physical lanes 0, 1, 2, and 3.
+	 * This mapping is exclusive, multiple lanes, even if unused cannot be
+	 * mapped to the same physical lane.
 	 * Each lane mapping is represented as two bits.
 	 */
 	reg = 0x333 + phy->index;
