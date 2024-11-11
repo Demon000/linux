@@ -301,7 +301,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 * Configure lane polarity.
 	 *
 	 * PHY 0 and 1 are on register 0x335.
-	 * PHY 1 and 2 are on register 0x336.
+	 * PHY 2 and 3 are on register 0x336.
 	 *
 	 * Each PHY has 3 bits of polarity configuration.
 	 *
