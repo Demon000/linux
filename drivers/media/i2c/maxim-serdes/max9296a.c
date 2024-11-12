@@ -688,7 +688,6 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_links = priv->info->num_links;
-	ops->supports_tunnel_mode = priv->info->supports_tunnel_mode;
 	ops->phys_configs = priv->info->phys_configs;
 	priv->des.ops = ops;
 
