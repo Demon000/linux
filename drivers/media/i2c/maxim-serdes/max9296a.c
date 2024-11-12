@@ -577,11 +577,11 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	int ret;
 
 	/* RLMS Register Setting */
-	ret = max9296a_write(priv, 0x143f + 0x100 * index, 0x3d);
+	ret = max9296a_write(priv, 0x143e + 0x100 * index, 0xfd);
 	if (ret)
 		return ret;
 
-	ret = max9296a_write(priv, 0x143e + 0x100 * index, 0xfd);
+	ret = max9296a_write(priv, 0x143f + 0x100 * index, 0x3d);
 	if (ret)
 		return ret;
 
@@ -589,11 +589,11 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	if (ret)
 		return ret;
 
-	ret = max9296a_write(priv, 0x147f + 0x100 * index, 0x68);
+	ret = max9296a_write(priv, 0x147e + 0x100 * index, 0xa8);
 	if (ret)
 		return ret;
 
-	ret = max9296a_write(priv, 0x147e + 0x100 * index, 0xa8);
+	ret = max9296a_write(priv, 0x147f + 0x100 * index, 0x68);
 	if (ret)
 		return ret;
 
@@ -601,11 +601,11 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	if (ret)
 		return ret;
 
-	ret = max9296a_write(priv, 0x14d8 + 0x100 * index, 0x07);
+	ret = max9296a_write(priv, 0x14a5 + 0x100 * index, 0x70);
 	if (ret)
 		return ret;
 
-	ret = max9296a_write(priv, 0x14a5 + 0x100 * index, 0x70);
+	ret = max9296a_write(priv, 0x14d8 + 0x100 * index, 0x07);
 	if (ret)
 		return ret;
 
