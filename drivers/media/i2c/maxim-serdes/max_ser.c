@@ -1400,7 +1400,7 @@ int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
 			      unsigned int num_addrs, u8 *current_addr)
 {
 	unsigned int i, j;
-	int ret;
+	int ret = 0;
 	u8 val;
 
 	for (i = 0; i < 10; i++) {
