@@ -577,7 +577,7 @@ static int max9296a_init_link(struct max_des *des,
 	unsigned int index = link->index;
 	int ret;
 
-	/* RLMS Register Setting for 6Gbps GMSL2 Rate */
+	/* RLMS Register Setting */
 	ret = max9296a_write(priv, 0x143f + 0x100 * index, 0x3d);
 	if (ret)
 		return ret;
@@ -587,6 +587,14 @@ static int max9296a_init_link(struct max_des *des,
 		return ret;
 
 	ret = max9296a_write(priv, 0x1449 + 0x100 * index, 0xf5);
+	if (ret)
+		return ret;
+
+	ret = max9296a_write(priv, 0x147f + 0x100 * index, 0x68);
+	if (ret)
+		return ret;
+
+	ret = max9296a_write(priv, 0x147e + 0x100 * index, 0xa8);
 	if (ret)
 		return ret;
 
