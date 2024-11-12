@@ -63,7 +63,6 @@ struct max_des_ops {
 	unsigned int num_links;
 	unsigned int num_remaps_per_pipe;
 	bool fix_tx_ids;
-	bool supports_tunnel_mode;
 
 	struct max_phys_configs phys_configs;
 
