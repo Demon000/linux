@@ -570,8 +570,7 @@ static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 	return max9296a_update_bits(priv, 0x328, mask, pipe->dbl12 ? mask : 0);
 }
 
-static int max9296a_init_link(struct max_des *des,
-			      struct max_des_link *link)
+static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
