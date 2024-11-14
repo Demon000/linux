@@ -62,7 +62,9 @@
 #define MAX9296A_MIPI_PHY3_PHY_LANE_MAP_4	GENMASK(7, 0)
 
 #define MAX9296A_MIPI_PHY5(x)			(0x335 + (x))
-#define MAX9296A_MIPI_PHY5_PHY_POL_MAP_4	GENMASK(5, 0)
+#define MAX9296A_MIPI_PHY5_PHY_POL_MAP_0_1	GENMASK(1, 0)
+#define MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3	GENMASK(4, 3)
+#define MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(x)	((x) == 0 ? BIT(5) : BIT(2))
 
 #define MAX9296A_MIPI_TX11(p, x)		(0x40b + (p) * 0x40 + (x) / 8)
 #define MAX9296A_MIPI_TX11_MAP_EN(x)		BIT(x % 8)
@@ -110,7 +112,7 @@
 #define MAX9296A_RLMSA5(x)			(0x14a5 + 0x100 * (x))
 #define MAX9296A_RLMSD8(x)			(0x14d8 + 0x100 * (x))
 
-#define MAX9296A_DPLL_0(x)			(0x1c00 + (x) * 0x100)
+#define MAX9296A_DPLL_0(x)			(0x1c00 + ((x) == 0 ? 1 : 2) * 0x100)
 #define MAX9296A_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
 
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
@@ -141,7 +143,7 @@ struct max9296a_chip_info {
 	unsigned int num_phys;
 	unsigned int num_links;
 	struct max_phys_configs phys_configs;
-	bool phy0_first_lanes_on_master_phy;
+	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
 	bool supports_tunnel_mode;
 	bool adjust_rlms;
@@ -284,10 +286,17 @@ static int max9296a_init(struct max_des *des)
 	return 0;
 }
 
-static int max9296a_get_phy_master_slave(struct max_des_phy *phy,
-					 unsigned int *master_phy,
-					 unsigned int *slave_phy)
+static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
+	unsigned int dpll_freq = phy->link_frequency * 2;
+	unsigned int index = phy->index;
+	unsigned int used_data_lanes = 0;
+	unsigned int val;
+	unsigned int i;
+	int ret;
+
 	/*
 	 * MAX9296A has four PHYs, but does not support single-PHY configurations,
 	 * only double-PHY configurations, even when only using two lanes.
@@ -322,36 +331,6 @@ static int max9296a_get_phy_master_slave(struct max_des_phy *phy,
 	 * PHY1 Lane 0 = D2
 	 * PHY1 Lane 1 = D3
 	 */
-	if (phy->index == 0) {
-		*master_phy = 1;
-		*slave_phy = 0;
-	} else if (phy->index == 1) {
-		*master_phy = 2;
-		*slave_phy = 3;
-	} else {
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
-{
-	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
-	unsigned int dpll_freq = phy->link_frequency * 2;
-	unsigned int master_phy, slave_phy;
-	unsigned int master_shift, slave_shift;
-	unsigned int val;
-	unsigned int clk_bit, lane_0_bit, lane_2_bit;
-	unsigned int index = phy->index;
-	unsigned int used_data_lanes = 0;
-	unsigned int i;
-	int ret;
-
-	ret = max9296a_get_phy_master_slave(phy, &master_phy, &slave_phy);
-	if (ret)
-		return ret;
 
 	/* Configure a lane count. */
 	/* TODO: Add support CPHY mode. */
@@ -369,42 +348,21 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 * mapped to the same physical lane.
 	 * Each lane mapping is represented as two bits.
 	 */
-	master_shift = (master_phy % 2) * 4;
-	slave_shift = (slave_phy % 2) * 4;
-
-	if (phy->index == 0 && priv->info->phy0_first_lanes_on_master_phy) {
-		lane_0_bit = master_shift;
-		lane_2_bit = slave_shift;
-	} else {
-		lane_0_bit = slave_shift;
-		lane_2_bit = master_shift;
-	}
-
 	val = 0;
 	for (i = 0; i < 4 ; i++) {
-		unsigned int shift;
 		unsigned int map;
 
-		if (i < num_data_lanes) {
-			if (phy->mipi.data_lanes[i] < 1)
-				return -EINVAL;
-
+		if (i < num_data_lanes)
 			map = phy->mipi.data_lanes[i] - 1;
-		} else {
-			map = ffz(used_data_lanes);
-		}
-
-		if (i < 2)
-			shift = lane_0_bit;
 		else
-			shift = lane_2_bit;
+			map = ffz(used_data_lanes);
 
-		shift += (i % 2) * 2;
-
-		val |= map << shift;
-
+		val |= map << (i * 2);
 		used_data_lanes |= BIT(map);
 	}
+
+	if (phy->index == 0 && priv->info->phy0_lanes_0_1_on_second_phy)
+		val = ((val & 0xf) << 4) | ((val >> 4) & 0xf);
 
 	ret = max9296a_update_bits(priv, MAX9296A_MIPI_PHY3(index),
 				   MAX9296A_MIPI_PHY3_PHY_LANE_MAP_4,
@@ -435,24 +393,9 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 * 4th bit for physical lane 3.
 	 * 5th bit for clock lane of PHY 1, the master PHY.
 	 */
-	master_shift = (master_phy % 2) * 3;
-	slave_shift = (slave_phy % 2) * 3;
-	clk_bit = master_shift + 2;
-
-	if (phy->index == 0 && priv->info->phy0_first_lanes_on_master_phy) {
-		lane_0_bit = master_shift;
-		lane_2_bit = slave_shift;
-	} else {
-		lane_0_bit = slave_shift;
-		lane_2_bit = master_shift;
-	}
 
 	val = 0;
-	if (phy->mipi.lane_polarities[0])
-		val |= BIT(clk_bit);
-
 	for (i = 0; i < num_data_lanes; i++) {
-		unsigned int shift;
 		unsigned int map;
 
 		if (!phy->mipi.lane_polarities[i + 1])
@@ -472,24 +415,25 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		else
 			map = i;
 
-		if (map < 2)
-			shift = lane_0_bit;
-		else
-			shift = lane_2_bit;
-
-		shift += map % 2;
-
-		val |= BIT(shift);
+		val |= BIT(map);
 	}
 
+	if (phy->index == 0 && priv->info->phy0_lanes_0_1_on_second_phy)
+		val = ((val & 0x3) << 2) | ((val >> 2) & 0x3);
+
 	ret = max9296a_update_bits(priv, MAX9296A_MIPI_PHY5(index),
-				   MAX9296A_MIPI_PHY5_PHY_POL_MAP_4,
-				   FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_4, val));
+				   MAX9296A_MIPI_PHY5_PHY_POL_MAP_0_1 |
+				   MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3 |
+				   MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(index),
+				   FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_0_1, val) |
+				   FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3, val >> 2) |
+				   field_prep(MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(index),
+					      phy->mipi.lane_polarities[0]));
 	if (ret)
 		return ret;
 
 	/* Put DPLL block into reset. */
-	ret = max9296a_update_bits(priv, MAX9296A_DPLL_0(master_phy),
+	ret = max9296a_update_bits(priv, MAX9296A_DPLL_0(index),
 				   MAX9296A_DPLL_0_CONFIG_SOFT_RST_N,
 				   FIELD_PREP(MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, 0));
 	if (ret)
@@ -511,7 +455,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = max9296a_update_bits(priv, MAX9296A_DPLL_0(master_phy),
+	ret = max9296a_update_bits(priv, MAX9296A_DPLL_0(index),
 				   MAX9296A_DPLL_0_CONFIG_SOFT_RST_N,
 				   FIELD_PREP(MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, 1));
 	if (ret)
@@ -559,18 +503,10 @@ static int max9296a_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 				   bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int master_phy, slave_phy;
-	int ret;
-
-	ret = max9296a_get_phy_master_slave(phy, &master_phy, &slave_phy);
-	if (ret)
-		return ret;
 
 	return max9296a_update_bits(priv, MAX9296A_MIPI_PHY2,
 				    MAX9296A_MIPI_PHY2_PHY_STDBY_N,
-				    FIELD_PREP(MAX9296A_MIPI_PHY2_PHY_STDBY_N,
-					       enable ? BIT(master_phy) |
-							BIT(slave_phy) : 0));
+				    enable ? MAX9296A_MIPI_PHY2_PHY_STDBY_N : 0);
 }
 
 static int max9296a_set_pipe_remap(struct max_des *des,
@@ -876,7 +812,7 @@ static const struct max9296a_chip_info max9296a_info = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
-	.phy0_first_lanes_on_master_phy = true,
+	.phy0_lanes_0_1_on_second_phy = true,
 	.fix_tx_ids = true,
 	.num_pipes = 4,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
