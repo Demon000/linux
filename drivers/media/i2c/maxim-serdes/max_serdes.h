@@ -3,12 +3,12 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#ifndef MAX_SERDES_H
+#define MAX_SERDES_H
+
 #include <linux/types.h>
 
 #include <media/v4l2-subdev.h>
-
-#ifndef MAX_SERDES_H
-#define MAX_SERDES_H
 
 #define MAX_SERDES_PHYS_MAX		4
 #define MAX_SERDES_STREAMS_NUM 		4

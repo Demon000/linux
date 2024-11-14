@@ -3,15 +3,15 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#ifndef MAX_SER_H
+#define MAX_SER_H
+
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 
 #include <media/v4l2-mediabus.h>
 
 #include "max_serdes.h"
-
-#ifndef MAX_SER_H
-#define MAX_SER_H
 
 #define MAX_SER_REG0				0x0
 #define MAX_SER_REG0_DEV_ADDR			GENMASK(7, 1)
