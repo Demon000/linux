@@ -3,12 +3,12 @@
  * Copyright (C) 2023 Analog Devices Inc.
  */
 
+#ifndef MAX_DES_H
+#define MAX_DES_H
+
 #include <media/v4l2-mediabus.h>
 
 #include "max_serdes.h"
-
-#ifndef MAX_DES_H
-#define MAX_DES_H
 
 #define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
 
