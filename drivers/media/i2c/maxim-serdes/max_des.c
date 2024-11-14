@@ -113,8 +113,7 @@ static inline unsigned int max_des_num_pads(struct max_des *des)
 	return des->ops->num_links + des->ops->num_phys;
 }
 
-static inline struct max_des_phy *
-max_des_pad_to_phy(struct max_des *des, u32 pad)
+static struct max_des_phy *max_des_pad_to_phy(struct max_des *des, u32 pad)
 {
 	if (!max_des_pad_is_source(des, pad))
 		return NULL;
@@ -122,8 +121,7 @@ max_des_pad_to_phy(struct max_des *des, u32 pad)
 	return &des->phys[pad - des->ops->num_links];
 }
 
-static inline struct max_des_link *
-max_des_pad_to_link(struct max_des *des, u32 pad)
+static struct max_des_link *max_des_pad_to_link(struct max_des *des, u32 pad)
 {
 	if (!max_des_pad_is_sink(des, pad))
 		return NULL;

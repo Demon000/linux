@@ -88,8 +88,7 @@ static inline unsigned int max_ser_num_pads(struct max_ser *ser)
 	return ser->ops->num_phys + MAX_SER_NUM_LINKS;
 }
 
-static inline struct max_ser_phy *
-max_ser_pad_to_phy(struct max_ser *ser, u32 pad)
+static struct max_ser_phy *max_ser_pad_to_phy(struct max_ser *ser, u32 pad)
 {
 	if (!max_ser_pad_is_sink(ser, pad))
 		return NULL;
