@@ -596,8 +596,8 @@ static int max96717_mux_set_pclk(struct max96717_priv *priv, unsigned int group)
 {
 	int ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96717_REF_VTG0,
-				 MAX96717_REF_VTG0_PCLK_EN, true);
+	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG0,
+			      MAX96717_REF_VTG0_PCLK_EN);
 	if (ret)
 		return ret;
 
@@ -615,14 +615,13 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 	int ret;
 
 	/* Enable RCLK. */
-	ret = regmap_assign_bits(priv->regmap, MAX96717_REG6,
-				 MAX96717_REG6_RCLKEN, true);
+	ret = regmap_set_bits(priv->regmap, MAX96717_REG6, MAX96717_REG6_RCLKEN);
 	if (ret)
 		return ret;
 
 	/* Enable RCLK output on PCLK. */
-	ret = regmap_assign_bits(priv->regmap, MAX96717_REF_VTG0,
-				 MAX96717_REF_VTG0_RCLKEN_Y, true);
+	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG0,
+			      MAX96717_REF_VTG0_RCLKEN_Y);
 	if (ret)
 		return ret;
 
@@ -1097,8 +1096,8 @@ static int max96717_init(struct max_ser *ser)
 		return ret;
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_assign_bits(priv->regmap, MAX96717_EXT11,
-					 MAX96717_EXT11_TUN_MODE, false);
+		ret = regmap_clear_bits(priv->regmap, MAX96717_EXT11,
+					MAX96717_EXT11_TUN_MODE);
 		if (ret)
 			return ret;
 	}
