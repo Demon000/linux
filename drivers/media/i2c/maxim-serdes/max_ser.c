@@ -1406,7 +1406,7 @@ int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
 	for (i = 0; i < 10; i++) {
 		for (j = 0; j < num_addrs; j++) {
 			ret = max_ser_read_reg(adapter, addrs[j], MAX_SER_REG0, &val);
-			if (!ret && val > 0) {
+			if (!ret && val) {
 				*current_addr = addrs[j];
 				return 0;
 			}
