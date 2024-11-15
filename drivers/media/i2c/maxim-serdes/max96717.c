@@ -598,9 +598,8 @@ static int max96717_mux_set_pclk(struct max96717_priv *priv, unsigned int group)
 {
 	int ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
-				 MAX96717_REF_VTG0_PCLK_EN,
-				 MAX96717_REF_VTG0_PCLK_EN);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_REF_VTG0,
+				 MAX96717_REF_VTG0_PCLK_EN, true);
 	if (ret)
 		return ret;
 
@@ -618,15 +617,14 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 	int ret;
 
 	/* Enable RCLK. */
-	ret = regmap_update_bits(priv->regmap, MAX96717_REG6,
-				 MAX96717_REG6_RCLKEN, MAX96717_REG6_RCLKEN);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_REG6,
+				 MAX96717_REG6_RCLKEN, true);
 	if (ret)
 		return ret;
 
 	/* Enable RCLK output on PCLK. */
-	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
-				 MAX96717_REF_VTG0_RCLKEN_Y,
-				 MAX96717_REF_VTG0_RCLKEN_Y);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_REF_VTG0,
+				 MAX96717_REF_VTG0_RCLKEN_Y, true);
 	if (ret)
 		return ret;
 
@@ -727,7 +725,7 @@ static int max96717_set_pipe_enable(struct max_ser *ser,
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	unsigned int mask = MAX96717_REG2_VID_TX_EN_P(index);
 
-	return regmap_update_bits(priv->regmap, MAX96717_REG2, mask, enable ? mask : 0);
+	return regmap_assign_bits(priv->regmap, MAX96717_REG2, mask, enable);
 }
 
 static int max96717_reg_read(struct max_ser *ser, unsigned int reg,
@@ -762,8 +760,7 @@ static int max96717_set_pipe_dt_en(struct max_ser *ser, struct max_ser_pipe *pip
 		 */
 		reg = MAX96717_EXTA(i - 2);
 
-	return regmap_update_bits(priv->regmap, reg, MAX96717_MEM_DT_EN,
-				  enable ? MAX96717_MEM_DT_EN : 0);
+	return regmap_assign_bits(priv->regmap, reg, MAX96717_MEM_DT_EN, enable);
 }
 
 static int max96717_set_pipe_dt(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -941,11 +938,10 @@ static int max96717_init_phy(struct max_ser *ser,
 		return ret;
 
 	if (priv->info->supports_noncontinuous_clock) {
-		val = !!(phy->mipi.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK);
-
-		ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX0,
+		ret = regmap_assign_bits(priv->regmap, MAX96717_MIPI_RX0,
 					 MAX96717_MIPI_RX0_NONCONTCLK_EN,
-					 FIELD_PREP(MAX96717_MIPI_RX0_NONCONTCLK_EN, val));
+					 phy->mipi.flags &
+					 V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK);
 		if (ret)
 			return ret;
 	}
@@ -958,10 +954,9 @@ static int max96717_set_phy_active(struct max_ser *ser, struct max_ser_phy *phy,
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_phy_id(priv, phy);
-	unsigned int mask = MAX96717_FRONTTOP_0_START_PORT(index);
 
-	return regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_0,
-				  mask, enable ? mask : 0);
+	return regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_0,
+				  MAX96717_FRONTTOP_0_START_PORT(index), enable);
 }
 
 static int max96717_set_pipe_stream_id(struct max_ser *ser,
@@ -982,20 +977,27 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	unsigned int phy_id = max96717_phy_id(priv, phy);
-	unsigned int mask, val;
 	int ret;
 
-	val = phy_id == 1 ? MAX96717_FRONTTOP_0_CLK_SEL_P(index) : 0;
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_0,
-				 MAX96717_FRONTTOP_0_CLK_SEL_P(index), val);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_0,
+				 MAX96717_FRONTTOP_0_CLK_SEL_P(index),
+				 phy_id == 1);
 	if (ret)
 		return ret;
 
-	mask = MAX96717_FRONTTOP_9_START_PORT(index, 0) |
-	       MAX96717_FRONTTOP_9_START_PORT(index, 1);
-	val = MAX96717_FRONTTOP_9_START_PORT(index, phy_id);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_9,
+				 MAX96717_FRONTTOP_9_START_PORT(index, 0),
+				 phy_id == 0);
+	if (ret)
+		return ret;
 
-	return regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_9, mask, val);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_9,
+				 MAX96717_FRONTTOP_9_START_PORT(index, 1),
+				 phy_id == 1);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int max96717_init_pipe(struct max_ser *ser,
@@ -1003,31 +1005,25 @@ static int max96717_init_pipe(struct max_ser *ser,
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
-	unsigned int mask;
 	int ret;
 
-	mask = MAX96717_FRONTTOP_10_BPP8DBL(index);
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_10,
-				 mask, pipe->dbl8 ? mask : 0);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_10,
+				 MAX96717_FRONTTOP_10_BPP8DBL(index), pipe->dbl8);
 	if (ret)
 		return ret;
 
-	mask = MAX96717_FRONTTOP_11_BPP10DBL(index);
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_11,
-				 mask, pipe->dbl10 ? mask : 0);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_11,
+				 MAX96717_FRONTTOP_11_BPP10DBL(index), pipe->dbl10);
 	if (ret)
 		return ret;
 
-	mask = MAX96717_FRONTTOP_11_BPP12DBL(index);
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_11,
-				 mask, pipe->dbl12 ? mask : 0);
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_11,
+				 MAX96717_FRONTTOP_11_BPP12DBL(index), pipe->dbl12);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
-				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-					    !!pipe->soft_bpp));
+	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
+				 MAX96717_FRONTTOP_20_SOFT_BPP_EN, pipe->soft_bpp);
 	if (ret)
 		return ret;
 
@@ -1038,10 +1034,8 @@ static int max96717_init_pipe(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
-				 MAX96717_VIDEO_TX0_AUTO_BPP,
-				 FIELD_PREP(MAX96717_VIDEO_TX0_AUTO_BPP,
-					    !pipe->bpp));
+	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
+				 MAX96717_VIDEO_TX0_AUTO_BPP, !pipe->bpp);
 	if (ret)
 		return ret;
 
@@ -1105,9 +1099,8 @@ static int max96717_init(struct max_ser *ser)
 		return ret;
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_update_bits(priv->regmap, MAX96717_EXT11,
-					 MAX96717_EXT11_TUN_MODE,
-					 FIELD_PREP(MAX96717_EXT11_TUN_MODE, 0));
+		ret = regmap_assign_bits(priv->regmap, MAX96717_EXT11,
+					 MAX96717_EXT11_TUN_MODE, false);
 		if (ret)
 			return ret;
 	}
