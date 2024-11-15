@@ -77,10 +77,11 @@
 #define MAX96724_MIPI_PHY3_PHY_LANE_MAP_2(x)	(GENMASK(3, 0) << (4 * (x % 2)))
 
 #define MAX96724_MIPI_PHY5(x)			(0x8a5 + (x) / 2)
-#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4	GENMASK(5, 0)
-#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2(x)	(GENMASK(2, 0) << (3 * (x % 2)))
-#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK	5
-#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK	2
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1	GENMASK(1, 0)
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3	GENMASK(4, 3)
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK	BIT(5)
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2(x)	(GENMASK(1, 0) << (3 * (x % 2)))
+#define MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK(x)	BIT(2 + 3 * (x % 2))
 
 #define MAX96724_MIPI_PHY13			0x8ad
 #define MAX96724_MIPI_PHY13_T_T3_PREBEGIN	GENMASK(5, 0)
@@ -423,9 +424,9 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
-	unsigned int val, mask, clk_bit;
 	unsigned int index = phy->index;
 	unsigned int used_data_lanes = 0;
+	unsigned int val, mask;
 	unsigned int i;
 	int ret;
 
@@ -446,11 +447,6 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Configure lane mapping. */
-	if (num_hw_data_lanes == 4)
-		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_4;
-	else
-		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_2(index);
-
 	val = 0;
 	for (i = 0; i < num_hw_data_lanes ; i++) {
 		unsigned int map;
@@ -464,37 +460,44 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		used_data_lanes |= BIT(map);
 	}
 
+	if (num_hw_data_lanes == 4)
+		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_4;
+	else
+		mask = MAX96724_MIPI_PHY3_PHY_LANE_MAP_2(index);
+
 	ret = max96724_update_bits(priv, MAX96724_MIPI_PHY3(index),
 				   mask, field_prep(mask, val));
 	if (ret)
 		return ret;
 
 	/* Configure lane polarity. */
-	if (num_hw_data_lanes == 4) {
-		mask = MAX96724_MIPI_PHY5_PHY_POL_MAP_4;
-		clk_bit = MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK;
-	} else {
-		mask = MAX96724_MIPI_PHY5_PHY_POL_MAP_2(index);
-		clk_bit = MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK;
-	}
-
 	val = 0;
-	for (i = 0; i < num_data_lanes + 1; i++) {
-		if (!phy->mipi.lane_polarities[i])
-			continue;
-
-		if (i == 0)
-			val |= BIT(clk_bit);
-		else if (i < 3)
-			val |= BIT(i - 1);
-		else
+	for (i = 0; i < num_data_lanes; i++)
+		if (phy->mipi.lane_polarities[i + 1])
 			val |= BIT(i);
-	}
 
-	ret = max96724_update_bits(priv, MAX96724_MIPI_PHY5(index),
-				   mask, field_prep(mask, val));
-	if (ret)
-		return ret;
+	if (num_hw_data_lanes == 4) {
+		ret = max96724_update_bits(priv, MAX96724_MIPI_PHY5(index),
+					   MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1 |
+					   MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3 |
+					   MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK,
+					   FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1, val) |
+					   FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3, val >> 2) |
+					   FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_CLK,
+						      phy->mipi.lane_polarities[0]));
+		if (ret)
+			return ret;
+
+	} else {
+		ret = max96724_update_bits(priv, MAX96724_MIPI_PHY5(index),
+					   MAX96724_MIPI_PHY5_PHY_POL_MAP_2(index) |
+					   MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK(index),
+					   field_prep(MAX96724_MIPI_PHY5_PHY_POL_MAP_2(index), val) |
+					   field_prep(MAX96724_MIPI_PHY5_PHY_POL_MAP_2_CLK(index),
+						      phy->mipi.lane_polarities[0]));
+		if (ret)
+			return ret;
+	}
 
 	if (!is_cphy && dpll_freq > 1500000000ull) {
 		/* Enable initial deskew with 2 x 32k UI. */
