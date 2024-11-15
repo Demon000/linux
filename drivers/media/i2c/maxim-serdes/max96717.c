@@ -1012,8 +1012,7 @@ static int max96717_set_pipe_stream_id(struct max_ser *ser,
 					       stream_id));
 }
 
-static int max96717_set_pipe_phy(struct max_ser *ser,
-				 struct max_ser_pipe *pipe,
+static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 				 struct max_ser_phy *phy)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
