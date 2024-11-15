@@ -365,9 +365,6 @@ static int max96724_init(struct max_des *des)
 	}
 
 	/* Set PHY mode. */
-	if (des->phys_config >= ARRAY_SIZE(max96724_phys_configs_reg_val))
-		return -EINVAL;
-
 	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_PHY0,
 				 MAX96724_MIPI_PHY0_PHY_CONFIG,
 				 max96724_phys_configs_reg_val[des->phys_config]);
