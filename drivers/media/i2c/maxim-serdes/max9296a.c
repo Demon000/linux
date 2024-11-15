@@ -250,11 +250,14 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
+	unsigned int num_hw_data_lanes;
 	unsigned int index = phy->index;
 	unsigned int used_data_lanes = 0;
 	unsigned int val;
 	unsigned int i;
 	int ret;
+
+	num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
 	/*
 	 * MAX9296A has four PHYs, but does not support single-PHY configurations,
@@ -308,7 +311,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 * Each lane mapping is represented as two bits.
 	 */
 	val = 0;
-	for (i = 0; i < 4 ; i++) {
+	for (i = 0; i < num_hw_data_lanes ; i++) {
 		unsigned int map;
 
 		if (i < num_data_lanes)
