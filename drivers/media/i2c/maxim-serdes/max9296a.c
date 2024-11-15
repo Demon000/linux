@@ -183,9 +183,8 @@ static int max9296a_reset(struct max9296a_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
-				 MAX9296A_CTRL0_RESET_ALL,
-				 FIELD_PREP(MAX9296A_CTRL0_RESET_ALL, 1));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_CTRL0,
+				 MAX9296A_CTRL0_RESET_ALL, true);
 	if (ret)
 		return ret;
 
@@ -223,16 +222,13 @@ static int max9296a_set_enable(struct max_des *des, bool enable)
 	struct max9296a_priv *priv = des_to_priv(des);
 	int ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP12,
-				 MAX9296A_BACKTOP12_CSI_OUT_EN,
-				 FIELD_PREP(MAX9296A_BACKTOP12_CSI_OUT_EN, enable));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP12,
+				 MAX9296A_BACKTOP12_CSI_OUT_EN, enable);
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_PHY0,
-				  MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN,
-				  FIELD_PREP(MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN,
-					     enable));
+	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY0,
+				  MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN, enable);
 }
 
 static int max9296a_init(struct max_des *des)
@@ -241,9 +237,8 @@ static int max9296a_init(struct max_des *des)
 	int ret;
 
 	/* Disable link auto-select. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
-				 MAX9296A_CTRL0_AUTO_LINK,
-				 FIELD_PREP(MAX9296A_CTRL0_AUTO_LINK, 0));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_CTRL0,
+				 MAX9296A_CTRL0_AUTO_LINK, false);
 	if (ret)
 		return ret;
 
@@ -387,19 +382,21 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 
 	ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_PHY5(index),
 				 MAX9296A_MIPI_PHY5_PHY_POL_MAP_0_1 |
-				 MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3 |
-				 MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(index),
+				 MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3,
 				 FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_0_1, val) |
-				 FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3, val >> 2) |
-				 field_prep(MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(index),
-					    phy->mipi.lane_polarities[0]));
+				 FIELD_PREP(MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3, val >> 2));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY5(index),
+				 MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(index),
+				 phy->mipi.lane_polarities[0]);
 	if (ret)
 		return ret;
 
 	/* Put DPLL block into reset. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_DPLL_0(index),
-				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N,
-				 FIELD_PREP(MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, 0));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_DPLL_0(index),
+				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, false);
 	if (ret)
 		return ret;
 
@@ -412,16 +409,14 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Enable DPLL frequency. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP22(index),
-				 MAX9296A_BACKTOP22_PHY_CSI_TX_DPLL_EN,
-				 FIELD_PREP(MAX9296A_BACKTOP22_PHY_CSI_TX_DPLL_EN, 1));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP22(index),
+				 MAX9296A_BACKTOP22_PHY_CSI_TX_DPLL_EN, true);
 	if (ret)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_DPLL_0(index),
-				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N,
-				 FIELD_PREP(MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, 1));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_DPLL_0(index),
+				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, true);
 	if (ret)
 		return ret;
 
@@ -452,11 +447,21 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	}
 
 	/* Set alternate memory map modes. */
-	val  = FIELD_PREP(MAX9296A_MIPI_TX51_ALT_MEM_MAP_12, phy->alt_mem_map12);
-	val |= FIELD_PREP(MAX9296A_MIPI_TX51_ALT_MEM_MAP_8, phy->alt_mem_map8);
-	val |= FIELD_PREP(MAX9296A_MIPI_TX51_ALT_MEM_MAP_10, phy->alt_mem_map10);
-	ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
-				 MAX9296A_MIPI_TX51_ALT_MEM, val);
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
+				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_12,
+				 phy->alt_mem_map12);
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
+				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_8,
+				 phy->alt_mem_map8);
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
+				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_10,
+				 phy->alt_mem_map10);
 	if (ret)
 		return ret;
 
@@ -468,9 +473,8 @@ static int max9296a_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 
-	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_PHY2,
-				  MAX9296A_MIPI_PHY2_PHY_STDBY_N,
-				  enable ? MAX9296A_MIPI_PHY2_PHY_STDBY_N : 0);
+	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY2,
+				  MAX9296A_MIPI_PHY2_PHY_STDBY_N, enable);
 }
 
 static int max9296a_set_pipe_remap(struct max_des *des,
@@ -534,14 +538,11 @@ static int max9296a_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 	unsigned int index = max9296a_pipe_id(priv, pipe);
 
 	if (priv->info->use_video_pipe_en_reg)
-		return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_EN,
-					  MAX9296A_VIDEO_PIPE_EN_MASK(index),
-					  field_prep(MAX9296A_VIDEO_PIPE_EN_MASK(index),
-						     enable));
+		return regmap_assign_bits(priv->regmap, MAX9296A_VIDEO_PIPE_EN,
+					  MAX9296A_VIDEO_PIPE_EN_MASK(index), enable);
 
-	return regmap_update_bits(priv->regmap, MAX9296A_REG2,
-				  MAX9296A_REG2_VID_EN(index),
-				  field_prep(MAX9296A_REG2_VID_EN(index), enable));
+	return regmap_assign_bits(priv->regmap, MAX9296A_REG2,
+				  MAX9296A_REG2_VID_EN(index), enable);
 }
 
 static int max9296a_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
@@ -567,41 +568,33 @@ static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 	int ret;
 
 	/* Set 8bit double mode. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP21,
-				 MAX9296A_BACKTOP21_BPP8DBL(index),
-				 field_prep(MAX9296A_BACKTOP21_BPP8DBL(index),
-					    pipe->dbl8));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP21,
+				 MAX9296A_BACKTOP21_BPP8DBL(index), pipe->dbl8);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP24,
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP24,
 				 MAX9296A_BACKTOP24_BPP8DBL_MODE(index),
-				 field_prep(MAX9296A_BACKTOP24_BPP8DBL_MODE(index),
-					    pipe->dbl8mode));
+				 pipe->dbl8mode);
 	if (ret)
 		return ret;
 
 	/* Set 10bit double mode. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP32,
-				 MAX9296A_BACKTOP32_BPP10DBL(index),
-				 field_prep(MAX9296A_BACKTOP32_BPP10DBL(index),
-					    pipe->dbl10));
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP32,
+				 MAX9296A_BACKTOP32_BPP10DBL(index), pipe->dbl10);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX9296A_BACKTOP32,
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP32,
 				 MAX9296A_BACKTOP32_BPP10DBL_MODE(index),
-				 field_prep(MAX9296A_BACKTOP32_BPP10DBL_MODE(index),
-					    pipe->dbl10mode));
+				 pipe->dbl10mode);
 	if (ret)
 		return ret;
 
 	/* Set 12bit double mode. */
 	/* TODO: check support for double mode on MAX96714. */
-	return regmap_update_bits(priv->regmap, MAX9296A_BACKTOP33,
-				  MAX9296A_BACKTOP32_BPP12DBL(index),
-				  field_prep(MAX9296A_BACKTOP32_BPP12DBL(index),
-					     pipe->dbl12));
+	return regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP33,
+				  MAX9296A_BACKTOP32_BPP12DBL(index), pipe->dbl12);
 }
 
 static int max9296a_init_link_rlms(struct max9296a_priv *priv,
@@ -664,9 +657,8 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	}
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX52,
-					 MAX9296A_MIPI_TX52_TUN_EN,
-					 FIELD_PREP(MAX9296A_MIPI_TX52_TUN_EN, 0));
+		ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX52,
+					 MAX9296A_MIPI_TX52_TUN_EN, false);
 		if (ret)
 			return ret;
 	}
