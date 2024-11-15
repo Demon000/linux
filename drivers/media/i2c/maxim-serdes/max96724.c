@@ -456,7 +456,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		else
 			map = ffz(used_data_lanes);
 
-		val |= (map << (i * 2));
+		val |= map << (i * 2);
 		used_data_lanes |= BIT(map);
 	}
 
