@@ -503,8 +503,8 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	}
 
 	/* Put DPLL block into reset. */
-	ret = regmap_assign_bits(priv->regmap, MAX96724_DPLL_0(index),
-				 MAX96724_DPLL_0_CONFIG_SOFT_RST_N, false);
+	ret = regmap_clear_bits(priv->regmap, MAX96724_DPLL_0(index),
+				MAX96724_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
 
@@ -517,14 +517,14 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Enable DPLL frequency. */
-	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP22(index),
-				 MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN, true);
+	ret = regmap_set_bits(priv->regmap, MAX96724_BACKTOP22(index),
+			      MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN);
 	if (ret)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = regmap_assign_bits(priv->regmap, MAX96724_DPLL_0(index),
-				 MAX96724_DPLL_0_CONFIG_SOFT_RST_N, true);
+	ret = regmap_set_bits(priv->regmap, MAX96724_DPLL_0(index),
+			      MAX96724_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
 

@@ -183,8 +183,8 @@ static int max9296a_reset(struct max9296a_priv *priv)
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_CTRL0,
-				 MAX9296A_CTRL0_RESET_ALL, true);
+	ret = regmap_set_bits(priv->regmap, MAX9296A_CTRL0,
+			      MAX9296A_CTRL0_RESET_ALL);
 	if (ret)
 		return ret;
 
@@ -237,8 +237,8 @@ static int max9296a_init(struct max_des *des)
 	int ret;
 
 	/* Disable link auto-select. */
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_CTRL0,
-				 MAX9296A_CTRL0_AUTO_LINK, false);
+	ret = regmap_clear_bits(priv->regmap, MAX9296A_CTRL0,
+				MAX9296A_CTRL0_AUTO_LINK);
 	if (ret)
 		return ret;
 
@@ -395,8 +395,8 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Put DPLL block into reset. */
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_DPLL_0(index),
-				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, false);
+	ret = regmap_clear_bits(priv->regmap, MAX9296A_DPLL_0(index),
+				MAX9296A_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
 
@@ -409,14 +409,14 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Enable DPLL frequency. */
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP22(index),
-				 MAX9296A_BACKTOP22_PHY_CSI_TX_DPLL_EN, true);
+	ret = regmap_set_bits(priv->regmap, MAX9296A_BACKTOP22(index),
+			      MAX9296A_BACKTOP22_PHY_CSI_TX_DPLL_EN);
 	if (ret)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_DPLL_0(index),
-				 MAX9296A_DPLL_0_CONFIG_SOFT_RST_N, true);
+	ret = regmap_set_bits(priv->regmap, MAX9296A_DPLL_0(index),
+			      MAX9296A_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
 
@@ -657,8 +657,8 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	}
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX52,
-					 MAX9296A_MIPI_TX52_TUN_EN, false);
+		ret = regmap_clear_bits(priv->regmap, MAX9296A_MIPI_TX52,
+					MAX9296A_MIPI_TX52_TUN_EN);
 		if (ret)
 			return ret;
 	}
