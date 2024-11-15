@@ -183,53 +183,16 @@ static const struct regmap_config max96717_i2c_regmap = {
 	.max_register = 0x1f00,
 };
 
-static int max96717_read(struct max96717_priv *priv, int reg)
-{
-	int ret, val;
-
-	ret = regmap_read(priv->regmap, reg, &val);
-	dev_dbg(priv->dev, "read %d 0x%x = 0x%02x\n", ret, reg, val);
-	if (ret) {
-		dev_err(priv->dev, "read 0x%04x failed\n", reg);
-		return ret;
-	}
-
-	return val;
-}
-
-static int max96717_write(struct max96717_priv *priv, unsigned int reg, u8 val)
-{
-	int ret;
-
-	ret = regmap_write(priv->regmap, reg, val);
-	dev_dbg(priv->dev, "write %d 0x%x = 0x%02x\n", ret, reg, val);
-	if (ret)
-		dev_err(priv->dev, "write 0x%04x failed\n", reg);
-
-	return ret;
-}
-
-static int max96717_update_bits(struct max96717_priv *priv, unsigned int reg,
-				u8 mask, u8 val)
-{
-	int ret;
-
-	ret = regmap_update_bits(priv->regmap, reg, mask, val);
-	dev_dbg(priv->dev, "update %d 0x%x 0x%02x = 0x%02x\n", ret, reg, mask, val);
-	if (ret)
-		dev_err(priv->dev, "update 0x%04x failed\n", reg);
-
-	return ret;
-}
-
 static int max96717_wait_for_device(struct max96717_priv *priv)
 {
 	unsigned int i;
 	int ret;
 
 	for (i = 0; i < 10; i++) {
-		ret = max96717_read(priv, MAX96717_REG0);
-		if (ret >= 0)
+		unsigned int val;
+
+		ret = regmap_read(priv->regmap, MAX96717_REG0, &val);
+		if (!ret && val)
 			return 0;
 
 		msleep(100);
@@ -470,10 +433,10 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 {
 	struct max96717_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	u32 param = pinconf_to_config_param(*config);
-	unsigned int reg, mask, val;
+	unsigned int reg, mask, val, en_val;
 	int ret;
 
-	ret = max96717_get_pin_config_reg(offset, param, &reg, &mask, &val);
+	ret = max96717_get_pin_config_reg(offset, param, &reg, &mask, &en_val);
 	if (ret)
 		return ret;
 
@@ -483,11 +446,11 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
-		ret = max96717_read(priv, reg);
-		if (ret < 0)
+		ret = regmap_read(priv->regmap, reg, &val);
+		if (ret)
 			return ret;
 
-		val = field_get(mask, ret) == val;
+		val = field_get(mask, val) == en_val;
 		if (!val)
 			return -EINVAL;
 
@@ -500,21 +463,21 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 	case PIN_CONFIG_INPUT_ENABLE:
 	case PIN_CONFIG_OUTPUT:
-		ret = max96717_read(priv, reg);
-		if (ret < 0)
+		ret = regmap_read(priv->regmap, reg, &val);
+		if (ret)
 			return ret;
 
-		val = field_get(mask, ret) == val;
+		val = field_get(mask, val) == en_val;
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
 	case PIN_CONFIG_SLEW_RATE:
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
-		ret = max96717_read(priv, reg);
-		if (ret < 0)
+		ret = regmap_read(priv->regmap, reg, &val);
+		if (ret)
 			return ret;
 
-		val = field_get(mask, ret);
+		val = field_get(mask, val);
 		break;
 	default:
 		return -ENOTSUPP;
@@ -531,10 +494,10 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 {
 	u32 param = pinconf_to_config_param(config);
 	u32 arg = pinconf_to_config_argument(config);
-	unsigned int reg, mask, val;
+	unsigned int reg, mask, val, en_val;
 	int ret;
 
-	ret = max96717_get_pin_config_reg(offset, param, &reg, &mask, &val);
+	ret = max96717_get_pin_config_reg(offset, param, &reg, &mask, &en_val);
 	if (ret)
 		return ret;
 
@@ -544,9 +507,9 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
-		val = field_prep(mask, val);
+		val = field_prep(mask, en_val);
 
-		ret = max96717_update_bits(priv, reg, mask, val);
+		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
 	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
 	case MAX96717_PINCTRL_PULL_STRENGTH_WEAK:
@@ -555,9 +518,9 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case PIN_CONFIG_OUTPUT_ENABLE:
 	case PIN_CONFIG_INPUT_ENABLE:
 	case PIN_CONFIG_OUTPUT:
-		val = field_prep(mask, arg ? val : ~val);
+		val = field_prep(mask, arg ? en_val : ~en_val);
 
-		ret = max96717_update_bits(priv, reg, mask, val);
+		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
@@ -565,7 +528,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
 		val = field_prep(mask, arg);
 
-		ret = max96717_update_bits(priv, reg, mask, val);
+		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
 	default:
 		return -ENOTSUPP;
@@ -635,15 +598,15 @@ static int max96717_mux_set_pclk(struct max96717_priv *priv, unsigned int group)
 {
 	int ret;
 
-	ret = max96717_update_bits(priv, MAX96717_REF_VTG0,
-				   MAX96717_REF_VTG0_PCLK_EN,
-				   MAX96717_REF_VTG0_PCLK_EN);
+	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
+				 MAX96717_REF_VTG0_PCLK_EN,
+				 MAX96717_REF_VTG0_PCLK_EN);
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_REF_VTG0,
-				   MAX96717_REF_VTG0_PCLK_GPIO,
-				   FIELD_PREP(MAX96717_REF_VTG0_PCLK_GPIO, group));
+	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
+				 MAX96717_REF_VTG0_PCLK_GPIO,
+				 FIELD_PREP(MAX96717_REF_VTG0_PCLK_GPIO, group));
 	if (ret)
 		return ret;
 
@@ -655,16 +618,15 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 	int ret;
 
 	/* Enable RCLK. */
-	ret = max96717_update_bits(priv, MAX96717_REG6,
-				   MAX96717_REG6_RCLKEN,
-				   MAX96717_REG6_RCLKEN);
+	ret = regmap_update_bits(priv->regmap, MAX96717_REG6,
+				 MAX96717_REG6_RCLKEN, MAX96717_REG6_RCLKEN);
 	if (ret)
 		return ret;
 
 	/* Enable RCLK output on PCLK. */
-	ret = max96717_update_bits(priv, MAX96717_REF_VTG0,
-				   MAX96717_REF_VTG0_RCLKEN_Y,
-				   MAX96717_REF_VTG0_RCLKEN_Y);
+	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
+				 MAX96717_REF_VTG0_RCLKEN_Y,
+				 MAX96717_REF_VTG0_RCLKEN_Y);
 	if (ret)
 		return ret;
 
@@ -765,7 +727,7 @@ static int max96717_set_pipe_enable(struct max_ser *ser,
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	unsigned int mask = MAX96717_REG2_VID_TX_EN_P(index);
 
-	return max96717_update_bits(priv, MAX96717_REG2, mask, enable ? mask : 0);
+	return regmap_update_bits(priv->regmap, MAX96717_REG2, mask, enable ? mask : 0);
 }
 
 static int max96717_reg_read(struct max_ser *ser, unsigned int reg,
@@ -800,8 +762,8 @@ static int max96717_set_pipe_dt_en(struct max_ser *ser, struct max_ser_pipe *pip
 		 */
 		reg = MAX96717_EXTA(i - 2);
 
-	return max96717_update_bits(priv, reg, MAX96717_MEM_DT_EN,
-				    enable ? MAX96717_MEM_DT_EN : 0);
+	return regmap_update_bits(priv->regmap, reg, MAX96717_MEM_DT_EN,
+				  enable ? MAX96717_MEM_DT_EN : 0);
 }
 
 static int max96717_set_pipe_dt(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -816,8 +778,8 @@ static int max96717_set_pipe_dt(struct max_ser *ser, struct max_ser_pipe *pipe,
 	else
 		reg = MAX96717_EXTA(i - 2);
 
-	return max96717_update_bits(priv, reg, MAX96717_MEM_DT_SEL,
-				    FIELD_PREP(MAX96717_MEM_DT_SEL, dt));
+	return regmap_update_bits(priv->regmap, reg, MAX96717_MEM_DT_SEL,
+				  FIELD_PREP(MAX96717_MEM_DT_SEL, dt));
 }
 
 static int max96717_set_pipe_vcs(struct max_ser *ser,
@@ -828,28 +790,29 @@ static int max96717_set_pipe_vcs(struct max_ser *ser,
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	int ret;
 
-	ret = max96717_write(priv, MAX96717_FRONTTOP_1(index),
-			     (vcs >> 0) & 0xff);
+	ret = regmap_write(priv->regmap, MAX96717_FRONTTOP_1(index),
+			   (vcs >> 0) & 0xff);
 	if (ret)
 		return ret;
 
-	return max96717_write(priv, MAX96717_FRONTTOP_2(index),
+	return regmap_write(priv->regmap, MAX96717_FRONTTOP_2(index),
 			      (vcs >> 8) & 0xff);
 }
 
 static int max96717_log_status(struct max_ser *ser, const char *name)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int val;
 	int ret;
 
 	if (!priv->info->supports_tunnel_mode)
 		return 0;
 
-	ret = max96717_read(priv, MAX96717_EXT23);
-	if (ret < 0)
+	ret = regmap_read(priv->regmap, MAX96717_EXT23, &val);
+	if (ret)
 		return ret;
 
-	pr_info("%s: \t\ttun_pkt_cnt: %u\n", name, ret);
+	pr_info("%s: \t\ttun_pkt_cnt: %u\n", name, val);
 
 	return 0;
 }
@@ -860,13 +823,14 @@ static int max96717_log_pipe_status(struct max_ser *ser,
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
+	unsigned int val;
 	int ret;
 
-	ret = max96717_read(priv, MAX96717_VIDEO_TX2(index));
-	if (ret < 0)
+	ret = regmap_read(priv->regmap, MAX96717_VIDEO_TX2(index), &val);
+	if (ret)
 		return ret;
 
-	pr_info("%s: \tpclkdet: %u\n", name, !!(ret & MAX96717_VIDEO_TX2CLKDET));
+	pr_info("%s: \tpclkdet: %u\n", name, !!(val & MAX96717_VIDEO_TX2CLKDET));
 
 	return 0;
 }
@@ -876,28 +840,29 @@ static int max96717_log_phy_status(struct max_ser *ser,
 				   const char *name)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned int val;
 	int ret;
 
 	if (!priv->info->supports_pkt_cnt)
 		return 0;
 
-	ret = max96717_read(priv, MAX96717_EXT21);
-	if (ret < 0)
+	ret = regmap_read(priv->regmap, MAX96717_EXT21, &val);
+	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_pkt_cnt: %u\n", name, ret);
+	pr_info("%s: \tphy_pkt_cnt: %u\n", name, val);
 
-	ret = max96717_read(priv, MAX96717_EXT22);
-	if (ret < 0)
+	ret = regmap_read(priv->regmap, MAX96717_EXT22, &val);
+	if (ret)
 		return ret;
 
-	pr_info("%s: \tcsi_pkt_cnt: %u\n", name, ret);
+	pr_info("%s: \tcsi_pkt_cnt: %u\n", name, val);
 
-	ret = max96717_read(priv, MAX96717_EXT24);
-	if (ret < 0)
+	ret = regmap_read(priv->regmap, MAX96717_EXT24, &val);
+	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_clk_cnt: %u\n", name, ret);
+	pr_info("%s: \tphy_clk_cnt: %u\n", name, val);
 
 	return 0;
 }
@@ -918,10 +883,10 @@ static int max96717_init_phy(struct max_ser *ser,
 	}
 
 	/* Configure a lane count. */
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX1,
-				   MAX96717_MIPI_RX1_CTRL_NUM_LANES,
-				   FIELD_PREP(MAX96717_MIPI_RX1_CTRL_NUM_LANES,
-					      num_data_lanes - 1));
+	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX1,
+				 MAX96717_MIPI_RX1_CTRL_NUM_LANES,
+				 FIELD_PREP(MAX96717_MIPI_RX1_CTRL_NUM_LANES,
+					    num_data_lanes - 1));
 	if (ret)
 		return ret;
 
@@ -939,15 +904,15 @@ static int max96717_init_phy(struct max_ser *ser,
 		used_data_lanes |= BIT(map);
 	}
 
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX3,
-				   MAX96717_MIPI_RX3_PHY2_LANE_MAP,
-				   FIELD_PREP(MAX96717_MIPI_RX3_PHY2_LANE_MAP, val));
+	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX3,
+				 MAX96717_MIPI_RX3_PHY2_LANE_MAP,
+				 FIELD_PREP(MAX96717_MIPI_RX3_PHY2_LANE_MAP, val));
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX2,
-				   MAX96717_MIPI_RX2_PHY1_LANE_MAP,
-				   FIELD_PREP(MAX96717_MIPI_RX2_PHY1_LANE_MAP, val >> 4));
+	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX2,
+				 MAX96717_MIPI_RX2_PHY1_LANE_MAP,
+				 FIELD_PREP(MAX96717_MIPI_RX2_PHY1_LANE_MAP, val >> 4));
 	if (ret)
 		return ret;
 
@@ -959,8 +924,8 @@ static int max96717_init_phy(struct max_ser *ser,
 			val |= i == 0 ? MAX96717_MIPI_RX5_PHY2_POL_MAP_CLK
 				      : MAX96717_MIPI_RX5_PHY2_POL_MAP_LANE(i - 1);
 
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX5,
-				   MAX96717_MIPI_RX5_PHY2_POL_MAP, val);
+	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX5,
+				 MAX96717_MIPI_RX5_PHY2_POL_MAP, val);
 	if (ret)
 		return ret;
 
@@ -970,17 +935,17 @@ static int max96717_init_phy(struct max_ser *ser,
 		if (phy->mipi.lane_polarities[i])
 			val |= MAX96717_MIPI_RX4_PHY1_POL_MAP_LANE(i - 3);
 
-	ret = max96717_update_bits(priv, MAX96717_MIPI_RX4,
-				   MAX96717_MIPI_RX4_PHY1_POL_MAP, val);
+	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX4,
+				 MAX96717_MIPI_RX4_PHY1_POL_MAP, val);
 	if (ret)
 		return ret;
 
 	if (priv->info->supports_noncontinuous_clock) {
 		val = !!(phy->mipi.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK);
 
-		ret = max96717_update_bits(priv, MAX96717_MIPI_RX0,
-					   MAX96717_MIPI_RX0_NONCONTCLK_EN,
-					   FIELD_PREP(MAX96717_MIPI_RX0_NONCONTCLK_EN, val));
+		ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX0,
+					 MAX96717_MIPI_RX0_NONCONTCLK_EN,
+					 FIELD_PREP(MAX96717_MIPI_RX0_NONCONTCLK_EN, val));
 		if (ret)
 			return ret;
 	}
@@ -995,8 +960,8 @@ static int max96717_set_phy_active(struct max_ser *ser, struct max_ser_phy *phy,
 	unsigned int index = max96717_phy_id(priv, phy);
 	unsigned int mask = MAX96717_FRONTTOP_0_START_PORT(index);
 
-	return max96717_update_bits(priv, MAX96717_FRONTTOP_0,
-				    mask, enable ? mask : 0);
+	return regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_0,
+				  mask, enable ? mask : 0);
 }
 
 static int max96717_set_pipe_stream_id(struct max_ser *ser,
@@ -1006,10 +971,9 @@ static int max96717_set_pipe_stream_id(struct max_ser *ser,
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
 
-	return max96717_update_bits(priv, MAX96717_TX3(index),
-				    MAX96717_TX3_TX_STR_SEL,
-				    FIELD_PREP(MAX96717_TX3_TX_STR_SEL,
-					       stream_id));
+	return regmap_update_bits(priv->regmap, MAX96717_TX3(index),
+				  MAX96717_TX3_TX_STR_SEL,
+				  FIELD_PREP(MAX96717_TX3_TX_STR_SEL, stream_id));
 }
 
 static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -1022,8 +986,8 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	int ret;
 
 	val = phy_id == 1 ? MAX96717_FRONTTOP_0_CLK_SEL_P(index) : 0;
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_0,
-				   MAX96717_FRONTTOP_0_CLK_SEL_P(index), val);
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_0,
+				 MAX96717_FRONTTOP_0_CLK_SEL_P(index), val);
 	if (ret)
 		return ret;
 
@@ -1031,7 +995,7 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	       MAX96717_FRONTTOP_9_START_PORT(index, 1);
 	val = MAX96717_FRONTTOP_9_START_PORT(index, phy_id);
 
-	return max96717_update_bits(priv, MAX96717_FRONTTOP_9, mask, val);
+	return regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_9, mask, val);
 }
 
 static int max96717_init_pipe(struct max_ser *ser,
@@ -1043,48 +1007,47 @@ static int max96717_init_pipe(struct max_ser *ser,
 	int ret;
 
 	mask = MAX96717_FRONTTOP_10_BPP8DBL(index);
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_10,
-				   mask, pipe->dbl8 ? mask : 0);
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_10,
+				 mask, pipe->dbl8 ? mask : 0);
 	if (ret)
 		return ret;
 
 	mask = MAX96717_FRONTTOP_11_BPP10DBL(index);
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_11,
-				   mask, pipe->dbl10 ? mask : 0);
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_11,
+				 mask, pipe->dbl10 ? mask : 0);
 	if (ret)
 		return ret;
 
 	mask = MAX96717_FRONTTOP_11_BPP12DBL(index);
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_11,
-				   mask, pipe->dbl12 ? mask : 0);
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_11,
+				 mask, pipe->dbl12 ? mask : 0);
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_20(index),
-				   MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-				   FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-					      !!pipe->soft_bpp));
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
+				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+					    !!pipe->soft_bpp));
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_FRONTTOP_20(index),
-				   MAX96717_FRONTTOP_20_SOFT_BPP,
-				   FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
-					      pipe->soft_bpp));
+	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
+				 MAX96717_FRONTTOP_20_SOFT_BPP,
+				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
+					    pipe->soft_bpp));
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_VIDEO_TX0(index),
-				   MAX96717_VIDEO_TX0_AUTO_BPP,
-				   FIELD_PREP(MAX96717_VIDEO_TX0_AUTO_BPP,
-					      !pipe->bpp));
+	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
+				 MAX96717_VIDEO_TX0_AUTO_BPP,
+				 FIELD_PREP(MAX96717_VIDEO_TX0_AUTO_BPP,
+					    !pipe->bpp));
 	if (ret)
 		return ret;
 
-	ret = max96717_update_bits(priv, MAX96717_VIDEO_TX1(index),
-				   MAX96717_VIDEO_TX1_BPP,
-				   FIELD_PREP(MAX96717_VIDEO_TX1_BPP,
-					      pipe->bpp));
+	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX1(index),
+				 MAX96717_VIDEO_TX1_BPP,
+				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, pipe->bpp));
 	if (ret)
 		return ret;
 
@@ -1105,15 +1068,15 @@ static int max96717_init_i2c_xlate(struct max_ser *ser)
 			dst = ser->i2c_xlates[i].dst;
 		}
 
-		ret = max96717_update_bits(priv, MAX96717_I2C_2(i),
-					   MAX96717_I2C_2_SRC,
-					   FIELD_PREP(MAX96717_I2C_2_SRC, src));
+		ret = regmap_update_bits(priv->regmap, MAX96717_I2C_2(i),
+					 MAX96717_I2C_2_SRC,
+					 FIELD_PREP(MAX96717_I2C_2_SRC, src));
 		if (ret)
 			return ret;
 
-		ret = max96717_update_bits(priv, MAX96717_I2C_3(i),
-					   MAX96717_I2C_3_DST,
-					   FIELD_PREP(MAX96717_I2C_3_DST, dst));
+		ret = regmap_update_bits(priv->regmap, MAX96717_I2C_3(i),
+					 MAX96717_I2C_3_DST,
+					 FIELD_PREP(MAX96717_I2C_3_DST, dst));
 		if (ret)
 			return ret;
 	}
@@ -1134,17 +1097,17 @@ static int max96717_init(struct max_ser *ser)
 	 * Set CMU2 PFDDIV to 1.1V for correct functionality of the device,
 	 * as mentioned in the datasheet, under section MANDATORY REGISTER PROGRAMMING.
 	 */
-	ret = max96717_update_bits(priv, MAX96717_CMU2,
-				   MAX96717_CMU2_PFDDIV_RSHORT,
-				   FIELD_PREP(MAX96717_CMU2_PFDDIV_RSHORT,
-					      MAX96717_CMU2_PFDDIV_RSHORT_1_1V));
+	ret = regmap_update_bits(priv->regmap, MAX96717_CMU2,
+				 MAX96717_CMU2_PFDDIV_RSHORT,
+				 FIELD_PREP(MAX96717_CMU2_PFDDIV_RSHORT,
+					    MAX96717_CMU2_PFDDIV_RSHORT_1_1V));
 	if (ret)
 		return ret;
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = max96717_update_bits(priv, MAX96717_EXT11,
-					   MAX96717_EXT11_TUN_MODE,
-					   FIELD_PREP(MAX96717_EXT11_TUN_MODE, 0));
+		ret = regmap_update_bits(priv->regmap, MAX96717_EXT11,
+					 MAX96717_EXT11_TUN_MODE,
+					 FIELD_PREP(MAX96717_EXT11_TUN_MODE, 0));
 		if (ret)
 			return ret;
 	}
