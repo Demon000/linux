@@ -104,13 +104,11 @@
 #define MAX96717_MIPI_RX3_PHY2_LANE_MAP		GENMASK(3, 0)
 
 #define MAX96717_MIPI_RX4			0x334
-#define MAX96717_MIPI_RX4_PHY1_POL_MAP		GENMASK(6, 4)
-#define MAX96717_MIPI_RX4_PHY1_POL_MAP_LANE(x)	BIT((x) + 4)
+#define MAX96717_MIPI_RX4_PHY1_POL_MAP		GENMASK(5, 4)
 
 #define MAX96717_MIPI_RX5			0x335
-#define MAX96717_MIPI_RX5_PHY2_POL_MAP		GENMASK(2, 0)
+#define MAX96717_MIPI_RX5_PHY2_POL_MAP		GENMASK(1, 0)
 #define MAX96717_MIPI_RX5_PHY2_POL_MAP_CLK	BIT(2)
-#define MAX96717_MIPI_RX5_PHY2_POL_MAP_LANE(x)	BIT(x)
 
 #define MAX96717_EXTA(x)			(0x3dc + (x))
 
@@ -914,26 +912,26 @@ static int max96717_init_phy(struct max_ser *ser,
 		return ret;
 
 	/* Configure lane polarity. */
-	/* Lower two lanes. */
 	val = 0;
-	for (i = 0; i < 3 && i < num_data_lanes + 1; i++)
-		if (phy->mipi.lane_polarities[i])
-			val |= i == 0 ? MAX96717_MIPI_RX5_PHY2_POL_MAP_CLK
-				      : MAX96717_MIPI_RX5_PHY2_POL_MAP_LANE(i - 1);
+	for (i = 0; i < num_data_lanes; i++)
+		if (phy->mipi.lane_polarities[i + 1])
+			val |= BIT(i);
 
 	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX5,
-				 MAX96717_MIPI_RX5_PHY2_POL_MAP, val);
+				 MAX96717_MIPI_RX5_PHY2_POL_MAP,
+				 FIELD_PREP(MAX96717_MIPI_RX5_PHY2_POL_MAP, val));
 	if (ret)
 		return ret;
 
-	/* Upper two lanes. */
-	val = 0;
-	for (i = 3; i < num_data_lanes + 1; i++)
-		if (phy->mipi.lane_polarities[i])
-			val |= MAX96717_MIPI_RX4_PHY1_POL_MAP_LANE(i - 3);
-
 	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX4,
-				 MAX96717_MIPI_RX4_PHY1_POL_MAP, val);
+				 MAX96717_MIPI_RX4_PHY1_POL_MAP,
+				 FIELD_PREP(MAX96717_MIPI_RX4_PHY1_POL_MAP, val >> 2));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX96717_MIPI_RX5,
+				 MAX96717_MIPI_RX5_PHY2_POL_MAP_CLK,
+				 phy->mipi.lane_polarities[0]);
 	if (ret)
 		return ret;
 
