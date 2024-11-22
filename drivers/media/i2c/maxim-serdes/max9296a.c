@@ -148,8 +148,11 @@ struct max9296a_chip_info {
 	bool supports_tunnel_mode;
 	bool adjust_rlms;
 	bool fix_tx_ids;
-	bool use_video_pipe_sel_reg;
-	bool use_video_pipe_en_reg;
+
+	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
+				  unsigned int stream_id);
+	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
+			       bool enable);
 };
 
 #define des_to_priv(des) \
@@ -540,13 +543,18 @@ static int max9296a_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
 
-	if (priv->info->use_video_pipe_en_reg)
-		return regmap_assign_bits(priv->regmap, MAX9296A_VIDEO_PIPE_EN,
-					  MAX9296A_VIDEO_PIPE_EN_MASK(index - 1),
-					  enable);
-
 	return regmap_assign_bits(priv->regmap, MAX9296A_REG2,
 				  MAX9296A_REG2_VID_EN(index), enable);
+}
+
+static int max96714_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
+				    bool enable)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+
+	return regmap_assign_bits(priv->regmap, MAX9296A_VIDEO_PIPE_EN,
+				  MAX9296A_VIDEO_PIPE_EN_MASK(index - 1), enable);
 }
 
 static int max9296a_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
@@ -555,14 +563,18 @@ static int max9296a_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
 
-	if (priv->info->use_video_pipe_sel_reg)
-		return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_SEL,
-					  MAX9296A_VIDEO_PIPE_SEL_STREAM,
-					  FIELD_PREP(MAX9296A_VIDEO_PIPE_SEL_STREAM,
-						     stream_id));
-
 	return regmap_update_bits(priv->regmap, MAX9296A_RX50(index), MAX9296A_RX50_STR_SEL,
 				  FIELD_PREP(MAX9296A_RX50_STR_SEL, pipe->stream_id));
+}
+
+static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
+				       unsigned int stream_id)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+
+	return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_SEL,
+				  MAX9296A_VIDEO_PIPE_SEL_STREAM,
+				  FIELD_PREP(MAX9296A_VIDEO_PIPE_SEL_STREAM, stream_id));
 }
 
 static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
@@ -698,8 +710,6 @@ static const struct max_des_ops max9296a_ops = {
 	.init_phy = max9296a_init_phy,
 	.set_phy_active = max9296a_set_phy_active,
 	.init_pipe = max9296a_init_pipe,
-	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
-	.set_pipe_enable = max9296a_set_pipe_enable,
 	.set_pipe_remap = max9296a_set_pipe_remap,
 	.set_pipe_remap_enable = max9296a_set_pipe_remap_enable,
 	.init_link = max9296a_init_link,
@@ -742,6 +752,8 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_links = priv->info->num_links;
 	ops->phys_configs = priv->info->phys_configs;
+	ops->set_pipe_enable = priv->info->set_pipe_enable;
+	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -767,6 +779,8 @@ static const struct max_phys_config max96714_phys_configs[] = {
 };
 
 static const struct max9296a_chip_info max9296a_info = {
+	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
+	.set_pipe_enable = max9296a_set_pipe_enable,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
@@ -780,13 +794,13 @@ static const struct max9296a_chip_info max9296a_info = {
 };
 
 static const struct max9296a_chip_info max96714_info = {
+	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_enable = max96714_set_pipe_enable,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
 	.polarity_on_physical_lanes = true,
-	.use_video_pipe_en_reg = true,
-	.use_video_pipe_sel_reg = true,
 	.supports_tunnel_mode = true,
 	.adjust_rlms = true,
 	.num_pipes = 1,
