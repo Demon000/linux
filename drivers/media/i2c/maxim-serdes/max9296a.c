@@ -795,6 +795,21 @@ static const struct max9296a_chip_info max9296a_info = {
 	.num_links = 2,
 };
 
+static const struct max9296a_chip_info max96716a_info = {
+	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_enable = max96714_set_pipe_enable,
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
+		.configs = max9296a_phys_configs,
+	},
+	.phy0_lanes_0_1_on_second_phy = true,
+	.supports_tunnel_mode = true,
+	.num_pipes = 2,
+	.pipe_hw_ids = { 1, 2 },
+	.num_phys = 2,
+	.num_links = 2,
+};
+
 static const struct max9296a_chip_info max96714_info = {
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
@@ -814,6 +829,7 @@ static const struct max9296a_chip_info max96714_info = {
 static const struct of_device_id max9296a_of_table[] = {
 	{ .compatible = "maxim,max9296a", .data = &max9296a_info },
 	{ .compatible = "maxim,max96714", .data = &max96714_info },
+	{ .compatible = "maxim,max96716a", .data = &max96716a_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max9296a_of_table);
