@@ -30,7 +30,7 @@
 #define MAX9296A_VIDEO_PIPE_EN_MASK(p)		BIT(p)
 
 #define MAX9296A_VIDEO_PIPE_SEL			0x161
-#define MAX9296A_VIDEO_PIPE_SEL_STREAM		GENMASK(1, 0)
+#define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (p * 2))
 
 #define MAX9296A_BACKTOP12			0x313
 #define MAX9296A_BACKTOP12_CSI_OUT_EN		BIT(1)
@@ -571,10 +571,12 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 				       unsigned int stream_id)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
 
 	return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_SEL,
-				  MAX9296A_VIDEO_PIPE_SEL_STREAM,
-				  FIELD_PREP(MAX9296A_VIDEO_PIPE_SEL_STREAM, stream_id));
+				  MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
+				  field_prep(MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
+					     stream_id));
 }
 
 static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
