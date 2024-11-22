@@ -542,7 +542,8 @@ static int max9296a_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 
 	if (priv->info->use_video_pipe_en_reg)
 		return regmap_assign_bits(priv->regmap, MAX9296A_VIDEO_PIPE_EN,
-					  MAX9296A_VIDEO_PIPE_EN_MASK(index), enable);
+					  MAX9296A_VIDEO_PIPE_EN_MASK(index - 1),
+					  enable);
 
 	return regmap_assign_bits(priv->regmap, MAX9296A_REG2,
 				  MAX9296A_REG2_VID_EN(index), enable);
