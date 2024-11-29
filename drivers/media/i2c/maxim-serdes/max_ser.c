@@ -323,7 +323,6 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	}
 	v4l2_info(sd, "\n");
 
-
 	for (i = 0; i < ser->ops->num_pipes; i++) {
 		struct max_ser_pipe *pipe = &ser->pipes[i];
 
