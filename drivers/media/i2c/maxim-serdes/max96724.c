@@ -779,7 +779,7 @@ static int max96724_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
-	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "pwdn",
+	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "powerdown",
 						   GPIOD_OUT_HIGH);
 	if (IS_ERR(priv->gpiod_pwdn))
 		return PTR_ERR(priv->gpiod_pwdn);
