@@ -595,8 +595,8 @@ static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 	unsigned int vcs;
 	int ret;
 
-	dts = devm_kcalloc(priv->dev, ser->ops->num_dts_per_pipe,
-			      sizeof(*dts), GFP_KERNEL);
+	dts = devm_kcalloc(priv->dev, ser->ops->num_dts_per_pipe, sizeof(*dts),
+			   GFP_KERNEL);
 	if (!dts)
 		return -ENOMEM;
 
