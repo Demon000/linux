@@ -883,9 +883,6 @@ static int max_ser_init(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 
-		if (!pipe->enabled)
-			continue;
-
 		ret = ser->ops->init_pipe(ser, pipe);
 		if (ret)
 			return ret;
