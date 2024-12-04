@@ -323,6 +323,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 			      u64 streams_mask)
 {
 	struct max_des *des = priv->des;
+	unsigned long vc_ids_masks = 0;
 	u32 sink_pad = max_des_link_to_pad(des, link);
 	struct v4l2_subdev_route *route;
 	unsigned int phy_id;
@@ -364,6 +365,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 		}
 
 		src_vc_id = entry.bus.csi2.vc;
+		vc_ids_masks |= BIT(src_vc_id);
 
 		ret = max_des_map_src_dst_vc_id(context, link->index, phy->index,
 						src_vc_id, &dst_vc_id);
@@ -383,6 +385,9 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 
 		for_each_set_bit(src_vc_id, &mask, MAX_SERDES_VC_ID_NUM) {
 			unsigned int dst_vc_id;
+
+			if (!(vc_ids_masks & BIT(src_vc_id)))
+				continue;
 
 			if (*num_remaps + 2 > des->ops->num_remaps_per_pipe) {
 				dev_err(priv->dev, "Too many streams for link %u\n",
