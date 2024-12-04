@@ -452,22 +452,32 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 			return ret;
 	}
 
+	return 0;
+}
+
+static int max9296a_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
+				 struct max_des_phy_mode *mode)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = phy->index;
+	int ret;
+
 	/* Set alternate memory map modes. */
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
 				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_12,
-				 phy->alt_mem_map12);
+				 mode->alt_mem_map12);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
 				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_8,
-				 phy->alt_mem_map8);
+				 mode->alt_mem_map8);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(index),
 				 MAX9296A_MIPI_TX51_ALT_MEM_MAP_10,
-				 phy->alt_mem_map10);
+				 mode->alt_mem_map10);
 	if (ret)
 		return ret;
 
@@ -579,7 +589,9 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 					     stream_id));
 }
 
-static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
+static int max9296a_set_pipe_mode(struct max_des *des,
+				  struct max_des_pipe *pipe,
+				  struct max_des_pipe_mode *mode)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
@@ -587,32 +599,32 @@ static int max9296a_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 
 	/* Set 8bit double mode. */
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP21,
-				 MAX9296A_BACKTOP21_BPP8DBL(index), pipe->dbl8);
+				 MAX9296A_BACKTOP21_BPP8DBL(index), mode->dbl8);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP24,
 				 MAX9296A_BACKTOP24_BPP8DBL_MODE(index),
-				 pipe->dbl8mode);
+				 mode->dbl8mode);
 	if (ret)
 		return ret;
 
 	/* Set 10bit double mode. */
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP32,
-				 MAX9296A_BACKTOP32_BPP10DBL(index), pipe->dbl10);
+				 MAX9296A_BACKTOP32_BPP10DBL(index), mode->dbl10);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP32,
 				 MAX9296A_BACKTOP32_BPP10DBL_MODE(index),
-				 pipe->dbl10mode);
+				 mode->dbl10mode);
 	if (ret)
 		return ret;
 
 	/* Set 12bit double mode. */
 	/* TODO: check support for double mode on MAX96714. */
 	return regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP33,
-				  MAX9296A_BACKTOP32_BPP12DBL(index), pipe->dbl12);
+				  MAX9296A_BACKTOP32_BPP12DBL(index), mode->dbl12);
 }
 
 static int max9296a_init_link_rlms(struct max9296a_priv *priv,
@@ -710,10 +722,11 @@ static const struct max_des_ops max9296a_ops = {
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
+	.set_phy_mode = max9296a_set_phy_mode,
 	.set_phy_active = max9296a_set_phy_active,
-	.init_pipe = max9296a_init_pipe,
 	.set_pipe_remap = max9296a_set_pipe_remap,
 	.set_pipe_remap_enable = max9296a_set_pipe_remap_enable,
+	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
 };

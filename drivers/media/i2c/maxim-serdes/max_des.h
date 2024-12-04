@@ -27,6 +27,14 @@ struct max_des_link {
 	bool ser_xlate_enabled;
 };
 
+struct max_des_pipe_mode {
+	bool dbl8;
+	bool dbl10;
+	bool dbl12;
+	bool dbl8mode;
+	bool dbl10mode;
+};
+
 struct max_des_pipe {
 	unsigned int index;
 	unsigned int stream_id;
@@ -34,12 +42,15 @@ struct max_des_pipe {
 	unsigned int phy_id;
 	struct max_des_remap *remaps;
 	unsigned int num_remaps;
-	bool dbl8;
-	bool dbl10;
-	bool dbl12;
-	bool dbl8mode;
-	bool dbl10mode;
+	struct max_des_pipe_mode mode;
 	bool enabled;
+};
+
+struct max_des_phy_mode {
+	bool alt_mem_map8;
+	bool alt2_mem_map8;
+	bool alt_mem_map10;
+	bool alt_mem_map12;
 };
 
 struct max_des_phy {
@@ -47,10 +58,7 @@ struct max_des_phy {
 	s64 link_frequency;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
 	enum v4l2_mbus_type bus_type;
-	bool alt_mem_map8;
-	bool alt2_mem_map8;
-	bool alt_mem_map10;
-	bool alt_mem_map12;
+	struct max_des_phy_mode mode;
 	bool enabled;
 	bool active;
 };
@@ -76,9 +84,10 @@ struct max_des_ops {
 	int (*set_enable)(struct max_des *des, bool enable);
 	int (*init)(struct max_des *des);
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
+	int (*set_phy_mode)(struct max_des *des, struct max_des_phy *phy,
+			    struct max_des_phy_mode *mode);
 	int (*set_phy_active)(struct max_des *des, struct max_des_phy *phy,
 			      bool active);
-	int (*init_pipe)(struct max_des *des, struct max_des_pipe *pipe);
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
@@ -89,6 +98,8 @@ struct max_des_ops {
 			      unsigned int i, struct max_des_remap *remap);
 	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				     unsigned int i, bool enable);
+	int (*set_pipe_mode)(struct max_des *des, struct max_des_pipe *pipe,
+			     struct max_des_pipe_mode *mode);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 };

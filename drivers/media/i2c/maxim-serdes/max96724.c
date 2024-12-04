@@ -525,24 +525,38 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	if (ret)
 		return ret;
 
+	return 0;
+}
+
+static int max96724_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
+				 struct max_des_phy_mode *mode)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = phy->index;
+	int ret;
+
 	/* Set alternate memory map modes. */
 	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
-				 MAX96724_MIPI_TX51_ALT_MEM_MAP_12, phy->alt_mem_map12);
+				 MAX96724_MIPI_TX51_ALT_MEM_MAP_12,
+				 mode->alt_mem_map12);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
-				 MAX96724_MIPI_TX51_ALT_MEM_MAP_8, phy->alt_mem_map8);
+				 MAX96724_MIPI_TX51_ALT_MEM_MAP_8,
+				 mode->alt_mem_map8);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
-				 MAX96724_MIPI_TX51_ALT_MEM_MAP_10, phy->alt_mem_map10);
+				 MAX96724_MIPI_TX51_ALT_MEM_MAP_10,
+				 mode->alt_mem_map10);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
-				 MAX96724_MIPI_TX51_ALT2_MEM_MAP_8, phy->alt2_mem_map8);
+				 MAX96724_MIPI_TX51_ALT2_MEM_MAP_8,
+				 mode->alt2_mem_map8);
 	if (ret)
 		return ret;
 
@@ -650,7 +664,9 @@ static int max96724_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 					     stream_id));
 }
 
-static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
+static int max96724_set_pipe_mode(struct max_des *des,
+				  struct max_des_pipe *pipe,
+				  struct max_des_pipe_mode *mode)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
@@ -659,13 +675,13 @@ static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 
 	/* Set 8bit double mode. */
 	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP21,
-				 MAX96724_BACKTOP21_BPP8DBL(index), pipe->dbl8);
+				 MAX96724_BACKTOP21_BPP8DBL(index), mode->dbl8);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP24,
 				 MAX96724_BACKTOP24_BPP8DBL_MODE(index),
-				 pipe->dbl8mode);
+				 mode->dbl8mode);
 	if (ret)
 		return ret;
 
@@ -688,17 +704,17 @@ static int max96724_init_pipe(struct max_des *des, struct max_des_pipe *pipe)
 		mode_mask = MAX96724_BACKTOP32_BPP10DBL0_MODE;
 	}
 
-	ret = regmap_assign_bits(priv->regmap, reg, mask, pipe->dbl10);
+	ret = regmap_assign_bits(priv->regmap, reg, mask, mode->dbl10);
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, reg, mode_mask, pipe->dbl10mode);
+	ret = regmap_assign_bits(priv->regmap, reg, mode_mask, mode->dbl10mode);
 	if (ret)
 		return ret;
 
 	/* Set 12bit double mode. */
 	return regmap_assign_bits(priv->regmap, MAX96724_BACKTOP32,
-				  MAX96724_BACKTOP32_BPP12(index), pipe->dbl12);
+				  MAX96724_BACKTOP32_BPP12(index), mode->dbl12);
 }
 
 static int max96724_select_links(struct max_des *des, unsigned int mask)
@@ -731,13 +747,14 @@ static const struct max_des_ops max96724_ops = {
 	.set_enable = max96724_set_enable,
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
+	.set_phy_mode = max96724_set_phy_mode,
 	.set_phy_active = max96724_set_phy_active,
-	.init_pipe = max96724_init_pipe,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_enable = max96724_set_pipe_enable,
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remap_enable = max96724_set_pipe_remap_enable,
+	.set_pipe_mode = max96724_set_pipe_mode,
 	.select_links = max96724_select_links,
 };
 
