@@ -37,6 +37,15 @@ struct max_ser_phy {
 	bool active;
 };
 
+struct max_ser_pipe_mode {
+	unsigned int soft_bpp;
+	unsigned int bpp;
+	bool dbl8;
+	bool dbl10;
+	bool dbl12;
+	bool drift_det_disable;
+};
+
 struct max_ser_pipe {
 	unsigned int index;
 	unsigned int phy_id;
@@ -44,11 +53,7 @@ struct max_ser_pipe {
 	unsigned int *dts;
 	unsigned int num_dts;
 	unsigned int vcs;
-	unsigned int soft_bpp;
-	unsigned int bpp;
-	bool dbl8;
-	bool dbl10;
-	bool dbl12;
+	struct max_ser_pipe_mode mode;
 	bool enabled;
 };
 
@@ -75,7 +80,6 @@ struct max_ser_ops {
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
-	int (*init_pipe)(struct max_ser *ser, struct max_ser_pipe *pipe);
 	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			       bool enable);
 	int (*set_pipe_dt)(struct max_ser *ser, struct max_ser_pipe *pipe,
@@ -84,6 +88,8 @@ struct max_ser_ops {
 			      unsigned int i, bool enable);
 	int (*set_pipe_vcs)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			    unsigned int vcs);
+	int (*set_pipe_mode)(struct max_ser *ser, struct max_ser_pipe *pipe,
+			     struct max_ser_pipe_mode *mode);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_ser *ser, struct max_ser_pipe *pipe,
