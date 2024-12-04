@@ -168,26 +168,6 @@ static int max_ser_set_pipe_dts(struct max_ser_priv *priv, struct max_ser_pipe *
 			return ret;
 	}
 
-	if (pipe->dts)
-		devm_kfree(priv->dev, pipe->dts);
-
-	pipe->dts = dts;
-	pipe->num_dts = num_dts;
-
-	return 0;
-}
-
-static int max_ser_set_pipe_vcs(struct max_ser *ser, struct max_ser_pipe *pipe,
-				unsigned int vcs)
-{
-	int ret;
-
-	ret = ser->ops->set_pipe_vcs(ser, pipe, vcs);
-	if (ret)
-		return ret;
-
-	pipe->vcs = vcs;
-
 	return 0;
 }
 
@@ -605,7 +585,7 @@ static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
-	ret = max_ser_set_pipe_vcs(ser, pipe, vcs);
+	ret = ser->ops->set_pipe_vcs(ser, pipe, vcs);
 	if (ret)
 		goto err_free_dts;
 
@@ -613,10 +593,17 @@ static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 	if (ret)
 		goto err_restore_vcs;
 
+	pipe->vcs = vcs;
+
+	if (pipe->dts)
+		devm_kfree(priv->dev, pipe->dts);
+	pipe->dts = dts;
+	pipe->num_dts = num_dts;
+
 	return 0;
 
 err_restore_vcs:
-	max_ser_set_pipe_vcs(ser, pipe, pipe->vcs);
+	ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);
 
 err_free_dts:
 	devm_kfree(priv->dev, dts);
