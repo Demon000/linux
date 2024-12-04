@@ -320,11 +320,11 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 		for (j = 0; j < pipe->num_dts; j++)
 			v4l2_info(sd, "\t\tdt: 0x%02x\n", pipe->dts[j]);
 		v4l2_info(sd, "\tvcs: 0x%08x\n", pipe->vcs);
-		v4l2_info(sd, "\tdbl8: %u\n", pipe->dbl8);
-		v4l2_info(sd, "\tdbl10: %u\n", pipe->dbl10);
-		v4l2_info(sd, "\tdbl12: %u\n", pipe->dbl12);
-		v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->soft_bpp);
-		v4l2_info(sd, "\tbpp: %u\n", pipe->bpp);
+		v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
+		v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
+		v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
+		v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->mode.soft_bpp);
+		v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
 		if (ser->ops->log_pipe_status) {
 			ret = ser->ops->log_pipe_status(ser, pipe, sd->name);
 			if (ret)
@@ -866,11 +866,11 @@ static int max_ser_init(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 
-		ret = max_ser_set_pipe_dts(priv, pipe, NULL, 0);
+		ret = ser->ops->set_pipe_mode(ser, pipe, &pipe->mode);
 		if (ret)
 			return ret;
 
-		ret = ser->ops->init_pipe(ser, pipe);
+		ret = max_ser_set_pipe_dts(priv, pipe, NULL, 0);
 		if (ret)
 			return ret;
 	}
@@ -1059,7 +1059,7 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 		dev_err(priv->dev, "Invalid soft bpp %u\n", val);
 		return -EINVAL;
 	}
-	pipe->soft_bpp = val;
+	pipe->mode.soft_bpp = val;
 
 	val = 0;
 	fwnode_property_read_u32(fwnode, "maxim,bpp", &val);
@@ -1067,11 +1067,11 @@ static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
 		dev_err(priv->dev, "Invalid bpp %u\n", val);
 		return -EINVAL;
 	}
-	pipe->bpp = val;
+	pipe->mode.bpp = val;
 
-	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
+	pipe->mode.dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
+	pipe->mode.dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
+	pipe->mode.dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
 
 	return 0;
 }

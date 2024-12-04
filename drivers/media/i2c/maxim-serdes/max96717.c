@@ -997,48 +997,53 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	return 0;
 }
 
-static int max96717_init_pipe(struct max_ser *ser,
-			      struct max_ser_pipe *pipe)
+static int max96717_set_pipe_mode(struct max_ser *ser,
+				  struct max_ser_pipe *pipe,
+				  struct max_ser_pipe_mode *mode)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	int ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_10,
-				 MAX96717_FRONTTOP_10_BPP8DBL(index), pipe->dbl8);
+				 MAX96717_FRONTTOP_10_BPP8DBL(index),
+				 mode->dbl8);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_11,
-				 MAX96717_FRONTTOP_11_BPP10DBL(index), pipe->dbl10);
+				 MAX96717_FRONTTOP_11_BPP10DBL(index),
+				 mode->dbl10);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_11,
-				 MAX96717_FRONTTOP_11_BPP12DBL(index), pipe->dbl12);
+				 MAX96717_FRONTTOP_11_BPP12DBL(index),
+				 mode->dbl12);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
-				 MAX96717_FRONTTOP_20_SOFT_BPP_EN, pipe->soft_bpp);
+				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+				 mode->soft_bpp);
 	if (ret)
 		return ret;
 
 	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
 				 MAX96717_FRONTTOP_20_SOFT_BPP,
 				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
-					    pipe->soft_bpp));
+					    mode->soft_bpp));
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
-				 MAX96717_VIDEO_TX0_AUTO_BPP, !pipe->bpp);
+				 MAX96717_VIDEO_TX0_AUTO_BPP, !mode->bpp);
 	if (ret)
 		return ret;
 
 	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX1(index),
 				 MAX96717_VIDEO_TX1_BPP,
-				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, pipe->bpp));
+				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, mode->bpp));
 	if (ret)
 		return ret;
 
@@ -1148,11 +1153,11 @@ static const struct max_ser_ops max96717_ops = {
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
 	.set_phy_active = max96717_set_phy_active,
-	.init_pipe = max96717_init_pipe,
 	.set_pipe_enable = max96717_set_pipe_enable,
 	.set_pipe_dt = max96717_set_pipe_dt,
 	.set_pipe_dt_en = max96717_set_pipe_dt_en,
 	.set_pipe_vcs = max96717_set_pipe_vcs,
+	.set_pipe_mode = max96717_set_pipe_mode,
 	.set_pipe_stream_id = max96717_set_pipe_stream_id,
 	.set_pipe_phy = max96717_set_pipe_phy,
 	.post_init = max96717_post_init,
