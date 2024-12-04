@@ -14,6 +14,38 @@
 
 #include "max_serdes.h"
 
+#define MAX_MIPI_FMT(_dt, _bpp)	\
+{				\
+	.dt = (_dt),		\
+	.bpp = (_bpp),		\
+}
+
+static const struct max_mipi_format max_mipi_formats[] = {
+	MAX_MIPI_FMT(MIPI_CSI2_DT_EMBEDDED_8B, 8),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_8B, 16),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_10B, 20),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB565, 16),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB666, 18),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB888, 24),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW8, 8),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW10, 10),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW12, 12),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW14, 14),
+	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW16, 16),
+};
+
+const struct max_mipi_format *max_mipi_format_by_dt(u8 dt)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(max_mipi_formats); i++)
+		if (max_mipi_formats[i].dt == dt)
+			return &max_mipi_formats[i];
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(max_mipi_format_by_dt);
+
 int max_get_fd_stream_entry(struct v4l2_subdev *sd,
 			    unsigned int pad, unsigned int stream,
 			    struct v4l2_mbus_frame_desc_entry *entry)
