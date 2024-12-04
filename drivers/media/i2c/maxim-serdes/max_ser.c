@@ -767,7 +767,6 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (ret)
 		goto err_revert_update_dt_vcs;
 
-
 	return 0;
 
 err_revert_update_dt_vcs:
