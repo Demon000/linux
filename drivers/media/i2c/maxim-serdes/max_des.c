@@ -417,12 +417,12 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_update_remaps(struct max_des_priv *priv,
-				 struct max_des_remap_context *context,
-				 struct max_des_link *link,
-				 struct max_des_source *source,
-				 struct max_des_pipe *pipe,
-				 u64 streams_mask)
+static int max_des_update_pipe(struct max_des_priv *priv,
+			       struct max_des_remap_context *context,
+			       struct max_des_link *link,
+			       struct max_des_source *source,
+			       struct max_des_pipe *pipe,
+			       u64 streams_mask)
 {
 	struct max_des *des = priv->des;
 	struct max_des_remap *remaps;
@@ -962,8 +962,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 			goto err_revert_streams_mask;
 	}
 
-	ret = max_des_update_remaps(priv, context, link, source, pipe,
-				    priv->streams_mask[pad]);
+	ret = max_des_update_pipe(priv, context, link, source, pipe,
+				  priv->streams_mask[pad]);
 	if (ret)
 		goto err_revert_pipe_enable;
 
@@ -975,13 +975,12 @@ static int max_des_update_link(struct max_des_priv *priv,
 						  updated_streams_mask);
 
 	if (ret)
-		goto err_revert_update_remaps;
+		goto err_revert_pipe_update;
 
 	return 0;
 
-err_revert_update_remaps:
-	max_des_update_remaps(priv, context, link, source, pipe,
-			      streams_mask);
+err_revert_pipe_update:
+	max_des_update_pipe(priv, context, link, source, pipe, streams_mask);
 
 err_revert_pipe_enable:
 	if (!streams_mask != !priv->streams_mask[pad])
