@@ -531,6 +531,10 @@ static int max_des_init(struct max_des_priv *priv)
 				return ret;
 		}
 
+		ret = des->ops->set_phy_mode(des, phy, &phy->mode);
+		if (ret)
+			return ret;
+
 		ret = des->ops->set_phy_active(des, phy, false);
 		if (ret)
 			return ret;
@@ -539,10 +543,6 @@ static int max_des_init(struct max_des_priv *priv)
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
 		struct max_des_phy *phy = &des->phys[pipe->phy_id];
-
-		ret = des->ops->init_pipe(des, pipe);
-		if (ret)
-			return ret;
 
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
@@ -553,6 +553,10 @@ static int max_des_init(struct max_des_priv *priv)
 			if (ret)
 				return ret;
 		}
+
+		ret = des->ops->set_pipe_mode(des, pipe, &pipe->mode);
+		if (ret)
+			return ret;
 
 		ret = des->ops->set_pipe_enable(des, pipe, false);
 		if (ret)
@@ -747,11 +751,11 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
-		v4l2_info(sd, "\tdbl8: %u\n", pipe->dbl8);
-		v4l2_info(sd, "\tdbl8mode: %u\n", pipe->dbl8mode);
-		v4l2_info(sd, "\tdbl10: %u\n", pipe->dbl10);
-		v4l2_info(sd, "\tdbl10mode: %u\n", pipe->dbl10mode);
-		v4l2_info(sd, "\tdbl12: %u\n", pipe->dbl12);
+		v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
+		v4l2_info(sd, "\tdbl8mode: %u\n", pipe->mode.dbl8mode);
+		v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
+		v4l2_info(sd, "\tdbl10mode: %u\n", pipe->mode.dbl10mode);
+		v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
 		v4l2_info(sd, "\tremaps: %u\n", pipe->num_remaps);
 		for (j = 0; j < pipe->num_remaps; j++) {
 			struct max_des_remap *remap = &pipe->remaps[j];
@@ -784,10 +788,10 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "\tlink_frequency: %llu\n", phy->link_frequency);
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
-		v4l2_info(sd, "\talt_mem_map8: %u\n", phy->alt_mem_map8);
-		v4l2_info(sd, "\talt2_mem_map8: %u\n", phy->alt2_mem_map8);
-		v4l2_info(sd, "\talt_mem_map10: %u\n", phy->alt_mem_map10);
-		v4l2_info(sd, "\talt_mem_map12: %u\n", phy->alt_mem_map12);
+		v4l2_info(sd, "\talt_mem_map8: %u\n", phy->mode.alt_mem_map8);
+		v4l2_info(sd, "\talt2_mem_map8: %u\n", phy->mode.alt2_mem_map8);
+		v4l2_info(sd, "\talt_mem_map10: %u\n", phy->mode.alt_mem_map10);
+		v4l2_info(sd, "\talt_mem_map12: %u\n", phy->mode.alt_mem_map12);
 		if (des->ops->log_phy_status) {
 			ret = des->ops->log_phy_status(des, phy, sd->name);
 			if (ret)
@@ -1382,13 +1386,13 @@ static int max_des_parse_phy_dt(struct max_des_priv *priv,
 				struct max_des_phy *phy,
 				struct fwnode_handle *fwnode)
 {
-	phy->alt_mem_map8 =
+	phy->mode.alt_mem_map8 =
 		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map8");
-	phy->alt2_mem_map8 =
+	phy->mode.alt2_mem_map8 =
 		fwnode_property_read_bool(fwnode, "maxim,alt2-mem-map8");
-	phy->alt_mem_map10 =
+	phy->mode.alt_mem_map10 =
 		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map10");
-	phy->alt_mem_map12 =
+	phy->mode.alt_mem_map12 =
 		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map12");
 
 	return 0;
@@ -1398,12 +1402,12 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 				 struct max_des_pipe *pipe,
 				 struct fwnode_handle *fwnode)
 {
-	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
+	pipe->mode.dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
+	pipe->mode.dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
+	pipe->mode.dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
 
-	pipe->dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
-	pipe->dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
+	pipe->mode.dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
+	pipe->mode.dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
 
 	return 0;
 }
