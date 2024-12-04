@@ -29,6 +29,13 @@ struct max_i2c_xlate {
 	u8 dst;
 };
 
+struct max_mipi_format {
+	u8 dt;
+	u8 bpp;
+};
+
+const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
+
 int max_get_fd_stream_entry(struct v4l2_subdev *sd,
 			    unsigned int pad, unsigned int stream,
 			    struct v4l2_mbus_frame_desc_entry *entry);
