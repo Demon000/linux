@@ -1152,35 +1152,6 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 	media_entity_cleanup(&sd->entity);
 }
 
-static int max_ser_parse_pipe_dt(struct max_ser_priv *priv,
-				 struct max_ser_pipe *pipe,
-				 struct fwnode_handle *fwnode)
-{
-	unsigned int val;
-
-	val = 0;
-	fwnode_property_read_u32(fwnode, "maxim,soft-bpp", &val);
-	if (val > 24) {
-		dev_err(priv->dev, "Invalid soft bpp %u\n", val);
-		return -EINVAL;
-	}
-	pipe->mode.soft_bpp = val;
-
-	val = 0;
-	fwnode_property_read_u32(fwnode, "maxim,bpp", &val);
-	if (val > 24) {
-		dev_err(priv->dev, "Invalid bpp %u\n", val);
-		return -EINVAL;
-	}
-	pipe->mode.bpp = val;
-
-	pipe->mode.dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	pipe->mode.dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	pipe->mode.dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
-
-	return 0;
-}
-
 static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 					  struct max_ser_phy *phy,
 					  struct max_ser_source *source,
@@ -1272,11 +1243,9 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
 	struct max_ser *ser = priv->ser;
-	const char *pipe_node_name = "pipe";
 	struct max_ser_pipe *pipe;
 	struct max_ser_phy *phy;
 	unsigned int i;
-	u32 index;
 	int ret;
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
@@ -1304,33 +1273,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		ret = max_ser_parse_sink_dt_endpoint(priv, phy, source, fwnode);
 		if (ret)
 			return ret;
-	}
-
-	device_for_each_child_node(priv->dev, fwnode) {
-		struct device_node *of_node = to_of_node(fwnode);
-
-		if (!of_node_name_eq(of_node, pipe_node_name))
-			continue;
-
-		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret) {
-			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
-			continue;
-		}
-
-		if (index >= ser->ops->num_pipes) {
-			dev_err(priv->dev, "Invalid pipe number %u\n", index);
-			fwnode_handle_put(fwnode);
-			return -EINVAL;
-		}
-
-		pipe = &ser->pipes[index];
-
-		ret = max_ser_parse_pipe_dt(priv, pipe, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
-			return ret;
-		}
 	}
 
 	return max_ser_find_phys_config(priv);
