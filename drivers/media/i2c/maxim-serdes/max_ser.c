@@ -562,6 +562,97 @@ static int max_ser_get_phy_vcs_dts(struct max_ser_priv *priv,
 	return 0;
 }
 
+static void max_ser_get_bpps(unsigned int *dts, unsigned int num_dts,
+			     unsigned int *bpps, unsigned int *num_bpps)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < num_dts; i++) {
+		const struct max_mipi_format *format;
+		unsigned int dt = dts[i];
+
+		format = max_mipi_format_by_dt(dt);
+		if (!format)
+			continue;
+
+		for (j = 0; j < *num_bpps; i++)
+			if (bpps[i] == format->bpp)
+				break;
+
+		bpps[i] = format->bpp;
+		(*num_bpps)++;
+	}
+}
+
+static void max_ser_get_min_max_bpps(unsigned int *bpps, unsigned int num_bpps,
+				     unsigned int *min_bpp_idx,
+				     unsigned int *max_bpp_idx)
+{
+	unsigned int i;
+
+	*min_bpp_idx = 0;
+	*max_bpp_idx = 0;
+
+	for (i = 0; i < num_bpps; i++) {
+		unsigned int bpp = bpps[i];
+
+		if (bpp < bpps[*min_bpp_idx]) {
+			*min_bpp_idx = i;
+		}
+
+		if (bpp > bpps[*max_bpp_idx])
+			*max_bpp_idx = i;
+	}
+
+}
+
+static int max_ser_get_mode(struct max_ser_priv *priv,
+			     unsigned int *dts, unsigned int num_dts,
+			     struct max_ser_pipe_mode *mode)
+{
+	unsigned int min_bpp_idx, max_bpp_idx;
+	unsigned int min_bpp, max_bpp;
+	unsigned int num_bpps;
+	unsigned int *bpps;
+
+	if (!num_dts)
+		return 0;
+
+	bpps = kcalloc(num_dts, sizeof(*bpps), GFP_KERNEL);
+	if (!bpps)
+		return -ENOMEM;
+
+	max_ser_get_bpps(dts, num_dts, bpps, &num_bpps);
+	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp_idx, &max_bpp_idx);
+
+	min_bpp = bpps[min_bpp_idx];
+	if (min_bpp <= 12) {
+		if (min_bpp == 8)
+			mode->dbl8 = true;
+		else if (min_bpp == 10)
+			mode->dbl10 = true;
+		else
+			mode->dbl12 = true;
+
+		bpps[min_bpp_idx] = min_bpp * 2;
+	}
+
+	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp_idx, &max_bpp_idx);
+
+	min_bpp = bpps[min_bpp_idx];
+	max_bpp = bpps[max_bpp_idx];
+
+	if (mode->dbl8 || mode->dbl10 || mode->dbl12)
+		mode->soft_bpp = min_bpp;
+
+	if (min_bpp != max_bpp)
+		mode->bpp = max_bpp;
+
+	kfree(bpps);
+
+	return 0;
+}
+
 static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 				  struct max_ser_phy *phy,
 				  struct max_ser_source *source,
@@ -570,6 +661,7 @@ static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 				  u64 streams_mask)
 {
 	struct max_ser *ser = priv->ser;
+	struct max_ser_pipe_mode mode = { 0 };
 	unsigned int num_dts;
 	unsigned int *dts;
 	unsigned int vcs;
@@ -585,22 +677,35 @@ static int max_ser_update_vcs_dts(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
+	ret = max_ser_get_mode(priv, dts, num_dts, &mode);
+	if (ret)
+		goto err_free_dts;
+
 	ret = ser->ops->set_pipe_vcs(ser, pipe, vcs);
 	if (ret)
 		goto err_free_dts;
 
-	ret = max_ser_set_pipe_dts(priv, pipe, dts, num_dts);
+	ret = ser->ops->set_pipe_mode(ser, pipe, &mode);
 	if (ret)
 		goto err_restore_vcs;
 
+	ret = max_ser_set_pipe_dts(priv, pipe, dts, num_dts);
+	if (ret)
+		goto err_restore_mode;
+
 	pipe->vcs = vcs;
+	pipe->mode = mode;
 
 	if (pipe->dts)
 		devm_kfree(priv->dev, pipe->dts);
+
 	pipe->dts = dts;
 	pipe->num_dts = num_dts;
 
 	return 0;
+
+err_restore_mode:
+	ser->ops->set_pipe_mode(ser, pipe, &pipe->mode);
 
 err_restore_vcs:
 	ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);
