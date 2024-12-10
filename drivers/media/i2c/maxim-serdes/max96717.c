@@ -41,6 +41,7 @@
 
 #define MAX96717_VIDEO_TX2(p)			(0x102 + (p) * 0x8)
 #define MAX96717_VIDEO_TX2_PCLKDET		BIT(7)
+#define MAX96717_VIDEO_TX2_DRIFT_DET_EN		BIT(1)
 
 #define MAX96717_GPIO_A(x)			(0x2be + (x) * 0x3)
 #define MAX96717_GPIO_A_GPIO_OUT_DIS		BIT(0)
@@ -1044,6 +1045,11 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX1(index),
 				 MAX96717_VIDEO_TX1_BPP,
 				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, mode->bpp));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX2(index),
+				MAX96717_VIDEO_TX2_DRIFT_DET_EN, !mode->bpp);
 	if (ret)
 		return ret;
 
