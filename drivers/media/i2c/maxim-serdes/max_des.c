@@ -956,16 +956,16 @@ static int max_des_update_link(struct max_des_priv *priv,
 	else
 		priv->streams_mask[pad] &= ~updated_streams_mask;
 
-	if (!streams_mask != !priv->streams_mask[pad]) {
-		ret = max_des_set_pipe_enable(des, pipe, enable);
-		if (ret)
-			goto err_revert_streams_mask;
-	}
-
 	ret = max_des_update_pipe(priv, context, link, source, pipe,
 				  priv->streams_mask[pad]);
 	if (ret)
-		goto err_revert_pipe_enable;
+		goto err_revert_streams_mask;
+
+	if (!streams_mask != !priv->streams_mask[pad]) {
+		ret = max_des_set_pipe_enable(des, pipe, enable);
+		if (ret)
+			goto err_revert_pipe_update;
+	}
 
 	if (enable)
 		ret = v4l2_subdev_enable_streams(source->sd, source->pad,
@@ -975,16 +975,16 @@ static int max_des_update_link(struct max_des_priv *priv,
 						  updated_streams_mask);
 
 	if (ret)
-		goto err_revert_pipe_update;
+		goto err_revert_pipe_enable;
 
 	return 0;
-
-err_revert_pipe_update:
-	max_des_update_pipe(priv, context, link, source, pipe, streams_mask);
 
 err_revert_pipe_enable:
 	if (!streams_mask != !priv->streams_mask[pad])
 		max_des_set_pipe_enable(des, pipe, !enable);
+
+err_revert_pipe_update:
+	max_des_update_pipe(priv, context, link, source, pipe, streams_mask);
 
 err_revert_streams_mask:
 	priv->streams_mask[pad] = streams_mask;
