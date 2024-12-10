@@ -523,6 +523,10 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 		if (sink_pad != route->sink_pad)
 			continue;
 
+		/*
+		 * Skip enabled streams, we only want to check for leaks
+		 * among the disabled streams.
+		 */
 		if ((BIT_ULL(route->sink_stream) & streams_mask))
 			continue;
 
