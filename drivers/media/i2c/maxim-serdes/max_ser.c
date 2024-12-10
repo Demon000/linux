@@ -551,7 +551,7 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 		if (i == *num_dts)
 			continue;
 
-		dev_warn(priv->dev, "Leaked disabled stream %u on pad %u with VC: %u, DT: %u",
+		dev_warn(priv->dev, "Leaked disabled stream %u:%u with VC: %u, DT: %u",
 			 route->source_pad, route->source_stream, vc, dt);
 	}
 
