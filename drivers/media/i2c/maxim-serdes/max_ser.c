@@ -406,7 +406,6 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		entry.bus.csi2.vc = entry.bus.csi2.vc;
 		entry.stream = route->source_stream;
 
 		fd->entry[fd->num_entries++] = entry;
