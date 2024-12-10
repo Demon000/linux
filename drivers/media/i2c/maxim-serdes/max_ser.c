@@ -401,7 +401,7 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 					      route->sink_stream, &entry);
 		if (ret) {
 			dev_err(priv->dev,
-				"Failed to find frame desc entry for pad %u, stream %u: %d\n",
+				"Failed to find frame desc entry for stream %u:%u: %d\n",
 				route->sink_pad, route->sink_stream, ret);
 			return ret;
 		}
@@ -487,7 +487,7 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 					      route->sink_stream, &entry);
 		if (ret) {
 			dev_err(priv->dev,
-				"Failed to find frame desc entry for pad %u, stream %u: %d\n",
+				"Failed to find frame desc entry for stream %u:%u: %d\n",
 				route->sink_pad, route->sink_stream, ret);
 			return ret;
 		}
@@ -534,7 +534,7 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 					      route->sink_stream, &entry);
 		if (ret) {
 			dev_err(priv->dev,
-				"Failed to find frame desc entry for pad %u, stream %u: %d\n",
+				"Failed to find frame desc entry for stream %u:%u: %d\n",
 				route->sink_pad, route->sink_stream, ret);
 			return ret;
 		}
