@@ -40,7 +40,7 @@
 #define MAX96717_VIDEO_TX1_BPP			GENMASK(5, 0)
 
 #define MAX96717_VIDEO_TX2(p)			(0x102 + (p) * 0x8)
-#define MAX96717_VIDEO_TX2CLKDET		BIT(7)
+#define MAX96717_VIDEO_TX2_PCLKDET		BIT(7)
 
 #define MAX96717_GPIO_A(x)			(0x2be + (x) * 0x3)
 #define MAX96717_GPIO_A_GPIO_OUT_DIS		BIT(0)
@@ -824,7 +824,7 @@ static int max96717_log_pipe_status(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tpclkdet: %u\n", name, !!(val & MAX96717_VIDEO_TX2CLKDET));
+	pr_info("%s: \tpclkdet: %u\n", name, !!(val & MAX96717_VIDEO_TX2_PCLKDET));
 
 	return 0;
 }
