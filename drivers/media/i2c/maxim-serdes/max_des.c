@@ -1064,7 +1064,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		if (ret) {
 			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
 				phy->index, enable, ret);
-			goto revert_update_active;
+			goto err_revert_update_active;
 		}
 	}
 
@@ -1119,7 +1119,7 @@ err_revert_phy_active:
 	if (!streams_mask != !priv->streams_mask[pad])
 		max_des_set_phy_active(des, phy, !enable);
 
-revert_update_active:
+err_revert_update_active:
 	max_des_update_active(priv, pad, streams_mask);
 
 err_revert_streams_mask:
