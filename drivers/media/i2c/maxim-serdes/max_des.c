@@ -1090,13 +1090,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 					  enable);
 		if (ret) {
 			failed_link_id = i;
-			goto revert_link_update;
+			goto err_revert_link_update;
 		}
 	}
 
 	return 0;
 
-revert_link_update:
+err_revert_link_update:
 	for (i = 0; i < failed_link_id; i++) {
 		struct max_des_link *link = &des->links[i];
 		u64 matched_streams_mask = updated_streams_mask;
