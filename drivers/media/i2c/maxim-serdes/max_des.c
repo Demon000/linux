@@ -549,6 +549,10 @@ static int max_des_init(struct max_des_priv *priv)
 		struct max_des_pipe *pipe = &des->pipes[i];
 		struct max_des_phy *phy = &des->phys[pipe->phy_id];
 
+		ret = des->ops->set_pipe_enable(des, pipe, false);
+		if (ret)
+			return ret;
+
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
 			return ret;
@@ -560,10 +564,6 @@ static int max_des_init(struct max_des_priv *priv)
 		}
 
 		ret = des->ops->set_pipe_mode(des, pipe, &pipe->mode);
-		if (ret)
-			return ret;
-
-		ret = des->ops->set_pipe_enable(des, pipe, false);
 		if (ret)
 			return ret;
 	}
