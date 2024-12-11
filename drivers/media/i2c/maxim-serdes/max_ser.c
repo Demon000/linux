@@ -787,8 +787,6 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	else
 		priv->streams_mask[pad] &= ~updated_streams_mask;
 
-	ser->active = !!priv->streams_mask[pad];
-
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 		u64 matched_streams_mask = updated_streams_mask;
@@ -841,6 +839,8 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
+	ser->active = !!priv->streams_mask[pad];
+
 	return 0;
 
 err_revert_phy_enable:
@@ -888,8 +888,6 @@ err_revert_phy_update:
 				   sink_pad, updated_sink_streams_mask,
 				   !enable);
 	}
-
-	ser->active = !!streams_mask;
 
 	priv->streams_mask[pad] = streams_mask;
 
