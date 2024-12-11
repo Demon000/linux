@@ -391,11 +391,8 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 		}
 
 		source = max_ser_find_phy_source(priv, phy);
-		if (!source) {
-			dev_err(priv->dev, "Failed to find source for pad %u\n",
-				route->sink_pad);
+		if (!source)
 			return -ENOENT;
-		}
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
