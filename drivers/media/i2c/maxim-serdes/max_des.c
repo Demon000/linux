@@ -967,21 +967,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 			goto err_revert_pipe_update;
 	}
 
-	if (enable)
-		ret = v4l2_subdev_enable_streams(source->sd, source->pad,
-						 updated_streams_mask);
-	else
-		ret = v4l2_subdev_disable_streams(source->sd, source->pad,
-						  updated_streams_mask);
-
-	if (ret)
-		goto err_revert_pipe_enable;
-
 	return 0;
-
-err_revert_pipe_enable:
-	if (!streams_mask != !priv->streams_mask[pad])
-		max_des_set_pipe_enable(des, pipe, !enable);
 
 err_revert_pipe_update:
 	max_des_update_pipe(priv, context, link, source, pipe, streams_mask);
@@ -1038,8 +1024,9 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	};
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy;
+	unsigned int failed_enable_link_id = des->ops->num_links;
+	unsigned int failed_update_link_id = des->ops->num_links;
 	u64 streams_mask;
-	unsigned int failed_link_id;
 	unsigned int i;
 	int ret;
 
@@ -1089,15 +1076,73 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 					  sink_pad, updated_sink_streams_mask,
 					  enable);
 		if (ret) {
-			failed_link_id = i;
+			failed_update_link_id = i;
 			goto err_revert_link_update;
+		}
+	}
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		u32 sink_pad = max_des_link_to_pad(des, link);
+		struct max_des_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
+
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (enable)
+			ret = v4l2_subdev_enable_streams(source->sd, source->pad,
+							 updated_sink_streams_mask);
+		else
+			ret = v4l2_subdev_disable_streams(source->sd, source->pad,
+							  updated_sink_streams_mask);
+
+		if (ret) {
+			failed_enable_link_id = i;
+			goto err_revert_link_enable;
 		}
 	}
 
 	return 0;
 
+err_revert_link_enable:
+	for (i = 0; i < failed_enable_link_id; i++) {
+		struct max_des_link *link = &des->links[i];
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		u32 sink_pad = max_des_link_to_pad(des, link);
+		struct max_des_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
+
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!enable)
+			v4l2_subdev_enable_streams(source->sd, source->pad,
+						   updated_sink_streams_mask);
+		else
+			v4l2_subdev_disable_streams(source->sd, source->pad,
+						    updated_sink_streams_mask);
+	}
+
 err_revert_link_update:
-	for (i = 0; i < failed_link_id; i++) {
+	for (i = 0; i < failed_update_link_id; i++) {
 		struct max_des_link *link = &des->links[i];
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
