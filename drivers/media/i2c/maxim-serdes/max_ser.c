@@ -734,14 +734,14 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 
 	streams_mask = priv->streams_mask[pad];
 	if (enable)
-		priv->streams_mask[pad] |= updated_streams_mask;
+		streams_mask |= updated_streams_mask;
 	else
-		priv->streams_mask[pad] &= ~updated_streams_mask;
+		streams_mask &= ~updated_streams_mask;
 
 	ret = max_ser_update_pipe(priv, source, pipe, &state->routing,
-				  pad, priv->streams_mask[pad]);
+				  pad, streams_mask);
 	if (ret)
-		goto err_revert_streams_mask;
+		return ret;
 
 	if (!streams_mask != !priv->streams_mask[pad]) {
 		ret = max_ser_phy_set_active(ser, phy, enable);
@@ -753,6 +753,8 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 			goto err_revert_phy_active;
 	}
 
+	priv->streams_mask[pad] = streams_mask;
+
 	return 0;
 
 err_revert_phy_active:
@@ -761,10 +763,7 @@ err_revert_phy_active:
 
 err_revert_pipe_update:
 	max_ser_update_pipe(priv, source, pipe, &state->routing,
-			    pad, streams_mask);
-
-err_revert_streams_mask:
-	priv->streams_mask[pad] = streams_mask;
+			    pad, priv->streams_mask[pad]);
 
 	return ret;
 }
@@ -783,9 +782,9 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 
 	streams_mask = priv->streams_mask[pad];
 	if (enable)
-		priv->streams_mask[pad] |= updated_streams_mask;
+		streams_mask |= updated_streams_mask;
 	else
-		priv->streams_mask[pad] &= ~updated_streams_mask;
+		streams_mask &= ~updated_streams_mask;
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
@@ -839,7 +838,8 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
-	ser->active = !!priv->streams_mask[pad];
+	ser->active = !!streams_mask;
+	priv->streams_mask[pad] = streams_mask;
 
 	return 0;
 
@@ -888,8 +888,6 @@ err_revert_phy_update:
 				   sink_pad, updated_sink_streams_mask,
 				   !enable);
 	}
-
-	priv->streams_mask[pad] = streams_mask;
 
 	return ret;
 }
