@@ -721,8 +721,8 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 			      u32 pad, u64 updated_streams_mask,
 			      bool enable)
 {
-	struct max_ser_source *source;
 	struct max_ser *ser = priv->ser;
+	struct max_ser_source *source;
 	struct max_ser_pipe *pipe;
 	u64 streams_mask;
 	int ret;
