@@ -756,21 +756,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 			goto err_revert_phy_active;
 	}
 
-	if (enable)
-		ret = v4l2_subdev_enable_streams(source->sd, source->pad,
-						 updated_streams_mask);
-	else
-		ret = v4l2_subdev_disable_streams(source->sd, source->pad,
-						  updated_streams_mask);
-
-	if (ret)
-		goto err_revert_pipe_active;
-
 	return 0;
-
-err_revert_pipe_active:
-	if (!streams_mask != !priv->streams_mask[pad])
-		max_ser_set_pipe_enable(ser, pipe, !enable);
 
 err_revert_phy_active:
 	if (!streams_mask != !priv->streams_mask[pad])
@@ -792,8 +778,9 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
+	unsigned int failed_update_phy_id = ser->ops->num_phys;
+	unsigned int failed_enable_phy_id = ser->ops->num_phys;
 	u64 streams_mask;
-	unsigned int failed_phy_id;
 	unsigned int i;
 	int ret;
 
@@ -822,15 +809,72 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 					 sink_pad, updated_sink_streams_mask,
 					 enable);
 		if (ret) {
-			failed_phy_id = i;
+			failed_update_phy_id = i;
 			goto err_revert_phy_update;
+		}
+	}
+
+	for (i = 0; i < ser->ops->num_phys; i++) {
+		struct max_ser_phy *phy = &ser->phys[i];
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
+		struct max_ser_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
+
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = max_ser_find_phy_source(priv, phy);
+		if (!source)
+			return -ENOENT;
+
+		if (enable)
+			ret = v4l2_subdev_enable_streams(source->sd, source->pad,
+							 updated_sink_streams_mask);
+		else
+			ret = v4l2_subdev_disable_streams(source->sd, source->pad,
+							  updated_sink_streams_mask);
+		if (ret) {
+			failed_enable_phy_id = i;
+			goto err_revert_phy_enable;
 		}
 	}
 
 	return 0;
 
+err_revert_phy_enable:
+	for (i = 0; i < failed_enable_phy_id; i++) {
+		struct max_ser_phy *phy = &ser->phys[i];
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
+		struct max_ser_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
+							&matched_streams_mask);
+
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = max_ser_find_phy_source(priv, phy);
+		if (!source)
+			return -ENOENT;
+
+		if (!enable)
+			v4l2_subdev_enable_streams(source->sd, source->pad,
+						   updated_sink_streams_mask);
+		else
+			v4l2_subdev_disable_streams(source->sd, source->pad,
+						    updated_sink_streams_mask);
+	}
+
 err_revert_phy_update:
-	for (i = 0; i < failed_phy_id; i++) {
+	for (i = 0; i < failed_update_phy_id; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
