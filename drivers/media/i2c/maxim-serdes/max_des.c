@@ -272,11 +272,8 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		}
 
 		source = max_des_find_link_source(priv, link);
-		if (!source) {
-			dev_err(priv->dev, "Failed to find source for pad %u\n",
-				route->sink_pad);
+		if (!source)
 			return -ENOENT;
-		}
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
@@ -851,11 +848,8 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 		}
 
 		source = max_des_find_link_source(priv, link);
-		if (!source) {
-			dev_err(priv->dev, "Failed to find source for pad %u\n",
-				route->sink_pad);
+		if (!source)
 			return -ENOENT;
-		}
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
@@ -945,10 +939,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 	}
 
 	source = max_des_find_link_source(priv, link);
-	if (!source) {
-		dev_err(priv->dev, "Failed to find source for link %u\n", link->index);
+	if (!source)
 		return -ENOENT;
-	}
 
 	streams_mask = priv->streams_mask[pad];
 	if (enable)
@@ -1309,11 +1301,8 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 		struct max_des_asc *asc;
 
 		source = max_des_find_link_source(priv, link);
-		if (!source) {
-			dev_err(priv->dev, "Failed to find source for link %u\n",
-				link->index);
+		if (!source)
 			return -ENOENT;
-		}
 
 		if (!source->ep_fwnode)
 			continue;
