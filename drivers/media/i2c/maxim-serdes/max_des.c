@@ -952,14 +952,14 @@ static int max_des_update_link(struct max_des_priv *priv,
 
 	streams_mask = priv->streams_mask[pad];
 	if (enable)
-		priv->streams_mask[pad] |= updated_streams_mask;
+		streams_mask |= updated_streams_mask;
 	else
-		priv->streams_mask[pad] &= ~updated_streams_mask;
+		streams_mask &= ~updated_streams_mask;
 
 	ret = max_des_update_pipe(priv, context, link, source, pipe,
-				  priv->streams_mask[pad]);
+				  streams_mask);
 	if (ret)
-		goto err_revert_streams_mask;
+		return ret;
 
 	if (!streams_mask != !priv->streams_mask[pad]) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
@@ -967,13 +967,13 @@ static int max_des_update_link(struct max_des_priv *priv,
 			goto err_revert_pipe_update;
 	}
 
+	priv->streams_mask[pad] = streams_mask;
+
 	return 0;
 
 err_revert_pipe_update:
-	max_des_update_pipe(priv, context, link, source, pipe, streams_mask);
-
-err_revert_streams_mask:
-	priv->streams_mask[pad] = streams_mask;
+	max_des_update_pipe(priv, context, link, source, pipe,
+			    priv->streams_mask[pad]);
 
 	return ret;
 }
@@ -1038,13 +1038,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 
 	streams_mask = priv->streams_mask[pad];
 	if (enable)
-		priv->streams_mask[pad] |= updated_streams_mask;
+		streams_mask |= updated_streams_mask;
 	else
-		priv->streams_mask[pad] &= ~updated_streams_mask;
+		streams_mask &= ~updated_streams_mask;
 
-	ret = max_des_update_active(priv, pad, priv->streams_mask[pad]);
+	ret = max_des_update_active(priv, pad, streams_mask);
 	if (ret)
-		goto err_revert_streams_mask;
+		return ret;
 
 	if (!streams_mask != !priv->streams_mask[pad]) {
 		ret = max_des_set_phy_active(des, phy, enable);
@@ -1112,6 +1112,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
+	priv->streams_mask[pad] = streams_mask;
+
 	return 0;
 
 err_revert_link_enable:
@@ -1166,9 +1168,6 @@ err_revert_phy_active:
 
 err_revert_update_active:
 	max_des_update_active(priv, pad, streams_mask);
-
-err_revert_streams_mask:
-	priv->streams_mask[pad] = streams_mask;
 
 	return ret;
 }
