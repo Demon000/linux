@@ -970,6 +970,25 @@ err_revert_pipe_update:
 	return ret;
 }
 
+static int max_des_update_phy(struct max_des_priv *priv,
+			      struct max_des_phy *phy,
+			      u32 pad, u64 streams_mask, bool enable)
+{
+	struct max_des *des = priv->des;
+	int ret;
+
+	if (!streams_mask != !priv->streams_mask[pad]) {
+		ret = max_des_set_phy_active(des, phy, enable);
+		if (ret) {
+			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
+				phy->index, enable, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int max_des_update_active(struct max_des_priv *priv,
 				 u32 updated_pad, u64 streams_mask)
 {
@@ -1038,18 +1057,9 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	if (!streams_mask != !priv->streams_mask[pad]) {
-		ret = max_des_set_phy_active(des, phy, enable);
-		if (ret) {
-			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
-				phy->index, enable, ret);
-			goto err_revert_update_active;
-		}
-	}
-
 	ret = max_des_populate_remap_context(priv, &context);
 	if (ret)
-		goto err_revert_phy_active;
+		goto err_revert_update_active;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -1072,6 +1082,10 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 			goto err_revert_link_update;
 		}
 	}
+
+	ret = max_des_update_phy(priv, phy, pad, streams_mask, enable);
+	if (ret)
+		goto err_revert_link_update;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -1135,6 +1149,8 @@ err_revert_link_enable:
 						    updated_sink_streams_mask);
 	}
 
+	max_des_update_phy(priv, phy, pad, streams_mask, !enable);
+
 err_revert_link_update:
 	for (i = 0; i < failed_update_link_id; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -1153,10 +1169,6 @@ err_revert_link_update:
 				    sink_pad, updated_streams_mask,
 				    !enable);
 	}
-
-err_revert_phy_active:
-	if (!streams_mask != !priv->streams_mask[pad])
-		max_des_set_phy_active(des, phy, !enable);
 
 err_revert_update_active:
 	max_des_update_active(priv, pad, streams_mask);
