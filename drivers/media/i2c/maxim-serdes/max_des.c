@@ -62,7 +62,6 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
-	const struct v4l2_subdev_krouting *routing;
 	/* Map between link VC ids and PHY VC ids. */
 	unsigned int vc_ids_map[MAX_DES_LINKS_NUM][MAX_DES_PHYS_NUM][MAX_SERDES_VC_ID_NUM];
 	/* Mark whether a link VC id has been mapped to a PHY VC id. */
@@ -238,13 +237,14 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 }
 
 static int max_des_populate_remap_context(struct max_des_priv *priv,
-					  struct max_des_remap_context *context)
+					  struct max_des_remap_context *context,
+					  const struct v4l2_subdev_krouting *routing)
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	int ret;
 
-	for_each_active_route(context->routing, route) {
+	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_des_source *source;
 		struct max_des_link *link;
@@ -311,6 +311,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 			      struct max_des_source *source,
 			      struct max_des_remap *remaps,
 			      unsigned int *num_remaps,
+			      const struct v4l2_subdev_krouting *routing,
 			      u64 streams_mask)
 {
 	struct max_des *des = priv->des;
@@ -322,7 +323,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 
 	*num_remaps = 0;
 
-	for_each_active_route(context->routing, route) {
+	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_des_phy *phy;
 		unsigned int src_vc_id, dst_vc_id;
@@ -413,6 +414,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_link *link,
 			       struct max_des_source *source,
 			       struct max_des_pipe *pipe,
+			       const struct v4l2_subdev_krouting *routing,
 			       u64 streams_mask)
 {
 	struct max_des *des = priv->des;
@@ -426,7 +428,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 		return -ENOMEM;
 
 	ret = max_des_get_remaps(priv, context, link, source,
-				 remaps, &num_remaps, streams_mask);
+				 remaps, &num_remaps, routing, streams_mask);
 	if (ret)
 		goto err_free_new_remaps;
 
@@ -830,9 +832,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 
-	context.routing = &state->routing;
-
-	ret = max_des_populate_remap_context(priv, &context);
+	ret = max_des_populate_remap_context(priv, &context, &state->routing);
 	if (ret)
 		return ret;
 
@@ -927,6 +927,7 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
+			       const struct v4l2_subdev_krouting *routing,
 			       u32 pad, u64 updated_streams_mask,
 			       bool enable)
 {
@@ -953,7 +954,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 		streams_mask &= ~updated_streams_mask;
 
 	ret = max_des_update_pipe(priv, context, link, source, pipe,
-				  streams_mask);
+				  routing, streams_mask);
 	if (ret)
 		return ret;
 
@@ -969,13 +970,14 @@ static int max_des_update_link(struct max_des_priv *priv,
 
 err_revert_pipe_update:
 	max_des_update_pipe(priv, context, link, source, pipe,
-			    priv->streams_mask[pad]);
+			    routing, priv->streams_mask[pad]);
 
 	return ret;
 }
 
 static int max_des_update_phy(struct max_des_priv *priv,
 			      struct max_des_phy *phy,
+			      const struct v4l2_subdev_krouting *routing,
 			      u32 pad, u64 streams_mask, bool enable)
 {
 	struct max_des *des = priv->des;
@@ -1034,9 +1036,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 				  u32 pad, u64 updated_streams_mask, bool enable)
 {
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
-	struct max_des_remap_context context = {
-		.routing = &state->routing,
-	};
+	struct max_des_remap_context context = { 0 };
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy;
 	unsigned int failed_enable_link_id = des->ops->num_links;
@@ -1061,7 +1061,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_populate_remap_context(priv, &context);
+	ret = max_des_populate_remap_context(priv, &context, &state->routing);
 	if (ret)
 		goto err_revert_update_active;
 
@@ -1079,8 +1079,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 			continue;
 
 		ret = max_des_update_link(priv, &context, link,
-					  sink_pad, updated_sink_streams_mask,
-					  enable);
+					  &state->routing, sink_pad,
+					  updated_sink_streams_mask, enable);
 		if (ret) {
 			failed_update_link_id = i;
 			goto err_revert_link_update;
@@ -1170,8 +1170,8 @@ err_revert_link_update:
 			continue;
 
 		max_des_update_link(priv, &context, link,
-				    sink_pad, updated_streams_mask,
-				    !enable);
+				    &state->routing, sink_pad,
+				    updated_streams_mask, !enable);
 	}
 
 err_revert_update_active:
