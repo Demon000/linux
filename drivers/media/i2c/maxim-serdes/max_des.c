@@ -177,12 +177,6 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 			return ret;
 	}
 
-	if (pipe->remaps)
-		devm_kfree(priv->dev, pipe->remaps);
-
-	pipe->remaps = remaps;
-	pipe->num_remaps = num_remaps;
-
 	return 0;
 }
 
@@ -440,6 +434,12 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 	if (ret)
 		goto err_free_new_remaps;
 
+	if (pipe->remaps)
+		devm_kfree(priv->dev, pipe->remaps);
+
+	pipe->remaps = remaps;
+	pipe->num_remaps = num_remaps;
+
 	return 0;
 
 err_free_new_remaps:
@@ -561,6 +561,11 @@ static int max_des_init(struct max_des_priv *priv)
 		}
 
 		ret = des->ops->set_pipe_mode(des, pipe, &pipe->mode);
+		if (ret)
+			return ret;
+
+		ret = max_des_set_pipe_remaps(priv, pipe, pipe->remaps,
+					      pipe->num_remaps);
 		if (ret)
 			return ret;
 	}
