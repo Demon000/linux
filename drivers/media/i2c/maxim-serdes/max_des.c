@@ -1057,13 +1057,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	else
 		streams_mask &= ~updated_streams_mask;
 
-	ret = max_des_update_active(priv, pad, streams_mask);
+	ret = max_des_populate_remap_context(priv, &context, &state->routing);
 	if (ret)
 		return ret;
 
-	ret = max_des_populate_remap_context(priv, &context, &state->routing);
+	ret = max_des_update_active(priv, pad, streams_mask);
 	if (ret)
-		goto err_revert_update_active;
+		return ret;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -1174,7 +1174,6 @@ err_revert_link_update:
 				    updated_streams_mask, !enable);
 	}
 
-err_revert_update_active:
 	max_des_update_active(priv, pad, streams_mask);
 
 	return ret;
