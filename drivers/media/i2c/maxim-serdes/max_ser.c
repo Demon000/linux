@@ -600,7 +600,6 @@ static void max_ser_get_min_max_bpps(unsigned int *bpps, unsigned int num_bpps,
 		if (bpp > bpps[*max_bpp_idx])
 			*max_bpp_idx = i;
 	}
-
 }
 
 static int max_ser_get_mode(struct max_ser_priv *priv,
