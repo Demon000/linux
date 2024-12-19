@@ -540,48 +540,34 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 	return 0;
 }
 
-static void max_ser_get_bpps(unsigned int *dts, unsigned int num_dts,
-			     unsigned int *bpps, unsigned int *num_bpps)
+static void max_ser_get_min_max_bpps(unsigned int *dts, unsigned int num_dts,
+				     unsigned int *min_bpp, unsigned int *max_bpp,
+				     unsigned int old_bpp, unsigned new_bpp)
 {
-	unsigned int i, j;
+	unsigned int i;
+
+	*min_bpp = 0;
+	*max_bpp = 0;
 
 	for (i = 0; i < num_dts; i++) {
 		const struct max_mipi_format *format;
-		unsigned int dt = dts[i];
+		unsigned int bpp;
 
-		format = max_mipi_format_by_dt(dt);
+		format = max_mipi_format_by_dt(dts[i]);
 		if (!format)
 			continue;
 
-		for (j = 0; j < *num_bpps; i++)
-			if (bpps[i] == format->bpp)
-				break;
+		bpp = format->bpp;
 
-		bpps[i] = format->bpp;
-		(*num_bpps)++;
+		if (bpp == old_bpp)
+			bpp = new_bpp;
+
+		if (*min_bpp == 0 || bpp < *min_bpp)
+			*min_bpp = bpp;
+
+		if (*max_bpp == 0 || bpp > *max_bpp)
+			*max_bpp = bpp;
 	}
-}
-
-static void max_ser_get_min_max_bpps(unsigned int *bpps, unsigned int num_bpps,
-				     unsigned int *min_bpp, unsigned int *max_bpp)
-{
-	unsigned int min_bpp_idx = 0;
-	unsigned int max_bpp_idx = 0;
-	unsigned int i;
-
-	for (i = 0; i < num_bpps; i++) {
-		unsigned int bpp = bpps[i];
-
-		if (bpp < bpps[min_bpp_idx]) {
-			min_bpp_idx = i;
-		}
-
-		if (bpp > bpps[max_bpp_idx])
-			max_bpp_idx = i;
-	}
-
-	*min_bpp = bpps[min_bpp_idx];
-	*max_bpp = bpps[max_bpp_idx];
 }
 
 static int max_ser_get_mode(struct max_ser_priv *priv,
@@ -589,19 +575,15 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 			    struct max_ser_pipe_mode *mode)
 {
 	unsigned int min_bpp, max_bpp;
-	unsigned int num_bpps;
+	unsigned int old_bpp = 0;
+	unsigned int new_bpp = 0;
 	unsigned int *bpps;
-	unsigned int i;
 
 	if (!num_dts)
 		return 0;
 
-	bpps = kcalloc(num_dts, sizeof(*bpps), GFP_KERNEL);
-	if (!bpps)
-		return -ENOMEM;
-
-	max_ser_get_bpps(dts, num_dts, bpps, &num_bpps);
-	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp, &max_bpp);
+	max_ser_get_min_max_bpps(dts, num_dts, &min_bpp, &max_bpp,
+				 old_bpp, new_bpp);
 
 	if (min_bpp <= 12) {
 		if (min_bpp == 8)
@@ -611,12 +593,12 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 		else
 			mode->dbl12 = true;
 
-		for (i = 0; i < num_bpps; i++)
-			if (bpps[i] == min_bpp)
-				bpps[i] = min_bpp * 2;
+		old_bpp = min_bpp;
+		new_bpp = min_bpp * 2;
 	}
 
-	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp, &max_bpp);
+	max_ser_get_min_max_bpps(dts, num_dts, &min_bpp, &max_bpp,
+				 old_bpp, new_bpp);
 
 	if (mode->dbl8 || mode->dbl10 || mode->dbl12)
 		mode->soft_bpp = min_bpp;
