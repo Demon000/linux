@@ -27,20 +27,6 @@
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_LINKS_NUM		4
 
-struct max_des_source {
-	struct v4l2_subdev *sd;
-	u16 pad;
-	struct fwnode_handle *ep_fwnode;
-
-	unsigned int index;
-};
-
-struct max_des_asc {
-	struct v4l2_async_connection base;
-	struct max_des_source *source;
-	struct max_des_priv *priv;
-};
-
 struct max_des_priv {
 	struct max_des *des;
 
@@ -49,7 +35,7 @@ struct max_des_priv {
 	struct i2c_atr *atr;
 
 	struct media_pad *pads;
-	struct max_des_source *sources;
+	struct max_source *sources;
 	u64 *streams_mask;
 
 	struct mutex lock;
@@ -69,11 +55,6 @@ struct max_des_remap_context {
 	/* Mark whether a PHY VC id has been mapped. */
 	unsigned long dst_vc_ids_masks[MAX_DES_PHYS_NUM];
 };
-
-static inline struct max_des_asc *asc_to_max(struct v4l2_async_connection *asc)
-{
-	return container_of(asc, struct max_des_asc, base);
-}
 
 static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
@@ -143,7 +124,7 @@ max_des_find_link_pipe(struct max_des *des, struct max_des_link *link)
 	return NULL;
 }
 
-static struct max_des_source *
+static struct max_source *
 max_des_find_link_source(struct max_des_priv *priv, struct max_des_link *link)
 {
 	return &priv->sources[link->index];
@@ -246,7 +227,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_des_source *source;
+		struct max_source *source;
 		struct max_des_link *link;
 		struct max_des_phy *phy;
 		unsigned int vc_id;
@@ -308,7 +289,7 @@ static int max_des_add_remap(struct max_des_remap *remaps,
 static int max_des_get_remaps(struct max_des_priv *priv,
 			      struct max_des_remap_context *context,
 			      struct max_des_link *link,
-			      struct max_des_source *source,
+			      struct max_source *source,
 			      struct max_des_remap *remaps,
 			      unsigned int *num_remaps,
 			      const struct v4l2_subdev_krouting *routing,
@@ -412,7 +393,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
-			       struct max_des_source *source,
+			       struct max_source *source,
 			       struct max_des_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
 			       u64 streams_mask)
@@ -838,7 +819,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 
 	for_each_active_route(&state->routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_des_source *source;
+		struct max_source *source;
 		struct max_des_link *link;
 		unsigned int dst_vc_id;
 
@@ -931,7 +912,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 			       u32 pad, u64 updated_streams_mask,
 			       bool enable)
 {
-	struct max_des_source *source;
+	struct max_source *source;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe;
 	u64 streams_mask;
@@ -1097,7 +1078,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_des_link_to_pad(des, link);
-		struct max_des_source *source;
+		struct max_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
@@ -1133,7 +1114,7 @@ err_revert_link_enable:
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_des_link_to_pad(des, link);
-		struct max_des_source *source;
+		struct max_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
@@ -1258,8 +1239,8 @@ static int max_des_notify_bound(struct v4l2_async_notifier *nf,
 				struct v4l2_async_connection *base_asc)
 {
 	struct max_des_priv *priv = nf_to_priv(nf);
-	struct max_des_asc *asc = asc_to_max(base_asc);
-	struct max_des_source *source = asc->source;
+	struct max_asc *asc = asc_to_max(base_asc);
+	struct max_source *source = asc->source;
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[source->index];
 	unsigned int pad = max_des_link_to_pad(des, link);
@@ -1293,8 +1274,8 @@ static void max_des_notify_unbind(struct v4l2_async_notifier *nf,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *base_asc)
 {
-	struct max_des_asc *asc = asc_to_max(base_asc);
-	struct max_des_source *source = asc->source;
+	struct max_asc *asc = asc_to_max(base_asc);
+	struct max_source *source = asc->source;
 
 	source->sd = NULL;
 }
@@ -1314,8 +1295,8 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		struct max_des_source *source;
-		struct max_des_asc *asc;
+		struct max_source *source;
+		struct max_asc *asc;
 
 		source = max_des_find_link_source(priv, link);
 		if (!source)
@@ -1325,7 +1306,7 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 			continue;
 
 		asc = v4l2_async_nf_add_fwnode(&priv->nf, source->ep_fwnode,
-					       struct max_des_asc);
+					       struct max_asc);
 		if (IS_ERR(asc)) {
 			dev_err(priv->dev,
 				"Failed to add subdev for source %u: %pe", i,
@@ -1337,7 +1318,6 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 		}
 
 		asc->source = source;
-		asc->priv = priv;
 	}
 
 	priv->nf.ops = &max_des_notify_ops;
@@ -1468,7 +1448,7 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 
 static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 					  struct max_des_link *link,
-					  struct max_des_source *source,
+					  struct max_source *source,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_des *des = priv->des;
@@ -1719,7 +1699,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		struct max_des_source *source;
+		struct max_source *source;
 
 		source = max_des_find_link_source(priv, link);
 		if (!source)

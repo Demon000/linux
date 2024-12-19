@@ -34,6 +34,24 @@ struct max_mipi_format {
 	u8 bpp;
 };
 
+struct max_source {
+	struct v4l2_subdev *sd;
+	u16 pad;
+	struct fwnode_handle *ep_fwnode;
+
+	unsigned int index;
+};
+
+struct max_asc {
+	struct v4l2_async_connection base;
+	struct max_source *source;
+};
+
+static inline struct max_asc *asc_to_max(struct v4l2_async_connection *asc)
+{
+	return container_of(asc, struct max_asc, base);
+}
+
 const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
 
 int max_get_fd_stream_entry(struct v4l2_subdev *sd,
