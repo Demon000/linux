@@ -1809,6 +1809,12 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	struct max_des_priv *priv;
 	int ret;
 
+	if (des->ops->num_links > MAX_DES_LINKS_NUM)
+		return -E2BIG;
+
+	if (des->ops->num_phys > MAX_DES_PHYS_NUM)
+		return -E2BIG;
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
