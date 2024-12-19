@@ -585,8 +585,8 @@ static void max_ser_get_min_max_bpps(unsigned int *bpps, unsigned int num_bpps,
 }
 
 static int max_ser_get_mode(struct max_ser_priv *priv,
-			     unsigned int *dts, unsigned int num_dts,
-			     struct max_ser_pipe_mode *mode)
+			    unsigned int *dts, unsigned int num_dts,
+			    struct max_ser_pipe_mode *mode)
 {
 	unsigned int min_bpp, max_bpp;
 	unsigned int num_bpps;
