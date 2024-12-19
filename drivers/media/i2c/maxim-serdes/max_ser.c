@@ -582,34 +582,35 @@ static void max_ser_get_bpps(unsigned int *dts, unsigned int num_dts,
 }
 
 static void max_ser_get_min_max_bpps(unsigned int *bpps, unsigned int num_bpps,
-				     unsigned int *min_bpp_idx,
-				     unsigned int *max_bpp_idx)
+				     unsigned int *min_bpp, unsigned int *max_bpp)
 {
+	unsigned int min_bpp_idx = 0;
+	unsigned int max_bpp_idx = 0;
 	unsigned int i;
-
-	*min_bpp_idx = 0;
-	*max_bpp_idx = 0;
 
 	for (i = 0; i < num_bpps; i++) {
 		unsigned int bpp = bpps[i];
 
-		if (bpp < bpps[*min_bpp_idx]) {
-			*min_bpp_idx = i;
+		if (bpp < bpps[min_bpp_idx]) {
+			min_bpp_idx = i;
 		}
 
-		if (bpp > bpps[*max_bpp_idx])
-			*max_bpp_idx = i;
+		if (bpp > bpps[max_bpp_idx])
+			max_bpp_idx = i;
 	}
+
+	*min_bpp = bpps[min_bpp_idx];
+	*max_bpp = bpps[max_bpp_idx];
 }
 
 static int max_ser_get_mode(struct max_ser_priv *priv,
 			     unsigned int *dts, unsigned int num_dts,
 			     struct max_ser_pipe_mode *mode)
 {
-	unsigned int min_bpp_idx, max_bpp_idx;
 	unsigned int min_bpp, max_bpp;
 	unsigned int num_bpps;
 	unsigned int *bpps;
+	unsigned int i;
 
 	if (!num_dts)
 		return 0;
@@ -619,9 +620,8 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 		return -ENOMEM;
 
 	max_ser_get_bpps(dts, num_dts, bpps, &num_bpps);
-	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp_idx, &max_bpp_idx);
+	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp, &max_bpp);
 
-	min_bpp = bpps[min_bpp_idx];
 	if (min_bpp <= 12) {
 		if (min_bpp == 8)
 			mode->dbl8 = true;
@@ -630,13 +630,12 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 		else
 			mode->dbl12 = true;
 
-		bpps[min_bpp_idx] = min_bpp * 2;
+		for (i = 0; i < num_bpps; i++)
+			if (bpps[i] == min_bpp)
+				bpps[i] = min_bpp * 2;
 	}
 
-	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp_idx, &max_bpp_idx);
-
-	min_bpp = bpps[min_bpp_idx];
-	max_bpp = bpps[max_bpp_idx];
+	max_ser_get_min_max_bpps(bpps, num_bpps, &min_bpp, &max_bpp);
 
 	if (mode->dbl8 || mode->dbl10 || mode->dbl12)
 		mode->soft_bpp = min_bpp;
