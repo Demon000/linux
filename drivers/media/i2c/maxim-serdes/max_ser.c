@@ -20,20 +20,6 @@
 
 #define MAX_SER_NUM_LINKS	1
 
-struct max_ser_source {
-	struct v4l2_subdev *sd;
-	u16 pad;
-	struct fwnode_handle *ep_fwnode;
-
-	unsigned int index;
-};
-
-struct max_ser_asc {
-	struct v4l2_async_connection base;
-	struct max_ser_source *source;
-	struct max_ser_priv *priv;
-};
-
 struct max_ser_priv {
 	struct max_ser *ser;
 	struct device *dev;
@@ -43,7 +29,7 @@ struct max_ser_priv {
 	struct i2c_atr *atr;
 
 	struct media_pad *pads;
-	struct max_ser_source *sources;
+	struct max_source *sources;
 	u64 *streams_mask;
 
 	struct mutex lock;
@@ -51,11 +37,6 @@ struct max_ser_priv {
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
 };
-
-static inline struct max_ser_asc *asc_to_max(struct v4l2_async_connection *asc)
-{
-	return container_of(asc, struct max_ser_asc, base);
-}
 
 static inline struct max_ser_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
@@ -111,7 +92,7 @@ max_ser_find_phy_pipe(struct max_ser *ser, struct max_ser_phy *phy)
 	return NULL;
 }
 
-static struct max_ser_source *
+static struct max_source *
 max_ser_find_phy_source(struct max_ser_priv *priv, struct max_ser_phy *phy)
 {
 	return &priv->sources[phy->index];
@@ -377,7 +358,7 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 
 	for_each_active_route(&state->routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_ser_source *source;
+		struct max_source *source;
 		struct max_ser_phy *phy;
 
 		if (pad != route->source_pad)
@@ -458,7 +439,7 @@ static int max_ser_set_routing(struct v4l2_subdev *sd,
 
 static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 			       const struct v4l2_subdev_krouting *routing,
-			       struct max_ser_source *source,
+			       struct max_source *source,
 			       unsigned int *vcs,
 			       unsigned int *dts, unsigned int *num_dts,
 			       u32 sink_pad, u64 streams_mask)
@@ -649,7 +630,7 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 }
 
 static int max_ser_update_pipe(struct max_ser_priv *priv,
-			       struct max_ser_source *source,
+			       struct max_source *source,
 			       struct max_ser_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
 			       u32 sink_pad, u64 streams_mask)
@@ -717,7 +698,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 			      bool enable)
 {
 	struct max_ser *ser = priv->ser;
-	struct max_ser_source *source;
+	struct max_source *source;
 	struct max_ser_pipe *pipe;
 	u64 streams_mask;
 	int ret;
@@ -811,7 +792,7 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
-		struct max_ser_source *source;
+		struct max_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
@@ -847,7 +828,7 @@ err_revert_phy_enable:
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
-		struct max_ser_source *source;
+		struct max_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
@@ -1021,8 +1002,8 @@ static int max_ser_notify_bound(struct v4l2_async_notifier *nf,
 			        struct v4l2_async_connection *base_asc)
 {
 	struct max_ser_priv *priv = nf_to_priv(nf);
-	struct max_ser_asc *asc = asc_to_max(base_asc);
-	struct max_ser_source *source = asc->source;
+	struct max_asc *asc = asc_to_max(base_asc);
+	struct max_source *source = asc->source;
 	unsigned int pad = source->index;
 	int ret;
 
@@ -1054,8 +1035,8 @@ static void max_ser_notify_unbind(struct v4l2_async_notifier *nf,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *base_asc)
 {
-	struct max_ser_asc *asc = asc_to_max(base_asc);
-	struct max_ser_source *source = asc->source;
+	struct max_asc *asc = asc_to_max(base_asc);
+	struct max_source *source = asc->source;
 
 	source->sd = NULL;
 }
@@ -1075,8 +1056,8 @@ static int max_ser_v4l2_notifier_register(struct max_ser_priv *priv)
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
-		struct max_ser_source *source;
-		struct max_ser_asc *asc;
+		struct max_source *source;
+		struct max_asc *asc;
 
 		source = max_ser_find_phy_source(priv, phy);
 		if (!source)
@@ -1086,7 +1067,7 @@ static int max_ser_v4l2_notifier_register(struct max_ser_priv *priv)
 			continue;
 
 		asc = v4l2_async_nf_add_fwnode(&priv->nf, source->ep_fwnode,
-					       struct max_ser_asc);
+					       struct max_asc);
 		if (IS_ERR(asc)) {
 			dev_err(priv->dev,
 				"Failed to add subdev for source %u: %pe", i,
@@ -1098,7 +1079,6 @@ static int max_ser_v4l2_notifier_register(struct max_ser_priv *priv)
 		}
 
 		asc->source = source;
-		asc->priv = priv;
 	}
 
 	priv->nf.ops = &max_ser_notify_ops;
@@ -1187,7 +1167,7 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 
 static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 					  struct max_ser_phy *phy,
-					  struct max_ser_source *source,
+					  struct max_source *source,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser *ser = priv->ser;
@@ -1295,7 +1275,7 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
-		struct max_ser_source *source;
+		struct max_source *source;
 
 		source = max_ser_find_phy_source(priv, phy);
 		if (!source)
