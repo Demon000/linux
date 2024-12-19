@@ -43,7 +43,6 @@ struct max_ser_pipe_mode {
 	bool dbl8;
 	bool dbl10;
 	bool dbl12;
-	bool drift_det_disable;
 };
 
 struct max_ser_pipe {
