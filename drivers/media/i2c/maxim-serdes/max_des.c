@@ -1087,7 +1087,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
-	ret = max_des_update_phy(priv, phy, pad, streams_mask, enable);
+	ret = max_des_update_phy(priv, phy, &state->routing,
+				 pad, streams_mask, enable);
 	if (ret)
 		goto err_revert_link_update;
 
@@ -1153,7 +1154,8 @@ err_revert_link_enable:
 						    updated_sink_streams_mask);
 	}
 
-	max_des_update_phy(priv, phy, pad, streams_mask, !enable);
+	max_des_update_phy(priv, phy, &state->routing,
+			   pad, streams_mask, !enable);
 
 err_revert_link_update:
 	for (i = 0; i < failed_update_link_id; i++) {
