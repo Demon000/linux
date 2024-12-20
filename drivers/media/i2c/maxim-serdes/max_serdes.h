@@ -58,4 +58,8 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd,
 			    unsigned int pad, unsigned int stream,
 			    struct v4l2_mbus_frame_desc_entry *entry);
 
+int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
+		 const struct v4l2_subdev_krouting *routing,
+		 u32 pad, u64 streams_mask, u32 *bpps);
+
 #endif // MAX_SERDES_H
