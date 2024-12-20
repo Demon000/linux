@@ -540,50 +540,24 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 	return 0;
 }
 
-static void max_ser_get_min_max_bpps(unsigned int *dts, unsigned int num_dts,
-				     unsigned int *min_bpp, unsigned int *max_bpp,
-				     unsigned int old_bpp, unsigned new_bpp)
-{
-	unsigned int i;
-
-	*min_bpp = 0;
-	*max_bpp = 0;
-
-	for (i = 0; i < num_dts; i++) {
-		const struct max_mipi_format *format;
-		unsigned int bpp;
-
-		format = max_mipi_format_by_dt(dts[i]);
-		if (!format)
-			continue;
-
-		bpp = format->bpp;
-
-		if (bpp == old_bpp)
-			bpp = new_bpp;
-
-		if (*min_bpp == 0 || bpp < *min_bpp)
-			*min_bpp = bpp;
-
-		if (*max_bpp == 0 || bpp > *max_bpp)
-			*max_bpp = bpp;
-	}
-}
-
 static int max_ser_get_mode(struct max_ser_priv *priv,
-			    unsigned int *dts, unsigned int num_dts,
-			    struct max_ser_pipe_mode *mode)
+			    struct max_ser_pipe_mode *mode,
+			    const struct v4l2_subdev_krouting *routing,
+			    u32 pad, u64 streams_mask)
 {
-	unsigned int min_bpp, max_bpp;
-	unsigned int old_bpp = 0;
-	unsigned int new_bpp = 0;
-	unsigned int *bpps;
+	unsigned int min_bpp;
+	unsigned int max_bpp;
+	u32 bpps;
+	int ret;
 
-	if (!num_dts)
+	ret = max_get_bpps(priv->sources, 0, routing, pad, streams_mask, &bpps);
+	if (ret)
+		return ret;
+
+	if (!bpps)
 		return 0;
 
-	max_ser_get_min_max_bpps(dts, num_dts, &min_bpp, &max_bpp,
-				 old_bpp, new_bpp);
+	min_bpp = __ffs(bpps);
 
 	if (min_bpp <= 12) {
 		if (min_bpp == 8)
@@ -593,20 +567,18 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 		else
 			mode->dbl12 = true;
 
-		old_bpp = min_bpp;
-		new_bpp = min_bpp * 2;
+		bpps &= ~BIT(min_bpp);
+		bpps |= BIT(min_bpp * 2);
 	}
 
-	max_ser_get_min_max_bpps(dts, num_dts, &min_bpp, &max_bpp,
-				 old_bpp, new_bpp);
+	min_bpp = __ffs(bpps);
+	max_bpp = __fls(bpps);
 
 	if (mode->dbl8 || mode->dbl10 || mode->dbl12)
 		mode->soft_bpp = min_bpp;
 
 	if (min_bpp != max_bpp)
 		mode->bpp = max_bpp;
-
-	kfree(bpps);
 
 	return 0;
 }
@@ -634,7 +606,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
-	ret = max_ser_get_mode(priv, dts, num_dts, &mode);
+	ret = max_ser_get_mode(priv, &mode, routing, pad, streams_mask);
 	if (ret)
 		goto err_free_dts;
 
