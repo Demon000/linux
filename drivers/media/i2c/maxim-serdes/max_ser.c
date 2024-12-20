@@ -615,7 +615,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 			       struct max_source *source,
 			       struct max_ser_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
-			       u32 sink_pad, u64 streams_mask)
+			       u32 pad, u64 streams_mask)
 {
 	struct max_ser *ser = priv->ser;
 	struct max_ser_pipe_mode mode = { 0 };
@@ -630,7 +630,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 		return -ENOMEM;
 
 	ret = max_ser_get_vcs_dts(priv, routing, source, &vcs, dts, &num_dts,
-				  sink_pad, streams_mask);
+				  pad, streams_mask);
 	if (ret)
 		goto err_free_dts;
 
