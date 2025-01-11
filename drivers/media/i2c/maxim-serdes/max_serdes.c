@@ -79,6 +79,8 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 	struct v4l2_subdev_route *route;
 	int ret;
 
+	*bpps = 0;
+
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		const struct max_mipi_format *format;
