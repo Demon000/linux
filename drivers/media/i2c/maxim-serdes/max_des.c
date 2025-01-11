@@ -909,11 +909,12 @@ static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
 			       const struct v4l2_subdev_krouting *routing,
-			       u32 pad, u64 updated_streams_mask,
+			       u64 updated_streams_mask,
 			       bool enable)
 {
 	struct max_source *source;
 	struct max_des *des = priv->des;
+	u32 pad = max_des_link_to_pad(des, link);
 	struct max_des_pipe *pipe;
 	u64 streams_mask;
 	int ret;
@@ -1060,8 +1061,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 			continue;
 
 		ret = max_des_update_link(priv, &context, link,
-					  &state->routing, sink_pad,
-					  updated_sink_streams_mask, enable);
+					  &state->routing, updated_sink_streams_mask,
+					  enable);
 		if (ret) {
 			failed_update_link_id = i;
 			goto err_revert_link_update;
@@ -1153,8 +1154,8 @@ err_revert_link_update:
 			continue;
 
 		max_des_update_link(priv, &context, link,
-				    &state->routing, sink_pad,
-				    updated_streams_mask, !enable);
+				    &state->routing, updated_streams_mask,
+				    !enable);
 	}
 
 	max_des_update_active(priv, pad, streams_mask);
