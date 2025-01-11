@@ -297,7 +297,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	unsigned long vc_ids_masks = 0;
-	u32 sink_pad = max_des_link_to_pad(des, link);
+	u32 pad = max_des_link_to_pad(des, link);
 	struct v4l2_subdev_route *route;
 	unsigned int phy_id;
 	int ret;
@@ -309,7 +309,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 		struct max_des_phy *phy;
 		unsigned int src_vc_id, dst_vc_id;
 
-		if (sink_pad != route->sink_pad)
+		if (pad != route->sink_pad)
 			continue;
 
 		if (!(BIT_ULL(route->sink_stream) & streams_mask))
