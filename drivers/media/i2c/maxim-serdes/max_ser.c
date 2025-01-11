@@ -648,10 +648,10 @@ err_free_dts:
 static int max_ser_update_phy(struct max_ser_priv *priv,
 			      struct v4l2_subdev_state *state,
 			      struct max_ser_phy *phy,
-			      u32 pad, u64 updated_streams_mask,
-			      bool enable)
+			      u64 updated_streams_mask, bool enable)
 {
 	struct max_ser *ser = priv->ser;
+	u32 pad = max_ser_phy_to_pad(ser, phy);
 	struct max_source *source;
 	struct max_ser_pipe *pipe;
 	u64 streams_mask;
@@ -733,8 +733,7 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 			continue;
 
 		ret = max_ser_update_phy(priv, state, phy,
-					 sink_pad, updated_sink_streams_mask,
-					 enable);
+					 updated_sink_streams_mask, enable);
 		if (ret) {
 			failed_update_phy_id = i;
 			goto err_revert_phy_update;
@@ -818,8 +817,7 @@ err_revert_phy_update:
 			continue;
 
 		max_ser_update_phy(priv, state, phy,
-				   sink_pad, updated_sink_streams_mask,
-				   !enable);
+				   updated_sink_streams_mask, !enable);
 	}
 
 	return ret;
