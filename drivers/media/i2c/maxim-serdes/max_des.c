@@ -296,9 +296,9 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 			      u64 streams_mask)
 {
 	struct max_des *des = priv->des;
-	unsigned long vc_ids_masks = 0;
 	u32 pad = max_des_link_to_pad(des, link);
 	struct v4l2_subdev_route *route;
+	unsigned long vc_ids_masks = 0;
 	unsigned int phy_id;
 	int ret;
 
@@ -809,11 +809,11 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 					struct v4l2_mbus_frame_desc *fd,
 					unsigned int pad)
 {
+	struct max_des_remap_context context = { 0 };
 	struct max_des_priv *priv = sd_to_priv(sd);
 	struct max_des *des = priv->des;
-	struct max_des_phy *phy;
-	struct max_des_remap_context context = { 0 };
 	struct v4l2_subdev_route *route;
+	struct max_des_phy *phy;
 	int ret;
 
 	phy = max_des_pad_to_phy(des, pad);
