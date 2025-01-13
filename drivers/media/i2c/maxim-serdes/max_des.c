@@ -1055,14 +1055,19 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 }
 
 static int max_des_update_phy(struct max_des_priv *priv,
-			      struct max_des_phy *phy,
 			      const struct v4l2_subdev_krouting *routing,
-			      u64 *streams_masks, bool enable)
+			      u32 pad, u64 *streams_masks, bool enable)
 {
 	struct max_des_phy_mode mode = { 0 };
 	struct max_des *des = priv->des;
-	u32 pad = max_des_phy_to_pad(des, phy);
+	struct max_des_phy *phy;
 	int ret;
+
+	phy = max_des_pad_to_phy(des, pad);
+	if (!phy) {
+		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
+		return -EINVAL;
+	}
 
 	ret = max_des_get_phy_mode(priv, phy, &mode, routing,
 				   streams_masks);
@@ -1169,7 +1174,6 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des_remap_context context = { 0 };
 	struct max_des *des = priv->des;
-	struct max_des_phy *phy;
 	unsigned int failed_enable_link_id = des->ops->num_links;
 	unsigned int failed_update_link_id = des->ops->num_links;
 	u64 *streams_masks;
@@ -1202,14 +1206,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
-	phy = max_des_pad_to_phy(des, pad);
-	if (!phy) {
-		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
-		goto err_revert_link_update;
-	}
-
-	ret = max_des_update_phy(priv, phy, &state->routing,
-				 streams_masks, enable);
+	ret = max_des_update_phy(priv, &state->routing,
+				 pad, streams_masks, enable);
 	if (ret)
 		goto err_revert_link_update;
 
@@ -1276,8 +1274,8 @@ err_revert_link_enable:
 						    updated_sink_streams_mask);
 	}
 
-	max_des_update_phy(priv, phy, &state->routing,
-			   priv->streams_masks, !enable);
+	max_des_update_phy(priv, &state->routing,
+			   pad, priv->streams_masks, !enable);
 
 err_revert_link_update:
 	for (i = 0; i < failed_update_link_id; i++) {
