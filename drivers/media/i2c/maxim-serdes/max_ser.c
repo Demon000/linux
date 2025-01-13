@@ -646,7 +646,7 @@ err_free_dts:
 }
 
 static int max_ser_update_phy(struct max_ser_priv *priv,
-			      struct v4l2_subdev_state *state,
+			      const struct v4l2_subdev_krouting *routing,
 			      struct max_ser_phy *phy, u64 streams_mask)
 {
 	struct max_ser *ser = priv->ser;
@@ -663,8 +663,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	ret = max_ser_update_pipe(priv, source, pipe, &state->routing,
-				  pad, streams_mask);
+	ret = max_ser_update_pipe(priv, source, pipe, routing, pad, streams_mask);
 	if (ret)
 		return ret;
 
@@ -690,8 +689,7 @@ err_revert_phy_active:
 	}
 
 err_revert_pipe_update:
-	max_ser_update_pipe(priv, source, pipe, &state->routing,
-			    pad, priv->streams_masks[pad]);
+	max_ser_update_pipe(priv, source, pipe, routing, pad, priv->streams_masks[pad]);
 
 	return ret;
 }
@@ -737,15 +735,46 @@ static int max_ser_get_streams_masks(struct max_ser_priv *priv,
 	return 0;
 }
 
+static int max_ser_update_phys(struct max_ser_priv *priv,
+			       const struct v4l2_subdev_krouting *routing,
+			       u64 *streams_masks)
+{
+	struct max_ser *ser = priv->ser;
+	unsigned int failed_update_phy_id = ser->ops->num_phys;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ser->ops->num_phys; i++) {
+		struct max_ser_phy *phy = &ser->phys[i];
+		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
+
+		ret = max_ser_update_phy(priv, routing, phy, streams_masks[sink_pad]);
+		if (ret) {
+			failed_update_phy_id = i;
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	for (i = 0; i < failed_update_phy_id; i++) {
+		struct max_ser_phy *phy = &ser->phys[i];
+		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
+
+		max_ser_update_phy(priv, routing, phy, priv->streams_masks[sink_pad]);
+	}
+
+	return ret;
+}
+
 static int max_ser_update_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 updated_streams_mask, bool enable)
 {
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
-	unsigned int failed_update_phy_id = ser->ops->num_phys;
 	u64 *streams_masks;
-	unsigned int i;
 	int ret;
 
 	ret = max_ser_get_streams_masks(priv, &state->routing, pad,
@@ -754,22 +783,15 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < ser->ops->num_phys; i++) {
-		struct max_ser_phy *phy = &ser->phys[i];
-		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
-
-		ret = max_ser_update_phy(priv, state, phy, streams_masks[sink_pad]);
-		if (ret) {
-			failed_update_phy_id = i;
-			goto err_revert_phy_update;
-		}
-	}
+	ret = max_ser_update_phys(priv, &state->routing, streams_masks);
+	if (ret)
+		goto err_free_streams_masks;
 
 	ret = max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
 					       pad, updated_streams_mask, 0,
 					       ser->ops->num_phys, enable);
 	if (ret)
-		goto err_revert_phy_update;
+		goto err_revert_phys_update;
 
 	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
@@ -777,14 +799,10 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 
 	return 0;
 
-err_revert_phy_update:
-	for (i = 0; i < failed_update_phy_id; i++) {
-		struct max_ser_phy *phy = &ser->phys[i];
-		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
+err_revert_phys_update:
+	max_ser_update_phys(priv, &state->routing, priv->streams_masks);
 
-		max_ser_update_phy(priv, state, phy, priv->streams_masks[sink_pad]);
-	}
-
+err_free_streams_masks:
 	devm_kfree(priv->dev, streams_masks);
 
 	return ret;
