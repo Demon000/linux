@@ -920,14 +920,11 @@ static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
 			       const struct v4l2_subdev_krouting *routing,
-			       u64 updated_streams_mask,
-			       bool enable)
+			       u64 streams_mask, bool enable)
 {
 	struct max_source *source;
 	struct max_des *des = priv->des;
-	u32 pad = max_des_link_to_pad(des, link);
 	struct max_des_pipe *pipe;
-	u64 streams_mask;
 	int ret;
 
 	pipe = max_des_find_link_pipe(des, link);
@@ -940,18 +937,10 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	streams_mask = priv->streams_mask[pad];
-	if (enable)
-		streams_mask |= updated_streams_mask;
-	else
-		streams_mask &= ~updated_streams_mask;
-
 	ret = max_des_update_pipe(priv, context, link, source, pipe,
 				  routing, streams_mask, enable);
 	if (ret)
 		return ret;
-
-	priv->streams_mask[pad] = streams_mask;
 
 	return 0;
 }
@@ -959,13 +948,13 @@ static int max_des_update_link(struct max_des_priv *priv,
 static int max_des_update_phy(struct max_des_priv *priv,
 			      struct max_des_phy *phy,
 			      const struct v4l2_subdev_krouting *routing,
-			      u64 streams_mask, bool enable)
+			      u64 *new_streams_masks, bool enable)
 {
 	struct max_des *des = priv->des;
 	u32 pad = max_des_phy_to_pad(des, phy);
 	int ret;
 
-	if (!streams_mask != !priv->streams_mask[pad]) {
+	if (!new_streams_masks[pad] != !priv->streams_mask[pad]) {
 		ret = max_des_set_phy_active(des, phy, enable);
 		if (ret) {
 			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
@@ -978,7 +967,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 }
 
 static int max_des_update_active(struct max_des_priv *priv,
-				 u32 updated_pad, u64 streams_mask)
+				 u64 *new_streams_masks)
 {
 	struct max_des *des = priv->des;
 	bool active = false;
@@ -988,14 +977,8 @@ static int max_des_update_active(struct max_des_priv *priv,
 	for (i = 0; i < des->ops->num_phys; i++) {
 		struct max_des_phy *phy = &des->phys[i];
 		unsigned int pad = max_des_phy_to_pad(des, phy);
-		u64 mask;
 
-		if (pad == updated_pad)
-			mask = streams_mask;
-		else
-			mask = priv->streams_mask[pad];
-
-		if (mask) {
+		if (new_streams_masks[pad]) {
 			active = true;
 			break;
 		}
@@ -1013,6 +996,48 @@ static int max_des_update_active(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_get_new_streams_masks(struct max_des_priv *priv,
+					      const struct v4l2_subdev_krouting *routing,
+					      u32 pad, u64 updated_streams_mask,
+					      u64 **updated_streams_masks,
+					      bool enable)
+{
+	struct max_des *des = priv->des;
+	unsigned int num_pads = max_des_num_pads(des);
+	unsigned int i;
+	u64 *streams_masks;
+
+	streams_masks = devm_kcalloc(priv->dev, num_pads, sizeof(*streams_masks),
+				     GFP_KERNEL);
+	if (!streams_masks)
+		return -ENOMEM;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		u32 sink_pad = max_des_link_to_pad(des, link);
+
+		updated_sink_streams_mask =
+			v4l2_subdev_routing_xlate_streams(routing, pad, sink_pad,
+							  &matched_streams_mask);
+
+		if (enable)
+			streams_masks[sink_pad] |= updated_sink_streams_mask;
+		else
+			streams_masks[sink_pad] &= ~updated_sink_streams_mask;
+	}
+
+	if (enable)
+		streams_masks[pad] |= updated_streams_mask;
+	else
+		streams_masks[pad] &= ~updated_streams_mask;
+
+	*updated_streams_masks = streams_masks;
+
+	return 0;
+}
+
 static int max_des_update_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 updated_streams_mask, bool enable)
@@ -1023,46 +1048,36 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	struct max_des_phy *phy;
 	unsigned int failed_enable_link_id = des->ops->num_links;
 	unsigned int failed_update_link_id = des->ops->num_links;
-	u64 streams_mask;
+	u64 *streams_mask;
 	unsigned int i;
 	int ret;
+
+	ret = max_des_get_new_streams_masks(priv, &state->routing, pad,
+					    updated_streams_mask,
+					    &streams_mask, enable);
+	if (ret)
+		return ret;
 
 	phy = max_des_pad_to_phy(des, pad);
 	if (!phy) {
 		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
-		return -ENOENT;
+		goto err_free_new_streams_mask;
 	}
-
-	streams_mask = priv->streams_mask[pad];
-	if (enable)
-		streams_mask |= updated_streams_mask;
-	else
-		streams_mask &= ~updated_streams_mask;
 
 	ret = max_des_populate_remap_context(priv, &context, &state->routing);
 	if (ret)
-		return ret;
+		goto err_free_new_streams_mask;
 
-	ret = max_des_update_active(priv, pad, streams_mask);
+	ret = max_des_update_active(priv, streams_mask);
 	if (ret)
-		return ret;
+		goto err_free_new_streams_mask;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		u64 matched_streams_mask = updated_streams_mask;
-		u64 updated_sink_streams_mask;
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
-		updated_sink_streams_mask =
-			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
-							&matched_streams_mask);
-
-		if (!updated_sink_streams_mask)
-			continue;
-
-		ret = max_des_update_link(priv, &context, link,
-					  &state->routing, updated_sink_streams_mask,
-					  enable);
+		ret = max_des_update_link(priv, &context, link, &state->routing,
+					  streams_mask[sink_pad], enable);
 		if (ret) {
 			failed_update_link_id = i;
 			goto err_revert_link_update;
@@ -1105,7 +1120,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
-	priv->streams_mask[pad] = streams_mask;
+	devm_kfree(priv->dev, priv->streams_mask);
+	priv->streams_mask = streams_mask;
 
 	return 0;
 
@@ -1137,7 +1153,7 @@ err_revert_link_enable:
 	}
 
 	max_des_update_phy(priv, phy, &state->routing,
-			   streams_mask, !enable);
+			   priv->streams_mask, !enable);
 
 err_revert_link_update:
 	for (i = 0; i < failed_update_link_id; i++) {
@@ -1158,7 +1174,10 @@ err_revert_link_update:
 				    !enable);
 	}
 
-	max_des_update_active(priv, pad, streams_mask);
+	max_des_update_active(priv, priv->streams_mask);
+
+err_free_new_streams_mask:
+	devm_kfree(priv->dev, streams_mask);
 
 	return ret;
 }
