@@ -62,4 +62,11 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 		 const struct v4l2_subdev_krouting *routing,
 		 u32 pad, u64 streams_mask, u32 *bpps);
 
+int max_xlate_enable_disable_streams(struct max_source *sources,
+				     u32 source_sink_pad_offset,
+				     const struct v4l2_subdev_krouting *routing,
+				     u32 pad, u64 updated_streams_mask,
+				     u32 sink_pad_start, u32 num_sink_pads,
+				     bool enable);
+
 #endif // MAX_SERDES_H
