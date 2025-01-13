@@ -1069,8 +1069,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	if (!phy)
 		return -EINVAL;
 
-	ret = max_des_get_phy_mode(priv, phy, &mode, routing,
-				   streams_masks);
+	ret = max_des_get_phy_mode(priv, phy, &mode, routing, streams_masks);
 	if (ret)
 		return ret;
 
