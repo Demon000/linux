@@ -1057,7 +1057,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 static int max_des_update_phy(struct max_des_priv *priv,
 			      struct max_des_phy *phy,
 			      const struct v4l2_subdev_krouting *routing,
-			      u64 *new_streams_masks, bool enable)
+			      u64 *streams_masks, bool enable)
 {
 	struct max_des_phy_mode mode = { 0 };
 	struct max_des *des = priv->des;
@@ -1065,7 +1065,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	int ret;
 
 	ret = max_des_get_phy_mode(priv, phy, &mode, routing,
-				   new_streams_masks);
+				   streams_masks);
 	if (ret)
 		return ret;
 
@@ -1073,7 +1073,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	if (ret)
 		return ret;
 
-	if (!new_streams_masks[pad] != !priv->streams_masks[pad]) {
+	if (!streams_masks[pad] != !priv->streams_masks[pad]) {
 		ret = max_des_set_phy_active(des, phy, enable);
 		if (ret) {
 			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
@@ -1092,8 +1092,7 @@ err_restore_phy_mode:
 	return ret;
 }
 
-static int max_des_update_active(struct max_des_priv *priv,
-				 u64 *new_streams_masks)
+static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
 	bool active = false;
@@ -1104,7 +1103,7 @@ static int max_des_update_active(struct max_des_priv *priv,
 		struct max_des_phy *phy = &des->phys[i];
 		unsigned int pad = max_des_phy_to_pad(des, phy);
 
-		if (new_streams_masks[pad]) {
+		if (streams_masks[pad]) {
 			active = true;
 			break;
 		}
