@@ -390,6 +390,37 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_get_pipe_mode(struct max_des_priv *priv,
+				 struct max_des_link *link,
+				 struct max_source *source,
+				 struct max_des_pipe_mode *mode,
+				 const struct v4l2_subdev_krouting *routing,
+				 u64 streams_mask)
+{
+	struct max_des *des = priv->des;
+	u32 pad = max_des_link_to_pad(des, link);
+	unsigned int min_bpp, max_bpp;
+	u32 bpps;
+	int ret;
+
+	ret = max_get_bpps(priv->sources, 0, routing, pad, streams_mask, &bpps);
+	if (ret)
+		return ret;
+
+	if (!bpps)
+		return 0;
+
+	min_bpp = __ffs(bpps);
+	max_bpp = __fls(bpps);
+
+	if (min_bpp == 8 && (max_bpp == 8 || max_bpp > 16)) {
+		mode->dbl8 = true;
+		mode->dbl8mode = true;
+	}
+
+	return 0;
+}
+
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
@@ -415,9 +446,18 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 	if (ret)
 		goto err_free_new_remaps;
 
-	ret = max_des_set_pipe_remaps(priv, pipe, remaps, num_remaps);
+	ret = max_des_get_pipe_mode(priv, link, source, &mode,
+				    routing, streams_mask);
 	if (ret)
 		goto err_free_new_remaps;
+
+	ret = des->ops->set_pipe_mode(des, pipe, &mode);
+	if (ret)
+		goto err_free_new_remaps;
+
+	ret = max_des_set_pipe_remaps(priv, pipe, remaps, num_remaps);
+	if (ret)
+		goto err_restore_pipe_mode;
 
 	if (!streams_mask != !priv->streams_mask[pad]) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
@@ -430,11 +470,15 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 
 	pipe->remaps = remaps;
 	pipe->num_remaps = num_remaps;
+	pipe->mode = mode;
 
 	return 0;
 
 err_restore_pipe_remaps:
 	max_des_set_pipe_remaps(priv, pipe, pipe->remaps, pipe->num_remaps);
+
+err_restore_pipe_mode:
+	des->ops->set_pipe_mode(des, pipe, &pipe->mode);
 
 err_free_new_remaps:
 	devm_kfree(priv->dev, remaps);
@@ -945,25 +989,107 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_get_phy_mode(struct max_des_priv *priv,
+				struct max_des_phy *phy,
+				struct max_des_phy_mode *mode,
+				const struct v4l2_subdev_krouting *routing,
+				u64 *updated_streams_masks)
+{
+	struct max_des *des = priv->des;
+	u32 source_pad = max_des_phy_to_pad(des, phy);
+	struct v4l2_subdev_route *route;
+	int ret;
+
+	for_each_active_route(routing, route) {
+		u64 sink_streams_mask = updated_streams_masks[route->sink_pad];
+		unsigned int min_bpp;
+		unsigned int max_bpp;
+		unsigned int bpp;
+		u32 stream_bpps;
+		u32 sink_bpps;
+
+		if (source_pad != route->source_pad)
+			continue;
+
+		if (!(BIT_ULL(route->source_stream) & updated_streams_masks[source_pad]))
+			continue;
+
+		ret = max_get_bpps(priv->sources, 0, routing, source_pad,
+				   BIT_ULL(route->sink_stream), &stream_bpps);
+		if (ret)
+			return ret;
+
+		ret = max_get_bpps(priv->sources, 0, routing, route->sink_pad,
+				   sink_streams_mask, &sink_bpps);
+		if (ret)
+			return ret;
+
+		bpp = __ffs(stream_bpps);
+		min_bpp = __ffs(sink_bpps);
+		max_bpp = __fls(sink_bpps);
+
+		if (bpp != min_bpp)
+			continue;
+
+		if (bpp == 8) {
+			if (max_bpp == 8 || max_bpp > 16) {
+				mode->alt_mem_map8 = true;
+			} else {
+				mode->alt2_mem_map8 = true;
+			}
+		} else if (bpp == 10) {
+			mode->alt_mem_map10 = true;
+		} else if (bpp == 12) {
+			mode->alt_mem_map12 = true;
+		}
+	}
+
+	if (mode->alt_mem_map8 && mode->alt2_mem_map8) {
+		dev_err(priv->dev,
+			"Cannot stream 8bpp coming from pipes padded to 16bpp"
+			"and pipes not padded to 16bpp on the same PHY\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int max_des_update_phy(struct max_des_priv *priv,
 			      struct max_des_phy *phy,
 			      const struct v4l2_subdev_krouting *routing,
 			      u64 *new_streams_masks, bool enable)
 {
+	struct max_des_phy_mode mode = { 0 };
 	struct max_des *des = priv->des;
 	u32 pad = max_des_phy_to_pad(des, phy);
 	int ret;
+
+	ret = max_des_get_phy_mode(priv, phy, &mode, routing,
+				   new_streams_masks);
+	if (ret)
+		return ret;
+
+	ret = des->ops->set_phy_mode(des, phy, &mode);
+	if (ret)
+		return ret;
 
 	if (!new_streams_masks[pad] != !priv->streams_mask[pad]) {
 		ret = max_des_set_phy_active(des, phy, enable);
 		if (ret) {
 			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
 				phy->index, enable, ret);
-			return ret;
+			goto err_restore_phy_mode;
 		}
 	}
 
+	phy->mode = mode;
+
 	return 0;
+
+err_restore_phy_mode:
+	des->ops->set_phy_mode(des, phy, &phy->mode);
+
+	return ret;
 }
 
 static int max_des_update_active(struct max_des_priv *priv,
@@ -1436,36 +1562,6 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 }
 
-static int max_des_parse_phy_dt(struct max_des_priv *priv,
-				struct max_des_phy *phy,
-				struct fwnode_handle *fwnode)
-{
-	phy->mode.alt_mem_map8 =
-		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map8");
-	phy->mode.alt2_mem_map8 =
-		fwnode_property_read_bool(fwnode, "maxim,alt2-mem-map8");
-	phy->mode.alt_mem_map10 =
-		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map10");
-	phy->mode.alt_mem_map12 =
-		fwnode_property_read_bool(fwnode, "maxim,alt-mem-map12");
-
-	return 0;
-}
-
-static int max_des_parse_pipe_dt(struct max_des_priv *priv,
-				 struct max_des_pipe *pipe,
-				 struct fwnode_handle *fwnode)
-{
-	pipe->mode.dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
-	pipe->mode.dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
-	pipe->mode.dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
-
-	pipe->mode.dbl8mode = fwnode_property_read_bool(fwnode, "maxim,dbl8-mode");
-	pipe->mode.dbl10mode = fwnode_property_read_bool(fwnode, "maxim,dbl10-mode");
-
-	return 0;
-}
-
 static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 					  struct max_des_link *link,
 					  struct max_source *source,
@@ -1640,14 +1736,11 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 {
 	struct fwnode_handle *fwnode = dev_fwnode(priv->dev);
 	struct max_des *des = priv->des;
-	const char *pipe_node_name = "pipe";
-	const char *phy_node_name = "phy";
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *unused_phy = NULL;
 	struct max_des_phy *phy;
 	unsigned int i;
-	u32 index;
 	int ret;
 
 	for (i = 0; i < des->ops->num_phys; i++) {
@@ -1730,60 +1823,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		ret = max_des_parse_sink_dt_endpoint(priv, link, source, fwnode);
 		if (ret)
 			return ret;
-	}
-
-	device_for_each_child_node(priv->dev, fwnode) {
-		struct device_node *of_node = to_of_node(fwnode);
-
-		if (!of_node_name_eq(of_node, phy_node_name))
-			continue;
-
-		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret) {
-			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
-			continue;
-		}
-
-		if (index >= des->ops->num_phys) {
-			dev_err(priv->dev, "Invalid PHY %u\n", index);
-			fwnode_handle_put(fwnode);
-			return -EINVAL;
-		}
-
-		phy = &des->phys[index];
-
-		ret = max_des_parse_phy_dt(priv, phy, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
-			return ret;
-		}
-	}
-
-	device_for_each_child_node(priv->dev, fwnode) {
-		struct device_node *of_node = to_of_node(fwnode);
-
-		if (!of_node_name_eq(of_node, pipe_node_name))
-			continue;
-
-		ret = fwnode_property_read_u32(fwnode, "reg", &index);
-		if (ret) {
-			dev_err(priv->dev, "Failed to read reg: %d\n", ret);
-			continue;
-		}
-
-		if (index >= des->ops->num_pipes) {
-			dev_err(priv->dev, "Invalid pipe %u\n", index);
-			fwnode_handle_put(fwnode);
-			return -EINVAL;
-		}
-
-		pipe = &des->pipes[index];
-
-		ret = max_des_parse_pipe_dt(priv, pipe, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
-			return ret;
-		}
 	}
 
 	return 0;
