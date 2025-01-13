@@ -97,6 +97,8 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 		}
 
 		source = &sources[route->sink_pad + source_sink_pad_offset];
+		if (!source)
+			continue;
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
@@ -137,6 +139,8 @@ int max_xlate_enable_disable_streams(struct max_source *sources,
 			continue;
 
 		source = &sources[i + source_sink_pad_offset];
+		if (!source)
+			continue;
 
 		if (enable)
 			ret = v4l2_subdev_enable_streams(source->sd, source->pad,
@@ -165,6 +169,8 @@ err:
 			continue;
 
 		source = &sources[i + source_sink_pad_offset];
+		if (!source)
+			continue;
 
 		if (!enable)
 			v4l2_subdev_enable_streams(source->sd, source->pad,
