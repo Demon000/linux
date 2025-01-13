@@ -1121,11 +1121,10 @@ static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks)
 	return 0;
 }
 
-static int max_des_get_new_streams_masks(struct max_des_priv *priv,
-					      const struct v4l2_subdev_krouting *routing,
-					      u32 pad, u64 updated_streams_mask,
-					      u64 **updated_streams_masks,
-					      bool enable)
+static int max_des_get_streams_masks(struct max_des_priv *priv,
+				     const struct v4l2_subdev_krouting *routing,
+				     u32 pad, u64 updated_streams_mask,
+				     u64 **updated_streams_masks, bool enable)
 {
 	struct max_des *des = priv->des;
 	unsigned int num_pads = max_des_num_pads(des);
@@ -1181,15 +1180,15 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_get_new_streams_masks(priv, &state->routing, pad,
-					    updated_streams_mask,
-					    &streams_masks, enable);
+	ret = max_des_get_streams_masks(priv, &state->routing, pad,
+					updated_streams_mask, &streams_masks,
+					enable);
 	if (ret)
 		return ret;
 
 	ret = max_des_update_active(priv, streams_masks);
 	if (ret)
-		goto err_free_new_streams_masks;
+		goto err_free_streams_masks;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -1301,7 +1300,7 @@ err_revert_link_update:
 
 	max_des_update_active(priv, priv->streams_masks);
 
-err_free_new_streams_masks:
+err_free_streams_masks:
 	devm_kfree(priv->dev, streams_masks);
 
 	return ret;
