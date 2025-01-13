@@ -701,8 +701,8 @@ static int max_ser_get_streams_masks(struct max_ser_priv *priv,
 {
 	struct max_ser *ser = priv->ser;
 	unsigned int num_pads = max_ser_num_pads(ser);
-	unsigned int i;
 	u64 *streams_masks;
+	unsigned int i;
 
 	streams_masks = devm_kcalloc(priv->dev, num_pads, sizeof(*streams_masks),
 				     GFP_KERNEL);

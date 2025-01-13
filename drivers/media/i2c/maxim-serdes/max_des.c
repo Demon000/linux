@@ -1137,8 +1137,8 @@ static int max_des_get_streams_masks(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	unsigned int num_pads = max_des_num_pads(des);
-	unsigned int i;
 	u64 *streams_masks;
+	unsigned int i;
 
 	streams_masks = devm_kcalloc(priv->dev, num_pads, sizeof(*streams_masks),
 				     GFP_KERNEL);
