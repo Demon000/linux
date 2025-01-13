@@ -1058,7 +1058,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 
 static int max_des_update_phy(struct max_des_priv *priv,
 			      const struct v4l2_subdev_krouting *routing,
-			      u32 pad, u64 *streams_masks, bool enable)
+			      u32 pad, u64 *streams_masks)
 {
 	struct max_des_phy_mode mode = { 0 };
 	struct max_des *des = priv->des;
@@ -1081,6 +1081,8 @@ static int max_des_update_phy(struct max_des_priv *priv,
 		return ret;
 
 	if (!streams_masks[pad] != !priv->streams_masks[pad]) {
+		bool enable = !!streams_masks[pad];
+
 		ret = max_des_set_phy_active(des, phy, enable);
 		if (ret) {
 			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
@@ -1208,8 +1210,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		}
 	}
 
-	ret = max_des_update_phy(priv, &state->routing,
-				 pad, streams_masks, enable);
+	ret = max_des_update_phy(priv, &state->routing, pad, streams_masks);
 	if (ret)
 		goto err_revert_link_update;
 
@@ -1276,8 +1277,7 @@ err_revert_link_enable:
 						    updated_sink_streams_mask);
 	}
 
-	max_des_update_phy(priv, &state->routing,
-			   pad, priv->streams_masks, !enable);
+	max_des_update_phy(priv, &state->routing, pad, priv->streams_masks);
 
 err_revert_link_update:
 	for (i = 0; i < failed_update_link_id; i++) {
