@@ -709,6 +709,9 @@ static int max_ser_get_streams_masks(struct max_ser_priv *priv,
 	if (!streams_masks)
 		return -ENOMEM;
 
+	for (i = 0; i < num_pads; i++)
+		streams_masks[i] = priv->streams_masks[i];
+
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 		u64 matched_streams_mask = updated_streams_mask;

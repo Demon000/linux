@@ -1145,6 +1145,9 @@ static int max_des_get_streams_masks(struct max_des_priv *priv,
 	if (!streams_masks)
 		return -ENOMEM;
 
+	for (i = 0; i < num_pads; i++)
+		streams_masks[i] = priv->streams_masks[i];
+
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
 		u64 matched_streams_mask = updated_streams_mask;
