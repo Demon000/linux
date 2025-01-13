@@ -1184,12 +1184,6 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	phy = max_des_pad_to_phy(des, pad);
-	if (!phy) {
-		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
-		goto err_free_new_streams_mask;
-	}
-
 	ret = max_des_populate_remap_context(priv, &context, &state->routing);
 	if (ret)
 		goto err_free_new_streams_mask;
@@ -1208,6 +1202,12 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 			failed_update_link_id = i;
 			goto err_revert_link_update;
 		}
+	}
+
+	phy = max_des_pad_to_phy(des, pad);
+	if (!phy) {
+		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
+		goto err_revert_link_update;
 	}
 
 	ret = max_des_update_phy(priv, phy, &state->routing,
