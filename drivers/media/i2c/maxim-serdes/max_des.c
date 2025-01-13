@@ -1178,7 +1178,6 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des_remap_context context = { 0 };
 	struct max_des *des = priv->des;
-	unsigned int failed_enable_link_id = des->ops->num_links;
 	unsigned int failed_update_link_id = des->ops->num_links;
 	u64 *streams_masks;
 	unsigned int i;
@@ -1214,69 +1213,18 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_link_update;
 
-	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		u64 matched_streams_mask = updated_streams_mask;
-		u64 updated_sink_streams_mask;
-		u32 sink_pad = max_des_link_to_pad(des, link);
-		struct max_source *source;
-
-		updated_sink_streams_mask =
-			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
-							&matched_streams_mask);
-
-		if (!updated_sink_streams_mask)
-			continue;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (enable)
-			ret = v4l2_subdev_enable_streams(source->sd, source->pad,
-							 updated_sink_streams_mask);
-		else
-			ret = v4l2_subdev_disable_streams(source->sd, source->pad,
-							  updated_sink_streams_mask);
-
-		if (ret) {
-			failed_enable_link_id = i;
-			goto err_revert_link_enable;
-		}
-	}
+	ret = max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
+					       pad, updated_streams_mask, 0,
+					       des->ops->num_links, enable);
+	if (ret)
+		goto err_revert_phy_update;
 
 	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
 
 	return 0;
 
-err_revert_link_enable:
-	for (i = 0; i < failed_enable_link_id; i++) {
-		struct max_des_link *link = &des->links[i];
-		u64 matched_streams_mask = updated_streams_mask;
-		u64 updated_sink_streams_mask;
-		u32 sink_pad = max_des_link_to_pad(des, link);
-		struct max_source *source;
-
-		updated_sink_streams_mask =
-			v4l2_subdev_state_xlate_streams(state, pad, sink_pad,
-							&matched_streams_mask);
-
-		if (!updated_sink_streams_mask)
-			continue;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!enable)
-			v4l2_subdev_enable_streams(source->sd, source->pad,
-						   updated_sink_streams_mask);
-		else
-			v4l2_subdev_disable_streams(source->sd, source->pad,
-						    updated_sink_streams_mask);
-	}
-
+err_revert_phy_update:
 	max_des_update_phy(priv, &state->routing, pad, priv->streams_masks);
 
 err_revert_link_update:

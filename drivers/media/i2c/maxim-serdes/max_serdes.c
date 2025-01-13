@@ -114,6 +114,70 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 }
 EXPORT_SYMBOL(max_get_bpps);
 
+int max_xlate_enable_disable_streams(struct max_source *sources,
+				     u32 source_sink_pad_offset,
+				     const struct v4l2_subdev_krouting *routing,
+				     u32 pad, u64 updated_streams_mask,
+				     u32 sink_pad_start, u32 num_sink_pads,
+				     bool enable)
+{
+	u32 failed_sink_pad;
+	u32 sink_pad;
+	int ret;
+
+	for (sink_pad = sink_pad_start; sink_pad < sink_pad_start + num_sink_pads; sink_pad++) {
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		struct max_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_routing_xlate_streams(routing, pad, sink_pad,
+							  &matched_streams_mask);
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = &sources[sink_pad + source_sink_pad_offset];
+
+		if (enable)
+			ret = v4l2_subdev_enable_streams(source->sd, source->pad,
+							 updated_sink_streams_mask);
+		else
+			ret = v4l2_subdev_disable_streams(source->sd, source->pad,
+							  updated_sink_streams_mask);
+		if (ret) {
+			failed_sink_pad = sink_pad;
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	for (sink_pad = sink_pad_start; sink_pad < failed_sink_pad; sink_pad++) {
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+		struct max_source *source;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_routing_xlate_streams(routing, pad, sink_pad,
+							  &matched_streams_mask);
+		if (!updated_sink_streams_mask)
+			continue;
+
+		source = &sources[sink_pad + source_sink_pad_offset];
+
+		if (!enable)
+			v4l2_subdev_enable_streams(source->sd, source->pad,
+						   updated_sink_streams_mask);
+		else
+			v4l2_subdev_disable_streams(source->sd, source->pad,
+						    updated_sink_streams_mask);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(max_xlate_enable_disable_streams);
+
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
