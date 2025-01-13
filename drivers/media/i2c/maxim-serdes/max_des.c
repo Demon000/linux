@@ -1178,15 +1178,15 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	unsigned int i;
 	int ret;
 
+	ret = max_des_populate_remap_context(priv, &context, &state->routing);
+	if (ret)
+		return ret;
+
 	ret = max_des_get_new_streams_masks(priv, &state->routing, pad,
 					    updated_streams_mask,
 					    &streams_mask, enable);
 	if (ret)
 		return ret;
-
-	ret = max_des_populate_remap_context(priv, &context, &state->routing);
-	if (ret)
-		goto err_free_new_streams_mask;
 
 	ret = max_des_update_active(priv, streams_mask);
 	if (ret)
