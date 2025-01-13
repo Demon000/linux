@@ -694,50 +694,6 @@ err_revert_pipe_update:
 	return ret;
 }
 
-static int max_ser_get_streams_masks(struct max_ser_priv *priv,
-				     const struct v4l2_subdev_krouting *routing,
-				     u32 pad, u64 updated_streams_mask,
-				     u64 **updated_streams_masks, bool enable)
-{
-	struct max_ser *ser = priv->ser;
-	unsigned int num_pads = max_ser_num_pads(ser);
-	u64 *streams_masks;
-	unsigned int i;
-
-	streams_masks = devm_kcalloc(priv->dev, num_pads, sizeof(*streams_masks),
-				     GFP_KERNEL);
-	if (!streams_masks)
-		return -ENOMEM;
-
-	for (i = 0; i < num_pads; i++)
-		streams_masks[i] = priv->streams_masks[i];
-
-	for (i = 0; i < ser->ops->num_phys; i++) {
-		struct max_ser_phy *phy = &ser->phys[i];
-		u64 matched_streams_mask = updated_streams_mask;
-		u64 updated_sink_streams_mask;
-		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
-
-		updated_sink_streams_mask =
-			v4l2_subdev_routing_xlate_streams(routing, pad, sink_pad,
-							  &matched_streams_mask);
-
-		if (enable)
-			streams_masks[sink_pad] |= updated_sink_streams_mask;
-		else
-			streams_masks[sink_pad] &= ~updated_sink_streams_mask;
-	}
-
-	if (enable)
-		streams_masks[pad] |= updated_streams_mask;
-	else
-		streams_masks[pad] &= ~updated_streams_mask;
-
-	*updated_streams_masks = streams_masks;
-
-	return 0;
-}
-
 static int max_ser_update_phys(struct max_ser_priv *priv,
 			       const struct v4l2_subdev_krouting *routing,
 			       u64 *streams_masks)
@@ -777,12 +733,14 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
+	unsigned int num_pads = max_ser_num_pads(ser);
 	u64 *streams_masks;
 	int ret;
 
-	ret = max_ser_get_streams_masks(priv, &state->routing, pad,
-					updated_streams_mask, &streams_masks,
-					enable);
+	ret = max_get_streams_masks(priv->dev, &state->routing,
+				    pad, updated_streams_mask,
+				    num_pads, 0, ser->ops->num_phys,
+				    priv->streams_masks, &streams_masks, enable);
 	if (ret)
 		return ret;
 

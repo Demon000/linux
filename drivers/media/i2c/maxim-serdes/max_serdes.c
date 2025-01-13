@@ -178,6 +178,48 @@ err:
 }
 EXPORT_SYMBOL(max_xlate_enable_disable_streams);
 
+int max_get_streams_masks(struct device *dev,
+			  const struct v4l2_subdev_krouting *routing,
+			  u32 pad, u64 updated_streams_mask,
+			  u32 num_pads, u32 sink_pad_start, u32 num_sink_pads,
+			  u64 *old_streams_masks, u64 **new_streams_masks,
+			  bool enable)
+{
+	u64 *streams_masks;
+	unsigned int i;
+
+	streams_masks = devm_kcalloc(dev, num_pads, sizeof(*streams_masks), GFP_KERNEL);
+	if (!streams_masks)
+		return -ENOMEM;
+
+	for (i = 0; i < num_pads; i++)
+		streams_masks[i] = old_streams_masks[i];
+
+	for (i = sink_pad_start; i < sink_pad_start + num_sink_pads; i++) {
+		u64 matched_streams_mask = updated_streams_mask;
+		u64 updated_sink_streams_mask;
+
+		updated_sink_streams_mask =
+			v4l2_subdev_routing_xlate_streams(routing, pad, i,
+							  &matched_streams_mask);
+
+		if (enable)
+			streams_masks[i] |= updated_sink_streams_mask;
+		else
+			streams_masks[i] &= ~updated_sink_streams_mask;
+	}
+
+	if (enable)
+		streams_masks[pad] |= updated_streams_mask;
+	else
+		streams_masks[pad] &= ~updated_streams_mask;
+
+	*new_streams_masks = streams_masks;
+
+	return 0;
+}
+EXPORT_SYMBOL(max_get_streams_masks);
+
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
