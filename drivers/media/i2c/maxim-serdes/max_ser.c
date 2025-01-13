@@ -754,7 +754,8 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_phys_update;
 
-	devm_kfree(priv->dev, priv->streams_masks);
+	if (priv->streams_masks)
+		devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
 	ser->active = !!streams_masks[pad];
 
@@ -1192,7 +1193,6 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 static int max_ser_allocate(struct max_ser_priv *priv)
 {
 	struct max_ser *ser = priv->ser;
-	unsigned int num_pads = max_ser_num_pads(ser);
 
 	ser->phys = devm_kcalloc(priv->dev, ser->ops->num_phys,
 				 sizeof(*ser->phys), GFP_KERNEL);
@@ -1212,12 +1212,6 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 	priv->sources = devm_kcalloc(priv->dev, ser->ops->num_phys,
 				     sizeof(*priv->sources), GFP_KERNEL);
 	if (!priv->sources)
-		return -ENOMEM;
-
-	priv->streams_masks = devm_kcalloc(priv->dev, num_pads,
-					   sizeof(*priv->streams_masks),
-					   GFP_KERNEL);
-	if (!priv->streams_masks)
 		return -ENOMEM;
 
 	return 0;
