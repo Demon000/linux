@@ -1066,10 +1066,8 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	int ret;
 
 	phy = max_des_pad_to_phy(des, pad);
-	if (!phy) {
-		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
+	if (!phy)
 		return -EINVAL;
-	}
 
 	ret = max_des_get_phy_mode(priv, phy, &mode, routing,
 				   streams_masks);
@@ -1084,11 +1082,8 @@ static int max_des_update_phy(struct max_des_priv *priv,
 		bool enable = !!streams_masks[pad];
 
 		ret = max_des_set_phy_active(des, phy, enable);
-		if (ret) {
-			dev_err(priv->dev, "Failed to set PHY %u active to %u: %d\n",
-				phy->index, enable, ret);
+		if (ret)
 			goto err_restore_phy_mode;
-		}
 	}
 
 	phy->mode = mode;
