@@ -427,7 +427,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_source *source,
 			       struct max_des_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
-			       u64 streams_mask, bool enable)
+			       u64 streams_mask)
 {
 	struct max_des_pipe_mode mode = { 0 };
 	struct max_des *des = priv->des;
@@ -460,6 +460,8 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 		goto err_restore_pipe_mode;
 
 	if (!streams_mask != !priv->streams_masks[pad]) {
+		bool enable = !!streams_mask;
+
 		ret = max_des_set_pipe_enable(des, pipe, enable);
 		if (ret)
 			goto err_restore_pipe_remaps;
@@ -964,7 +966,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
 			       const struct v4l2_subdev_krouting *routing,
-			       u64 streams_mask, bool enable)
+			       u64 streams_mask)
 {
 	struct max_source *source;
 	struct max_des *des = priv->des;
@@ -982,7 +984,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 		return -ENOENT;
 
 	ret = max_des_update_pipe(priv, context, link, source, pipe,
-				  routing, streams_mask, enable);
+				  routing, streams_mask);
 	if (ret)
 		return ret;
 
@@ -1199,7 +1201,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
 		ret = max_des_update_link(priv, &context, link, &state->routing,
-					  streams_masks[sink_pad], enable);
+					  streams_masks[sink_pad]);
 		if (ret) {
 			failed_update_link_id = i;
 			goto err_revert_link_update;
@@ -1283,7 +1285,7 @@ err_revert_link_update:
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
 		max_des_update_link(priv, &context, link, &state->routing,
-				    priv->streams_masks[sink_pad], !enable);
+				    priv->streams_masks[sink_pad]);
 	}
 
 	max_des_update_active(priv, priv->streams_masks);
