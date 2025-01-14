@@ -35,7 +35,7 @@
 #undef i2c_label
 
 &ser_label {
-	i2c-alias-pool = <0x50 0x51>;
+	i2c-alias-pool = <${pool_addr_0:0x50} ${pool_addr_1:0x51}>;
 
 	i2c-atr {
 		#address-cells = <1>;
