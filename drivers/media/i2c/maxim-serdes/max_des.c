@@ -1016,7 +1016,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 		if (!(BIT_ULL(route->source_stream) & updated_streams_masks[source_pad]))
 			continue;
 
-		ret = max_get_bpps(priv->sources, 0, routing, source_pad,
+		ret = max_get_bpps(priv->sources, 0, routing, route->sink_pad,
 				   BIT_ULL(route->sink_stream), &stream_bpps);
 		if (ret)
 			return ret;
