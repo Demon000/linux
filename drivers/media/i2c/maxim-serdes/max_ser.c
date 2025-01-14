@@ -756,7 +756,6 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 
 	if (priv->streams_masks)
 		devm_kfree(priv->dev, priv->streams_masks);
-
 	priv->streams_masks = streams_masks;
 	ser->active = !!streams_masks[pad];
 
