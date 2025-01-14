@@ -1200,8 +1200,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_phy_update;
 
-	if (priv->streams_masks)
-		devm_kfree(priv->dev, priv->streams_masks);
+	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
 
 	return 0;
@@ -1744,6 +1743,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 static int max_des_allocate(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
+	unsigned int num_pads = max_des_num_pads(des);
 
 	des->phys = devm_kcalloc(priv->dev, des->ops->num_phys,
 				 sizeof(*des->phys), GFP_KERNEL);
@@ -1763,6 +1763,12 @@ static int max_des_allocate(struct max_des_priv *priv)
 	priv->sources = devm_kcalloc(priv->dev, des->ops->num_links,
 				     sizeof(*priv->sources), GFP_KERNEL);
 	if (!priv->sources)
+		return -ENOMEM;
+
+	priv->streams_masks = devm_kcalloc(priv->dev, num_pads,
+					   sizeof(*priv->streams_masks),
+					   GFP_KERNEL);
+	if (!priv->streams_masks)
 		return -ENOMEM;
 
 	return 0;
