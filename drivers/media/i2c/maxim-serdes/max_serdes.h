@@ -61,6 +61,7 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd,
 int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 		 const struct v4l2_subdev_krouting *routing,
 		 u32 pad, u64 streams_mask, u32 *bpps);
+int max_process_bpps(struct device *dev, u32 bpps, unsigned int *doubled_bpp);
 
 int max_xlate_enable_disable_streams(struct max_source *sources,
 				     u32 source_sink_pad_offset,

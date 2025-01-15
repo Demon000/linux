@@ -545,6 +545,7 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 			    const struct v4l2_subdev_krouting *routing,
 			    u32 pad, u64 streams_mask)
 {
+	unsigned int doubled_bpp;
 	unsigned int min_bpp;
 	unsigned int max_bpp;
 	u32 bpps;
@@ -554,27 +555,26 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 	if (ret)
 		return ret;
 
-	if (!bpps)
-		return 0;
+	ret = max_process_bpps(priv->dev, bpps, &doubled_bpp);
+	if (ret)
+		return ret;
 
-	min_bpp = __ffs(bpps);
+	if (doubled_bpp == 8)
+		mode->dbl8 = true;
+	else if (doubled_bpp == 10)
+		mode->dbl10 = true;
+	else if (doubled_bpp == 12)
+		mode->dbl12 = true;
 
-	if (min_bpp <= 12) {
-		if (min_bpp == 8)
-			mode->dbl8 = true;
-		else if (min_bpp == 10)
-			mode->dbl10 = true;
-		else
-			mode->dbl12 = true;
-
-		bpps &= ~BIT(min_bpp);
-		bpps |= BIT(min_bpp * 2);
+	if (doubled_bpp) {
+		bpps &= ~BIT(doubled_bpp);
+		bpps |= BIT(doubled_bpp * 2);
 	}
 
 	min_bpp = __ffs(bpps);
 	max_bpp = __fls(bpps);
 
-	if (mode->dbl8 || mode->dbl10 || mode->dbl12)
+	if (doubled_bpp)
 		mode->soft_bpp = min_bpp;
 
 	if (min_bpp != max_bpp)
