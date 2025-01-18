@@ -998,7 +998,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 				struct max_des_phy *phy,
 				struct max_des_phy_mode *mode,
 				const struct v4l2_subdev_krouting *routing,
-				u64 *updated_streams_masks)
+				u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
 	u32 source_pad = max_des_phy_to_pad(des, phy);
@@ -1006,7 +1006,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 	int ret;
 
 	for_each_active_route(routing, route) {
-		u64 sink_streams_mask = updated_streams_masks[route->sink_pad];
+		u64 sink_streams_mask = streams_masks[route->sink_pad];
 		unsigned int min_bpp;
 		unsigned int max_bpp;
 		unsigned int bpp;
@@ -1016,7 +1016,7 @@ static int max_des_get_phy_mode(struct max_des_priv *priv,
 		if (source_pad != route->source_pad)
 			continue;
 
-		if (!(BIT_ULL(route->source_stream) & updated_streams_masks[source_pad]))
+		if (!(BIT_ULL(route->source_stream) & streams_masks[source_pad]))
 			continue;
 
 		ret = max_get_bpps(priv->sources, 0, routing, route->sink_pad,
