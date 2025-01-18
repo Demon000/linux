@@ -277,6 +277,8 @@ int max_get_streams_masks(struct device *dev,
 		updated_sink_streams_mask =
 			v4l2_subdev_routing_xlate_streams(routing, pad, i,
 							  &matched_streams_mask);
+		if (!updated_sink_streams_mask)
+			continue;
 
 		if (enable)
 			streams_masks[i] |= updated_sink_streams_mask;
