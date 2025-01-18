@@ -57,6 +57,13 @@ struct max_des_remap_context {
 	unsigned long dst_vc_ids_masks[MAX_DES_PHYS_NUM];
 };
 
+struct max_des_mode_context {
+	bool phys_bpp8_shared_with_16[MAX_DES_PHYS_NUM];
+	bool pipes_bpp8_shared_with_16[MAX_DES_PIPES_NUM];
+	u32 phys_double_bpps[MAX_DES_PHYS_NUM];
+	u32 pipes_double_bpps[MAX_DES_PIPES_NUM];
+};
+
 static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct max_des_priv, sd);
@@ -272,6 +279,133 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_populate_mode_context(struct max_des_priv *priv,
+					 struct max_des_mode_context *context,
+					 const struct v4l2_subdev_krouting *routing)
+{
+	bool bpp8_not_shared_with_16_phys[MAX_DES_PHYS_NUM] = { 0 };
+	u32 undoubled_bpps_phys[MAX_DES_PHYS_NUM] = { 0 };
+	struct max_des *des = priv->des;
+	struct v4l2_subdev_route *route;
+	struct max_des_link *link;
+	struct max_des_pipe *pipe;
+	struct max_des_phy *phy;
+	unsigned int doubled_bpp;
+	unsigned int bpp;
+	unsigned int i;
+	u32 stream_bpps;
+	u32 sink_bpps;
+	int ret;
+
+	/*
+	 * Go over all streams and check if the current stream is doubled.
+	 *
+	 * If the current stream is doubled, add it to a doubled mask for both
+	 * the pipe and the PHY.
+	 *
+	 * If the current stream is not doubled, add it to a local undoubled
+	 * mask for the PHY.
+	 *
+	 * Also, track whether an 8bpp stream is shared with any bpp > 8 on both
+	 * the PHYs and the pipes, since that needs to be special cased.
+	 *
+	 * After going over all the streams, remove the undoubled streams from
+	 * the doubled ones. Doubled and undoubled streams cannnot be streamed
+	 * over the same PHY.
+	 *
+	 * Then, do a second pass to remove the undoubled streams from the pipes.
+	 *
+	 * This operation cannot be done in a single pass because any pipe might
+	 * generate an undoubled stream for a specific bpp, causing already
+	 * processed pipes to need to have their doubled bpps updated.
+	 */
+
+	for_each_active_route(routing, route) {
+		unsigned int min_bpp;
+		unsigned int max_bpp;
+
+		phy = max_des_pad_to_phy(des, route->source_pad);
+		if (!phy)
+			return -ENOENT;
+
+		link = max_des_pad_to_link(des, route->sink_pad);
+		if (!link)
+			return -ENOENT;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		ret = max_get_bpps(priv->sources, 0, &stream_bpps,
+				   routing, route->sink_pad,
+				   BIT_ULL(route->sink_stream));
+		if (ret)
+			return ret;
+
+		ret = max_get_bpps(priv->sources, 0, &sink_bpps,
+				   routing, route->sink_pad, ~0ULL);
+		if (ret)
+			return ret;
+
+		ret = max_process_bpps(priv->dev, sink_bpps, ~0U, &doubled_bpp);
+		if (ret)
+			return ret;
+
+		bpp = __ffs(stream_bpps);
+		min_bpp = __ffs(sink_bpps);
+		max_bpp = __fls(sink_bpps);
+
+		if (bpp == doubled_bpp) {
+			context->phys_double_bpps[phy->index] |= BIT(bpp);
+			context->pipes_double_bpps[pipe->index] |= BIT(bpp);
+		} else {
+			undoubled_bpps_phys[phy->index] |= BIT(bpp);
+		}
+
+		if (min_bpp == 8 && max_bpp > 8) {
+			context->phys_bpp8_shared_with_16[phy->index] = true;
+			context->pipes_bpp8_shared_with_16[pipe->index] = true;
+		} else if (min_bpp == 8 && max_bpp == 8) {
+			bpp8_not_shared_with_16_phys[phy->index] = true;
+		}
+	}
+
+	for (i = 0; i < des->ops->num_phys; i++) {
+		if (context->phys_bpp8_shared_with_16[i] && bpp8_not_shared_with_16_phys[i]) {
+			dev_err(priv->dev,
+				"Cannot stream 8bpp coming from pipes padded to 16bpp"
+				"and pipes not padded to 16bpp on the same PHY\n");
+			return -EINVAL;
+		}
+	}
+
+	for (i = 0; i < des->ops->num_phys; i++)
+		context->phys_double_bpps[i] &= ~undoubled_bpps_phys[i];
+
+	for_each_active_route(routing, route) {
+		struct max_des_link *link;
+		struct max_des_pipe *pipe;
+		struct max_des_phy *phy;
+
+		phy = max_des_pad_to_phy(des, route->source_pad);
+		if (!phy)
+			return -ENOENT;
+
+		link = max_des_pad_to_link(des, route->sink_pad);
+		if (!link)
+			return -ENOENT;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		context->pipes_double_bpps[pipe->index] &=
+			context->phys_double_bpps[phy->index];
+	}
+
+	return 0;
+}
+
 static int max_des_add_remap(struct max_des_remap *remaps,
 			     unsigned int *num_remaps, unsigned int phy_id,
 			     unsigned int src_vc_id, unsigned int dst_vc_id,
@@ -394,30 +528,14 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_get_pipe_mode(struct max_des_priv *priv,
-				 struct max_des_link *link,
-				 struct max_source *source,
-				 struct max_des_pipe_mode *mode,
-				 const struct v4l2_subdev_krouting *routing,
-				 u64 streams_mask)
+static int max_des_get_pipe_mode(struct max_des_mode_context *context,
+				 struct max_des_pipe *pipe,
+				 struct max_des_pipe_mode *mode)
 {
-	struct max_des *des = priv->des;
-	u32 pad = max_des_link_to_pad(des, link);
-	unsigned int min_bpp, max_bpp;
-	u32 bpps;
-	int ret;
+	u32 double_bpps = context->pipes_double_bpps[pipe->index];
 
-	ret = max_get_bpps(priv->sources, 0, routing, pad, streams_mask, &bpps);
-	if (ret)
-		return ret;
-
-	if (!bpps)
-		return 0;
-
-	min_bpp = __ffs(bpps);
-	max_bpp = __fls(bpps);
-
-	if (min_bpp == 8 && (max_bpp == 8 || max_bpp > 16)) {
+	if ((double_bpps & BIT(8)) &&
+	    !context->pipes_bpp8_shared_with_16[pipe->index]) {
 		mode->dbl8 = true;
 		mode->dbl8mode = true;
 	}
@@ -427,6 +545,7 @@ static int max_des_get_pipe_mode(struct max_des_priv *priv,
 
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
+			       struct max_des_mode_context *mode_context,
 			       struct max_des_link *link,
 			       struct max_source *source,
 			       struct max_des_pipe *pipe,
@@ -450,8 +569,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 	if (ret)
 		goto err_free_new_remaps;
 
-	ret = max_des_get_pipe_mode(priv, link, source, &mode,
-				    routing, streams_mask);
+	ret = max_des_get_pipe_mode(mode_context, pipe, &mode);
 	if (ret)
 		goto err_free_new_remaps;
 
@@ -968,6 +1086,7 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 
 static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
+			       struct max_des_mode_context *mode_context,
 			       struct max_des_link *link,
 			       const struct v4l2_subdev_krouting *routing,
 			       u64 streams_mask)
@@ -987,7 +1106,12 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	ret = max_des_update_pipe(priv, context, link, source, pipe,
+	ret = max_ser_set_double_bpps(source->sd,
+				      mode_context->pipes_double_bpps[pipe->index]);
+	if (ret)
+		return ret;
+
+	ret = max_des_update_pipe(priv, context, mode_context, link, source, pipe,
 				  routing, streams_mask);
 	if (ret)
 		return ret;
@@ -995,72 +1119,31 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_get_phy_mode(struct max_des_priv *priv,
+static int max_des_get_phy_mode(struct max_des_mode_context *context,
 				struct max_des_phy *phy,
-				struct max_des_phy_mode *mode,
-				const struct v4l2_subdev_krouting *routing,
-				u64 *streams_masks)
+				struct max_des_phy_mode *mode)
 {
-	struct max_des *des = priv->des;
-	u32 source_pad = max_des_phy_to_pad(des, phy);
-	struct v4l2_subdev_route *route;
-	int ret;
+	bool bpp8_pipe_shared_with_16 = context->phys_bpp8_shared_with_16[phy->index];
+	u32 double_bpps = context->phys_double_bpps[phy->index];
 
-	for_each_active_route(routing, route) {
-		u64 sink_streams_mask = streams_masks[route->sink_pad];
-		unsigned int min_bpp;
-		unsigned int max_bpp;
-		unsigned int bpp;
-		u32 stream_bpps;
-		u32 sink_bpps;
-
-		if (source_pad != route->source_pad)
-			continue;
-
-		if (!(BIT_ULL(route->source_stream) & streams_masks[source_pad]))
-			continue;
-
-		ret = max_get_bpps(priv->sources, 0, routing, route->sink_pad,
-				   BIT_ULL(route->sink_stream), &stream_bpps);
-		if (ret)
-			return ret;
-
-		ret = max_get_bpps(priv->sources, 0, routing, route->sink_pad,
-				   sink_streams_mask, &sink_bpps);
-		if (ret)
-			return ret;
-
-		bpp = __ffs(stream_bpps);
-		min_bpp = __ffs(sink_bpps);
-		max_bpp = __fls(sink_bpps);
-
-		if (bpp != min_bpp)
-			continue;
-
-		if (bpp == 8) {
-			if (max_bpp == 8 || max_bpp > 16) {
-				mode->alt_mem_map8 = true;
-			} else {
-				mode->alt2_mem_map8 = true;
-			}
-		} else if (bpp == 10) {
-			mode->alt_mem_map10 = true;
-		} else if (bpp == 12) {
-			mode->alt_mem_map12 = true;
-		}
+	if (BIT(8) & double_bpps) {
+		if (bpp8_pipe_shared_with_16)
+			mode->alt2_mem_map8 = true;
+		else
+			mode->alt_mem_map8 = true;
 	}
 
-	if (mode->alt_mem_map8 && mode->alt2_mem_map8) {
-		dev_err(priv->dev,
-			"Cannot stream 8bpp coming from pipes padded to 16bpp"
-			"and pipes not padded to 16bpp on the same PHY\n");
-		return -EINVAL;
-	}
+	if (BIT(10) & double_bpps)
+		mode->alt_mem_map10 = true;
+
+	if (BIT(12) & double_bpps)
+		mode->alt_mem_map12 = true;
 
 	return 0;
 }
 
 static int max_des_update_phy(struct max_des_priv *priv,
+			      struct max_des_mode_context *context,
 			      const struct v4l2_subdev_krouting *routing,
 			      u32 pad, u64 *streams_masks)
 {
@@ -1073,7 +1156,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	if (!phy)
 		return -EINVAL;
 
-	ret = max_des_get_phy_mode(priv, phy, &mode, routing, streams_masks);
+	ret = max_des_get_phy_mode(context, phy, &mode);
 	if (ret)
 		return ret;
 
@@ -1130,6 +1213,7 @@ static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks)
 
 static int max_des_update_links(struct max_des_priv *priv,
 				struct max_des_remap_context *context,
+				struct max_des_mode_context *mode_context,
 				const struct v4l2_subdev_krouting *routing,
 				u64 *streams_masks)
 {
@@ -1142,8 +1226,8 @@ static int max_des_update_links(struct max_des_priv *priv,
 		struct max_des_link *link = &des->links[i];
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
-		ret = max_des_update_link(priv, context, link, routing,
-					  streams_masks[sink_pad]);
+		ret = max_des_update_link(priv, context, mode_context, link,
+					  routing, streams_masks[sink_pad]);
 		if (ret) {
 			failed_update_link_id = i;
 			goto err;
@@ -1157,8 +1241,8 @@ err:
 		struct max_des_link *link = &des->links[i];
 		u32 sink_pad = max_des_link_to_pad(des, link);
 
-		max_des_update_link(priv, context, link, routing,
-				    priv->streams_masks[sink_pad]);
+		max_des_update_link(priv, context, mode_context, link,
+				    routing, priv->streams_masks[sink_pad]);
 	}
 
 	return ret;
@@ -1170,6 +1254,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 {
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des_remap_context context = { 0 };
+	struct max_des_mode_context mode_context = { 0 };
 	struct max_des *des = priv->des;
 	unsigned int num_pads = max_des_num_pads(des);
 	u64 affected_sink_pads_mask = 0;
@@ -1177,6 +1262,10 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	int ret;
 
 	ret = max_des_populate_remap_context(priv, &context, &state->routing);
+	if (ret)
+		return ret;
+
+	ret = max_des_populate_mode_context(priv, &mode_context, &state->routing);
 	if (ret)
 		return ret;
 
@@ -1192,11 +1281,13 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_free_streams_masks;
 
-	ret = max_des_update_links(priv, &context, &state->routing, streams_masks);
+	ret = max_des_update_links(priv, &context, &mode_context,
+				   &state->routing, streams_masks);
 	if (ret)
 		goto err_revert_update_active;
 
-	ret = max_des_update_phy(priv, &state->routing, pad, streams_masks);
+	ret = max_des_update_phy(priv, &mode_context,
+				 &state->routing, pad, streams_masks);
 	if (ret)
 		goto err_revert_links_update;
 
@@ -1212,10 +1303,12 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	return 0;
 
 err_revert_phy_update:
-	max_des_update_phy(priv, &state->routing, pad, priv->streams_masks);
+	max_des_update_phy(priv, &mode_context,
+			   &state->routing, pad, priv->streams_masks);
 
 err_revert_links_update:
-	max_des_update_links(priv, &context, &state->routing, priv->streams_masks);
+	max_des_update_links(priv, &context, &mode_context,
+			     &state->routing, priv->streams_masks);
 
 err_revert_update_active:
 	max_des_update_active(priv, priv->streams_masks);
