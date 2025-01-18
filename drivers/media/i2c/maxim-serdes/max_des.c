@@ -202,7 +202,10 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 		return 0;
 	}
 
-	vc_id = ffz(context->dst_vc_ids_masks[phy_id]);
+	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id)))
+		vc_id = src_vc_id;
+	else
+		vc_id = ffz(context->dst_vc_ids_masks[phy_id]);
 
 	if (vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
