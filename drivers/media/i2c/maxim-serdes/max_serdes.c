@@ -73,8 +73,8 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd,
 EXPORT_SYMBOL(max_get_fd_stream_entry);
 
 int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
-		 const struct v4l2_subdev_krouting *routing,
-		 u32 pad, u64 streams_mask, u32 *bpps)
+		 u32 *bpps, const struct v4l2_subdev_krouting *routing,
+		 u32 pad, u64 streams_mask)
 {
 	struct v4l2_subdev_route *route;
 	int ret;
@@ -116,7 +116,8 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 }
 EXPORT_SYMBOL(max_get_bpps);
 
-int max_process_bpps(struct device *dev, u32 bpps, unsigned int *doubled_bpp)
+int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
+		     unsigned int *doubled_bpp)
 {
 	unsigned int min_bpp;
 	unsigned int max_bpp;
@@ -157,7 +158,7 @@ int max_process_bpps(struct device *dev, u32 bpps, unsigned int *doubled_bpp)
 		}
 	}
 
-	if (doubled) {
+	if (doubled && (allowed_double_bpps & BIT(min_bpp))) {
 		*doubled_bpp = min_bpp;
 		bpps &= ~BIT(min_bpp);
 		bpps |= BIT(min_bpp * 2);

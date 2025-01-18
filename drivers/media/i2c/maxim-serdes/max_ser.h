@@ -117,6 +117,8 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
 
 int max_ser_remove(struct max_ser *ser);
 
+int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
+
 int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
 int max_ser_wait(struct i2c_adapter *adapter, u8 addr);
 int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,

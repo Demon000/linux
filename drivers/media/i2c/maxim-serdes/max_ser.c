@@ -31,6 +31,7 @@ struct max_ser_priv {
 	struct media_pad *pads;
 	struct max_source *sources;
 	u64 *streams_masks;
+	u32 double_bpps;
 
 	struct mutex lock;
 
@@ -551,11 +552,11 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 	u32 bpps;
 	int ret;
 
-	ret = max_get_bpps(priv->sources, 0, routing, pad, streams_mask, &bpps);
+	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, streams_mask);
 	if (ret)
 		return ret;
 
-	ret = max_process_bpps(priv->dev, bpps, &doubled_bpp);
+	ret = max_process_bpps(priv->dev, bpps, priv->double_bpps, &doubled_bpp);
 	if (ret)
 		return ret;
 
@@ -1271,6 +1272,16 @@ int max_ser_remove(struct max_ser *ser)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_remove);
+
+int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+
+	priv->double_bpps = double_bpps;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max_ser_set_double_bpps);
 
 static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 			    u16 reg, u8 *val)
