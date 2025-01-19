@@ -26,6 +26,7 @@
 
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_LINKS_NUM		4
+#define MAX_DES_PIPES_NUM		8
 
 struct max_des_priv {
 	struct max_des *des;
@@ -1789,6 +1790,9 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 		return -E2BIG;
 
 	if (des->ops->num_phys > MAX_DES_PHYS_NUM)
+		return -E2BIG;
+
+	if (des->ops->num_pipes > MAX_DES_PIPES_NUM)
 		return -E2BIG;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
