@@ -93,7 +93,6 @@ struct max_ser_ops {
 				  unsigned int stream_id);
 	int (*set_pipe_phy)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			    struct max_ser_phy *phy);
-	int (*post_init)(struct max_ser *ser);
 };
 
 struct max_ser_priv;
