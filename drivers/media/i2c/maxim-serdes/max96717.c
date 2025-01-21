@@ -1135,13 +1135,6 @@ static int max96717_init(struct max_ser *ser)
 	return 0;
 }
 
-static int max96717_post_init(struct max_ser *ser)
-{
-	msleep(100);
-
-	return 0;
-}
-
 static struct pinctrl_ops max96717_ctrl_ops = {
 	.get_groups_count = max96717_ctrl_get_groups_count,
 	.get_group_name = max96717_ctrl_get_group_name,
@@ -1185,7 +1178,6 @@ static const struct max_ser_ops max96717_ops = {
 	.set_pipe_mode = max96717_set_pipe_mode,
 	.set_pipe_stream_id = max96717_set_pipe_stream_id,
 	.set_pipe_phy = max96717_set_pipe_phy,
-	.post_init = max96717_post_init,
 };
 
 static int max96717_probe(struct i2c_client *client)
