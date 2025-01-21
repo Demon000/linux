@@ -651,7 +651,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 
 		ret = max_des_set_pipe_enable(des, pipe, enable);
 		if (ret)
-			goto err_restore_pipe_remaps;
+			goto err_restore_remaps;
 	}
 
 	if (pipe->remaps)
@@ -662,7 +662,7 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 
 	return 0;
 
-err_restore_pipe_remaps:
+err_restore_remaps:
 	max_des_set_pipe_remaps(priv, pipe, pipe->remaps, pipe->num_remaps);
 
 err_free_new_remaps:
