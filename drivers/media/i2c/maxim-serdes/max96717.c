@@ -418,6 +418,9 @@ static int max96717_get_pin_config_reg(unsigned int offset, u32 param,
 		*mask = MAX96717_GPIO_C_GPIO_RX_ID;
 		return 0;
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
+		if (offset != 2 && offset != 4)
+			return -EINVAL;
+
 		*reg = MAX96717_REG3;
 		*mask = MAX96717_REG3_RCLKSEL;
 		return 0;
