@@ -20,6 +20,7 @@
 
 #define MAX96717_REG3				0x3
 #define MAX96717_REG3_RCLKSEL			GENMASK(1, 0)
+#define MAX96717_REG3_RCLKSEL_REFERENCE_PLL	0b11
 
 #define MAX96717_REG6				0x6
 #define MAX96717_REG6_RCLKEN			BIT(5)
@@ -138,6 +139,8 @@
 #define MAX96717_PIO_SLEW_2			0x571
 #define MAX96717_PIO_SLEW_2_PIO010_SLEW		GENMASK(5, 4)
 #define MAX96717_PIO_SLEW_2_PIO011_SLEW		GENMASK(7, 6)
+
+#define MAX96717_PIO_SLEW_FASTEST		0b00
 
 #define MAX96717_NAME				"max96717"
 #define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
@@ -1096,7 +1099,20 @@ static const struct max_phys_config max96717_phys_configs[] = {
 static int max96717_init(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
+	unsigned long config;
 	int ret;
+
+	config = pinconf_to_config_packed(MAX96717_PINCTRL_RCLKOUT_CLK,
+					  MAX96717_REG3_RCLKSEL_REFERENCE_PLL);
+	ret = max96717_conf_pin_config_set_one(priv, 4, config);
+	if (ret)
+		return ret;
+
+	config = pinconf_to_config_packed(PIN_CONFIG_SLEW_RATE,
+					  MAX96717_PIO_SLEW_FASTEST);
+	ret = max96717_conf_pin_config_set_one(priv, 4, config);
+	if (ret)
+		return ret;
 
 	/*
 	 * Set CMU2 PFDDIV to 1.1V for correct functionality of the device,
