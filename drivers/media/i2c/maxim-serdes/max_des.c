@@ -486,7 +486,6 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		if (!pipe)
 			return -ENOENT;
 
-
 		ret = max_ser_set_double_bpps(source->sd,
 					      context->pipes_double_bpps[pipe->index]);
 		if (ret)
