@@ -1588,10 +1588,8 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 	struct fwnode_handle *ep;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, pad, 0, 0);
-	if (!ep) {
-		dev_err(priv->dev, "Failed to get endpoint on port %u\n", pad);
+	if (!ep)
 		return 0;
-	}
 
 	source->ep_fwnode = fwnode_graph_get_remote_endpoint(ep);
 	fwnode_handle_put(ep);
@@ -1621,10 +1619,8 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, pad, 0, 0);
-	if (!ep) {
-		dev_err(priv->dev, "Failed to get endpoint on port %u\n", pad);
+	if (!ep)
 		return 0;
-	}
 
 	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &v4l2_ep);
 	fwnode_handle_put(ep);
