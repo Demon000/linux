@@ -280,7 +280,7 @@ static const struct pinfunction max96717_functions[] = {
 };
 
 #define MAX96717_PINCTRL_X(x)			(PIN_CONFIG_END + x)
-#define MAX96717_PINCTRL_PULL_STRENGTH_WEAK	MAX96717_PINCTRL_X(1)
+#define MAX96717_PINCTRL_PULL_STRENGTH_HIGH	MAX96717_PINCTRL_X(1)
 #define MAX96717_PINCTRL_JITTER_COMPENSATION_EN	MAX96717_PINCTRL_X(2)
 #define MAX96717_PINCTRL_GMSL_TX_EN		MAX96717_PINCTRL_X(3)
 #define MAX96717_PINCTRL_GMSL_RX_EN		MAX96717_PINCTRL_X(4)
@@ -290,7 +290,7 @@ static const struct pinfunction max96717_functions[] = {
 #define MAX96717_PINCTRL_INPUT_VALUE		MAX96717_PINCTRL_X(8)
 
 static const struct pinconf_generic_params max96717_cfg_params[] = {
-	{ "maxim,pull-strength-weak", MAX96717_PINCTRL_PULL_STRENGTH_WEAK, 0 },
+	{ "maxim,pull-strength-high", MAX96717_PINCTRL_PULL_STRENGTH_HIGH, 0 },
 	{ "maxim,jitter-compensation", MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
 	{ "maxim,gmsl-tx", MAX96717_PINCTRL_GMSL_TX_EN, 0 },
 	{ "maxim,gmsl-rx", MAX96717_PINCTRL_GMSL_RX_EN, 0 },
@@ -354,9 +354,9 @@ static int max96717_get_pin_config_reg(unsigned int offset, u32 param,
 		*mask = MAX96717_GPIO_A_TX_COMP_EN;
 		*val = 0b1;
 		return 0;
-	case MAX96717_PINCTRL_PULL_STRENGTH_WEAK:
+	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
 		*mask = MAX96717_GPIO_A_RES_CFG;
-		*val = 0b0;
+		*val = 0b1;
 		return 0;
 	}
 
@@ -461,7 +461,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 
 		break;
 	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
-	case MAX96717_PINCTRL_PULL_STRENGTH_WEAK:
+	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
 	case MAX96717_PINCTRL_GMSL_TX_EN:
 	case MAX96717_PINCTRL_GMSL_RX_EN:
 	case MAX96717_PINCTRL_INPUT_VALUE:
@@ -517,7 +517,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
 	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
-	case MAX96717_PINCTRL_PULL_STRENGTH_WEAK:
+	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
 	case MAX96717_PINCTRL_GMSL_TX_EN:
 	case MAX96717_PINCTRL_GMSL_RX_EN:
 	case PIN_CONFIG_OUTPUT_ENABLE:
