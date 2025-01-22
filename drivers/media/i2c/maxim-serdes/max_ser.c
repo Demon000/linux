@@ -1077,10 +1077,8 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, pad, 0, 0);
-	if (!ep) {
-		dev_err(priv->dev, "Failed to get endpoint on port %u\n", pad);
+	if (!ep)
 		return 0;
-	}
 
 	source->ep_fwnode = fwnode_graph_get_remote_endpoint(ep);
 	if (!source->ep_fwnode) {
