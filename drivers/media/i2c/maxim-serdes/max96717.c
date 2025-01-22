@@ -451,6 +451,12 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
+	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
+	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
+	case MAX96717_PINCTRL_GMSL_TX_EN:
+	case MAX96717_PINCTRL_GMSL_RX_EN:
+	case PIN_CONFIG_OUTPUT_ENABLE:
+	case PIN_CONFIG_INPUT_ENABLE:
 		ret = regmap_read(priv->regmap, reg, &val);
 		if (ret)
 			return ret;
@@ -460,13 +466,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 
 		break;
-	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
-	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
-	case MAX96717_PINCTRL_GMSL_TX_EN:
-	case MAX96717_PINCTRL_GMSL_RX_EN:
 	case MAX96717_PINCTRL_INPUT_VALUE:
-	case PIN_CONFIG_OUTPUT_ENABLE:
-	case PIN_CONFIG_INPUT_ENABLE:
 	case PIN_CONFIG_OUTPUT:
 		ret = regmap_read(priv->regmap, reg, &val);
 		if (ret)
