@@ -142,6 +142,9 @@
 
 #define MAX96717_PIO_SLEW_FASTEST		0b00
 
+#define MAX96717_BIAS_PULL_STRENGTH_1000000_OHM	1000000U
+#define MAX96717_BIAS_PULL_STRENGTH_40000_OHM	40000U
+
 #define MAX96717_NAME				"max96717"
 #define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
 #define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
@@ -290,7 +293,6 @@ static const struct pinfunction max96717_functions[] = {
 #define MAX96717_PINCTRL_INPUT_VALUE		MAX96717_PINCTRL_X(8)
 
 static const struct pinconf_generic_params max96717_cfg_params[] = {
-	{ "maxim,pull-strength-high", MAX96717_PINCTRL_PULL_STRENGTH_HIGH, 0 },
 	{ "maxim,jitter-compensation", MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
 	{ "maxim,gmsl-tx", MAX96717_PINCTRL_GMSL_TX_EN, 0 },
 	{ "maxim,gmsl-rx", MAX96717_PINCTRL_GMSL_RX_EN, 0 },
@@ -452,7 +454,6 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case MAX96717_PINCTRL_JITTER_COMPENSATION_EN:
-	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
 	case MAX96717_PINCTRL_GMSL_TX_EN:
 	case MAX96717_PINCTRL_GMSL_RX_EN:
 	case PIN_CONFIG_OUTPUT_ENABLE:
@@ -466,6 +467,7 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 			return -EINVAL;
 
 		break;
+	case MAX96717_PINCTRL_PULL_STRENGTH_HIGH:
 	case MAX96717_PINCTRL_INPUT_VALUE:
 	case PIN_CONFIG_OUTPUT:
 		ret = regmap_read(priv->regmap, reg, &val);
@@ -486,6 +488,26 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
+	}
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_UP:
+		*config = pinconf_to_config_packed(MAX96717_PINCTRL_PULL_STRENGTH_HIGH, 0);
+
+		ret = max96717_conf_pin_config_get(pctldev, offset, config);
+		if (ret)
+			return ret;
+
+		val = pinconf_to_config_argument(*config);
+		if (val)
+			val = MAX96717_BIAS_PULL_STRENGTH_1000000_OHM;
+		else
+			val = MAX96717_BIAS_PULL_STRENGTH_40000_OHM;
+
+		break;
+	default:
+		break;
 	}
 
 	*config = pinconf_to_config_packed(param, val);
@@ -543,6 +565,11 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		return ret;
 
 	switch (param) {
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+	case PIN_CONFIG_BIAS_PULL_UP:
+		arg = arg >= MAX96717_BIAS_PULL_STRENGTH_1000000_OHM;
+		config = pinconf_to_config_packed(MAX96717_PINCTRL_PULL_STRENGTH_HIGH, arg);
+		return max96717_conf_pin_config_set_one(priv, offset, config);
 	case PIN_CONFIG_OUTPUT:
 		config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT_ENABLE, 1);
 		return max96717_conf_pin_config_set_one(priv, offset, config);
