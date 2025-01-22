@@ -476,8 +476,8 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
-	case PIN_CONFIG_SLEW_RATE:
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
+	case PIN_CONFIG_SLEW_RATE:
 		ret = regmap_read(priv->regmap, reg, &val);
 		if (ret)
 			return ret;
@@ -529,8 +529,8 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
-	case PIN_CONFIG_SLEW_RATE:
 	case MAX96717_PINCTRL_RCLKOUT_CLK:
+	case PIN_CONFIG_SLEW_RATE:
 		val = field_prep(mask, arg);
 
 		ret = regmap_update_bits(priv->regmap, reg, mask, val);
