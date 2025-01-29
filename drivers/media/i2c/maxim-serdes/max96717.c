@@ -124,6 +124,14 @@
 #define MAX96717_EXT23				0x38f
 #define MAX96717_EXT24				0x390
 
+#define MAX96717_REF_VTG0			0x3f0
+#define MAX96717_REF_VTG0_REFGEN_EN		BIT(0)
+#define MAX96717_REF_VTG0_REFGEN_RST		BIT(1)
+#define MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ_ALT\
+						BIT(3)
+#define MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ	GENMASK(5, 4)
+#define MAX96717_REF_VTG0_REFGEN_PREDEF_EN	BIT(6)
+
 #define MAX96717_REF_VTG1			0x3f1
 #define MAX96717_REF_VTG1_PCLKEN		BIT(0)
 #define MAX96717_REF_VTG1_PCLK_GPIO		GENMASK(5, 1)
@@ -147,6 +155,8 @@
 #define MAX96717_BIAS_PULL_STRENGTH_1000000_OHM	1000000U
 #define MAX96717_BIAS_PULL_STRENGTH_40000_OHM	40000U
 
+#define MAX96717_DEFAULT_CLKOUT_RATE		24000000UL
+
 #define MAX96717_NAME				"max96717"
 #define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
 #define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
@@ -167,6 +177,9 @@ struct max96717_priv {
 	struct i2c_client *client;
 	struct regmap *regmap;
 	struct pinctrl_dev *pctldev;
+
+	struct clk_hw clk_hw;
+	u8 pll_predef_index;
 };
 
 struct max96717_chip_info {
@@ -183,6 +196,11 @@ struct max96717_chip_info {
 
 #define ser_to_priv(ser) \
 	container_of(ser, struct max96717_priv, ser)
+
+static inline struct max96717_priv *clk_hw_to_priv(struct clk_hw *hw)
+{
+	return container_of(hw, struct max96717_priv, clk_hw);
+}
 
 static const struct regmap_config max96717_i2c_regmap = {
 	.reg_bits = 16,
@@ -1108,20 +1126,7 @@ static const struct max_phys_config max96717_phys_configs[] = {
 static int max96717_init(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
-	unsigned long config;
 	int ret;
-
-	config = pinconf_to_config_packed(MAX96717_PINCTRL_RCLKOUT_CLK,
-					  MAX96717_REG3_RCLKSEL_REFERENCE_PLL);
-	ret = max96717_conf_pin_config_set_one(priv, 4, config);
-	if (ret)
-		return ret;
-
-	config = pinconf_to_config_packed(PIN_CONFIG_SLEW_RATE,
-					  MAX96717_PIO_SLEW_FASTEST);
-	ret = max96717_conf_pin_config_set_one(priv, 4, config);
-	if (ret)
-		return ret;
 
 	/*
 	 * Set CMU2 PFDDIV to 1.1V for correct functionality of the device,
@@ -1188,6 +1193,161 @@ static const struct max_ser_ops max96717_ops = {
 	.set_pipe_stream_id = max96717_set_pipe_stream_id,
 	.set_pipe_phy = max96717_set_pipe_phy,
 };
+
+struct max96717_pll_predef_freq {
+	unsigned long freq;
+	bool is_alt;
+	u8 val;
+};
+
+static const struct max96717_pll_predef_freq max96717_predef_freqs[] = {
+	{ 13500000, true,  0 }, { 19200000, false, 0 },
+	{ 24000000, true,  1 }, { 27000000, false, 1 },
+	{ 37125000, false, 2 }, { 74250000, false, 3 },
+};
+
+static unsigned long
+max96717_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct max96717_priv *priv = clk_hw_to_priv(hw);
+
+	return max96717_predef_freqs[priv->pll_predef_index].freq;
+}
+
+static unsigned int max96717_clk_find_best_index(struct max96717_priv *priv,
+						 unsigned long rate)
+{
+	unsigned int i, idx = 0;
+	unsigned long diff_new, diff_old = U32_MAX;
+
+	for (i = 0; i < ARRAY_SIZE(max96717_predef_freqs); i++) {
+		diff_new = abs(rate - max96717_predef_freqs[i].freq);
+		if (diff_new < diff_old) {
+			diff_old = diff_new;
+			idx = i;
+		}
+	}
+
+	return idx;
+}
+
+static long max96717_clk_round_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long *parent_rate)
+{
+	struct max96717_priv *priv = clk_hw_to_priv(hw);
+	struct device *dev = &priv->client->dev;
+	unsigned int idx;
+
+	idx = max96717_clk_find_best_index(priv, rate);
+
+	if (rate != max96717_predef_freqs[idx].freq) {
+		dev_warn(dev, "Request CLK freq:%lu, found CLK freq:%lu\n",
+			 rate, max96717_predef_freqs[idx].freq);
+	}
+
+	return max96717_predef_freqs[idx].freq;
+}
+
+static int max96717_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+				 unsigned long parent_rate)
+{
+	struct max96717_priv *priv = clk_hw_to_priv(hw);
+	unsigned int val, idx;
+	int ret = 0;
+
+	idx = max96717_clk_find_best_index(priv, rate);
+
+	val = FIELD_PREP(MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ,
+			 max96717_predef_freqs[idx].val);
+
+	if (max96717_predef_freqs[idx].is_alt)
+		val |= MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ_ALT;
+
+	val |= MAX96717_REF_VTG0_REFGEN_RST | MAX96717_REF_VTG0_REFGEN_EN;
+
+	ret = regmap_write(priv->regmap, MAX96717_REF_VTG0, val);
+	if (ret)
+		return ret;
+
+	ret = regmap_clear_bits(priv->regmap, MAX96717_REF_VTG0,
+				MAX96717_REF_VTG0_REFGEN_RST);
+	if (ret)
+		return ret;
+
+	priv->pll_predef_index = idx;
+
+	return 0;
+}
+
+static int max96717_clk_prepare(struct clk_hw *hw)
+{
+	struct max96717_priv *priv = clk_hw_to_priv(hw);
+
+	return regmap_set_bits(priv->regmap, MAX96717_REG6, MAX96717_REG6_RCLKEN);
+}
+
+static void max96717_clk_unprepare(struct clk_hw *hw)
+{
+	struct max96717_priv *priv = clk_hw_to_priv(hw);
+
+	regmap_clear_bits(priv->regmap, MAX96717_REG6, MAX96717_REG6_RCLKEN);
+}
+
+static const struct clk_ops max96717_clk_ops = {
+	.prepare     = max96717_clk_prepare,
+	.unprepare   = max96717_clk_unprepare,
+	.set_rate    = max96717_clk_set_rate,
+	.recalc_rate = max96717_clk_recalc_rate,
+	.round_rate  = max96717_clk_round_rate,
+};
+
+static int max96717_register_clkout(struct max96717_priv *priv)
+{
+	struct device *dev = &priv->client->dev;
+	struct clk_init_data init = { .ops = &max96717_clk_ops };
+	unsigned long config;
+	int ret;
+
+	config = pinconf_to_config_packed(MAX96717_PINCTRL_RCLKOUT_CLK,
+					  MAX96717_REG3_RCLKSEL_REFERENCE_PLL);
+	ret = max96717_conf_pin_config_set_one(priv, 4, config);
+	if (ret)
+		return ret;
+
+	config = pinconf_to_config_packed(PIN_CONFIG_SLEW_RATE,
+					  MAX96717_PIO_SLEW_FASTEST);
+	ret = max96717_conf_pin_config_set_one(priv, 4, config);
+	if (ret)
+		return ret;
+
+	init.name = kasprintf(GFP_KERNEL, "max96717.%s.clk_out", dev_name(dev));
+	if (!init.name)
+		return -ENOMEM;
+
+	priv->clk_hw.init = &init;
+
+	ret = max96717_clk_set_rate(&priv->clk_hw,
+				    MAX96717_DEFAULT_CLKOUT_RATE, 0);
+	if (ret)
+		goto free_init_name;
+
+	ret = devm_clk_hw_register(dev, &priv->clk_hw);
+	kfree(init.name);
+	if (ret)
+		return dev_err_probe(dev, ret, "Cannot register clock HW\n");
+
+	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+					  &priv->clk_hw);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Cannot add OF clock provider\n");
+
+	return 0;
+
+free_init_name:
+	kfree(init.name);
+	return ret;
+}
 
 static int max96717_gpiochip_probe(struct max96717_priv *priv)
 {
@@ -1276,6 +1436,10 @@ static int max96717_probe(struct i2c_client *client)
 		return ret;
 
 	ret = max96717_gpiochip_probe(priv);
+	if (ret)
+		return ret;
+
+	ret = max96717_register_clkout(priv);
 	if (ret)
 		return ret;
 
