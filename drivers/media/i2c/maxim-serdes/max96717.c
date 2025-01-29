@@ -1299,6 +1299,14 @@ static void max96717_remove(struct i2c_client *client)
 	max_ser_remove(&priv->ser);
 }
 
+static const struct max96717_chip_info max9295a_info = {
+	.num_pipes = 4,
+	.num_dts_per_pipe = 2,
+	.pipe_hw_ids = { 0, 1, 2, 3 },
+	.num_phys = 1,
+	.phy_hw_ids = { 1 },
+};
+
 static const struct max96717_chip_info max96717_info = {
 	.supports_3_data_lanes = true,
 	.supports_pkt_cnt = true,
@@ -1311,17 +1319,9 @@ static const struct max96717_chip_info max96717_info = {
 	.phy_hw_ids = { 1 },
 };
 
-static const struct max96717_chip_info max9295a_info = {
-	.num_pipes = 4,
-	.num_dts_per_pipe = 2,
-	.pipe_hw_ids = { 0, 1, 2, 3 },
-	.num_phys = 1,
-	.phy_hw_ids = { 1 },
-};
-
 static const struct of_device_id max96717_of_ids[] = {
-	{ .compatible = "maxim,max96717", .data = &max96717_info },
 	{ .compatible = "maxim,max9295a", .data = &max9295a_info },
+	{ .compatible = "maxim,max96717", .data = &max96717_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96717_of_ids);
