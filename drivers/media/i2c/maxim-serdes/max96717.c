@@ -265,7 +265,7 @@ static const struct pingroup max96717_ctrl_groups[] = {
 MAX96717_FUNC_GROUPS(gpio, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp5",
 			   "mfp6", "mfp7", "mfp8", "mfp9", "mfp10");
 MAX96717_FUNC_GROUPS(pclk, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp7", "mfp8");
-MAX96717_FUNC_GROUPS(rclkout, "mfp4", "mfp2");
+MAX96717_FUNC_GROUPS(rclkout, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp7", "mfp8");
 
 enum max96717_func {
 	max96717_func_gpio,
@@ -650,8 +650,7 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 {
 	int ret;
 
-	/* Enable RCLK. */
-	ret = regmap_set_bits(priv->regmap, MAX96717_REG6, MAX96717_REG6_RCLKEN);
+	ret = max96717_mux_set_pclk(priv, group);
 	if (ret)
 		return ret;
 
@@ -674,10 +673,6 @@ static int max96717_mux_set(struct pinctrl_dev *pctldev, unsigned selector,
 	case max96717_func_pclk:
 		return max96717_mux_set_pclk(priv, group);
 	case max96717_func_rclkout:
-		ret = max96717_mux_set_pclk(priv, group);
-		if (ret)
-			return ret;
-
 		return max96717_mux_set_rclkout(priv, group);
 	}
 
