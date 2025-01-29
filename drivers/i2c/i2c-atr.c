@@ -136,6 +136,7 @@ i2c_atr_find_mapping_by_addr(const struct list_head *list, u16 phys_addr)
 static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 			    int num)
 {
+	struct i2c_atr *atr = chan->atr;
 	static struct i2c_atr_alias_pair *c2a;
 	int i;
 
@@ -158,8 +159,15 @@ static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 
 		c2a = i2c_atr_find_mapping_by_addr(&chan->alias_list,
 						   msgs[i].addr);
-		if (!c2a)
-			continue;
+		if (!c2a) {
+			dev_err(atr->dev, "client 0x%02x not mapped!\n",
+				msgs[i].addr);
+
+			while (i--)
+				msgs[i].addr = chan->orig_addrs[i];
+
+			return -ENXIO;
+		}
 
 		msgs[i].addr = c2a->alias;
 	}
