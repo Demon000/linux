@@ -1322,6 +1322,7 @@ static const struct max96717_chip_info max96717_info = {
 static const struct of_device_id max96717_of_ids[] = {
 	{ .compatible = "maxim,max9295a", .data = &max9295a_info },
 	{ .compatible = "maxim,max96717", .data = &max96717_info },
+	{ .compatible = "maxim,max96793", .data = &max96717_info },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, max96717_of_ids);
