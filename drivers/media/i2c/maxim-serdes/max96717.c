@@ -124,10 +124,10 @@
 #define MAX96717_EXT23				0x38f
 #define MAX96717_EXT24				0x390
 
-#define MAX96717_REF_VTG0			0x3f1
-#define MAX96717_REF_VTG0_PCLK_EN		BIT(0)
-#define MAX96717_REF_VTG0_PCLK_GPIO		GENMASK(5, 1)
-#define MAX96717_REF_VTG0_RCLKEN_Y		BIT(7)
+#define MAX96717_REF_VTG1			0x3f1
+#define MAX96717_REF_VTG1_PCLK_EN		BIT(0)
+#define MAX96717_REF_VTG1_PCLK_GPIO		GENMASK(5, 1)
+#define MAX96717_REF_VTG1_RCLKEN_Y		BIT(7)
 
 #define MAX96717_PIO_SLEW_0			0x56f
 #define MAX96717_PIO_SLEW_0_PIO00_SLEW		GENMASK(1, 0)
@@ -632,14 +632,14 @@ static int max96717_mux_set_pclk(struct max96717_priv *priv, unsigned int group)
 {
 	int ret;
 
-	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG0,
-			      MAX96717_REF_VTG0_PCLK_EN);
+	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG1,
+			      MAX96717_REF_VTG1_PCLK_EN);
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG0,
-				 MAX96717_REF_VTG0_PCLK_GPIO,
-				 FIELD_PREP(MAX96717_REF_VTG0_PCLK_GPIO, group));
+	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG1,
+				 MAX96717_REF_VTG1_PCLK_GPIO,
+				 FIELD_PREP(MAX96717_REF_VTG1_PCLK_GPIO, group));
 	if (ret)
 		return ret;
 
@@ -656,8 +656,8 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 		return ret;
 
 	/* Enable RCLK output on PCLK. */
-	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG0,
-			      MAX96717_REF_VTG0_RCLKEN_Y);
+	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG1,
+			      MAX96717_REF_VTG1_RCLKEN_Y);
 	if (ret)
 		return ret;
 
