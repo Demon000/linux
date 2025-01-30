@@ -153,8 +153,8 @@ static int max_ser_set_pipe_dts(struct max_ser_priv *priv, struct max_ser_pipe *
 	return 0;
 }
 
-static int max_ser_i2c_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
-					 const struct i2c_client *client, u16 alias)
+static int max_ser_i2c_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
+				       u16 addr, u16 alias)
 {
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
@@ -168,13 +168,12 @@ static int max_ser_i2c_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
 
 	xlate = &ser->i2c_xlates[ser->num_i2c_xlates++];
 	xlate->src = alias;
-	xlate->dst = client->addr;
+	xlate->dst = addr;
 
 	return ser->ops->init_i2c_xlate(ser);
 }
 
-static void max_ser_i2c_atr_detach_client(struct i2c_atr *atr, u32 chan_id,
-					  const struct i2c_client *client)
+static void max_ser_i2c_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 addr)
 {
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
@@ -185,7 +184,7 @@ static void max_ser_i2c_atr_detach_client(struct i2c_atr *atr, u32 chan_id,
 	for (i = 0; i < ser->num_i2c_xlates; i++) {
 		xlate = &ser->i2c_xlates[i];
 
-		if (xlate->dst == client->addr)
+		if (xlate->dst == addr)
 			break;
 	}
 
@@ -208,8 +207,8 @@ static void max_ser_i2c_atr_detach_client(struct i2c_atr *atr, u32 chan_id,
 }
 
 static const struct i2c_atr_ops max_ser_i2c_atr_ops = {
-	.attach_client = max_ser_i2c_atr_attach_client,
-	.detach_client = max_ser_i2c_atr_detach_client,
+	.attach_addr = max_ser_i2c_atr_attach_addr,
+	.detach_addr = max_ser_i2c_atr_detach_addr,
 };
 
 static void max_ser_i2c_atr_deinit(struct max_ser_priv *priv)
@@ -222,6 +221,10 @@ static void max_ser_i2c_atr_deinit(struct max_ser_priv *priv)
 
 static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 {
+	struct i2c_atr_adap_desc desc = {
+		.chan_id = 0,
+	};
+
 	if (!i2c_check_functionality(priv->client->adapter,
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
@@ -233,7 +236,7 @@ static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 
 	i2c_atr_set_driver_data(priv->atr, priv);
 
-	return i2c_atr_add_adapter(priv->atr, 0, NULL, NULL);
+	return i2c_atr_add_adapter(priv->atr, &desc);
 }
 
 static int max_ser_set_fmt(struct v4l2_subdev *sd,

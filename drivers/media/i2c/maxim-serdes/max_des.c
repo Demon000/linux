@@ -829,9 +829,8 @@ static int max_des_post_init(struct max_des_priv *priv)
 	return 0;
 }
 
-static int max_des_ser_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
-					 const struct i2c_client *client,
-					 u16 alias)
+static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
+				       u16 addr, u16 alias)
 {
 	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
@@ -844,22 +843,21 @@ static int max_des_ser_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
 	}
 
 	link->ser_xlate.src = alias;
-	link->ser_xlate.dst = client->addr;
+	link->ser_xlate.dst = addr;
 	link->ser_xlate_enabled = true;
 
-	return max_des_init_link_ser_xlate(priv, link, client->adapter,
-					   client->addr, alias);
+	return max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
+					   addr, alias);
 }
 
-static void max_des_ser_atr_detach_client(struct i2c_atr *atr, u32 chan_id,
-					  const struct i2c_client *client)
+static void max_des_ser_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 addr)
 {
 	/* Don't do anything. */
 }
 
 static const struct i2c_atr_ops max_des_i2c_atr_ops = {
-	.attach_client = max_des_ser_atr_attach_client,
-	.detach_client = max_des_ser_atr_detach_client,
+	.attach_addr = max_des_ser_atr_attach_addr,
+	.detach_addr = max_des_ser_atr_detach_addr,
 };
 
 static void max_des_i2c_atr_deinit(struct max_des_priv *priv)
@@ -897,11 +895,14 @@ static int max_des_i2c_atr_init(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
+		struct i2c_atr_adap_desc desc = {
+			.chan_id = i,
+		};
 
 		if (!link->enabled)
 			continue;
 
-		ret = i2c_atr_add_adapter(priv->atr, link->index, NULL, NULL);
+		ret = i2c_atr_add_adapter(priv->atr, &desc);
 		if (ret)
 			goto err_add_adapters;
 	}
