@@ -1,14 +1,7 @@
-#define _CONCAT(a, b) a ## b
-#define CONCAT(a, b) _CONCAT(a, b)
 
-#define des_label max_des_0
-#define des_in_label CONCAT(des_label, _in_)
-#define des_in_label_x(x) CONCAT(des_in_label, x)
-#define des_i2c_label CONCAT(des_label, _i2c_)
-#define des_i2c_label_x(x) CONCAT(des_i2c_label, x)
 
 &i2c_bus {
-	des_label: gmsl-deserializer@27 {
+	max_des_0: gmsl-deserializer@27 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -17,7 +10,7 @@
 	};
 };
 
-&des_label {
+&max_des_0 {
 	i2c-alias-pool = <0x40 0x41 0x42 0x43>;
 
 	i2c-atr {
@@ -31,20 +24,9 @@
 	};
 };
 
-#define ser_label CONCAT(des_label, _ser_0)
-
-#define ser_in_label CONCAT(ser_label, _in_)
-#define ser_in_label_x(x) CONCAT(ser_in_label, x)
-#define ser_out_label CONCAT(ser_label, _out)
-#define ser_out_remote_label des_in_label_x(0)
-
-#define ser_i2c_label CONCAT(ser_label, _i2c_)
-#define ser_i2c_label_x(x) CONCAT(ser_i2c_label, x)
-
-#define i2c_label des_i2c_label_x(0)
-&des_label {
+&max_des_0 {
 	i2c-atr {
-		i2c_label: i2c@0 {
+		max_des_0_i2c_0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0>;
@@ -52,8 +34,8 @@
 	};
 };
 
-&i2c_label {
-	ser_label: gmsl-serializer@40 {
+&max_des_0_i2c_0 {
+	max_des_0_ser_0: gmsl-serializer@40 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#gpio-cells = <2>;
@@ -62,12 +44,11 @@
 		reg = <0x40>;
 
 		gpio-controller;
-		gpio-ranges = <&ser_label 0 0 11>;
+		gpio-ranges = <&max_des_0_ser_0 0 0 11>;
 	};
 };
-#undef i2c_label
 
-&ser_label {
+&max_des_0_ser_0 {
 	i2c-alias-pool = <0x50 0x51>;
 
 	i2c-atr {
@@ -82,35 +63,26 @@
 		port@1 {
 			reg = <1>;
 
-			ser_out_label: endpoint {
-				remote-endpoint = <&ser_out_remote_label>;
+			max_des_0_ser_0_out: endpoint {
+				remote-endpoint = <&max_des_0_in_0>;
 			};
 		};
 	};
 };
 
-&des_label {
+&max_des_0 {
 	ports {
 		port@0 {
 			reg = <0x0>;
 
-			ser_out_remote_label: endpoint {
-				remote-endpoint = <&ser_out_label>;
+			max_des_0_in_0: endpoint {
+				remote-endpoint = <&max_des_0_ser_0_out>;
 			};
 		};
 	};
-};
-
-#define cam_label CONCAT(ser_label, _cam_0)
-#define vcm_label CONCAT(ser_label, _vcm_0)
-
-#define cam_out_label CONCAT(cam_label, _out)
-#define cam_out_remote_label ser_in_label_x(0)
-
-#define i2c_label ser_i2c_label_x(0)
-&ser_label {
+};&max_des_0_ser_0 {
 	i2c-atr {
-		i2c_label: i2c@0 {
+		max_des_0_ser_0_i2c_0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0>;
@@ -118,75 +90,48 @@
 	};
 };
 
-#define i2c_csi_dsi0 i2c_label
-#define cam_node cam_label
-#define cam_endpoint cam_out_label
-#define vcm vcm_label
+#define i2c_csi_dsi0 max_des_0_ser_0_i2c_0
+#define cam_node max_des_0_ser_0_cam_0
+#define cam_endpoint max_des_0_ser_0_cam_0_out
+#define vcm max_des_0_ser_0_vcm_0
 #include "rpi5-csi0-imx219.dtsi"
 #undef vcm
 #undef cam_node
 #undef cam_endpoint
 #undef i2c_csi_dsi0
 
-#undef i2c_label
-
-&cam_label {
+&max_des_0_ser_0_cam_0 {
 	status = "okay";
 
-	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&max_des_0_ser_0 0 GPIO_ACTIVE_HIGH>;
 };
 
-&cam_out_label {
-	remote-endpoint = <&cam_out_remote_label>;
+&max_des_0_ser_0_cam_0_out {
+	remote-endpoint = <&max_des_0_ser_0_in_0>;
 };
 
-&ser_label {
+&max_des_0_ser_0 {
 	ports {
 		port@0 {
 			reg = <0>;
 
-			cam_out_remote_label: endpoint {
-				remote-endpoint = <&cam_out_label>;
+			max_des_0_ser_0_in_0: endpoint {
+				remote-endpoint = <&max_des_0_ser_0_cam_0_out>;
 			};
 		};
 	};
 };
 
-&cam_out_remote_label {
+&max_des_0_ser_0_in_0 {
 	clock-lanes = <0>;
 	data-lanes = <1 2>;
 	clock-noncontinuous;
 	link-frequencies = /bits/ 64 <456000000>;
 };
 
-#undef cam_out_remote_label
-#undef cam_out_label
-#undef cam_label
-
-#undef ser_i2c_label_x
-#undef ser_i2c_label
-
-#undef ser_out_remote_label
-#undef ser_out_label
-
-#undef ser_in_label_x
-#undef ser_in_label
-
-#undef ser_label
-#define ser_label CONCAT(des_label, _ser_1)
-
-#define ser_in_label CONCAT(ser_label, _in_)
-#define ser_in_label_x(x) CONCAT(ser_in_label, x)
-#define ser_out_label CONCAT(ser_label, _out)
-#define ser_out_remote_label des_in_label_x(1)
-
-#define ser_i2c_label CONCAT(ser_label, _i2c_)
-#define ser_i2c_label_x(x) CONCAT(ser_i2c_label, x)
-
-#define i2c_label des_i2c_label_x(1)
-&des_label {
+&max_des_0 {
 	i2c-atr {
-		i2c_label: i2c@1 {
+		max_des_0_i2c_1: i2c@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x1>;
@@ -194,8 +139,8 @@
 	};
 };
 
-&i2c_label {
-	ser_label: gmsl-serializer@40 {
+&max_des_0_i2c_1 {
+	max_des_0_ser_1: gmsl-serializer@40 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#gpio-cells = <2>;
@@ -204,13 +149,12 @@
 		reg = <0x40>;
 
 		gpio-controller;
-		gpio-ranges = <&ser_label 0 0 11>;
+		gpio-ranges = <&max_des_0_ser_1 0 0 11>;
 	};
 };
-#undef i2c_label
 
-&ser_label {
-	i2c-alias-pool = <0x50 0x51>;
+&max_des_0_ser_1 {
+	i2c-alias-pool = <0x52 0x53>;
 
 	i2c-atr {
 		#address-cells = <1>;
@@ -224,35 +168,26 @@
 		port@1 {
 			reg = <1>;
 
-			ser_out_label: endpoint {
-				remote-endpoint = <&ser_out_remote_label>;
+			max_des_0_ser_1_out: endpoint {
+				remote-endpoint = <&max_des_0_in_1>;
 			};
 		};
 	};
 };
 
-&des_label {
+&max_des_0 {
 	ports {
 		port@1 {
 			reg = <0x1>;
 
-			ser_out_remote_label: endpoint {
-				remote-endpoint = <&ser_out_label>;
+			max_des_0_in_1: endpoint {
+				remote-endpoint = <&max_des_0_ser_1_out>;
 			};
 		};
 	};
-};
-
-#define cam_label CONCAT(ser_label, _cam_0)
-#define vcm_label CONCAT(ser_label, _vcm_0)
-
-#define cam_out_label CONCAT(cam_label, _out)
-#define cam_out_remote_label ser_in_label_x(0)
-
-#define i2c_label ser_i2c_label_x(0)
-&ser_label {
+};&max_des_0_ser_1 {
 	i2c-atr {
-		i2c_label: i2c@0 {
+		max_des_0_ser_1_i2c_0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0>;
@@ -260,75 +195,48 @@
 	};
 };
 
-#define i2c_csi_dsi0 i2c_label
-#define cam_node cam_label
-#define cam_endpoint cam_out_label
-#define vcm vcm_label
+#define i2c_csi_dsi0 max_des_0_ser_1_i2c_0
+#define cam_node max_des_0_ser_1_cam_0
+#define cam_endpoint max_des_0_ser_1_cam_0_out
+#define vcm max_des_0_ser_1_vcm_0
 #include "rpi5-csi0-imx219.dtsi"
 #undef vcm
 #undef cam_node
 #undef cam_endpoint
 #undef i2c_csi_dsi0
 
-#undef i2c_label
-
-&cam_label {
+&max_des_0_ser_1_cam_0 {
 	status = "okay";
 
-	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&max_des_0_ser_1 0 GPIO_ACTIVE_HIGH>;
 };
 
-&cam_out_label {
-	remote-endpoint = <&cam_out_remote_label>;
+&max_des_0_ser_1_cam_0_out {
+	remote-endpoint = <&max_des_0_ser_1_in_0>;
 };
 
-&ser_label {
+&max_des_0_ser_1 {
 	ports {
 		port@0 {
 			reg = <0>;
 
-			cam_out_remote_label: endpoint {
-				remote-endpoint = <&cam_out_label>;
+			max_des_0_ser_1_in_0: endpoint {
+				remote-endpoint = <&max_des_0_ser_1_cam_0_out>;
 			};
 		};
 	};
 };
 
-&cam_out_remote_label {
+&max_des_0_ser_1_in_0 {
 	clock-lanes = <0>;
 	data-lanes = <1 2>;
 	clock-noncontinuous;
 	link-frequencies = /bits/ 64 <456000000>;
 };
 
-#undef cam_out_remote_label
-#undef cam_out_label
-#undef cam_label
-
-#undef ser_i2c_label_x
-#undef ser_i2c_label
-
-#undef ser_out_remote_label
-#undef ser_out_label
-
-#undef ser_in_label_x
-#undef ser_in_label
-
-#undef ser_label
-#define ser_label CONCAT(des_label, _ser_2)
-
-#define ser_in_label CONCAT(ser_label, _in_)
-#define ser_in_label_x(x) CONCAT(ser_in_label, x)
-#define ser_out_label CONCAT(ser_label, _out)
-#define ser_out_remote_label des_in_label_x(2)
-
-#define ser_i2c_label CONCAT(ser_label, _i2c_)
-#define ser_i2c_label_x(x) CONCAT(ser_i2c_label, x)
-
-#define i2c_label des_i2c_label_x(2)
-&des_label {
+&max_des_0 {
 	i2c-atr {
-		i2c_label: i2c@2 {
+		max_des_0_i2c_2: i2c@2 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x2>;
@@ -336,8 +244,8 @@
 	};
 };
 
-&i2c_label {
-	ser_label: gmsl-serializer@40 {
+&max_des_0_i2c_2 {
+	max_des_0_ser_2: gmsl-serializer@40 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#gpio-cells = <2>;
@@ -346,13 +254,12 @@
 		reg = <0x40>;
 
 		gpio-controller;
-		gpio-ranges = <&ser_label 0 0 11>;
+		gpio-ranges = <&max_des_0_ser_2 0 0 11>;
 	};
 };
-#undef i2c_label
 
-&ser_label {
-	i2c-alias-pool = <0x50 0x51>;
+&max_des_0_ser_2 {
+	i2c-alias-pool = <0x54 0x55>;
 
 	i2c-atr {
 		#address-cells = <1>;
@@ -366,35 +273,26 @@
 		port@1 {
 			reg = <1>;
 
-			ser_out_label: endpoint {
-				remote-endpoint = <&ser_out_remote_label>;
+			max_des_0_ser_2_out: endpoint {
+				remote-endpoint = <&max_des_0_in_2>;
 			};
 		};
 	};
 };
 
-&des_label {
+&max_des_0 {
 	ports {
 		port@2 {
 			reg = <0x2>;
 
-			ser_out_remote_label: endpoint {
-				remote-endpoint = <&ser_out_label>;
+			max_des_0_in_2: endpoint {
+				remote-endpoint = <&max_des_0_ser_2_out>;
 			};
 		};
 	};
-};
-
-#define cam_label CONCAT(ser_label, _cam_0)
-#define vcm_label CONCAT(ser_label, _vcm_0)
-
-#define cam_out_label CONCAT(cam_label, _out)
-#define cam_out_remote_label ser_in_label_x(0)
-
-#define i2c_label ser_i2c_label_x(0)
-&ser_label {
+};&max_des_0_ser_2 {
 	i2c-atr {
-		i2c_label: i2c@0 {
+		max_des_0_ser_2_i2c_0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0>;
@@ -402,75 +300,48 @@
 	};
 };
 
-#define i2c_csi_dsi0 i2c_label
-#define cam_node cam_label
-#define cam_endpoint cam_out_label
-#define vcm vcm_label
+#define i2c_csi_dsi0 max_des_0_ser_2_i2c_0
+#define cam_node max_des_0_ser_2_cam_0
+#define cam_endpoint max_des_0_ser_2_cam_0_out
+#define vcm max_des_0_ser_2_vcm_0
 #include "rpi5-csi0-imx219.dtsi"
 #undef vcm
 #undef cam_node
 #undef cam_endpoint
 #undef i2c_csi_dsi0
 
-#undef i2c_label
-
-&cam_label {
+&max_des_0_ser_2_cam_0 {
 	status = "okay";
 
-	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&max_des_0_ser_2 0 GPIO_ACTIVE_HIGH>;
 };
 
-&cam_out_label {
-	remote-endpoint = <&cam_out_remote_label>;
+&max_des_0_ser_2_cam_0_out {
+	remote-endpoint = <&max_des_0_ser_2_in_0>;
 };
 
-&ser_label {
+&max_des_0_ser_2 {
 	ports {
 		port@0 {
 			reg = <0>;
 
-			cam_out_remote_label: endpoint {
-				remote-endpoint = <&cam_out_label>;
+			max_des_0_ser_2_in_0: endpoint {
+				remote-endpoint = <&max_des_0_ser_2_cam_0_out>;
 			};
 		};
 	};
 };
 
-&cam_out_remote_label {
+&max_des_0_ser_2_in_0 {
 	clock-lanes = <0>;
 	data-lanes = <1 2>;
 	clock-noncontinuous;
 	link-frequencies = /bits/ 64 <456000000>;
 };
 
-#undef cam_out_remote_label
-#undef cam_out_label
-#undef cam_label
-
-#undef ser_i2c_label_x
-#undef ser_i2c_label
-
-#undef ser_out_remote_label
-#undef ser_out_label
-
-#undef ser_in_label_x
-#undef ser_in_label
-
-#undef ser_label
-#define ser_label CONCAT(des_label, _ser_3)
-
-#define ser_in_label CONCAT(ser_label, _in_)
-#define ser_in_label_x(x) CONCAT(ser_in_label, x)
-#define ser_out_label CONCAT(ser_label, _out)
-#define ser_out_remote_label des_in_label_x(3)
-
-#define ser_i2c_label CONCAT(ser_label, _i2c_)
-#define ser_i2c_label_x(x) CONCAT(ser_i2c_label, x)
-
-#define i2c_label des_i2c_label_x(3)
-&des_label {
+&max_des_0 {
 	i2c-atr {
-		i2c_label: i2c@3 {
+		max_des_0_i2c_3: i2c@3 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x3>;
@@ -478,8 +349,8 @@
 	};
 };
 
-&i2c_label {
-	ser_label: gmsl-serializer@40 {
+&max_des_0_i2c_3 {
+	max_des_0_ser_3: gmsl-serializer@40 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#gpio-cells = <2>;
@@ -488,13 +359,12 @@
 		reg = <0x40>;
 
 		gpio-controller;
-		gpio-ranges = <&ser_label 0 0 11>;
+		gpio-ranges = <&max_des_0_ser_3 0 0 11>;
 	};
 };
-#undef i2c_label
 
-&ser_label {
-	i2c-alias-pool = <0x50 0x51>;
+&max_des_0_ser_3 {
+	i2c-alias-pool = <0x56 0x57>;
 
 	i2c-atr {
 		#address-cells = <1>;
@@ -508,35 +378,26 @@
 		port@1 {
 			reg = <1>;
 
-			ser_out_label: endpoint {
-				remote-endpoint = <&ser_out_remote_label>;
+			max_des_0_ser_3_out: endpoint {
+				remote-endpoint = <&max_des_0_in_3>;
 			};
 		};
 	};
 };
 
-&des_label {
+&max_des_0 {
 	ports {
 		port@3 {
 			reg = <0x3>;
 
-			ser_out_remote_label: endpoint {
-				remote-endpoint = <&ser_out_label>;
+			max_des_0_in_3: endpoint {
+				remote-endpoint = <&max_des_0_ser_3_out>;
 			};
 		};
 	};
-};
-
-#define cam_label CONCAT(ser_label, _cam_0)
-#define vcm_label CONCAT(ser_label, _vcm_0)
-
-#define cam_out_label CONCAT(cam_label, _out)
-#define cam_out_remote_label ser_in_label_x(0)
-
-#define i2c_label ser_i2c_label_x(0)
-&ser_label {
+};&max_des_0_ser_3 {
 	i2c-atr {
-		i2c_label: i2c@0 {
+		max_des_0_ser_3_i2c_0: i2c@0 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0>;
@@ -544,65 +405,41 @@
 	};
 };
 
-#define i2c_csi_dsi0 i2c_label
-#define cam_node cam_label
-#define cam_endpoint cam_out_label
-#define vcm vcm_label
+#define i2c_csi_dsi0 max_des_0_ser_3_i2c_0
+#define cam_node max_des_0_ser_3_cam_0
+#define cam_endpoint max_des_0_ser_3_cam_0_out
+#define vcm max_des_0_ser_3_vcm_0
 #include "rpi5-csi0-imx219.dtsi"
 #undef vcm
 #undef cam_node
 #undef cam_endpoint
 #undef i2c_csi_dsi0
 
-#undef i2c_label
-
-&cam_label {
+&max_des_0_ser_3_cam_0 {
 	status = "okay";
 
-	reset-gpios = <&ser_label 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&max_des_0_ser_3 0 GPIO_ACTIVE_HIGH>;
 };
 
-&cam_out_label {
-	remote-endpoint = <&cam_out_remote_label>;
+&max_des_0_ser_3_cam_0_out {
+	remote-endpoint = <&max_des_0_ser_3_in_0>;
 };
 
-&ser_label {
+&max_des_0_ser_3 {
 	ports {
 		port@0 {
 			reg = <0>;
 
-			cam_out_remote_label: endpoint {
-				remote-endpoint = <&cam_out_label>;
+			max_des_0_ser_3_in_0: endpoint {
+				remote-endpoint = <&max_des_0_ser_3_cam_0_out>;
 			};
 		};
 	};
 };
 
-&cam_out_remote_label {
+&max_des_0_ser_3_in_0 {
 	clock-lanes = <0>;
 	data-lanes = <1 2>;
 	clock-noncontinuous;
 	link-frequencies = /bits/ 64 <456000000>;
 };
-
-#undef cam_out_remote_label
-#undef cam_out_label
-#undef cam_label
-
-#undef ser_i2c_label_x
-#undef ser_i2c_label
-
-#undef ser_out_remote_label
-#undef ser_out_label
-
-#undef ser_in_label_x
-#undef ser_in_label
-
-#undef ser_label
-
-#undef des_label
-#undef des_in_label
-#undef des_i2c_label
-
-#undef _CONCAT
-#undef CONCAT

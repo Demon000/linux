@@ -2,70 +2,34 @@
 
 from argparse import ArgumentParser
 import json
-import re
 import sys
 from os import path
-from typing import TextIO
+
+from jinja2 import Environment, FileSystemLoader
 
 configs = sys.argv[1:]
 
 vars_type = dict[str, str | int]
 
-def replace_vars(data: str, vars: vars_type) -> str:
-    for key, value in vars.items():
-        data = re.sub(rf'\${{{key}}}', str(value), data)
-    return data
+def hex_remove_0x(value):
+    assert value[:2] == '0x'
+    return value[2:]
+
+def str_quote(value):
+    return f'"{value}"'
+
+def add_filter(env, fn):
+    env.filters[fn.__name__] = fn
 
 def read_template(dir: str, name: str, vars: vars_type) -> str:
     template_name = f'{name}.dtsi.in'
-    template_path = path.join(dir, template_name)
-    with open(template_path, 'r') as f:
-        data = f.read()
 
-    data = replace_vars(data, vars)
+    env = Environment(loader=FileSystemLoader(dir))
+    add_filter(env, hex_remove_0x)
+    add_filter(env, str_quote)
+    template = env.get_template(template_name)
 
-    leftover_replacements = re.findall(r'\${\S+}', data)
-    assert not leftover_replacements, \
-        f'Leftover varible replacements {leftover_replacements}'
-
-    return data
-
-def write_cam(cam_cfg: any, idx: int, vars: vars_type, config_dir: str, out: TextIO):
-    vars = {
-        **vars,
-        'cam_idx': f'{idx:x}',
-    }
-
-    return read_template(config_dir, cam_cfg['name'], vars)
-
-
-def configure_ser(ser_cfg: any, idx: int, vars: vars_type, config_dir: str, out: TextIO):
-    vars = {
-        **vars,
-        'ser_idx': f'{idx:x}',
-    }
-
-    cameras_data = ''
-    for i, cam_cfg in enumerate(ser_cfg['cameras']):
-        cameras_data += write_cam(cam_cfg, i, vars, config_dir, out)
-
-    vars['cameras'] = cameras_data
-
-    return read_template(config_dir, ser_cfg['name'], vars)
-
-def configure_deser(des_cfg: any, idx: int, config_dir: str, out: TextIO):
-    vars = {
-        'idx': f'{idx:x}',
-    }
-
-    serializers_data = ''
-    for i, ser_cfg in enumerate(des_cfg['links']):
-        serializers_data += configure_ser(ser_cfg, i, vars, config_dir, out)
-
-    vars['serializers'] = serializers_data
-
-    return read_template(config_dir, des_cfg['name'], vars)
-
+    return template.render(**vars)
 
 def write_config(config_path: str, dts_path: str | None = None):
     config_dir = path.dirname(config_path)
@@ -83,7 +47,10 @@ def write_config(config_path: str, dts_path: str | None = None):
     with open(dts_path, 'w') as f:
         data = ''
         for i, des_cfg in enumerate(config):
-            data += configure_deser(des_cfg, i, config_dir, f)
+            data += read_template(config_dir, des_cfg['name'], {
+                'des_cfg': des_cfg,
+                'des_idx': i,
+            })
         f.write(data)
 
 if __name__ == '__main__':
