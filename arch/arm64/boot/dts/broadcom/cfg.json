@@ -9,8 +9,7 @@
                         "name": "imx219"
                     }
                 ],
-                "pool_addr_0": "0x50",
-                "pool_addr_1": "0x51"
+                "pool_addrs": ["0x50", "0x51"]
             },
             {
                 "name": "max96717",
@@ -19,8 +18,7 @@
                         "name": "imx219"
                     }
                 ],
-                "pool_addr_0": "0x52",
-                "pool_addr_1": "0x53"
+                "pool_addrs": ["0x52", "0x53"]
             },
             {
                 "name": "max96717",
@@ -29,8 +27,7 @@
                         "name": "imx219"
                     }
                 ],
-                "pool_addr_0": "0x54",
-                "pool_addr_1": "0x55"
+                "pool_addrs": ["0x54", "0x55"]
             },
             {
                 "name": "max96717",
@@ -39,8 +36,7 @@
                         "name": "imx219"
                     }
                 ],
-                "pool_addr_0": "0x56",
-                "pool_addr_1": "0x57"
+                "pool_addrs": ["0x56", "0x57"]
             }
         ]
     }
