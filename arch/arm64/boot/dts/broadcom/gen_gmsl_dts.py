@@ -15,10 +15,22 @@ configs = sys.argv[1:]
 
 vars_type = dict[str, str | int]
 
+def hex_remove_0x(value):
+    assert value[:2] == '0x'
+    return value[2:]
+
+def str_quote(value):
+    return f'"{value}"'
+
+def add_filter(env, fn):
+    env.filters[fn.__name__] = fn
+
 def read_template(dir: str, name: str, vars: vars_type) -> str:
     template_name = f'{name}.dtsi.in'
 
     env = Environment(loader=FileSystemLoader(dir))
+    add_filter(env, hex_remove_0x)
+    add_filter(env, str_quote)
     template = env.get_template(template_name)
 
     return template.render(**vars)

@@ -1,3 +1,8 @@
+{%- set default_address = "0x40" -%}
+{%- set address = ser_cfg.address | d(default_address) %}
+{%- set default_compatible = "maxim,max96717" -%}
+{%- set compatible = ser_cfg.compatible | d(default_compatible) | str_quote -%}
+
 {%- set ser_label = des_label ~ "_ser_" ~ ser_idx -%}
 {%- set ser_out_label = ser_label ~ "_out" -%}
 {%- set ser_out_remote_label = des_in_label_x(ser_idx) -%}
@@ -20,13 +25,13 @@
 };
 
 &{{i2c_label}} {
-	{{ser_label}}: gmsl-serializer@40 {
+	{{ser_label}}: gmsl-serializer@{{address | hex_remove_0x}} {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		#gpio-cells = <2>;
 
-		compatible = "maxim,max96717";
-		reg = <0x40>;
+		compatible = {{compatible}};
+		reg = <{{address}}>;
 
 		gpio-controller;
 		gpio-ranges = <&{{ser_label}} 0 0 11>;
