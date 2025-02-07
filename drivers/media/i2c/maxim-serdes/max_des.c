@@ -1930,10 +1930,21 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 		return ret;
 
 	ret = max_des_post_init(priv);
-	if (ret)
+	if (ret) {
+		goto err_i2c_atr_deinit;
 		return ret;
+	}
 
-	return max_des_v4l2_register(priv);
+	ret = max_des_v4l2_register(priv);
+	if (ret)
+		goto err_i2c_atr_deinit;
+
+	return 0;
+
+err_i2c_atr_deinit:
+	max_des_i2c_atr_deinit(priv);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(max_des_probe);
 
