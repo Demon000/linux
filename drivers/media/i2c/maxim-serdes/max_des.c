@@ -835,6 +835,7 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
+	int ret;
 
 	if (link->ser_xlate_enabled) {
 		dev_err(priv->dev, "Serializer for link %u already bound\n",
@@ -842,12 +843,16 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 		return -EINVAL;
 	}
 
+	ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
+					  addr, alias);
+	if (ret)
+		return ret;
+
 	link->ser_xlate.src = alias;
 	link->ser_xlate.dst = addr;
 	link->ser_xlate_enabled = true;
 
-	return max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
-					   addr, alias);
+	return 0;
 }
 
 static void max_des_ser_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 addr)
