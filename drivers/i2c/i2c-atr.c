@@ -260,9 +260,12 @@ i2c_atr_find_mapping_by_addr(struct i2c_atr_chan *chan, u16 addr, bool new_addr)
 			return c2a;
 	}
 
+	if (!new_addr && (atr->flags & I2C_ATR_PASSTHROUGH))
+		return NULL;
+
 	ret = i2c_atr_reserve_alias(chan->alias_pool);
 	if (ret < 0) {
-		if (!new_addr && (atr->flags & I2C_ATR_PASSTHROUGH))
+		if (atr->flags & I2C_ATR_PASSTHROUGH)
 			return NULL;
 
 		// If no free aliases are left, replace an existing one
