@@ -255,7 +255,7 @@ static int max9626a_log_pipe_status(struct max_des *des,
 				    struct max_des_pipe *pipe, const char *name)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int index = pipe->index;
+	unsigned int index = max9296a_pipe_id(priv, pipe);
 	unsigned int val;
 	int ret;
 
