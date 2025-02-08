@@ -559,6 +559,12 @@ static int max9296a_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
 	if (ret)
 		return ret;
 
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX51(phy_id),
+				 MAX9296A_MIPI_TX51_ALT2_MEM_MAP_8,
+				 mode->alt2_mem_map8);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
