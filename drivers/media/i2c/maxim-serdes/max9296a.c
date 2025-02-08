@@ -579,13 +579,8 @@ static int max9296a_set_pipe_remap(struct max_des *des,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
-	unsigned int phy_id;
+	unsigned int phy_id = remap->phy == 0 ? 1 : 2;
 	int ret;
-
-	if (remap->phy == 0)
-		phy_id = 1;
-	else if (remap->phy == 1)
-		phy_id = 2;
 
 	/* Set source Data Type and Virtual Channel. */
 	/* TODO: implement extended Virtual Channel. */
