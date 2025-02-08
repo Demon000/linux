@@ -102,7 +102,7 @@
 #define MAX9296A_MIPI_TX14_MAP_DST_VC		GENMASK(7, 6)
 
 #define MAX9296A_MIPI_TX45(p, x)		(0x42d + (p) * 0x40 + (x) / 4)
-#define MAX9296A_MIPI_TX45_MAP_DPHY_DEST(x)	(GENMASK(1, 0) << (2 * (x % 4)))
+#define MAX9296A_MIPI_TX45_MAP_DPHY_DEST(x)	(GENMASK(1, 0) << (2 * ((x) % 4)))
 
 #define MAX9296A_MIPI_TX51(x)			(0x433 + (x) * 0x40)
 #define MAX9296A_MIPI_TX51_ALT_MEM_MAP_12	BIT(0)
