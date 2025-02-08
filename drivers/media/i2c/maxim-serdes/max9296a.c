@@ -47,6 +47,9 @@
 #define MAX9296A_VIDEO_PIPE_SEL			0x161
 #define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (p * 2))
 
+#define MAX9296A_VPRBS(p)			(0x1dc + (p) * 0x20)
+#define MAX9296A_VPRBS_VIDEO_LOCK		BIT(0)
+
 #define MAX9296A_BACKTOP12			0x313
 #define MAX9296A_BACKTOP12_CSI_OUT_EN		BIT(1)
 
@@ -247,6 +250,24 @@ static int max9296a_reg_write(struct max_des *des, unsigned int reg,
 	struct max9296a_priv *priv = des_to_priv(des);
 
 	return regmap_write(priv->regmap, reg, val);
+}
+
+static int max9626a_log_pipe_status(struct max_des *des,
+				    struct max_des_pipe *pipe, const char *name)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(priv->regmap, MAX9296A_VPRBS(index), &val);
+	if (ret)
+		return ret;
+
+	pr_info("%s: \tvideo_lock: %u\n", name,
+		!!(val & MAX9296A_VPRBS_VIDEO_LOCK));
+
+	return 0;
 }
 
 static int max9296a_log_phy_status(struct max_des *des,
@@ -843,6 +864,7 @@ static const struct max_des_ops max9296a_ops = {
 	.num_remaps_per_pipe = 16,
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
+	.log_pipe_status = max9626a_log_pipe_status,
 	.log_phy_status = max9296a_log_phy_status,
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
