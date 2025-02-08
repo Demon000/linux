@@ -635,7 +635,7 @@ static int max9296a_init_link_rlms(struct max9296a_priv *priv,
 
 	/*
 	 * These settings are described as required on datasheet page 53
-	 * for MAX926714.
+	 * for MAX96714.
 	 */
 
 	ret = regmap_write(priv->regmap, MAX9296A_RLMS3E(index), 0xfd);
