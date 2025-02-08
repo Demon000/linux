@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-from functools import partial
 import json
-import re
 import sys
 from os import path
-from re import Match
-from typing import TextIO
 
 from jinja2 import Environment, FileSystemLoader
 
