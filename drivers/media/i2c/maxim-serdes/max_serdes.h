@@ -14,6 +14,12 @@
 #define MAX_SERDES_STREAMS_NUM 		4
 #define MAX_SERDES_VC_ID_NUM		4
 
+enum max_gmsl_version {
+	MAX_GMSL_2,
+	MAX_GMSL_3,
+	MAX_GMSL_END,
+};
+
 struct max_phys_config {
 	unsigned int lanes[MAX_SERDES_PHYS_MAX];
 	unsigned int clock_lane[MAX_SERDES_PHYS_MAX];

@@ -29,6 +29,7 @@
 
 struct max_des_priv {
 	struct max_des *des;
+	unsigned int versions;
 
 	struct device *dev;
 	struct i2c_client *client;
@@ -678,12 +679,19 @@ err_free_new_remaps:
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link,
 				       struct i2c_adapter *adapter,
-				       u8 power_up_addr, u8 new_addr)
+				       u8 power_up_addr, u8 new_addr,
+				       enum max_gmsl_version version)
 {
 	struct max_des *des = priv->des;
 	u8 addrs[] = { power_up_addr, new_addr };
 	u8 current_addr;
 	int ret;
+
+	if (des->ops->select_link_version) {
+		ret = des->ops->select_link_version(des, link, version);
+		if (ret)
+			return ret;
+	}
 
 	ret = des->ops->select_links(des, BIT(link->index));
 	if (ret)
@@ -834,6 +842,7 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
+	unsigned int i;
 	int ret;
 
 	if (link->ser_xlate_enabled) {
@@ -842,10 +851,21 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 		return -EINVAL;
 	}
 
-	ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
-					  addr, alias);
-	if (ret)
-		return ret;
+	for (i = 0; i < MAX_GMSL_END; i++) {
+		if (!(priv->versions & BIT(i)))
+			continue;
+
+		ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
+						  addr, alias, i);
+		if (!ret)
+			break;
+	}
+
+	if (i == MAX_GMSL_END) {
+		dev_err(priv->dev, "Cannot find serializer for link %u\n",
+			link->index);
+		return -ENOENT;
+	}
 
 	link->ser_xlate.src = alias;
 	link->ser_xlate.dst = addr;
@@ -1904,6 +1924,10 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
+
+	priv->versions = des->ops->versions;
+	if (!priv->versions)
+		priv->versions = BIT(MAX_GMSL_2);
 
 	priv->client = client;
 	priv->dev = dev;
