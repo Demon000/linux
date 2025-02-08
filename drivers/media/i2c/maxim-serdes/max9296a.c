@@ -589,7 +589,7 @@ static int max9296a_set_pipe_remap(struct max_des *des,
 	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX45(index, i),
 				  MAX9296A_MIPI_TX45_MAP_DPHY_DEST(i),
 				  field_prep(MAX9296A_MIPI_TX45_MAP_DPHY_DEST(i),
-					     remap->phy));
+					     phy_id));
 }
 
 static int max9296a_set_pipe_remap_enable(struct max_des *des,
