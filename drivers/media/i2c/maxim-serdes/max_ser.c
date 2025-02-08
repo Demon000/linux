@@ -24,7 +24,6 @@ struct max_ser_priv {
 	struct max_ser *ser;
 	struct device *dev;
 	struct i2c_client *client;
-	struct regmap *regmap;
 
 	struct i2c_atr *atr;
 

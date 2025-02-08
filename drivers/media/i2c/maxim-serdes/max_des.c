@@ -9,7 +9,6 @@
 #include <linux/i2c-atr.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
-#include <linux/regmap.h>
 
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>

@@ -7,7 +7,6 @@
 #define MAX_SER_H
 
 #include <linux/i2c.h>
-#include <linux/regmap.h>
 
 #include <media/v4l2-mediabus.h>
 
