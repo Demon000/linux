@@ -14,14 +14,29 @@
 
 #define MAX9296A_REG0				0x0
 
+#define MAX9296A_REG1				0x1
+#define MAX9296A_REG1_RX_RATE_A			GENMASK(1, 0)
+#define MAX9296A_REG1_RX_RATE_6Gbps		0b10
+#define MAX9296A_REG1_RX_RATE_12Gbps		0b11
+
 #define MAX9296A_REG2				0x2
 #define MAX9296A_REG2_VID_EN(p)			BIT((p) + 4)
+
+#define MAX9296A_REG4				0x4
+#define MAX9296A_REG4_GMSL3_X(x)		BIT((x) + 6)
+#define MAX9296A_REG4_RX_RATE_B			GENMASK(1, 0)
+
+#define MAX9296A_REG6				0x6
+#define MAX9296A_REG6_GMSL2_X(x)		BIT((x) + 6)
 
 #define MAX9296A_CTRL0				0x10
 #define MAX9296A_CTRL0_LINK_CFG			GENMASK(1, 0)
 #define MAX9296A_CTRL0_AUTO_LINK		BIT(4)
 #define MAX9296A_CTRL0_RESET_ONESHOT		BIT(5)
 #define MAX9296A_CTRL0_RESET_ALL		BIT(7)
+
+#define MAX9296A_CTRL2				0x12
+#define MAX9296A_CTRL2_RESET_ONESHOT_B		BIT(5)
 
 #define MAX9296A_RX50(p)			(0x50 + (p))
 #define MAX9296A_RX50_STR_SEL			GENMASK(1, 0)
@@ -106,8 +121,11 @@
 #define MAX9296A_MIPI_TX10(x)			(0x44a + 0x40 * (x))
 #define MAX9296A_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
 
-#define MAX9296A_MIPI_TX52			0x474
+#define MAX9296A_MIPI_TX52(x)			(0x474 + 0x40 * (x))
 #define MAX9296A_MIPI_TX52_TUN_EN		BIT(0)
+
+#define MAX9296A_GMSL1_EN			0xf00
+#define MAX9296A_GMSL1_EN_LINK_EN		GENMASK(1, 0)
 
 #define MAX9296A_RLMS3E(x)			(0x143e + 0x100 * (x))
 #define MAX9296A_RLMS3F(x)			(0x143f + 0x100 * (x))
@@ -144,11 +162,13 @@ struct max9296a_priv {
 };
 
 struct max9296a_chip_info {
+	enum max_gmsl_version versions;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int num_links;
 	struct max_phys_configs phys_configs;
+	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
 	bool supports_tunnel_mode;
@@ -197,6 +217,8 @@ static int max9296a_reset(struct max9296a_priv *priv)
 			      MAX9296A_CTRL0_RESET_ALL);
 	if (ret)
 		return ret;
+
+	msleep(100);
 
 	ret = max9296a_wait_for_device(priv);
 	if (ret)
@@ -662,6 +684,21 @@ static int max9296a_set_pipe_mode(struct max_des *des,
 				  MAX9296A_BACKTOP32_BPP12DBL(index), mode->dbl12);
 }
 
+static int max9296a_reset_link(struct max9296a_priv *priv, unsigned int index)
+{
+	unsigned int reg, mask;
+
+	if (index == 0) {
+		reg = MAX9296A_CTRL0;
+		mask = MAX9296A_CTRL0_RESET_ONESHOT;
+	} else {
+		reg = MAX9296A_CTRL2;
+		mask = MAX9296A_CTRL2_RESET_ONESHOT_B;
+	}
+
+	return regmap_set_bits(priv->regmap, reg, mask);
+}
+
 static int max9296a_init_link_rlms(struct max9296a_priv *priv,
 				   struct max_des_link *link)
 {
@@ -705,9 +742,7 @@ static int max9296a_init_link_rlms(struct max9296a_priv *priv,
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
-				  MAX9296A_CTRL0_RESET_ONESHOT,
-				  FIELD_PREP(MAX9296A_CTRL0_RESET_ONESHOT, 1));
+	return max9296a_reset_link(priv, link->index);
 }
 
 static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
@@ -722,7 +757,8 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 	}
 
 	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_clear_bits(priv->regmap, MAX9296A_MIPI_TX52,
+		ret = regmap_clear_bits(priv->regmap,
+					MAX9296A_MIPI_TX52(link->index),
 					MAX9296A_MIPI_TX52_TUN_EN);
 		if (ret)
 			return ret;
@@ -734,6 +770,7 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 static int max9296a_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
+	int ret;
 
 	if (priv->info->num_links == 1)
 		return 0;
@@ -743,11 +780,62 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 		return -EINVAL;
 	}
 
-	return regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
-				  MAX9296A_CTRL0_LINK_CFG |
-				  MAX9296A_CTRL0_RESET_ONESHOT,
-				  FIELD_PREP(MAX9296A_CTRL0_RESET_ONESHOT, 1) |
-				  FIELD_PREP(MAX9296A_CTRL0_LINK_CFG, mask));
+	ret = regmap_update_bits(priv->regmap, MAX9296A_GMSL1_EN,
+				 MAX9296A_GMSL1_EN_LINK_EN,
+				 FIELD_PREP(MAX9296A_GMSL1_EN_LINK_EN, mask));
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
+				 MAX9296A_CTRL0_LINK_CFG |
+				 MAX9296A_CTRL0_RESET_ONESHOT,
+				 FIELD_PREP(MAX9296A_CTRL0_LINK_CFG, mask) |
+				 FIELD_PREP(MAX9296A_CTRL0_RESET_ONESHOT, 1));
+	if (ret)
+		return ret;
+
+	if (priv->info->has_per_link_reset) {
+		ret = max9296a_reset_link(priv, 1);
+		if (ret)
+			return ret;
+	}
+
+	msleep(200);
+
+	return 0;
+}
+
+static int max9296a_select_link_version(struct max_des *des,
+					struct max_des_link *link,
+					enum max_gmsl_version version)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = link->index;
+	bool en = version == MAX_GMSL_3;
+	unsigned int reg, mask, val;
+	int ret;
+
+	if (index == 0) {
+		reg = MAX9296A_REG1;
+		mask = MAX9296A_REG1_RX_RATE_A;
+	} else {
+		reg = MAX9296A_REG4;
+		mask = MAX9296A_REG4_RX_RATE_B;
+	}
+
+	val = en ? MAX9296A_REG1_RX_RATE_12Gbps
+		 : MAX9296A_REG1_RX_RATE_6Gbps;
+	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_REG6,
+				 MAX9296A_REG6_GMSL2_X(index), !en);
+	if (ret)
+		return ret;
+
+	return regmap_assign_bits(priv->regmap, MAX9296A_REG4,
+				  MAX9296A_REG4_GMSL3_X(index), en);
 }
 
 static const struct max_des_ops max9296a_ops = {
@@ -765,6 +853,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
+	.select_link_version = max9296a_select_link_version,
 };
 
 static int max9296a_probe(struct i2c_client *client)
@@ -798,6 +887,7 @@ static int max9296a_probe(struct i2c_client *client)
 
 	*ops = max9296a_ops;
 
+	ops->versions = priv->info->versions;
 	ops->fix_tx_ids = priv->info->fix_tx_ids;
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
@@ -851,6 +941,7 @@ static const struct max9296a_chip_info max96716a_info = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
+	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_tunnel_mode = true,
 	.supports_phy_log = true,
@@ -877,10 +968,29 @@ static const struct max9296a_chip_info max96714_info = {
 	.num_links = 1,
 };
 
+static const struct max9296a_chip_info max96792a_info = {
+	.versions = BIT(MAX_GMSL_2) | BIT(MAX_GMSL_3),
+	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_enable = max96714_set_pipe_enable,
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
+		.configs = max9296a_phys_configs,
+	},
+	.has_per_link_reset = true,
+	.phy0_lanes_0_1_on_second_phy = true,
+	.supports_tunnel_mode = true,
+	.supports_phy_log = true,
+	.num_pipes = 2,
+	.pipe_hw_ids = { 1, 2 },
+	.num_phys = 2,
+	.num_links = 2,
+};
+
 static const struct of_device_id max9296a_of_table[] = {
 	{ .compatible = "maxim,max9296a", .data = &max9296a_info },
 	{ .compatible = "maxim,max96714", .data = &max96714_info },
 	{ .compatible = "maxim,max96716a", .data = &max96716a_info },
+	{ .compatible = "maxim,max96792a", .data = &max96792a_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max9296a_of_table);
