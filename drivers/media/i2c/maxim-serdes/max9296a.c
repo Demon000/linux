@@ -66,6 +66,12 @@
 #define MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3	GENMASK(4, 3)
 #define MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(x)	((x) == 0 ? BIT(5) : BIT(2))
 
+#define MAX9296A_MIPI_PHY18(x)			(0x342)
+#define MAX9296A_MIPI_PHY18_CSI2_TX_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
+
+#define MAX9296A_MIPI_PHY20(x)			(0x342)
+#define MAX9296A_MIPI_PHY20_PHY_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
+
 #define MAX9296A_MIPI_TX11(p, x)		(0x40b + (p) * 0x40 + (x) / 8)
 #define MAX9296A_MIPI_TX11_MAP_EN(x)		BIT(x % 8)
 
@@ -146,6 +152,7 @@ struct max9296a_chip_info {
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
 	bool supports_tunnel_mode;
+	bool supports_phy_log;
 	bool adjust_rlms;
 	bool fix_tx_ids;
 
@@ -218,6 +225,34 @@ static int max9296a_reg_write(struct max_des *des, unsigned int reg,
 	struct max9296a_priv *priv = des_to_priv(des);
 
 	return regmap_write(priv->regmap, reg, val);
+}
+
+static int max9296a_log_phy_status(struct max_des *des,
+				   struct max_des_phy *phy, const char *name)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = phy->index;
+	unsigned int val;
+	int ret;
+
+	if (!priv->info->supports_phy_log)
+		return 0;
+
+	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY18(index), &val);
+	if (ret)
+		return ret;
+
+	pr_info("%s: \tcsi2_pkt_cnt: %lu\n", name,
+		field_get(MAX9296A_MIPI_PHY18_CSI2_TX_PKT_CNT(index), val));
+
+	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY20(index), &val);
+	if (ret)
+		return ret;
+
+	pr_info("%s: \tphy_pkt_cnt: %lu\n", name,
+		field_get(MAX9296A_MIPI_PHY20_PHY_PKT_CNT(index), val));
+
+	return 0;
 }
 
 static int max9296a_set_enable(struct max_des *des, bool enable)
@@ -719,6 +754,7 @@ static const struct max_des_ops max9296a_ops = {
 	.num_remaps_per_pipe = 16,
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
+	.log_phy_status = max9296a_log_phy_status,
 	.set_enable = max9296a_set_enable,
 	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
@@ -817,6 +853,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	},
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_tunnel_mode = true,
+	.supports_phy_log = true,
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
 	.num_phys = 2,
@@ -832,6 +869,7 @@ static const struct max9296a_chip_info max96714_info = {
 	},
 	.polarity_on_physical_lanes = true,
 	.supports_tunnel_mode = true,
+	.supports_phy_log = true,
 	.adjust_rlms = true,
 	.num_pipes = 1,
 	.pipe_hw_ids = { 1 },
