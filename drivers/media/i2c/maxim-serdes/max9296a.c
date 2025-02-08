@@ -45,7 +45,7 @@
 #define MAX9296A_VIDEO_PIPE_EN_MASK(p)		BIT(p)
 
 #define MAX9296A_VIDEO_PIPE_SEL			0x161
-#define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (p * 3))
+#define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << ((p) * 3))
 
 #define MAX9296A_VPRBS(p)			(0x1dc + (p) * 0x20)
 #define MAX9296A_VPRBS_VIDEO_LOCK		BIT(0)
