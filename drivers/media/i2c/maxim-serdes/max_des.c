@@ -1320,37 +1320,37 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_update_active(priv, streams_masks);
-	if (ret)
-		goto err_free_streams_masks;
-
 	ret = max_des_update_links(priv, &context, &state->routing, streams_masks);
 	if (ret)
-		goto err_revert_update_active;
+		goto err_free_streams_masks;
 
 	ret = max_des_update_phy(priv, &state->routing, pad, streams_masks);
 	if (ret)
 		goto err_revert_links_update;
 
+	ret = max_des_update_active(priv, streams_masks);
+	if (ret)
+		goto err_revert_phy_update;
+
 	ret = max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
 					       pad, updated_streams_mask, 0,
 					       des->ops->num_links, enable);
 	if (ret)
-		goto err_revert_phy_update;
+		goto err_revert_update_active;
 
 	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
 
 	return 0;
 
+err_revert_update_active:
+	max_des_update_active(priv, priv->streams_masks);
+
 err_revert_phy_update:
 	max_des_update_phy(priv, &state->routing, pad, priv->streams_masks);
 
 err_revert_links_update:
 	max_des_update_links(priv, &context, &state->routing, priv->streams_masks);
-
-err_revert_update_active:
-	max_des_update_active(priv, priv->streams_masks);
 
 err_free_streams_masks:
 	devm_kfree(priv->dev, streams_masks);
