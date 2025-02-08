@@ -851,22 +851,23 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 		return -EINVAL;
 	}
 
-	for (i = 0; i < MAX_GMSL_END; i++) {
+	for (i = MAX_GMSL_3; i >= MAX_GMSL_2; i--) {
 		if (!(priv->versions & BIT(i)))
 			continue;
 
 		ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
 						  addr, alias, i);
+		if (ret && i == MAX_GMSL_2) {
+			dev_err(priv->dev, "Cannot find serializer for link %u\n",
+				link->index);
+			return -ENOENT;
+		}
+
 		if (!ret)
 			break;
 	}
 
-	if (i == MAX_GMSL_END) {
-		dev_err(priv->dev, "Cannot find serializer for link %u\n",
-			link->index);
-		return -ENOENT;
-	}
-
+	link->version = i;
 	link->ser_xlate.src = alias;
 	link->ser_xlate.dst = addr;
 	link->ser_xlate_enabled = true;
@@ -990,6 +991,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "link: %u\n", link->index);
 		v4l2_info(sd, "\tenabled: %u\n", link->enabled);
+		v4l2_info(sd, "\tversion: %u\n", link->version);
 		v4l2_info(sd, "\tser_xlate_enabled: %u\n", link->ser_xlate_enabled);
 		v4l2_info(sd, "\tser_xlate: src: 0x%02x dst: 0x%02x\n",
 			  link->ser_xlate.src, link->ser_xlate.dst);

@@ -23,6 +23,7 @@ struct max_des_remap {
 struct max_des_link {
 	unsigned int index;
 	bool enabled;
+	enum max_gmsl_version version;
 	struct max_i2c_xlate ser_xlate;
 	bool ser_xlate_enabled;
 };
