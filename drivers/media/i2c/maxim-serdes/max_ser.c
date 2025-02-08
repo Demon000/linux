@@ -143,6 +143,9 @@ static int max_ser_set_pipe_dts(struct max_ser_priv *priv, struct max_ser_pipe *
 			return ret;
 	}
 
+	if (num_dts == pipe->num_dts)
+		return 0;
+
 	for (i = num_dts; i < ser->ops->num_dts_per_pipe; i++) {
 		ret = ser->ops->set_pipe_dt_en(ser, pipe, i, false);
 		if (ret)
@@ -150,6 +153,21 @@ static int max_ser_set_pipe_dts(struct max_ser_priv *priv, struct max_ser_pipe *
 	}
 
 	return 0;
+}
+
+static int max_ser_set_pipe_mode(struct max_ser_priv *priv, struct max_ser_pipe *pipe,
+				 struct max_ser_pipe_mode *mode)
+{
+	struct max_ser *ser = priv->ser;
+
+	if (mode->bpp == pipe->mode.bpp &&
+	    mode->soft_bpp == pipe->mode.soft_bpp &&
+	    mode->dbl8 == pipe->mode.dbl8 &&
+	    mode->dbl10 == pipe->mode.dbl10 &&
+	    mode->dbl12 == pipe->mode.dbl12)
+	    return 0;
+
+	return ser->ops->set_pipe_mode(ser, pipe, mode);
 }
 
 static int max_ser_i2c_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
@@ -617,7 +635,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
-	ret = ser->ops->set_pipe_mode(ser, pipe, &mode);
+	ret = max_ser_set_pipe_mode(priv, pipe, &mode);
 	if (ret)
 		goto err_restore_vcs;
 
@@ -637,7 +655,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	return 0;
 
 err_restore_mode:
-	ser->ops->set_pipe_mode(ser, pipe, &pipe->mode);
+	max_ser_set_pipe_mode(priv, pipe, &pipe->mode);
 
 err_restore_vcs:
 	ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);

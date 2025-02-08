@@ -159,6 +159,9 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 			return ret;
 	}
 
+	if (num_remaps == pipe->num_remaps)
+		return 0;
+
 	for (i = num_remaps; i < des->ops->num_remaps_per_pipe; i++) {
 		ret = des->ops->set_pipe_remap_enable(des, pipe, i, false);
 		if (ret)
@@ -453,6 +456,12 @@ static int max_des_set_modes(struct max_des_priv *priv,
 
 		max_des_get_phy_mode(context, phy, &mode);
 
+		if (phy->mode.alt_mem_map8 == mode.alt_mem_map8 &&
+		    phy->mode.alt_mem_map10 == mode.alt_mem_map10 &&
+		    phy->mode.alt_mem_map12 == mode.alt_mem_map12 &&
+		    phy->mode.alt2_mem_map8 == mode.alt2_mem_map8)
+		    continue;
+
 		ret = des->ops->set_phy_mode(des, phy, &mode);
 		if (ret)
 			return ret;
@@ -465,6 +474,13 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_pipe_mode mode = { 0 };
 
 		max_des_get_pipe_mode(context, pipe, &mode);
+
+		if (pipe->mode.dbl8 == mode.dbl8 &&
+		    pipe->mode.dbl10 == mode.dbl10 &&
+		    pipe->mode.dbl12 == mode.dbl12 &&
+		    pipe->mode.dbl8mode == mode.dbl8mode &&
+		    pipe->mode.dbl10mode == mode.dbl10mode)
+		    continue;
 
 		ret = des->ops->set_pipe_mode(des, pipe, &mode);
 		if (ret)
