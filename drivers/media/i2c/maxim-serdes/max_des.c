@@ -1312,7 +1312,6 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	struct max_des_mode_context mode_context = { 0 };
 	struct max_des *des = priv->des;
 	unsigned int num_pads = max_des_num_pads(des);
-	u64 affected_sink_pads_mask = 0;
 	u64 *streams_masks;
 	int ret;
 
@@ -1331,7 +1330,6 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	ret = max_get_streams_masks(priv->dev, &state->routing,
 				    pad, updated_streams_mask,
 				    num_pads, 0, des->ops->num_links,
-				    &affected_sink_pads_mask,
 				    priv->streams_masks, &streams_masks, enable);
 	if (ret)
 		return ret;

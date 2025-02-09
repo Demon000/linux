@@ -258,9 +258,8 @@ int max_get_streams_masks(struct device *dev,
 			  const struct v4l2_subdev_krouting *routing,
 			  u32 pad, u64 updated_streams_mask,
 			  u32 num_pads, u32 sink_pad_start,
-			  u32 num_sink_pads, u64 *affected_sink_pads_mask,
-			  u64 *old_streams_masks, u64 **new_streams_masks,
-			  bool enable)
+			  u32 num_sink_pads, u64 *old_streams_masks,
+			  u64 **new_streams_masks, bool enable)
 {
 	u64 *streams_masks;
 	unsigned int i;
@@ -281,9 +280,6 @@ int max_get_streams_masks(struct device *dev,
 							  &matched_streams_mask);
 		if (!updated_sink_streams_mask)
 			continue;
-
-		if (affected_sink_pads_mask)
-			*affected_sink_pads_mask |= BIT_ULL(i);
 
 		if (enable)
 			streams_masks[i] |= updated_sink_streams_mask;

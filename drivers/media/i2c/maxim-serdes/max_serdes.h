@@ -80,8 +80,7 @@ int max_get_streams_masks(struct device *dev,
 			  const struct v4l2_subdev_krouting *routing,
 			  u32 pad, u64 updated_streams_mask,
 			  u32 num_pads, u32 sink_pad_start,
-			  u32 num_sink_pads, u64 *affected_sink_pads_mask,
-			  u64 *old_streams_masks, u64 **new_streams_masks,
-			  bool enable);
+			  u32 num_sink_pads, u64 *old_streams_masks,
+			  u64 **new_streams_masks, bool enable);
 
 #endif // MAX_SERDES_H
