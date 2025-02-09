@@ -98,20 +98,6 @@ max_ser_find_phy_source(struct max_ser_priv *priv, struct max_ser_phy *phy)
 	return &priv->sources[phy->index];
 }
 
-static int max_ser_phy_set_active(struct max_ser *ser, struct max_ser_phy *phy,
-				  bool active)
-{
-	int ret;
-
-	ret = ser->ops->set_phy_active(ser, phy, active);
-	if (ret)
-		return ret;
-
-	phy->active = active;
-
-	return 0;
-}
-
 static int max_ser_set_pipe_enable(struct max_ser *ser, struct max_ser_pipe *pipe,
 				   bool enable)
 {
@@ -347,7 +333,6 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 			continue;
 		}
 
-		v4l2_info(sd, "\tactive: %u\n", phy->active);
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
 		v4l2_info(sd, "\tnoncontinuous_clock: %u\n",
@@ -692,23 +677,12 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (!streams_mask != !priv->streams_masks[pad]) {
 		bool enable = !!streams_mask;
 
-		ret = max_ser_phy_set_active(ser, phy, enable);
-		if (ret)
-			goto err_revert_pipe_update;
-
 		ret = max_ser_set_pipe_enable(ser, pipe, enable);
 		if (ret)
-			goto err_revert_phy_active;
+			goto err_revert_pipe_update;
 	}
 
 	return 0;
-
-err_revert_phy_active:
-	if (!streams_mask != !priv->streams_masks[pad]) {
-		bool enable = !!priv->streams_masks[pad];
-
-		max_ser_phy_set_active(ser, phy, enable);
-	}
 
 err_revert_pipe_update:
 	max_ser_update_pipe(priv, source, pipe, routing, pad, priv->streams_masks[pad]);
@@ -880,7 +854,7 @@ static int max_ser_init(struct max_ser_priv *priv)
 				return ret;
 		}
 
-		ret = ser->ops->set_phy_active(ser, phy, false);
+		ret = ser->ops->set_phy_enable(ser, phy, phy->enabled);
 		if (ret)
 			return ret;
 	}
