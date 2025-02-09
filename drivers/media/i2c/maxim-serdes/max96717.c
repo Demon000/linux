@@ -1058,16 +1058,13 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
-				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-				 mode->soft_bpp);
-	if (ret)
-		return ret;
-
 	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
-				 MAX96717_FRONTTOP_20_SOFT_BPP,
+				 MAX96717_FRONTTOP_20_SOFT_BPP |
+				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
 				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
-					    mode->soft_bpp));
+					    mode->soft_bpp) |
+				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+					    !!mode->soft_bpp));
 	if (ret)
 		return ret;
 
