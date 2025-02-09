@@ -246,8 +246,9 @@ static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
 
-	priv->atr = i2c_atr_new(priv->client->adapter, priv->dev,
-				&max_ser_i2c_atr_ops, 1);
+	priv->atr = i2c_atr_new_flags(priv->client->adapter, priv->dev,
+				      &max_ser_i2c_atr_ops, 1,
+				      I2C_ATR_PASSTHROUGH);
 	if (IS_ERR(priv->atr))
 		return PTR_ERR(priv->atr);
 
