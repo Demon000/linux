@@ -70,9 +70,6 @@
 #define MAX9296A_BACKTOP33			0x328
 #define MAX9296A_BACKTOP32_BPP12DBL(p)		BIT(p)
 
-#define MAX9296A_MIPI_PHY0			0x330
-#define MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN	BIT(7)
-
 #define MAX9296A_MIPI_PHY2			0x332
 #define MAX9296A_MIPI_PHY2_PHY_STDBY_N		GENMASK(7, 4)
 
@@ -300,15 +297,9 @@ static int max9296a_log_phy_status(struct max_des *des,
 static int max9296a_set_enable(struct max_des *des, bool enable)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	int ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP12,
-				 MAX9296A_BACKTOP12_CSI_OUT_EN, enable);
-	if (ret)
-		return ret;
-
-	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY0,
-				  MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN, enable);
+	return regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP12,
+				  MAX9296A_BACKTOP12_CSI_OUT_EN, enable);
 }
 
 static int max9296a_init(struct max_des *des)
