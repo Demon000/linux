@@ -1083,7 +1083,7 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX2(index),
-				MAX96717_VIDEO_TX2_DRIFT_DET_EN, !mode->bpp);
+				 MAX96717_VIDEO_TX2_DRIFT_DET_EN, !mode->bpp);
 	if (ret)
 		return ret;
 
