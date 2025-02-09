@@ -18,10 +18,6 @@
 
 #define MAX96717_REG0				0x0
 
-#define MAX96717_REG1				0x1
-#define MAX96717_REG1_TX_RATE			GENMASK(3, 2)
-#define MAX96717_REG1_TX_RATE_12Gbps		0b11
-
 #define MAX96717_REG2				0x2
 #define MAX96717_REG2_VID_TX_EN_P(p)		BIT(4 + (p))
 
@@ -154,11 +150,6 @@
 #define MAX96717_PIO_SLEW_2			0x571
 #define MAX96717_PIO_SLEW_2_PIO010_SLEW		GENMASK(5, 4)
 #define MAX96717_PIO_SLEW_2_PIO011_SLEW		GENMASK(7, 6)
-
-#define MAX96717_RLMSCE				0x14ce
-#define MAX96717_RLMSCE_ENFFE			BIT(0)
-#define MAX96717_RLMSCE_ENMINUS_MAN		BIT(3)
-#define MAX96717_RLMSCE_ENMINUS_REG		BIT(4)
 
 #define MAX96717_PIO_SLEW_FASTEST		0b00
 
@@ -1136,7 +1127,6 @@ static const struct max_phys_config max96717_phys_configs[] = {
 static int max96717_init(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
-	unsigned int val;
 	int ret;
 
 	/*
@@ -1156,37 +1146,6 @@ static int max96717_init(struct max_ser *ser)
 		if (ret)
 			return ret;
 	}
-
-	ret = regmap_read(priv->regmap, MAX96717_REG1, &val);
-	if (ret)
-		return ret;
-
-	dev_err(priv->dev, "MAX96717_REG1: 0x%02x\n", val);
-
-	val = FIELD_GET(MAX96717_REG1_TX_RATE, val);
-
-	dev_err(priv->dev, "MAX96717_REG1_TX_RATE: 0x%02x\n", val);
-
-	dev_err(priv->dev, "MAX96717_REG1_TX_RATE_12Gbps: %u\n",
-		val == MAX96717_REG1_TX_RATE_12Gbps);
-
-	if (val != MAX96717_REG1_TX_RATE_12Gbps)
-		return 0;
-
-	ret = regmap_clear_bits(priv->regmap, MAX96717_RLMSCE,
-				MAX96717_RLMSCE_ENFFE);
-	if (ret)
-		return ret;
-
-	ret = regmap_set_bits(priv->regmap, MAX96717_RLMSCE,
-			      MAX96717_RLMSCE_ENMINUS_MAN);
-	if (ret)
-		return ret;
-
-	ret = regmap_set_bits(priv->regmap, MAX96717_RLMSCE,
-			      MAX96717_RLMSCE_ENMINUS_REG);
-	if (ret)
-		return ret;
 
 	return 0;
 }
