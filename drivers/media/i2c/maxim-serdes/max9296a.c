@@ -71,7 +71,7 @@
 #define MAX9296A_BACKTOP32_BPP12DBL(p)		BIT(p)
 
 #define MAX9296A_MIPI_PHY2			0x332
-#define MAX9296A_MIPI_PHY2_PHY_STDBY_N		GENMASK(7, 4)
+#define MAX9296A_MIPI_PHY2_PHY_STDBY_N(x)	(GENMASK(5, 4) << ((x) * 2))
 
 #define MAX9296A_MIPI_PHY3(x)			(0x333 + (x))
 #define MAX9296A_MIPI_PHY3_PHY_LANE_MAP_4	GENMASK(7, 0)
@@ -565,7 +565,7 @@ static int max9296a_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 	struct max9296a_priv *priv = des_to_priv(des);
 
 	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY2,
-				  MAX9296A_MIPI_PHY2_PHY_STDBY_N, enable);
+				  MAX9296A_MIPI_PHY2_PHY_STDBY_N(phy->index), enable);
 }
 
 static int max9296a_set_pipe_remap(struct max_des *des,
