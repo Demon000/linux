@@ -33,6 +33,7 @@ struct max_ser_phy {
 	unsigned int index;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
 	bool enabled;
+	bool active;
 };
 
 struct max_ser_pipe_mode {
@@ -75,7 +76,7 @@ struct max_ser_ops {
 	int (*init)(struct max_ser *ser);
 	int (*init_i2c_xlate)(struct max_ser *ser);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
-	int (*set_phy_enable)(struct max_ser *ser, struct max_ser_phy *phy,
+	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
 	int (*set_pipe_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			       bool enable);

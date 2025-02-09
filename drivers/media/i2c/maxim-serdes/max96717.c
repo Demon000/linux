@@ -981,7 +981,7 @@ static int max96717_init_phy(struct max_ser *ser,
 	return 0;
 }
 
-static int max96717_set_phy_enable(struct max_ser *ser, struct max_ser_phy *phy,
+static int max96717_set_phy_active(struct max_ser *ser, struct max_ser_phy *phy,
 				   bool enable)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1182,7 +1182,7 @@ static const struct max_ser_ops max96717_ops = {
 	.init = max96717_init,
 	.init_i2c_xlate = max96717_init_i2c_xlate,
 	.init_phy = max96717_init_phy,
-	.set_phy_enable = max96717_set_phy_enable,
+	.set_phy_active = max96717_set_phy_active,
 	.set_pipe_enable = max96717_set_pipe_enable,
 	.set_pipe_dt = max96717_set_pipe_dt,
 	.set_pipe_dt_en = max96717_set_pipe_dt_en,
