@@ -90,8 +90,8 @@
 #define MAX9296A_MIPI_PHY20(x)			(0x342)
 #define MAX9296A_MIPI_PHY20_PHY_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
 
-#define MAX9296A_MIPI_TX11(p, x)		(0x40b + (p) * 0x40 + (x) / 8)
-#define MAX9296A_MIPI_TX11_MAP_EN(x)		BIT(x % 8)
+#define MAX9296A_MIPI_TX11(p)			(0x40b + (p) * 0x40)
+#define MAX9296A_MIPI_TX12(p)			(0x40c + (p) * 0x40)
 
 #define MAX9296A_MIPI_TX13(p, x)		(0x40d + (p) * 0x40 + (x) * 0x2)
 #define MAX9296A_MIPI_TX13_MAP_SRC_DT		GENMASK(5, 0)
@@ -614,16 +614,19 @@ static int max9296a_set_pipe_remap(struct max_des *des,
 					     phy_id));
 }
 
-static int max9296a_set_pipe_remap_enable(struct max_des *des,
-					  struct max_des_pipe *pipe,
-					  unsigned int i, bool enable)
+static int max9296a_set_pipe_remaps_enable(struct max_des *des,
+					   struct max_des_pipe *pipe,
+					   unsigned int mask)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
+	int ret;
 
-	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX11(index, i),
-				  MAX9296A_MIPI_TX11_MAP_EN(i),
-				  field_prep(MAX9296A_MIPI_TX11_MAP_EN(i), enable));
+	ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX11(index), mask);
+	if (ret)
+		return ret;
+
+	return regmap_write(priv->regmap, MAX9296A_MIPI_TX12(index), mask >> 8);
 }
 
 static int max9296a_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
@@ -872,7 +875,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_phy_mode = max9296a_set_phy_mode,
 	.set_phy_active = max9296a_set_phy_active,
 	.set_pipe_remap = max9296a_set_pipe_remap,
-	.set_pipe_remap_enable = max9296a_set_pipe_remap_enable,
+	.set_pipe_remaps_enable = max9296a_set_pipe_remaps_enable,
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,

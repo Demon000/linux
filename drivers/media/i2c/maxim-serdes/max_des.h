@@ -98,8 +98,8 @@ struct max_des_ops {
 			       bool enable);
 	int (*set_pipe_remap)(struct max_des *des, struct max_des_pipe *pipe,
 			      unsigned int i, struct max_des_remap *remap);
-	int (*set_pipe_remap_enable)(struct max_des *des, struct max_des_pipe *pipe,
-				     unsigned int i, bool enable);
+	int (*set_pipe_remaps_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				      unsigned int mask);
 	int (*set_pipe_mode)(struct max_des *des, struct max_des_pipe *pipe,
 			     struct max_des_pipe_mode *mode);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);

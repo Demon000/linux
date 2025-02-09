@@ -153,22 +153,9 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 		ret = des->ops->set_pipe_remap(des, pipe, i, remap);
 		if (ret)
 			return ret;
-
-		ret = des->ops->set_pipe_remap_enable(des, pipe, i, true);
-		if (ret)
-			return ret;
 	}
 
-	if (num_remaps == pipe->num_remaps)
-		return 0;
-
-	for (i = num_remaps; i < des->ops->num_remaps_per_pipe; i++) {
-		ret = des->ops->set_pipe_remap_enable(des, pipe, i, false);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return des->ops->set_pipe_remaps_enable(des, pipe, GENMASK(num_remaps - 1, 0));
 }
 
 static int max_des_set_phy_active(struct max_des *des, struct max_des_phy *phy,
