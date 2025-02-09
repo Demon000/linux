@@ -242,7 +242,7 @@ static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 		return -ENODEV;
 
 	priv->atr = i2c_atr_new(priv->client->adapter, priv->dev,
-				&max_ser_i2c_atr_ops, 1);
+				&max_ser_i2c_atr_ops, 1, 0);
 	if (IS_ERR(priv->atr))
 		return PTR_ERR(priv->atr);
 

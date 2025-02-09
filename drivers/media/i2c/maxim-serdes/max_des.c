@@ -1040,9 +1040,9 @@ static int max_des_i2c_atr_init(struct max_des_priv *priv)
 				     I2C_FUNC_SMBUS_WRITE_BYTE_DATA))
 		return -ENODEV;
 
-	priv->atr = i2c_atr_new_flags(priv->client->adapter, priv->dev,
-				      &max_des_i2c_atr_ops, des->ops->num_links,
-				      I2C_ATR_STATIC | I2C_ATR_PASSTHROUGH);
+	priv->atr = i2c_atr_new(priv->client->adapter, priv->dev,
+				&max_des_i2c_atr_ops, des->ops->num_links,
+				I2C_ATR_F_STATIC | I2C_ATR_F_PASSTHROUGH);
 	if (IS_ERR(priv->atr))
 		return PTR_ERR(priv->atr);
 
