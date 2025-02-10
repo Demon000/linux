@@ -1310,6 +1310,18 @@ err:
 	return ret;
 }
 
+static int max_des_enable_disable_streams(struct max_des_priv *priv,
+					  struct v4l2_subdev_state *state,
+					  u32 pad, u64 updated_streams_mask,
+					  bool enable)
+{
+	struct max_des *des = priv->des;
+
+	return max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
+						pad, updated_streams_mask, 0,
+						des->ops->num_links, enable);
+}
+
 static int max_des_update_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 updated_streams_mask, bool enable)
@@ -1341,9 +1353,16 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_free_streams_masks;
 
+	if (!enable) {
+		ret = max_des_enable_disable_streams(priv, state, pad,
+						     updated_streams_mask, enable);
+		if (ret)
+			goto err_free_streams_masks;
+	}
+
 	ret = max_des_update_active(priv, streams_masks, false);
 	if (ret)
-		goto err_free_streams_masks;
+		goto err_revert_streams_disable;
 
 	ret = max_des_update_links(priv, &context, &state->routing, streams_masks);
 	if (ret)
@@ -1357,11 +1376,12 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_phy_update;
 
-	ret = max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
-					       pad, updated_streams_mask, 0,
-					       des->ops->num_links, enable);
-	if (ret)
-		goto err_revert_active_enable;
+	if (enable) {
+		ret = max_des_enable_disable_streams(priv, state, pad,
+						     updated_streams_mask, enable);
+		if (ret)
+			goto err_revert_active_enable;
+	}
 
 	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
@@ -1379,6 +1399,11 @@ err_revert_links_update:
 
 err_revert_active_disable:
 	max_des_update_active(priv, priv->streams_masks, true);
+
+err_revert_streams_disable:
+	if (!enable)
+		max_des_enable_disable_streams(priv, state, pad,
+					       updated_streams_mask, !enable);
 
 err_free_streams_masks:
 	devm_kfree(priv->dev, streams_masks);

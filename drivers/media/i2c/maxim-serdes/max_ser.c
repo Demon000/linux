@@ -763,6 +763,18 @@ err:
 	return ret;
 }
 
+static int max_ser_enable_disable_streams(struct max_ser_priv *priv,
+					  struct v4l2_subdev_state *state,
+					  u32 pad, u64 updated_streams_mask,
+					  bool enable)
+{
+	struct max_ser *ser = priv->ser;
+
+	return max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
+						pad, updated_streams_mask, 0,
+						ser->ops->num_phys, enable);
+}
+
 static int max_ser_update_streams(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *state,
 				  u32 pad, u64 updated_streams_mask, bool enable)
@@ -780,15 +792,23 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
+	if (!enable) {
+		ret = max_ser_enable_disable_streams(priv, state, pad,
+						     updated_streams_mask, enable);
+		if (ret)
+			goto err_free_streams_masks;
+	}
+
 	ret = max_ser_update_phys(priv, &state->routing, streams_masks);
 	if (ret)
-		goto err_free_streams_masks;
+		goto err_revert_streams_disable;
 
-	ret = max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
-					       pad, updated_streams_mask, 0,
-					       ser->ops->num_phys, enable);
-	if (ret)
-		goto err_revert_phys_update;
+	if (enable) {
+		ret = max_ser_enable_disable_streams(priv, state, pad,
+						     updated_streams_mask, enable);
+		if (ret)
+			goto err_revert_phys_update;
+	}
 
 	devm_kfree(priv->dev, priv->streams_masks);
 	priv->streams_masks = streams_masks;
@@ -798,6 +818,11 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 
 err_revert_phys_update:
 	max_ser_update_phys(priv, &state->routing, priv->streams_masks);
+
+err_revert_streams_disable:
+	if (!enable)
+		max_ser_enable_disable_streams(priv, state, pad,
+					       updated_streams_mask, !enable);
 
 err_free_streams_masks:
 	devm_kfree(priv->dev, streams_masks);
