@@ -1184,10 +1184,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 	int ret;
 
 	pipe = max_des_find_link_pipe(des, link);
-	if (!pipe) {
-		dev_err(priv->dev, "Failed to find pipe for link %u\n", link->index);
+	if (!pipe)
 		return -ENOENT;
-	}
 
 	source = max_des_find_link_source(priv, link);
 	if (!source)
