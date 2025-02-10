@@ -564,8 +564,7 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 
 static int max_ser_get_mode(struct max_ser_priv *priv,
 			    struct max_ser_pipe_mode *mode,
-			    const struct v4l2_subdev_krouting *routing,
-			    u32 pad, u64 streams_mask)
+			    const struct v4l2_subdev_krouting *routing, u32 pad)
 {
 	unsigned int doubled_bpp;
 	unsigned int min_bpp;
@@ -573,7 +572,7 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 	u32 bpps;
 	int ret;
 
-	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, streams_mask);
+	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, ~0ULL);
 	if (ret)
 		return ret;
 
@@ -628,7 +627,7 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
-	ret = max_ser_get_mode(priv, &mode, routing, pad, streams_mask);
+	ret = max_ser_get_mode(priv, &mode, routing, pad);
 	if (ret)
 		goto err_free_dts;
 
