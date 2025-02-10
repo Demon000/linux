@@ -187,7 +187,7 @@ static int max_des_set_pipe_enable(struct max_des *des, struct max_des_pipe *pip
 }
 
 static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
-				     unsigned int link_id, unsigned int phy_id,
+				     unsigned int pipe_id, unsigned int phy_id,
 				     unsigned int src_vc_id, unsigned int *dst_vc_id)
 {
 	unsigned int vc_id;
@@ -195,8 +195,8 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 	if (src_vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
 
-	if (context->vc_ids_masks[link_id][phy_id] & BIT(src_vc_id)) {
-		*dst_vc_id = context->vc_ids_map[link_id][phy_id][src_vc_id];
+	if (context->vc_ids_masks[pipe_id][phy_id] & BIT(src_vc_id)) {
+		*dst_vc_id = context->vc_ids_map[pipe_id][phy_id][src_vc_id];
 		return 0;
 	}
 
@@ -210,8 +210,8 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 
 	context->dst_vc_ids_masks[phy_id] |= BIT(vc_id);
 
-	context->vc_ids_map[link_id][phy_id][src_vc_id] = vc_id;
-	context->vc_ids_masks[link_id][phy_id] |= BIT(src_vc_id);
+	context->vc_ids_map[pipe_id][phy_id][src_vc_id] = vc_id;
+	context->vc_ids_masks[pipe_id][phy_id] |= BIT(src_vc_id);
 
 	*dst_vc_id = vc_id;
 
@@ -230,6 +230,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_source *source;
 		struct max_des_link *link;
+		struct max_des_pipe *pipe;
 		struct max_des_phy *phy;
 		unsigned int vc_id;
 
@@ -247,6 +248,10 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 			return -ENOENT;
 		}
 
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
 		source = max_des_find_link_source(priv, link);
 		if (!source)
 			return -ENOENT;
@@ -260,7 +265,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 			return ret;
 		}
 
-		ret = max_des_map_src_dst_vc_id(context, link->index, phy->index,
+		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
 						entry.bus.csi2.vc, &vc_id);
 		if (ret)
 			return ret;
@@ -522,17 +527,16 @@ static int max_des_add_remap(struct max_des_remap *remaps,
 	return 0;
 }
 
-static int max_des_get_remaps(struct max_des_priv *priv,
-			      struct max_des_remap_context *context,
-			      struct max_des_link *link,
-			      struct max_source *source,
-			      struct max_des_remap *remaps,
-			      unsigned int *num_remaps,
-			      const struct v4l2_subdev_krouting *routing,
-			      u64 streams_mask)
+static int max_des_get_pipe_remaps(struct max_des_priv *priv,
+				   struct max_des_remap_context *context,
+				   struct max_des_pipe *pipe,
+				   struct max_source *source,
+				   struct max_des_remap *remaps,
+				   unsigned int *num_remaps,
+				   const struct v4l2_subdev_krouting *routing,
+				   u32 pad, u64 streams_mask)
 {
 	struct max_des *des = priv->des;
-	u32 pad = max_des_link_to_pad(des, link);
 	struct v4l2_subdev_route *route;
 	unsigned long vc_ids_masks = 0;
 	unsigned int phy_id;
@@ -552,8 +556,8 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 			continue;
 
 		if (*num_remaps + 1 > des->ops->num_remaps_per_pipe) {
-			dev_err(priv->dev, "Too many streams for link %u\n",
-				link->index);
+			dev_err(priv->dev, "Too many streams for pipe %u\n",
+				pipe->index);
 			return -E2BIG;
 		}
 
@@ -576,7 +580,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 		src_vc_id = entry.bus.csi2.vc;
 		vc_ids_masks |= BIT(src_vc_id);
 
-		ret = max_des_map_src_dst_vc_id(context, link->index, phy->index,
+		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
 						src_vc_id, &dst_vc_id);
 		if (ret)
 			return ret;
@@ -589,7 +593,7 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 	}
 
 	for (phy_id = 0; phy_id < des->ops->num_phys; phy_id++) {
-		unsigned long mask = context->vc_ids_masks[link->index][phy_id];
+		unsigned long mask = context->vc_ids_masks[pipe->index][phy_id];
 		unsigned int src_vc_id;
 
 		for_each_set_bit(src_vc_id, &mask, MAX_SERDES_VC_ID_NUM) {
@@ -599,12 +603,12 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 				continue;
 
 			if (*num_remaps + 2 > des->ops->num_remaps_per_pipe) {
-				dev_err(priv->dev, "Too many streams for link %u\n",
-					link->index);
+				dev_err(priv->dev, "Too many streams for pipe %u\n",
+					pipe->index);
 				return -E2BIG;
 			}
 
-			ret = max_des_map_src_dst_vc_id(context, link->index, phy_id,
+			ret = max_des_map_src_dst_vc_id(context, pipe->index, phy_id,
 							src_vc_id, &dst_vc_id);
 			if (ret)
 				return ret;
@@ -628,11 +632,10 @@ static int max_des_get_remaps(struct max_des_priv *priv,
 
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
-			       struct max_des_link *link,
 			       struct max_source *source,
 			       struct max_des_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
-			       u64 streams_mask)
+			       u32 pad, u64 streams_mask)
 {
 	struct max_des *des = priv->des;
 	struct max_des_remap *remaps;
@@ -644,8 +647,8 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 	if (!remaps)
 		return -ENOMEM;
 
-	ret = max_des_get_remaps(priv, context, link, source,
-				 remaps, &num_remaps, routing, streams_mask);
+	ret = max_des_get_pipe_remaps(priv, context, pipe, source, remaps,
+				      &num_remaps, routing, pad, streams_mask);
 	if (ret)
 		goto err_free_new_remaps;
 
@@ -1077,6 +1080,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_source *source;
 		struct max_des_link *link;
+		struct max_des_pipe *pipe;
 		unsigned int dst_vc_id;
 
 		if (pad != route->source_pad)
@@ -1088,6 +1092,10 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 				route->sink_pad);
 			return -ENOENT;
 		}
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
 
 		source = max_des_find_link_source(priv, link);
 		if (!source)
@@ -1102,7 +1110,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = max_des_map_src_dst_vc_id(&context, link->index, phy->index,
+		ret = max_des_map_src_dst_vc_id(&context, pipe->index, phy->index,
 						entry.bus.csi2.vc, &dst_vc_id);
 		if (ret)
 			return ret;
@@ -1191,8 +1199,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 			return ret;
 	}
 
-	ret = max_des_update_pipe(priv, context, link, source, pipe,
-				  routing, streams_mask);
+	ret = max_des_update_pipe(priv, context, source, pipe,
+				  routing, pad, streams_mask);
 	if (ret)
 		goto err_revert_pipe_disable;
 
@@ -1205,8 +1213,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 
 err_revert_update_pipe:
-	max_des_update_pipe(priv, context, link, source, pipe,
-			    routing, priv->streams_masks[pad]);
+	max_des_update_pipe(priv, context, source, pipe,
+			    routing, pad, priv->streams_masks[pad]);
 
 err_revert_pipe_disable:
 	if (!enable && streams_changed)
