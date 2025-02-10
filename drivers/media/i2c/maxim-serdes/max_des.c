@@ -1192,7 +1192,6 @@ static int max_des_update_link(struct max_des_priv *priv,
 	struct max_source *source;
 	struct max_des *des = priv->des;
 	struct max_des_pipe *pipe;
-	int ret;
 
 	pipe = max_des_find_link_pipe(des, link);
 	if (!pipe) {
@@ -1204,12 +1203,8 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	ret = max_des_update_pipe(priv, context, link, source, pipe,
-				  routing, streams_mask);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max_des_update_pipe(priv, context, link, source, pipe,
+				   routing, streams_mask);
 }
 
 static int max_des_update_phy(struct max_des_priv *priv,
