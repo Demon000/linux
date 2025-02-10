@@ -672,7 +672,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 {
 	struct max_ser *ser = priv->ser;
 	u32 pad = max_ser_phy_to_pad(ser, phy);
-	bool streams_changed = !streams_mask != !priv->streams_masks[pad];
+	bool enable_changed = !streams_mask != !priv->streams_masks[pad];
 	bool enable = !!streams_mask;
 	struct max_source *source;
 	struct max_ser_pipe *pipe;
@@ -686,7 +686,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	if (!enable && streams_changed) {
+	if (!enable && enable_changed) {
 		ret = max_ser_set_pipe_enable(ser, pipe, enable);
 		if (ret)
 			return -ENOENT;
@@ -700,7 +700,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (ret)
 		goto err_revert_phy_disable;
 
-	if (enable && streams_changed) {
+	if (enable && enable_changed) {
 		ret = max_ser_phy_set_active(ser, phy, enable);
 		if (ret)
 			goto err_revert_pipe_update;
@@ -713,18 +713,18 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	return 0;
 
 err_revert_phy_enable:
-	if (enable && streams_changed)
+	if (enable && enable_changed)
 		max_ser_set_pipe_enable(ser, pipe, !enable);
 
 err_revert_pipe_update:
 	max_ser_update_pipe(priv, source, pipe, routing, pad, priv->streams_masks[pad]);
 
 err_revert_phy_disable:
-	if (!enable && streams_changed)
+	if (!enable && enable_changed)
 		max_ser_phy_set_active(ser, phy, !enable);
 
 err_revert_pipe_disable:
-	if (!enable && streams_changed)
+	if (!enable && enable_changed)
 		max_ser_set_pipe_enable(ser, pipe, !enable);
 
 	return ret;

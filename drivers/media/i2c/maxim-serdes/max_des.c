@@ -1178,7 +1178,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 	struct max_source *source;
 	struct max_des *des = priv->des;
 	u32 pad = max_des_link_to_pad(des, link);
-	bool streams_changed = !streams_mask != !priv->streams_masks[pad];
+	bool enable_changed = !streams_mask != !priv->streams_masks[pad];
 	bool enable = !!streams_mask;
 	struct max_des_pipe *pipe;
 	int ret;
@@ -1191,7 +1191,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (!source)
 		return -ENOENT;
 
-	if (!enable && streams_changed) {
+	if (!enable && enable_changed) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
 		if (ret)
 			return ret;
@@ -1202,7 +1202,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (ret)
 		goto err_revert_pipe_disable;
 
-	if (enable && streams_changed) {
+	if (enable && enable_changed) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
 		if (ret)
 			goto err_revert_update_pipe;
@@ -1215,8 +1215,8 @@ err_revert_update_pipe:
 			    routing, pad, priv->streams_masks[pad]);
 
 err_revert_pipe_disable:
-	if (!enable && streams_changed)
-		max_des_set_pipe_enable(des, pipe, enable);
+	if (!enable && enable_changed)
+		max_des_set_pipe_enable(des, pipe, !enable);
 
 	return ret;
 }
@@ -1225,7 +1225,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 			      const struct v4l2_subdev_krouting *routing,
 			      u32 pad, u64 *streams_masks)
 {
-	bool streams_changed = !streams_masks[pad] != !priv->streams_masks[pad];
+	bool enable_changed = !streams_masks[pad] != !priv->streams_masks[pad];
 	bool enable = !!streams_masks[pad];
 	struct max_des *des = priv->des;
 	struct max_des_phy *phy;
@@ -1235,7 +1235,7 @@ static int max_des_update_phy(struct max_des_priv *priv,
 	if (!phy)
 		return -EINVAL;
 
-	if (streams_changed) {
+	if (enable_changed) {
 		ret = max_des_set_phy_active(des, phy, enable);
 		if (ret)
 			return ret;
