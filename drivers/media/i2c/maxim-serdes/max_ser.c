@@ -638,11 +638,11 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 
 	ret = max_ser_set_pipe_mode(priv, pipe, &mode);
 	if (ret)
-		goto err_restore_vcs;
+		goto err_revert_vcs;
 
 	ret = max_ser_set_pipe_dts(priv, pipe, dts, num_dts);
 	if (ret)
-		goto err_restore_mode;
+		goto err_revert_mode;
 
 	pipe->vcs = vcs;
 	pipe->mode = mode;
@@ -655,10 +655,10 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 
 	return 0;
 
-err_restore_mode:
+err_revert_mode:
 	max_ser_set_pipe_mode(priv, pipe, &pipe->mode);
 
-err_restore_vcs:
+err_revert_vcs:
 	ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);
 
 err_free_dts:
