@@ -1040,6 +1040,22 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 	unsigned int index = max96717_pipe_id(priv, pipe);
 	int ret;
 
+	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
+				 MAX96717_VIDEO_TX0_AUTO_BPP, !mode->bpp);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX1(index),
+				 MAX96717_VIDEO_TX1_BPP,
+				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, mode->bpp));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX2(index),
+				 MAX96717_VIDEO_TX2_DRIFT_DET_EN, !mode->bpp);
+	if (ret)
+		return ret;
+
 	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_10,
 				 MAX96717_FRONTTOP_10_BPP8DBL(index),
 				 mode->dbl8);
@@ -1065,22 +1081,6 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 					    mode->soft_bpp) |
 				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
 					    !!mode->soft_bpp));
-	if (ret)
-		return ret;
-
-	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX0(index),
-				 MAX96717_VIDEO_TX0_AUTO_BPP, !mode->bpp);
-	if (ret)
-		return ret;
-
-	ret = regmap_update_bits(priv->regmap, MAX96717_VIDEO_TX1(index),
-				 MAX96717_VIDEO_TX1_BPP,
-				 FIELD_PREP(MAX96717_VIDEO_TX1_BPP, mode->bpp));
-	if (ret)
-		return ret;
-
-	ret = regmap_assign_bits(priv->regmap, MAX96717_VIDEO_TX2(index),
-				 MAX96717_VIDEO_TX2_DRIFT_DET_EN, !mode->bpp);
 	if (ret)
 		return ret;
 
