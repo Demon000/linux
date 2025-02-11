@@ -24,7 +24,6 @@
 #define MAX_DES_LINK_FREQUENCY_MAX 1250000000ull
 
 #define MAX_DES_PHYS_NUM		4
-#define MAX_DES_LINKS_NUM		4
 #define MAX_DES_PIPES_NUM		8
 
 struct max_des_priv {
@@ -49,10 +48,10 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
-	/* Map between link VC ids and PHY VC ids. */
-	unsigned int vc_ids_map[MAX_DES_LINKS_NUM][MAX_DES_PHYS_NUM][MAX_SERDES_VC_ID_NUM];
-	/* Mark whether a link VC id has been mapped to a PHY VC id. */
-	unsigned long vc_ids_masks[MAX_DES_LINKS_NUM][MAX_DES_PHYS_NUM];
+	/* Map between pipe VC ids and PHY VC ids. */
+	unsigned int vc_ids_map[MAX_DES_PIPES_NUM][MAX_DES_PHYS_NUM][MAX_SERDES_VC_ID_NUM];
+	/* Mark whether a pipe VC id has been mapped to a PHY VC id. */
+	unsigned long vc_ids_masks[MAX_DES_PIPES_NUM][MAX_DES_PHYS_NUM];
 	/* Mark whether a PHY VC id has been mapped. */
 	unsigned long dst_vc_ids_masks[MAX_DES_PHYS_NUM];
 };
@@ -1966,9 +1965,6 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	struct device *dev = &client->dev;
 	struct max_des_priv *priv;
 	int ret;
-
-	if (des->ops->num_links > MAX_DES_LINKS_NUM)
-		return -E2BIG;
 
 	if (des->ops->num_phys > MAX_DES_PHYS_NUM)
 		return -E2BIG;
