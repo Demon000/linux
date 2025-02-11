@@ -295,15 +295,16 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	unsigned int i, j;
 	int ret;
 
-	v4l2_info(sd, "i2c_xlates: %u\n", ser->num_i2c_xlates);
-	for (i = 0; i < ser->num_i2c_xlates; i++)
-		v4l2_info(sd, "\tsrc: 0x%02x dst: 0x%02x\n",
-			  ser->i2c_xlates[i].src, ser->i2c_xlates[i].dst);
+	v4l2_info(sd, "tunnel: %u\n", ser->tunnel);
 	if (ser->ops->log_status) {
 		ret = ser->ops->log_status(ser, sd->name);
 		if (ret)
 			return ret;
 	}
+	v4l2_info(sd, "i2c_xlates: %u\n", ser->num_i2c_xlates);
+	for (i = 0; i < ser->num_i2c_xlates; i++)
+		v4l2_info(sd, "\tsrc: 0x%02x dst: 0x%02x\n",
+			  ser->i2c_xlates[i].src, ser->i2c_xlates[i].dst);
 	v4l2_info(sd, "\n");
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {
@@ -466,12 +467,16 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 			       unsigned int *dts, unsigned int *num_dts,
 			       u32 sink_pad, u64 streams_mask)
 {
+	struct max_ser *ser = priv->ser;
 	struct v4l2_subdev_route *route;
 	unsigned int i;
 	int ret;
 
 	*vcs = 0;
 	*num_dts = 0;
+
+	if (ser->tunnel)
+		return 0;
 
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
@@ -566,11 +571,15 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 			    struct max_ser_pipe_mode *mode,
 			    const struct v4l2_subdev_krouting *routing, u32 pad)
 {
+	struct max_ser *ser = priv->ser;
 	unsigned int doubled_bpp;
 	unsigned int min_bpp;
 	unsigned int max_bpp;
 	u32 bpps;
 	int ret;
+
+	if (ser->tunnel)
+		return 0;
 
 	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, ~0ULL);
 	if (ret)
@@ -1340,6 +1349,40 @@ int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_set_double_bpps);
+
+bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+
+	if (!ser->ops->set_tunnel_enable)
+		return false;
+
+	return true;
+}
+EXPORT_SYMBOL(max_ser_supports_tunnel_mode);
+
+int max_ser_set_tunnel_enable(struct v4l2_subdev *sd, bool enable)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+	int ret;
+
+	if (!ser->ops->set_tunnel_enable)
+		return 0;
+
+	if (ser->tunnel == enable)
+		return 0;
+
+	ret = ser->ops->set_tunnel_enable(ser, enable);
+	if (ret)
+		return ret;
+
+	ser->tunnel = enable;
+
+	return 0;
+}
+EXPORT_SYMBOL(max_ser_set_tunnel_enable);
 
 static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 			    u16 reg, u8 *val)

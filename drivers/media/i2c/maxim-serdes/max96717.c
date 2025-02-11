@@ -841,7 +841,7 @@ static int max96717_log_status(struct max_ser *ser, const char *name)
 	if (ret)
 		return ret;
 
-	pr_info("%s: \t\ttun_pkt_cnt: %u\n", name, val);
+	pr_info("%s: tun_pkt_cnt: %u\n", name, val);
 
 	return 0;
 }
@@ -1117,6 +1117,14 @@ static int max96717_init_i2c_xlate(struct max_ser *ser)
 	return 0;
 }
 
+static int max96717_set_tunnel_enable(struct max_ser *ser, bool enable)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+
+	return regmap_assign_bits(priv->regmap, MAX96717_EXT11,
+				  MAX96717_EXT11_TUN_MODE, enable);
+}
+
 static const struct max_phys_config max96717_phys_configs[] = {
 	{ { 4 } },
 };
@@ -1137,9 +1145,8 @@ static int max96717_init(struct max_ser *ser)
 	if (ret)
 		return ret;
 
-	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_clear_bits(priv->regmap, MAX96717_EXT11,
-					MAX96717_EXT11_TUN_MODE);
+	if (ser->ops->set_tunnel_enable) {
+		ret = ser->ops->set_tunnel_enable(ser, false);
 		if (ret)
 			return ret;
 	}
@@ -1422,6 +1429,9 @@ static int max96717_probe(struct i2c_client *client)
 		return PTR_ERR(priv->regmap);
 
 	*ops = max96717_ops;
+
+	if (priv->info->supports_tunnel_mode)
+		ops->set_tunnel_enable = max96717_set_tunnel_enable;
 
 	ops->supports_noncontinuous_clock = priv->info->supports_noncontinuous_clock;
 	ops->num_pipes = priv->info->num_pipes;

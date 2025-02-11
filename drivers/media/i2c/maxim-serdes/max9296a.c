@@ -120,7 +120,8 @@
 #define MAX9296A_MIPI_TX10(x)			(0x44a + 0x40 * (x))
 #define MAX9296A_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
 
-#define MAX9296A_MIPI_TX52(x)			(0x474 + 0x40 * (x))
+#define MAX9296A_MIPI_TX52(x)			(0x434 + 0x40 * (x))
+#define MAX9296A_MIPI_TX52_TUN_DEST		BIT(1)
 #define MAX9296A_MIPI_TX52_TUN_EN		BIT(0)
 
 #define MAX9296A_GMSL1_EN			0xf00
@@ -170,7 +171,6 @@ struct max9296a_chip_info {
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
-	bool supports_tunnel_mode;
 	bool supports_phy_log;
 	bool adjust_rlms;
 	bool fix_tx_ids;
@@ -179,6 +179,10 @@ struct max9296a_chip_info {
 				  unsigned int stream_id);
 	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
 			       bool enable);
+	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
+			    struct max_des_phy *phy);
+	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				      bool enable);
 };
 
 #define des_to_priv(des) \
@@ -640,6 +644,16 @@ static int max96714_set_pipe_enable(struct max_des *des, struct max_des_pipe *pi
 				  MAX9296A_VIDEO_PIPE_EN_MASK(index - 1), enable);
 }
 
+static int max96714_set_pipe_tunnel_enable(struct max_des *des,
+					   struct max_des_pipe *pipe, bool enable)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+
+	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX52(index),
+				  MAX9296A_MIPI_TX52_TUN_EN, enable);
+}
+
 static int max9296a_set_pipe_stream_id(struct max_des *des, struct max_des_pipe *pipe,
 				       unsigned int stream_id)
 {
@@ -660,6 +674,19 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 				  MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
 				  field_prep(MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
 					     stream_id));
+}
+
+static int max96716_set_pipe_phy(struct max_des *des,
+				 struct max_des_pipe *pipe,
+				 struct max_des_phy *phy)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = max9296a_pipe_id(priv, pipe);
+
+	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX52(index),
+				  MAX9296A_MIPI_TX52_TUN_DEST,
+				  FIELD_PREP(MAX9296A_MIPI_TX52_TUN_DEST,
+					     phy->index));
 }
 
 static int max9296a_set_pipe_mode(struct max_des *des,
@@ -768,14 +795,6 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 
 	if (priv->info->adjust_rlms) {
 		ret = max9296a_init_link_rlms(priv, link);
-		if (ret)
-			return ret;
-	}
-
-	if (priv->info->supports_tunnel_mode) {
-		ret = regmap_clear_bits(priv->regmap,
-					MAX9296A_MIPI_TX52(link->index),
-					MAX9296A_MIPI_TX52_TUN_EN);
 		if (ret)
 			return ret;
 	}
@@ -912,6 +931,8 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->phys_configs = priv->info->phys_configs;
 	ops->set_pipe_enable = priv->info->set_pipe_enable;
 	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
+	ops->set_pipe_phy = priv->info->set_pipe_phy;
+	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -954,13 +975,14 @@ static const struct max9296a_chip_info max9296a_info = {
 static const struct max9296a_chip_info max96716a_info = {
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
+	.set_pipe_phy = max96716_set_pipe_phy,
+	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
-	.supports_tunnel_mode = true,
 	.supports_phy_log = true,
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
@@ -971,12 +993,12 @@ static const struct max9296a_chip_info max96716a_info = {
 static const struct max9296a_chip_info max96714_info = {
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
+	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
 	.polarity_on_physical_lanes = true,
-	.supports_tunnel_mode = true,
 	.supports_phy_log = true,
 	.adjust_rlms = true,
 	.num_pipes = 1,
@@ -988,14 +1010,15 @@ static const struct max9296a_chip_info max96714_info = {
 static const struct max9296a_chip_info max96792a_info = {
 	.versions = BIT(MAX_GMSL_2) | BIT(MAX_GMSL_3),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_enable = max96714_set_pipe_enable,
+	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
-	.supports_tunnel_mode = true,
 	.supports_phy_log = true,
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },

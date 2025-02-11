@@ -136,6 +136,13 @@
 #define MAX96724_MIPI_TX51_ALT_MEM_MAP_10	BIT(2)
 #define MAX96724_MIPI_TX51_ALT2_MEM_MAP_8	BIT(4)
 
+#define MAX96724_MIPI_TX57(x)			(0x939 + (x) * 0x40)
+#define MAX96724_MIPI_TX57_TUN_DEST		GENMASK(5, 4)
+#define MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET	BIT(6)
+
+#define MAX96724_MIPI_TX54(x)			(0x976 + (x) * 0x40)
+#define MAX96724_MIPI_TX54_TUN_EN		BIT(0)
+
 #define MAX96724_DE_DET				0x11f0
 #define MAX96724_HS_DET				0x11f1
 #define MAX96724_VS_DET				0x11f2
@@ -353,7 +360,15 @@ static const struct max_phys_config max96724_phys_configs[] = {
 static int max96724_init(struct max_des *des)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int i;
 	int ret;
+
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		ret = regmap_clear_bits(priv->regmap, MAX96724_MIPI_TX57(i),
+					MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET);
+		if (ret)
+			return ret;
+	}
 
 	if (priv->info->supports_pipe_stream_autoselect) {
 		/* Enable stream autoselect. */
@@ -639,6 +654,14 @@ static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
+	int ret;
+
+	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(index),
+				 MAX96724_MIPI_TX57_TUN_DEST,
+				 FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
+					    phy->index));
+	if (ret)
+		return ret;
 
 	return regmap_update_bits(priv->regmap, MAX96724_MIPI_CTRL_SEL,
 				  MAX96724_MIPI_CTRL_SEL_MASK(index),
@@ -721,6 +744,15 @@ static int max96724_set_pipe_mode(struct max_des *des,
 				  MAX96724_BACKTOP32_BPP12(index), mode->dbl12);
 }
 
+static int max96724_set_pipe_tunnel_enable(struct max_des *des,
+					   struct max_des_pipe *pipe, bool enable)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+
+	return regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX54(pipe->index),
+				  MAX96724_MIPI_TX54_TUN_EN, enable);
+}
+
 static int max96724_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -759,6 +791,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
+	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.select_links = max96724_select_links,
 };
 

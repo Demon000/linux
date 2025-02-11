@@ -75,6 +75,7 @@ struct max_ser_ops {
 			      const char *name);
 	int (*init)(struct max_ser *ser);
 	int (*init_i2c_xlate)(struct max_ser *ser);
+	int (*set_tunnel_enable)(struct max_ser *ser, bool enable);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
@@ -109,6 +110,7 @@ struct max_ser {
 
 	unsigned int phys_config;
 	unsigned int active;
+	bool tunnel;
 };
 
 int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
@@ -116,6 +118,8 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
 int max_ser_remove(struct max_ser *ser);
 
 int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
+bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd);
+int max_ser_set_tunnel_enable(struct v4l2_subdev *sd, bool enable);
 
 int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
 int max_ser_wait(struct i2c_adapter *adapter, u8 addr);

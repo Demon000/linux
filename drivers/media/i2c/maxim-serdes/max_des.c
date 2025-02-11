@@ -48,6 +48,12 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
+	/* Mark the PHYs to which each pipe is mapped. */
+	unsigned long pipe_phy_masks[MAX_DES_PIPES_NUM];
+	/* Mark whether pipe can function in tunnel mode. */
+	bool pipes_tunnel[MAX_DES_PIPES_NUM];
+	/* Mark whether pipe has remapped VC ids. */
+	bool vc_ids_remapped[MAX_DES_PIPES_NUM];
 	/* Map between pipe VC ids and PHY VC ids. */
 	unsigned int vc_ids_map[MAX_DES_PIPES_NUM][MAX_DES_PHYS_NUM][MAX_SERDES_VC_ID_NUM];
 	/* Mark whether a pipe VC id has been mapped to a PHY VC id. */
@@ -199,14 +205,17 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 		return 0;
 	}
 
-	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id)))
+	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id))) {
 		vc_id = src_vc_id;
-	else
+	} else {
+		context->vc_ids_remapped[pipe_id] = true;
 		vc_id = ffz(context->dst_vc_ids_masks[phy_id]);
+	}
 
 	if (vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
 
+	context->pipe_phy_masks[pipe_id] |= BIT(phy_id);
 	context->dst_vc_ids_masks[phy_id] |= BIT(vc_id);
 
 	context->vc_ids_map[pipe_id][phy_id][src_vc_id] = vc_id;
@@ -223,6 +232,9 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
+	unsigned int link_id;
+	unsigned int pipe_id;
+	unsigned int phy_id;
 	int ret;
 
 	for_each_active_route(routing, route) {
@@ -268,6 +280,65 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 						entry.bus.csi2.vc, &vc_id);
 		if (ret)
 			return ret;
+	}
+
+	if (!des->ops->set_pipe_tunnel_enable)
+		return 0;
+
+	for (link_id = 0; link_id < des->ops->num_links; link_id++) {
+		struct max_des_link *link = &des->links[link_id];
+		struct max_des_pipe *pipe;
+		struct max_source *source;
+
+		if (!link->enabled)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		if (!max_ser_supports_tunnel_mode(source->sd))
+			continue;
+
+		if (hweight_long(context->pipe_phy_masks[pipe->index]) > 1)
+			continue;
+
+		if (context->vc_ids_remapped[pipe->index])
+			continue;
+
+		context->pipes_tunnel[pipe->index] = true;
+	}
+
+	for (phy_id = 0; phy_id < des->ops->num_phys; phy_id++) {
+		bool pixel_mode = false;
+
+		for (pipe_id = 0; pipe_id < des->ops->num_pipes; pipe_id++) {
+			if (!(context->pipe_phy_masks[pipe_id] & BIT(phy_id)))
+				continue;
+
+			if (context->pipes_tunnel[pipe_id])
+				continue;
+
+			pixel_mode = true;
+			break;
+		}
+
+		if (!pixel_mode)
+			continue;
+
+		for (pipe_id = 0; pipe_id < des->ops->num_pipes; pipe_id++) {
+			if (!(context->pipe_phy_masks[pipe_id] & BIT(phy_id)))
+				continue;
+
+			context->pipes_tunnel[pipe_id] = false;
+		}
 	}
 
 	return 0;
@@ -508,6 +579,83 @@ static int max_des_set_modes(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_set_tunnel(struct max_des_priv *priv,
+			      struct max_des_remap_context *context)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		struct max_des_pipe *pipe;
+		struct max_source *source;
+		bool enable;
+
+		if (!link->enabled)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		enable = context->pipes_tunnel[pipe->index];
+
+		if (des->ops->set_pipe_tunnel_enable) {
+			ret = des->ops->set_pipe_tunnel_enable(des, pipe, enable);
+			if (ret)
+				return ret;
+		}
+
+		ret = max_ser_set_tunnel_enable(source->sd, enable);
+		if (ret)
+			return ret;
+
+		pipe->tunnel = enable;
+	}
+
+	return 0;
+}
+
+static int max_des_set_pipes_phy(struct max_des_priv *priv,
+				 struct max_des_remap_context *context)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	if (!des->ops->set_pipe_phy)
+		return 0;
+
+	for (i = 0; i < des->ops->num_pipes; i++) {
+		struct max_des_pipe *pipe = &des->pipes[i];
+		struct max_des_phy *phy;
+		unsigned int phy_id;
+
+		phy_id = find_first_bit(&context->pipe_phy_masks[pipe->index],
+					des->ops->num_phys);
+		if (phy_id == des->ops->num_phys)
+			continue;
+
+		phy = &des->phys[phy_id];
+
+		ret = des->ops->set_pipe_phy(des, pipe, phy);
+		if (ret)
+			return ret;
+
+		pipe->phy_id = phy_id;
+	}
+
+	return 0;
+}
+
 static int max_des_add_remap(struct max_des_remap *remaps,
 			     unsigned int *num_remaps, unsigned int phy_id,
 			     unsigned int src_vc_id, unsigned int dst_vc_id,
@@ -542,6 +690,9 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 	int ret;
 
 	*num_remaps = 0;
+
+	if (context->pipes_tunnel[pipe->index])
+		return 0;
 
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
@@ -768,7 +919,6 @@ static int max_des_init(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
-		struct max_des_phy *phy = &des->phys[pipe->phy_id];
 
 		ret = des->ops->set_pipe_enable(des, pipe, false);
 		if (ret)
@@ -777,12 +927,6 @@ static int max_des_init(struct max_des_priv *priv)
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
 			return ret;
-
-		if (des->ops->set_pipe_phy) {
-			ret = des->ops->set_pipe_phy(des, pipe, phy);
-			if (ret)
-				return ret;
-		}
 
 		ret = max_des_set_pipe_remaps(priv, pipe, pipe->remaps,
 					      pipe->num_remaps);
@@ -996,6 +1140,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
+		v4l2_info(sd, "\ttunnel: %u", pipe->tunnel);
 		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
@@ -1347,6 +1492,14 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 				    priv->streams_masks, &streams_masks, enable);
 	if (ret)
 		return ret;
+
+	ret = max_des_set_tunnel(priv, &context);
+	if (ret)
+		goto err_free_streams_masks;
+
+	ret = max_des_set_pipes_phy(priv, &context);
+	if (ret)
+		goto err_free_streams_masks;
 
 	ret = max_des_set_modes(priv, &mode_context);
 	if (ret)
@@ -1836,7 +1989,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	struct max_des *des = priv->des;
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
-	struct max_des_phy *unused_phy = NULL;
 	struct max_des_phy *phy;
 	unsigned int i;
 	int ret;
@@ -1853,22 +2005,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	ret = max_des_find_phys_config(priv);
 	if (ret)
 		return ret;
-
-	/* Find an unsed PHY to send unampped data to. */
-	for (i = 0; i < des->ops->num_phys; i++) {
-		phy = &des->phys[i];
-
-		if (!phy->enabled) {
-			unused_phy = phy;
-			break;
-		}
-	}
-
-	if (!unused_phy)
-		dev_warn(priv->dev, "No unused PHY, might leak disabled stream\n");
-
-	if (!des->ops->set_pipe_phy)
-		dev_warn(priv->dev, "Cannot set PHY, might leak disabled streams\n");
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		pipe = &des->pipes[i];
@@ -1891,16 +2027,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		 * don't even support receiving pipe data from a different link.
 		 */
 		pipe->link_id = i;
-
-		/*
-		 * Pipes have the ability to remap data onto different PHYs,
-		 * but unmapped data will end up on the default PHY.
-		 * If there's no unused PHY, pick a random one to send data to.
-		 */
-		if (unused_phy)
-			pipe->phy_id = unused_phy->index;
-		else
-			pipe->phy_id = i % des->ops->num_phys;
 	}
 
 	for (i = 0; i < des->ops->num_links; i++) {

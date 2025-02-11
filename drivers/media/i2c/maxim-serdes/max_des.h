@@ -44,6 +44,7 @@ struct max_des_pipe {
 	struct max_des_remap *remaps;
 	unsigned int num_remaps;
 	struct max_des_pipe_mode mode;
+	bool tunnel;
 	bool enabled;
 };
 
@@ -102,6 +103,8 @@ struct max_des_ops {
 				      unsigned int mask);
 	int (*set_pipe_mode)(struct max_des *des, struct max_des_pipe *pipe,
 			     struct max_des_pipe_mode *mode);
+	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				      bool enable);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 	int (*select_link_version)(struct max_des *des, struct max_des_link *link,
