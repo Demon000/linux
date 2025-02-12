@@ -38,6 +38,9 @@
 #define MAX9296A_CTRL2				0x12
 #define MAX9296A_CTRL2_RESET_ONESHOT_B		BIT(5)
 
+#define MAX9296A_MIPI_TX0(x)			(0x28 + (x) * 0x5000)
+#define MAX9296A_MIPI_TX0_RX_FEC_EN		BIT(1)
+
 #define MAX9296A_RX50(p)			(0x50 + (p))
 #define MAX9296A_RX50_STR_SEL			GENMASK(1, 0)
 
@@ -859,6 +862,11 @@ static int max9296a_select_link_version(struct max_des *des,
 	val = en ? MAX9296A_REG1_RX_RATE_12Gbps
 		 : MAX9296A_REG1_RX_RATE_6Gbps;
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
+				 MAX9296A_MIPI_TX0_RX_FEC_EN, en);
 	if (ret)
 		return ret;
 
