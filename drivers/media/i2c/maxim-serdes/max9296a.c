@@ -149,7 +149,6 @@
 static const struct regmap_config max9296a_i2c_regmap = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.max_register = 0x1f00,
 };
 
 struct max9296a_priv {
@@ -162,6 +161,7 @@ struct max9296a_priv {
 };
 
 struct max9296a_chip_info {
+	unsigned int max_register;
 	enum max_gmsl_version versions;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
@@ -894,6 +894,7 @@ static const struct max_des_ops max9296a_ops = {
 
 static int max9296a_probe(struct i2c_client *client)
 {
+	struct regmap_config i2c_regmap = max9296a_i2c_regmap;
 	struct device *dev = &client->dev;
 	struct max9296a_priv *priv;
 	struct max_des_ops *ops;
@@ -917,7 +918,8 @@ static int max9296a_probe(struct i2c_client *client)
 	priv->client = client;
 	i2c_set_clientdata(client, priv);
 
-	priv->regmap = devm_regmap_init_i2c(client, &max9296a_i2c_regmap);
+	i2c_regmap.max_register = priv->info->max_register;
+	priv->regmap = devm_regmap_init_i2c(client, &i2c_regmap);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
@@ -958,6 +960,7 @@ static const struct max_phys_config max96714_phys_configs[] = {
 };
 
 static const struct max9296a_chip_info max9296a_info = {
+	.max_register = 0x1f00,
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.phys_configs = {
@@ -973,6 +976,7 @@ static const struct max9296a_chip_info max9296a_info = {
 };
 
 static const struct max9296a_chip_info max96716a_info = {
+	.max_register = 0x52d6,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
@@ -991,6 +995,7 @@ static const struct max9296a_chip_info max96716a_info = {
 };
 
 static const struct max9296a_chip_info max96714_info = {
+	.max_register = 0x5011,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1008,6 +1013,7 @@ static const struct max9296a_chip_info max96714_info = {
 };
 
 static const struct max9296a_chip_info max96792a_info = {
+	.max_register = 0x52d6,
 	.versions = BIT(MAX_GMSL_2) | BIT(MAX_GMSL_3),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_phy = max96716_set_pipe_phy,
