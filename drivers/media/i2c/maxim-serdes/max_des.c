@@ -1128,6 +1128,12 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "link: %u\n", link->index);
 		v4l2_info(sd, "\tenabled: %u\n", link->enabled);
+
+		if (!link->enabled) {
+			v4l2_info(sd, "\n");
+			continue;
+		}
+
 		v4l2_info(sd, "\tversion: %u\n", link->version);
 		v4l2_info(sd, "\tser_xlate_enabled: %u\n", link->ser_xlate_enabled);
 		v4l2_info(sd, "\tser_xlate: src: 0x%02x dst: 0x%02x\n",
