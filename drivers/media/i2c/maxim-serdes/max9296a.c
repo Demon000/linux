@@ -683,10 +683,8 @@ static int max96716_set_pipe_phy(struct max_des *des,
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
 
-	return regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX52(index),
-				  MAX9296A_MIPI_TX52_TUN_DEST,
-				  FIELD_PREP(MAX9296A_MIPI_TX52_TUN_DEST,
-					     phy->index));
+	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX52(index),
+				  MAX9296A_MIPI_TX52_TUN_DEST, phy->index);
 }
 
 static int max9296a_set_pipe_mode(struct max_des *des,
