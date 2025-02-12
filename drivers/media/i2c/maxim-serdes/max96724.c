@@ -364,8 +364,8 @@ static int max96724_init(struct max_des *des)
 	int ret;
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
-		ret = regmap_clear_bits(priv->regmap, MAX96724_MIPI_TX57(i),
-					MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET);
+		ret = regmap_set_bits(priv->regmap, MAX96724_MIPI_TX57(i),
+				      MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET);
 		if (ret)
 			return ret;
 	}
