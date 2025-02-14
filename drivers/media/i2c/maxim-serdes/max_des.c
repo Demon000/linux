@@ -2027,7 +2027,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		pipe->stream_id = 0;
 
 		/*
-		 * We already checked that num_pipes = num_links.
+		 * We already checked that num_pipes >= num_links.
 		 * Set up pipe to receive data from the link with the same index.
 		 * This is already the default for most chips, and some of them
 		 * don't even support receiving pipe data from a different link.
