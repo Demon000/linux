@@ -45,6 +45,8 @@ struct max_des_priv {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *link_freq_ctrl;
 	s64 link_frequency;
+
+	struct max_des_phy *unused_phy;
 };
 
 struct max_des_remap_context {
@@ -641,14 +643,19 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 
 		phy_id = find_first_bit(&context->pipe_phy_masks[pipe->index],
 					des->ops->num_phys);
-		if (phy_id == des->ops->num_phys)
-			continue;
 
-		phy = &des->phys[phy_id];
+		if (priv->unused_phy &&
+		    (!context->pipes_tunnel[pipe->index] ||
+		     phy_id == des->ops->num_phys))
+			phy_id = priv->unused_phy->index;
 
-		ret = des->ops->set_pipe_phy(des, pipe, phy);
-		if (ret)
-			return ret;
+		if (phy_id != des->ops->num_phys) {
+			phy = &des->phys[phy_id];
+
+			ret = des->ops->set_pipe_phy(des, pipe, phy);
+			if (ret)
+				return ret;
+		}
 
 		pipe->phy_id = phy_id;
 	}
@@ -1147,7 +1154,10 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
 		v4l2_info(sd, "\ttunnel: %u", pipe->tunnel);
-		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
+		if (pipe->phy_id == des->ops->num_phys)
+			v4l2_info(sd, "\tphy_id: invalid\n");
+		else
+			v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
 		v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
@@ -2011,6 +2021,16 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	ret = max_des_find_phys_config(priv);
 	if (ret)
 		return ret;
+
+	/* Find an unsed PHY to send unampped data to. */
+	for (i = 0; i < des->ops->num_phys; i++) {
+		phy = &des->phys[i];
+
+		if (!phy->enabled) {
+			priv->unused_phy = phy;
+			break;
+		}
+	}
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		pipe = &des->pipes[i];
