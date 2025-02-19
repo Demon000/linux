@@ -29,7 +29,7 @@
 &{{cam_label}} {
 	status = "okay";
 
-	reset-gpios = <&{{ser_label}} {{reset_pin | d(0)}} GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&{{ser_label}} {{reset_pin}} GPIO_ACTIVE_HIGH>;
 };
 
 &{{cam_out_label}} {
