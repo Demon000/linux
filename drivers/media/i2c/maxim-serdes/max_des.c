@@ -931,6 +931,12 @@ static int max_des_init(struct max_des_priv *priv)
 		if (ret)
 			return ret;
 
+		if (des->ops->set_pipe_tunnel_enable) {
+			ret = des->ops->set_pipe_tunnel_enable(des, pipe, false);
+			if (ret)
+				return ret;
+		}
+
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
 			return ret;
