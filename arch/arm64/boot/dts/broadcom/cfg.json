@@ -6,7 +6,8 @@
                 "name": "max96717",
                 "cameras": [
                     {
-                        "name": "imx219"
+                        "name": "imx219",
+                        "vc_id": 0
                     }
                 ],
                 "pool_addrs": ["0x50", "0x51"]
@@ -15,7 +16,8 @@
                 "name": "max96717",
                 "cameras": [
                     {
-                        "name": "imx219"
+                        "name": "imx219",
+                        "vc_id": 1
                     }
                 ],
                 "pool_addrs": ["0x52", "0x53"]
@@ -24,7 +26,8 @@
                 "name": "max96717",
                 "cameras": [
                     {
-                        "name": "imx219"
+                        "name": "imx219",
+                        "vc_id": 2
                     }
                 ],
                 "pool_addrs": ["0x54", "0x55"]
@@ -33,7 +36,8 @@
                 "name": "max96717",
                 "cameras": [
                     {
-                        "name": "imx219"
+                        "name": "imx219",
+                        "vc_id": 3
                     }
                 ],
                 "pool_addrs": ["0x56", "0x57"]
