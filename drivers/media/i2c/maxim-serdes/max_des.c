@@ -1509,11 +1509,11 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_set_tunnel(priv, &context);
+	ret = max_des_set_pipes_phy(priv, &context);
 	if (ret)
 		goto err_free_streams_masks;
 
-	ret = max_des_set_pipes_phy(priv, &context);
+	ret = max_des_set_tunnel(priv, &context);
 	if (ret)
 		goto err_free_streams_masks;
 
