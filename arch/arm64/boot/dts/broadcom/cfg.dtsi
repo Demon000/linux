@@ -108,6 +108,7 @@
 
 &max_des_0_ser_0_cam_0_out {
 	remote-endpoint = <&max_des_0_ser_0_in_0>;
+	vc-ids = <0>;
 };
 
 &max_des_0_ser_0 {
@@ -213,6 +214,7 @@
 
 &max_des_0_ser_1_cam_0_out {
 	remote-endpoint = <&max_des_0_ser_1_in_0>;
+	vc-ids = <1>;
 };
 
 &max_des_0_ser_1 {
@@ -318,6 +320,7 @@
 
 &max_des_0_ser_2_cam_0_out {
 	remote-endpoint = <&max_des_0_ser_2_in_0>;
+	vc-ids = <2>;
 };
 
 &max_des_0_ser_2 {
@@ -423,6 +426,7 @@
 
 &max_des_0_ser_3_cam_0_out {
 	remote-endpoint = <&max_des_0_ser_3_in_0>;
+	vc-ids = <3>;
 };
 
 &max_des_0_ser_3 {
