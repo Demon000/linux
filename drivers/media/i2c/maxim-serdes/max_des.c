@@ -50,10 +50,10 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
+	/* Mark whether chip can function in tunnel mode. */
+	bool tunnel_enable;
 	/* Mark the PHYs to which each pipe is mapped. */
 	unsigned long pipe_phy_masks[MAX_DES_PIPES_NUM];
-	/* Mark whether pipe can function in tunnel mode. */
-	bool pipes_tunnel[MAX_DES_PIPES_NUM];
 	/* Mark whether pipe has remapped VC ids. */
 	bool vc_ids_remapped[MAX_DES_PIPES_NUM];
 	/* Map between pipe VC ids and PHY VC ids. */
@@ -237,6 +237,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	unsigned int link_id;
 	unsigned int pipe_id;
 	unsigned int phy_id;
+	bool tunnel_enable;
 	int ret;
 
 	for_each_active_route(routing, route) {
@@ -287,6 +288,8 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	if (!des->ops->set_pipe_tunnel_enable)
 		return 0;
 
+	tunnel_enable = true;
+
 	for (link_id = 0; link_id < des->ops->num_links; link_id++) {
 		struct max_des_link *link = &des->links[link_id];
 		struct max_des_pipe *pipe;
@@ -295,53 +298,26 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		if (!link->enabled)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
 		pipe = max_des_find_link_pipe(des, link);
 		if (!pipe)
+			return -ENOENT;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
 			return -ENOENT;
 
 		if (!source->sd)
 			continue;
 
-		if (!max_ser_supports_tunnel_mode(source->sd))
+		if (max_ser_supports_tunnel_mode(source->sd) &&
+		    hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
+		    !context->vc_ids_remapped[pipe->index])
 			continue;
 
-		if (hweight_long(context->pipe_phy_masks[pipe->index]) > 1)
-			continue;
-
-		if (context->vc_ids_remapped[pipe->index])
-			continue;
-
-		context->pipes_tunnel[pipe->index] = true;
+		tunnel_enable = false;
 	}
 
-	for (phy_id = 0; phy_id < des->ops->num_phys; phy_id++) {
-		bool pixel_mode = false;
-
-		for (pipe_id = 0; pipe_id < des->ops->num_pipes; pipe_id++) {
-			if (!(context->pipe_phy_masks[pipe_id] & BIT(phy_id)))
-				continue;
-
-			if (context->pipes_tunnel[pipe_id])
-				continue;
-
-			pixel_mode = true;
-			break;
-		}
-
-		if (!pixel_mode)
-			continue;
-
-		for (pipe_id = 0; pipe_id < des->ops->num_pipes; pipe_id++) {
-			if (!(context->pipe_phy_masks[pipe_id] & BIT(phy_id)))
-				continue;
-
-			context->pipes_tunnel[pipe_id] = false;
-		}
-	}
+	context->tunnel_enable = tunnel_enable;
 
 	return 0;
 }
@@ -588,11 +564,13 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
+	if (des->tunnel == context->tunnel_enable)
+		return 0;
+
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
 		struct max_des_pipe *pipe;
 		struct max_source *source;
-		bool enable;
 
 		if (!link->enabled)
 			continue;
@@ -608,23 +586,19 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		enable = context->pipes_tunnel[pipe->index];
-
-		if (pipe->tunnel == enable)
-			continue;
-
 		if (des->ops->set_pipe_tunnel_enable) {
-			ret = des->ops->set_pipe_tunnel_enable(des, pipe, enable);
+			ret = des->ops->set_pipe_tunnel_enable(des, pipe,
+							       context->tunnel_enable);
 			if (ret)
 				return ret;
 		}
 
-		ret = max_ser_set_tunnel_enable(source->sd, enable);
+		ret = max_ser_set_tunnel_enable(source->sd, context->tunnel_enable);
 		if (ret)
 			return ret;
-
-		pipe->tunnel = enable;
 	}
+
+	des->tunnel = context->tunnel_enable;
 
 	return 0;
 }
@@ -648,8 +622,7 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 					des->ops->num_phys);
 
 		if (priv->unused_phy &&
-		    (!context->pipes_tunnel[pipe->index] ||
-		     phy_id == des->ops->num_phys))
+		    (!context->tunnel_enable || phy_id == des->ops->num_phys))
 			phy_id = priv->unused_phy->index;
 
 		if (phy_id != des->ops->num_phys) {
@@ -701,7 +674,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 	*num_remaps = 0;
 
-	if (context->pipes_tunnel[pipe->index])
+	if (context->tunnel_enable)
 		return 0;
 
 	for_each_active_route(routing, route) {
@@ -1132,6 +1105,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	int ret;
 
 	v4l2_info(sd, "active: %u\n", des->active);
+	v4l2_info(sd, "tunnel: %u", des->tunnel);
 	if (des->ops->log_status) {
 		ret = des->ops->log_status(des, sd->name);
 		if (ret)
@@ -1162,7 +1136,6 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
-		v4l2_info(sd, "\ttunnel: %u", pipe->tunnel);
 		if (pipe->phy_id == des->ops->num_phys)
 			v4l2_info(sd, "\tphy_id: invalid\n");
 		else
