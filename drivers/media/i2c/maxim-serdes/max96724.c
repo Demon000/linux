@@ -22,6 +22,9 @@
 #define MAX96724_PWR1				0x13
 #define MAX96724_PWR1_RESET_ALL			BIT(6)
 
+#define MAX96724_CTRL1				0x18
+#define MAX96724_CTRL1_RESET_ONESHOT(x)		BIT(x)
+
 #define MAX96724_VIDEO_PIPE_SEL(p)		(0xf0 + (p) / 2)
 #define MAX96724_VIDEO_PIPE_SEL_STREAM(p) 	(GENMASK(1, 0) << (4 * ((p) % 2)))
 
@@ -741,9 +744,21 @@ static int max96724_set_pipe_tunnel_enable(struct max_des *des,
 					   struct max_des_pipe *pipe, bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	int ret;
 
-	return regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX54(pipe->index),
-				  MAX96724_MIPI_TX54_TUN_EN, enable);
+	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX54(pipe->index),
+				 MAX96724_MIPI_TX54_TUN_EN, enable);
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(priv->regmap, MAX96724_CTRL1,
+			      MAX96724_CTRL1_RESET_ONESHOT(pipe->link_id));
+	if (ret)
+		return ret;
+
+	msleep(100);
+
+	return 0;
 }
 
 static int max96724_select_links(struct max_des *des, unsigned int mask)
