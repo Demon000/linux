@@ -61,7 +61,6 @@
 #define MAX96724_BACKTOP32_BPP10DBL1_MODE	BIT(7)
 
 #define MAX96724_MIPI_PHY0			0x8a0
-#define MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN	BIT(7)
 #define MAX96724_MIPI_PHY0_PHY_CONFIG		GENMASK(4, 0)
 #define MAX96724_MIPI_PHY0_PHY_4X2		BIT(0)
 #define MAX96724_MIPI_PHY0_PHY_2X4		BIT(2)
@@ -320,15 +319,9 @@ static int max96724_log_phy_status(struct max_des *des,
 static int max96724_set_enable(struct max_des *des, bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	int ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP12,
-				 MAX96724_BACKTOP12_CSI_OUT_EN, enable);
-	if (ret)
-		return ret;
-
-	return regmap_assign_bits(priv->regmap, MAX96724_MIPI_PHY0,
-				  MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN, enable);
+	return regmap_assign_bits(priv->regmap, MAX96724_BACKTOP12,
+				  MAX96724_BACKTOP12_CSI_OUT_EN, enable);
 }
 
 static const unsigned int max96724_phys_configs_reg_val[] = {
