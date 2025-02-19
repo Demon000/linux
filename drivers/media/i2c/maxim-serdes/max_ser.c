@@ -919,6 +919,12 @@ static int max_ser_init(struct max_ser_priv *priv)
 	if (ret)
 		return ret;
 
+	if (ser->ops->set_tunnel_enable) {
+		ret = ser->ops->set_tunnel_enable(ser, false);
+		if (ret)
+			return ret;
+	}
+
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
 
