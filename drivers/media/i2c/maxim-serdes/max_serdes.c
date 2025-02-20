@@ -188,7 +188,7 @@ EXPORT_SYMBOL(max_process_bpps);
 
 int max_xlate_enable_disable_streams(struct max_source *sources,
 				     u32 source_sink_pad_offset,
-				     const struct v4l2_subdev_krouting *routing,
+				     const struct v4l2_subdev_state *state,
 				     u32 pad, u64 updated_streams_mask,
 				     u32 sink_pad_start, u32 num_sink_pads,
 				     bool enable)
@@ -203,8 +203,8 @@ int max_xlate_enable_disable_streams(struct max_source *sources,
 		struct max_source *source;
 
 		updated_sink_streams_mask =
-			v4l2_subdev_routing_xlate_streams(routing, pad, i,
-							  &matched_streams_mask);
+			v4l2_subdev_state_xlate_streams(state, pad, i,
+							&matched_streams_mask);
 		if (!updated_sink_streams_mask)
 			continue;
 
@@ -233,8 +233,8 @@ err:
 		struct max_source *source;
 
 		updated_sink_streams_mask =
-			v4l2_subdev_routing_xlate_streams(routing, pad, i,
-							  &matched_streams_mask);
+			v4l2_subdev_state_xlate_streams(state, pad, i,
+							&matched_streams_mask);
 		if (!updated_sink_streams_mask)
 			continue;
 
@@ -255,7 +255,7 @@ err:
 EXPORT_SYMBOL(max_xlate_enable_disable_streams);
 
 int max_get_streams_masks(struct device *dev,
-			  const struct v4l2_subdev_krouting *routing,
+			  const struct v4l2_subdev_state *state,
 			  u32 pad, u64 updated_streams_mask,
 			  u32 num_pads, u32 sink_pad_start,
 			  u32 num_sink_pads, u64 *old_streams_masks,
@@ -276,8 +276,8 @@ int max_get_streams_masks(struct device *dev,
 		u64 updated_sink_streams_mask;
 
 		updated_sink_streams_mask =
-			v4l2_subdev_routing_xlate_streams(routing, pad, i,
-							  &matched_streams_mask);
+			v4l2_subdev_state_xlate_streams(state, pad, i,
+							&matched_streams_mask);
 		if (!updated_sink_streams_mask)
 			continue;
 

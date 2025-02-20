@@ -1459,7 +1459,7 @@ static int max_des_enable_disable_streams(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 
-	return max_xlate_enable_disable_streams(priv->sources, 0, &state->routing,
+	return max_xlate_enable_disable_streams(priv->sources, 0, state,
 						pad, updated_streams_mask, 0,
 						des->ops->num_links, enable);
 }
@@ -1484,8 +1484,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_get_streams_masks(priv->dev, &state->routing,
-				    pad, updated_streams_mask,
+	ret = max_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
 				    num_pads, 0, des->ops->num_links,
 				    priv->streams_masks, &streams_masks, enable);
 	if (ret)
