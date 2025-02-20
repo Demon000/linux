@@ -38,8 +38,6 @@
 #define IMX219_MODE_STANDBY		0x00
 #define IMX219_MODE_STREAMING		0x01
 
-#define IMX219_REG_CSI_CH_ID		CCI_REG8(0x0110)
-
 #define IMX219_REG_CSI_LANE_MODE	CCI_REG8(0x0114)
 #define IMX219_CSI_2_LANE_MODE		0x01
 #define IMX219_CSI_4_LANE_MODE		0x03
@@ -353,9 +351,6 @@ struct imx219 {
 
 	/* Two or Four lanes */
 	u8 lanes;
-
-	/* Virtual channel ID */
-	u8 vc_id;
 };
 
 static inline struct imx219 *to_imx219(struct v4l2_subdev *_sd)
@@ -712,12 +707,6 @@ static int imx219_configure_lanes(struct imx219 *imx219)
 			 IMX219_CSI_4_LANE_MODE, NULL);
 };
 
-static int imx219_configure_vc(struct imx219 *imx219)
-{
-	return cci_write(imx219->regmap, IMX219_REG_CSI_CH_ID,
-			 imx219->vc_id, NULL);
-}
-
 static int imx219_start_streaming(struct imx219 *imx219,
 				  struct v4l2_subdev_state *state)
 {
@@ -742,11 +731,6 @@ static int imx219_start_streaming(struct imx219 *imx219,
 		dev_err(&client->dev, "%s failed to configure lanes\n", __func__);
 		goto err_rpm_put;
 	}
-
-	/* Configure Virtual Channel ID */
-	ret = imx219_configure_vc(imx219);
-	if (ret)
-		return ret;
 
 	/* Apply format and crop settings. */
 	ret = imx219_set_framefmt(imx219, state);
@@ -1155,7 +1139,6 @@ static int imx219_init_state(struct v4l2_subdev *sd,
 static int imx219_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_mbus_frame_desc *fd)
 {
-	struct imx219 *imx219 = to_imx219(sd);
 	struct v4l2_subdev_state *state;
 	u32 img_code;
 	u32 ed_code;
@@ -1177,13 +1160,13 @@ static int imx219_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 
 	fd->entry[0].pixelcode = img_code;
 	fd->entry[0].stream = IMX219_STREAM_IMAGE;
-	fd->entry[0].bus.csi2.vc = imx219->vc_id;
+	fd->entry[0].bus.csi2.vc = 0;
 	fd->entry[0].bus.csi2.dt = imx219_format_bpp(img_code) == 8
 				 ? MIPI_CSI2_DT_RAW8 : MIPI_CSI2_DT_RAW10;
 
 	fd->entry[1].pixelcode = ed_code;
 	fd->entry[1].stream = IMX219_STREAM_EDATA;
-	fd->entry[1].bus.csi2.vc = imx219->vc_id;
+	fd->entry[1].bus.csi2.vc = 0;
 	fd->entry[1].bus.csi2.dt = MIPI_CSI2_DT_EMBEDDED_8B;
 
 	return 0;
@@ -1340,14 +1323,6 @@ static int imx219_check_hwcfg(struct device *dev, struct imx219 *imx219)
 		goto error_out;
 	}
 	imx219->lanes = ep_cfg.bus.mipi_csi2.num_data_lanes;
-
-	if (ep_cfg.bus.mipi_csi2.num_vc_ids > 1) {
-		dev_err_probe(dev, -EINVAL,
-			      "only 1 virtual channel id is supported\n");
-		goto error_out;
-	} else if (ep_cfg.bus.mipi_csi2.num_vc_ids == 1) {
-		imx219->vc_id = ep_cfg.bus.mipi_csi2.vc_ids[0];
-	}
 
 	/* Check the link frequency set in device tree */
 	if (!ep_cfg.nr_of_link_frequencies) {
