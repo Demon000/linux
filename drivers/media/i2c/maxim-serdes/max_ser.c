@@ -398,6 +398,9 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 		if (!source)
 			return -ENOENT;
 
+		if (!source->sd)
+			continue;
+
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
 		if (ret) {
@@ -694,6 +697,9 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	source = max_ser_find_phy_source(priv, phy);
 	if (!source)
 		return -ENOENT;
+
+	if (!source->sd)
+		return 0;
 
 	if (!enable && enable_changed) {
 		ret = max_ser_set_pipe_enable(ser, pipe, enable);
