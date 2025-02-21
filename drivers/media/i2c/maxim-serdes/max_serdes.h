@@ -59,8 +59,7 @@ static inline struct max_asc *asc_to_max(struct v4l2_async_connection *asc)
 
 const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
 
-int max_get_fd_stream_entry(struct v4l2_subdev *sd,
-			    unsigned int pad, unsigned int stream,
+int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 			    struct v4l2_mbus_frame_desc_entry *entry);
 
 int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,

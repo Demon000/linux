@@ -977,7 +977,7 @@ static int max_ser_notify_bound(struct v4l2_async_notifier *nf,
 	struct max_ser_priv *priv = nf_to_priv(nf);
 	struct max_asc *asc = asc_to_max(base_asc);
 	struct max_source *source = asc->source;
-	unsigned int pad = source->index;
+	u32 pad = source->index;
 	int ret;
 
 	ret = media_entity_get_fwnode_pad(&subdev->entity,
@@ -1144,7 +1144,7 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser *ser = priv->ser;
-	unsigned int pad = max_ser_phy_to_pad(ser, phy);
+	u32 pad = max_ser_phy_to_pad(ser, phy);
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
 	struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
 	struct fwnode_handle *ep;

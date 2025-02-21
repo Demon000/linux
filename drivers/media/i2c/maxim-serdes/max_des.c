@@ -1396,7 +1396,7 @@ static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks,
 
 	for (i = 0; i < des->ops->num_phys; i++) {
 		struct max_des_phy *phy = &des->phys[i];
-		unsigned int pad = max_des_phy_to_pad(des, phy);
+		u32 pad = max_des_phy_to_pad(des, phy);
 
 		if (streams_masks[pad]) {
 			active = true;
@@ -1641,7 +1641,7 @@ static int max_des_notify_bound(struct v4l2_async_notifier *nf,
 	struct max_source *source = asc->source;
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[source->index];
-	unsigned int pad = max_des_link_to_pad(des, link);
+	u32 pad = max_des_link_to_pad(des, link);
 	int ret;
 
 	ret = media_entity_get_fwnode_pad(&subdev->entity,
@@ -1820,7 +1820,7 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_des *des = priv->des;
-	unsigned int pad = max_des_link_to_pad(des, link);
+	u32 pad = max_des_link_to_pad(des, link);
 	struct fwnode_handle *ep;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, pad, 0, 0);
@@ -1845,7 +1845,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 					 struct fwnode_handle *fwnode)
 {
 	struct max_des *des = priv->des;
-	unsigned int pad = max_des_phy_to_pad(des, phy);
+	u32 pad = max_des_phy_to_pad(des, phy);
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = V4L2_MBUS_UNKNOWN };
 	struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
 	enum v4l2_mbus_type bus_type;

@@ -46,8 +46,7 @@ const struct max_mipi_format *max_mipi_format_by_dt(u8 dt)
 }
 EXPORT_SYMBOL_GPL(max_mipi_format_by_dt);
 
-int max_get_fd_stream_entry(struct v4l2_subdev *sd,
-			    unsigned int pad, unsigned int stream,
+int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 			    struct v4l2_mbus_frame_desc_entry *entry)
 {
 	struct v4l2_mbus_frame_desc fd;
