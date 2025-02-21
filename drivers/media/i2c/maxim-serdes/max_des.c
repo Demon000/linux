@@ -268,6 +268,9 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		if (!source)
 			return -ENOENT;
 
+		if (!source->sd)
+			continue;
+
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
 		if (ret) {
@@ -539,6 +542,9 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		if (!source)
 			return -ENOENT;
 
+		if (!source->sd)
+			continue;
+
 		pipe = max_des_find_link_pipe(des, link);
 		if (!pipe)
 			return -ENOENT;
@@ -576,6 +582,9 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 		source = max_des_find_link_source(priv, link);
 		if (!source)
 			return -ENOENT;
+
+		if (!source->sd)
+			continue;
 
 		pipe = max_des_find_link_pipe(des, link);
 		if (!pipe)
@@ -1241,6 +1250,9 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 		if (!source)
 			return -ENOENT;
 
+		if (!source->sd)
+			continue;
+
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
 		if (ret) {
@@ -1330,6 +1342,9 @@ static int max_des_update_link(struct max_des_priv *priv,
 	source = max_des_find_link_source(priv, link);
 	if (!source)
 		return -ENOENT;
+
+	if (!source->sd)
+		return 0;
 
 	if (!enable && enable_changed) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
