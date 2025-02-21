@@ -235,8 +235,6 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	unsigned int link_id;
-	unsigned int pipe_id;
-	unsigned int phy_id;
 	bool tunnel_enable;
 	int ret;
 
