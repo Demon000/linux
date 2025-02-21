@@ -1198,9 +1198,6 @@ static int imx219_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	u32 ed_code;
 	u32 code;
 
-	if (pad != IMX219_PAD_SOURCE)
-		return -EINVAL;
-
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 	code = v4l2_subdev_state_get_format(state, IMX219_PAD_SOURCE,
 					    IMX219_STREAM_IMAGE)->code;
