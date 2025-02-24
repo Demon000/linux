@@ -445,45 +445,6 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int max_ser_set_frame_desc_state(struct v4l2_subdev *sd,
-					struct v4l2_subdev_state *state,
-					struct v4l2_mbus_frame_desc *fd,
-					unsigned int pad)
-{
-	struct max_ser_priv *priv = sd_to_priv(sd);
-	struct max_ser *ser = priv->ser;
-	unsigned int i;
-	int ret;
-
-	if (!max_ser_pad_is_source(ser, pad))
-		return -ENOENT;
-
-	for (i = 0; i < ser->ops->num_phys; i++) {
-		struct max_ser_phy *phy = &ser->phys[i];
-		u32 sink_pad = max_ser_phy_to_pad(ser, phy);
-		struct v4l2_mbus_frame_desc sink_fd;
-		struct max_source *source;
-
-		source = max_ser_find_phy_source(priv, phy);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_xlate_fd_entries(sd, pad, sink_pad, state, fd, &sink_fd);
-		if (ret)
-			return ret;
-
-		ret = source->sd->ops->pad->set_frame_desc(source->sd, source->pad,
-							   &sink_fd);
-		if (ret)
-			return ret;
-	}
-
-	return max_ser_get_frame_desc_state(sd, state, fd, pad);
-}
-
 static int max_ser_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 				  struct v4l2_mbus_frame_desc *fd)
 {
@@ -494,22 +455,6 @@ static int max_ser_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	state = v4l2_subdev_lock_and_get_active_state(&priv->sd);
 
 	ret = max_ser_get_frame_desc_state(sd, state, fd, pad);
-
-	v4l2_subdev_unlock_state(state);
-
-	return ret;
-}
-
-static int max_ser_set_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
-				  struct v4l2_mbus_frame_desc *fd)
-{
-	struct max_ser_priv *priv = sd_to_priv(sd);
-	struct v4l2_subdev_state *state;
-	int ret;
-
-	state = v4l2_subdev_lock_and_get_active_state(&priv->sd);
-
-	ret = max_ser_set_frame_desc_state(sd, state, fd, pad);
 
 	v4l2_subdev_unlock_state(state);
 
@@ -981,7 +926,6 @@ static const struct v4l2_subdev_pad_ops max_ser_pad_ops = {
 
 	.set_routing = max_ser_set_routing,
 	.get_frame_desc = max_ser_get_frame_desc,
-	.set_frame_desc = max_ser_set_frame_desc,
 
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_ser_set_fmt,
