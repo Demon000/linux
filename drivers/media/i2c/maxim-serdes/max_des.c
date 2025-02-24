@@ -558,6 +558,46 @@ static int max_des_set_modes(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_set_vc_ids(struct max_des_priv *priv,
+			      struct v4l2_subdev_state *state,
+			      struct max_des_remap_context *context)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		struct v4l2_mbus_frame_desc sink_fd;
+		struct max_des_pipe *pipe;
+		struct max_source *source;
+
+		if (!link->enabled)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+	}
+
+	return 0;
+
+
+
+	
+}
+
 static int max_des_set_tunnel(struct max_des_priv *priv,
 			      struct max_des_remap_context *context)
 {
