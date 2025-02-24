@@ -71,39 +71,6 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 }
 EXPORT_SYMBOL(max_get_fd_stream_entry);
 
-int max_xlate_fd_entries(struct v4l2_subdev *sd, u32 src_pad, u32 pad,
-			 const struct v4l2_subdev_state *state,
-			 struct v4l2_mbus_frame_desc *source_fd,
-			 struct v4l2_mbus_frame_desc *fd)
-{
-	unsigned int i;
-	int ret;
-
-	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
-	fd->num_entries = 0;
-
-	for (i = 0; i < source_fd->num_entries; i++) {
-		struct v4l2_mbus_frame_desc_entry *src_entry = &source_fd->entry[i];
-		struct v4l2_mbus_frame_desc_entry *entry = &fd->entry[fd->num_entries++];
-		u32 other_pad, stream;
-
-		ret = v4l2_subdev_routing_find_opposite_end(&state->routing,
-							    src_pad, src_entry->stream,
-							    &other_pad, &stream);
-		if (ret)
-			return ret;
-
-		if (other_pad != pad)
-			continue;
-
-		*entry = *src_entry;
-		entry->stream = stream;
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(max_xlate_fd_entries);
-
 int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 		 u32 *bpps, const struct v4l2_subdev_krouting *routing,
 		 u32 pad, u64 streams_mask)
