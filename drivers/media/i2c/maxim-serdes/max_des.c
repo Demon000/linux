@@ -42,9 +42,6 @@ struct max_des_priv {
 
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl *link_freq_ctrl;
-	s64 link_frequency;
 
 	struct max_des_phy *unused_phy;
 };
@@ -1771,7 +1768,6 @@ static void max_des_v4l2_notifier_unregister(struct max_des_priv *priv)
 
 static int max_des_v4l2_register(struct max_des_priv *priv)
 {
-	struct v4l2_ctrl_handler *hdl = &priv->ctrl_handler;
 	struct v4l2_subdev *sd = &priv->sd;
 	struct max_des *des = priv->des;
 	void *data = i2c_get_clientdata(priv->client);
@@ -1785,14 +1781,6 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 	sd->entity.ops = &max_des_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
 
-	sd->ctrl_handler = hdl;
-	ret = v4l2_ctrl_handler_init(hdl, 1);
-	if (ret)
-		return ret;
-
-	v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ, 0, 0,
-			       &priv->link_frequency);
-
 	for (i = 0; i < num_pads; i++) {
 		if (max_des_pad_is_sink(des, i))
 			priv->pads[i].flags = MEDIA_PAD_FL_SINK;
@@ -1804,7 +1792,7 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 
 	ret = media_entity_pads_init(&sd->entity, num_pads, priv->pads);
 	if (ret)
-		goto err_ctrl_handler_free;
+		return ret;
 
 	ret = max_des_v4l2_notifier_register(priv);
 	if (ret)
@@ -1826,8 +1814,6 @@ err_nf_cleanup:
 	max_des_v4l2_notifier_unregister(priv);
 err_media_entity_cleanup:
 	media_entity_cleanup(&sd->entity);
-err_ctrl_handler_free:
-	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
@@ -1840,7 +1826,6 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 	v4l2_subdev_cleanup(sd);
 	max_des_v4l2_notifier_unregister(priv);
 	media_entity_cleanup(&sd->entity);
-	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 }
 
 static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
@@ -1938,21 +1923,6 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 	phy->mipi = *mipi;
 	phy->link_frequency = link_frequency;
 	phy->enabled = true;
-
-	/*
-	 * TODO: remove when support for per-pad link frequency is added.
-	 */
-	for (i = 0; i < des->ops->num_phys; i++) {
-		phy = &des->phys[i];
-
-		if (phy->enabled && link_frequency != phy->link_frequency) {
-			dev_err(priv->dev,
-				"Differing link frequency on port %u\n", pad);
-			return -EINVAL;
-		}
-	}
-
-	priv->link_frequency = link_frequency;
 
 	return 0;
 }
