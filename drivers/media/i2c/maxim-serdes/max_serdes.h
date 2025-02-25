@@ -16,7 +16,9 @@
 
 enum max_gmsl_version {
 	MAX_GMSL_2 = 2,
+	MAX_GMSL_MIN = MAX_GMSL_2,
 	MAX_GMSL_3 = 3,
+	MAX_GMSL_MAX = MAX_GMSL_3,
 };
 
 struct max_phys_config {

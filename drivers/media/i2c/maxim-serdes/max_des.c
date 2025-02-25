@@ -810,19 +810,12 @@ err_free_new_remaps:
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
 				       struct max_des_link *link,
 				       struct i2c_adapter *adapter,
-				       u8 power_up_addr, u8 new_addr,
-				       enum max_gmsl_version version)
+				       u8 power_up_addr, u8 new_addr)
 {
 	struct max_des *des = priv->des;
 	u8 addrs[] = { power_up_addr, new_addr };
 	u8 current_addr;
 	int ret;
-
-	if (des->ops->select_link_version) {
-		ret = des->ops->select_link_version(des, link, version);
-		if (ret)
-			return ret;
-	}
 
 	ret = des->ops->select_links(des, BIT(link->index));
 	if (ret)
@@ -981,20 +974,26 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 		return -EINVAL;
 	}
 
-	for (i = MAX_GMSL_3; i >= MAX_GMSL_2; i--) {
+	for (i = MAX_GMSL_MAX; i >= MAX_GMSL_MIN; i--) {
 		if (!(priv->versions & BIT(i)))
 			continue;
 
-		ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
-						  addr, alias, i);
-		if (ret && i == MAX_GMSL_2) {
-			dev_err(priv->dev, "Cannot find serializer for link %u\n",
-				link->index);
-			return -ENOENT;
+		if (des->ops->select_link_version) {
+			ret = des->ops->select_link_version(des, link, i);
+			if (ret)
+				return ret;
 		}
 
+		ret = max_des_init_link_ser_xlate(priv, link, priv->client->adapter,
+						  addr, alias);
 		if (!ret)
 			break;
+	}
+
+	if (ret) {
+		dev_err(priv->dev, "Cannot find serializer for link %u\n",
+			link->index);
+		return -ENOENT;
 	}
 
 	link->version = i;
