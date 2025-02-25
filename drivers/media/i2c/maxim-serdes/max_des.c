@@ -2119,6 +2119,12 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (!priv->versions)
 		priv->versions = BIT(MAX_GMSL_2);
 
+	if (hweight_long(priv->versions) != 1 &&
+	    !des->ops->select_link_version) {
+		dev_err(dev, "Multiple version without .select_link_version()\n");
+		return -EINVAL;
+	}
+
 	priv->client = client;
 	priv->dev = dev;
 	priv->des = des;
