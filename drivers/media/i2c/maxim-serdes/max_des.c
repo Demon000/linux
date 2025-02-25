@@ -1773,10 +1773,6 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 	v4l2_ctrl_new_int_menu(hdl, NULL, V4L2_CID_LINK_FREQ, 0, 0,
 			       &priv->link_frequency);
 
-	priv->pads = devm_kcalloc(priv->dev, num_pads, sizeof(*priv->pads), GFP_KERNEL);
-	if (!priv->pads)
-		goto err_ctrl_handler_free;
-
 	for (i = 0; i < num_pads; i++) {
 		if (max_des_pad_is_sink(des, i))
 			priv->pads[i].flags = MEDIA_PAD_FL_SINK;
@@ -2095,6 +2091,11 @@ static int max_des_allocate(struct max_des_priv *priv)
 	priv->sources = devm_kcalloc(priv->dev, des->ops->num_links,
 				     sizeof(*priv->sources), GFP_KERNEL);
 	if (!priv->sources)
+		return -ENOMEM;
+
+	priv->pads = devm_kcalloc(priv->dev, num_pads,
+				  sizeof(*priv->pads), GFP_KERNEL);
+	if (!priv->pads)
 		return -ENOMEM;
 
 	priv->streams_masks = devm_kcalloc(priv->dev, num_pads,
