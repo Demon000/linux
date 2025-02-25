@@ -74,7 +74,8 @@ struct max_ser_ops {
 	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy,
 			      const char *name);
 	int (*init)(struct max_ser *ser);
-	int (*init_i2c_xlate)(struct max_ser *ser);
+	int (*set_i2c_xlate)(struct max_ser *ser, unsigned int i,
+			     struct max_i2c_xlate *i2c_xlate);
 	int (*set_tunnel_enable)(struct max_ser *ser, bool enable);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
@@ -103,7 +104,6 @@ struct max_ser {
 	const struct max_ser_ops *ops;
 
 	struct max_i2c_xlate *i2c_xlates;
-	unsigned int num_i2c_xlates;
 
 	struct max_ser_phy *phys;
 	struct max_ser_pipe *pipes;

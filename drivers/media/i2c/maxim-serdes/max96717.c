@@ -1087,32 +1087,23 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 	return 0;
 }
 
-static int max96717_init_i2c_xlate(struct max_ser *ser)
+static int max96717_set_i2c_xlate(struct max_ser *ser, unsigned int i,
+				  struct max_i2c_xlate *xlate)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
-	unsigned int i;
 	int ret;
 
-	for (i = 0; i < ser->ops->num_i2c_xlates; i++) {
-		u8 src = 0, dst = 0;
+	ret = regmap_update_bits(priv->regmap, MAX96717_I2C_2(i),
+				 MAX96717_I2C_2_SRC,
+				 FIELD_PREP(MAX96717_I2C_2_SRC, xlate->src));
+	if (ret)
+		return ret;
 
-		if (i < ser->num_i2c_xlates) {
-			src = ser->i2c_xlates[i].src;
-			dst = ser->i2c_xlates[i].dst;
-		}
-
-		ret = regmap_update_bits(priv->regmap, MAX96717_I2C_2(i),
-					 MAX96717_I2C_2_SRC,
-					 FIELD_PREP(MAX96717_I2C_2_SRC, src));
-		if (ret)
-			return ret;
-
-		ret = regmap_update_bits(priv->regmap, MAX96717_I2C_3(i),
-					 MAX96717_I2C_3_DST,
-					 FIELD_PREP(MAX96717_I2C_3_DST, dst));
-		if (ret)
-			return ret;
-	}
+	ret = regmap_update_bits(priv->regmap, MAX96717_I2C_3(i),
+				 MAX96717_I2C_3_DST,
+				 FIELD_PREP(MAX96717_I2C_3_DST, xlate->dst));
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -1187,7 +1178,7 @@ static const struct max_ser_ops max96717_ops = {
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
 	.init = max96717_init,
-	.init_i2c_xlate = max96717_init_i2c_xlate,
+	.set_i2c_xlate = max96717_set_i2c_xlate,
 	.init_phy = max96717_init_phy,
 	.set_phy_active = max96717_set_phy_active,
 	.set_pipe_enable = max96717_set_pipe_enable,

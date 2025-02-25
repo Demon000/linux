@@ -173,54 +173,47 @@ static int max_ser_set_pipe_mode(struct max_ser_priv *priv, struct max_ser_pipe 
 static int max_ser_i2c_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 				       u16 addr, u16 alias)
 {
+	struct max_i2c_xlate xlate = { .src = alias, .dst = addr, .en = true };
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
-	struct max_i2c_xlate *xlate;
+	unsigned int i;
+	int ret;
 
-	if (ser->num_i2c_xlates == ser->ops->num_i2c_xlates) {
+	for (i = 0; i < ser->ops->num_i2c_xlates; i++)
+		if (!ser->i2c_xlates[i].en)
+			break;
+
+	if (i == ser->ops->num_i2c_xlates) {
 		dev_err(priv->dev,
 			"Reached maximum number of I2C translations\n");
 		return -EINVAL;
 	}
 
-	xlate = &ser->i2c_xlates[ser->num_i2c_xlates++];
-	xlate->src = alias;
-	xlate->dst = addr;
+	ret = ser->ops->set_i2c_xlate(ser, i, &xlate);
+	if (ret)
+		return ret;
 
-	return ser->ops->init_i2c_xlate(ser);
+	ser->i2c_xlates[i] = xlate;
+
+	return 0;
 }
 
 static void max_ser_i2c_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 addr)
 {
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
-	struct max_i2c_xlate *xlate;
+	struct max_i2c_xlate xlate = { 0 };
 	unsigned int i;
 
 	/* Find index of matching I2C translation. */
-	for (i = 0; i < ser->num_i2c_xlates; i++) {
-		xlate = &ser->i2c_xlates[i];
-
-		if (xlate->dst == addr)
+	for (i = 0; i < ser->ops->num_i2c_xlates; i++)
+		if (ser->i2c_xlates[i].dst == addr)
 			break;
-	}
 
-	WARN_ON(i == ser->num_i2c_xlates);
+	WARN_ON(i == ser->ops->num_i2c_xlates);
 
-	/* Starting from index + 1, copy index translation into index - 1. */
-	for (i++; i < ser->num_i2c_xlates; i++) {
-		ser->i2c_xlates[i - 1].src = ser->i2c_xlates[i].src;
-		ser->i2c_xlates[i - 1].dst = ser->i2c_xlates[i].dst;
-	}
-
-	/* Zero out last index translation. */
-	ser->i2c_xlates[ser->num_i2c_xlates].src = 0;
-	ser->i2c_xlates[ser->num_i2c_xlates].dst = 0;
-
-	/* Decrease number of translations. */
-	ser->num_i2c_xlates--;
-
-	ser->ops->init_i2c_xlate(ser);
+	ser->ops->set_i2c_xlate(ser, i, &xlate);
+	ser->i2c_xlates[i] = xlate;
 }
 
 static const struct i2c_atr_ops max_ser_i2c_atr_ops = {
@@ -300,10 +293,10 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 		if (ret)
 			return ret;
 	}
-	v4l2_info(sd, "i2c_xlates: %u\n", ser->num_i2c_xlates);
-	for (i = 0; i < ser->num_i2c_xlates; i++)
-		v4l2_info(sd, "\tsrc: 0x%02x dst: 0x%02x\n",
-			  ser->i2c_xlates[i].src, ser->i2c_xlates[i].dst);
+	for (i = 0; i < ser->ops->num_i2c_xlates; i++)
+		v4l2_info(sd, "\ten: %u, src: 0x%02x dst: 0x%02x\n",
+			  ser->i2c_xlates[i].en, ser->i2c_xlates[i].src,
+			  ser->i2c_xlates[i].dst);
 	v4l2_info(sd, "\n");
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {

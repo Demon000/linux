@@ -25,7 +25,6 @@ struct max_des_link {
 	bool enabled;
 	enum max_gmsl_version version;
 	struct max_i2c_xlate ser_xlate;
-	bool ser_xlate_enabled;
 };
 
 struct max_des_pipe_mode {

@@ -32,6 +32,7 @@ struct max_phys_configs {
 struct max_i2c_xlate {
 	u8 src;
 	u8 dst;
+	bool en;
 };
 
 struct max_mipi_format {
