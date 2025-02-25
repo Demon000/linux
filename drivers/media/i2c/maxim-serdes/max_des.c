@@ -1292,6 +1292,24 @@ static int max_des_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	return ret;
 }
 
+static int max_des_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
+				   struct v4l2_mbus_config *cfg)
+{
+	struct max_des_priv *priv = sd_to_priv(sd);
+	struct max_des *des = priv->des;
+	struct max_des_phy *phy;
+
+	phy = max_des_pad_to_phy(des, pad);
+	if (!phy)
+		return -EINVAL;
+
+	cfg->type = phy->bus_type;
+	cfg->bus.mipi_csi2 = phy->mipi;
+	cfg->link_freq = phy->link_frequency;
+
+	return 0;
+}
+
 static int max_des_set_routing(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
 			       enum v4l2_subdev_format_whence which,
@@ -1630,6 +1648,8 @@ static const struct v4l2_subdev_pad_ops max_des_pad_ops = {
 
 	.set_routing = max_des_set_routing,
 	.get_frame_desc = max_des_get_frame_desc,
+
+	.get_mbus_config = max_des_get_mbus_config,
 
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = max_des_set_fmt,
