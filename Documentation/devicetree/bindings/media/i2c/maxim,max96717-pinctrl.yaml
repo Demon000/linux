@@ -31,12 +31,6 @@ properties:
   slew-rate: true
   input-enable: true
 
-  maxim,pull-strength-weak:
-    type: boolean
-    description: |
-      If enabled, the pull-up and pull-down strength is 40kOhm,
-      else it is 1MOhm.
-
   maxim,jitter-compensation:
     type: boolean
     description: Enables jitter compensation.

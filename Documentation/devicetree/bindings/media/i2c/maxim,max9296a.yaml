@@ -35,21 +35,5 @@ properties:
 required:
   - compatible
 
-patternProperties:
-  '^pipe@[0-9a-f]+$':
-    properties:
-      reg:
-        min: 0
-        max: 3
-
-  '^channel@[0-9a-f]+$':
-      maxim,pipe-id:
-        min: 0
-        max: 3
-
-      maxim,phy-id:
-        min: 0
-        max: 1
-
 allOf:
   - $ref: maxim-deserializer.yaml#
