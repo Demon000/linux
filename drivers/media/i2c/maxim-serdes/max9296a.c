@@ -150,8 +150,6 @@
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
-/* TODO: backport fixes from MAX96724. */
-
 #define MAX9296A_PIPES_NUM		4
 
 static const struct regmap_config max9296a_i2c_regmap = {
