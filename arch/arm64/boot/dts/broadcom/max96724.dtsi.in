@@ -11,6 +11,7 @@
 {%- macro des_i2c_label_x(x) -%}
 	{{ des_label ~ '_i2c_' ~ x }}
 {%- endmacro %}
+{%- set des_i2c_adapter_label = des_label ~ '_i2c_adapter' -%}
 
 &i2c_bus {
 	{{des_label}}: gmsl-deserializer@{{address | hex_remove_0x}} {
@@ -25,7 +26,7 @@
 &{{des_label}} {
 	i2c-alias-pool = <{{pool_addrs}}>;
 
-	i2c-atr {
+	{{des_i2c_adapter_label}}: i2c-mux {
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
