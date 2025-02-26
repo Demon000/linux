@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c-atr.h>
+#include <linux/i2c-mux.h>
 #include <linux/module.h>
 
 #include <media/mipi-csi2.h>
@@ -26,6 +27,7 @@ struct max_ser_priv {
 	struct i2c_client *client;
 
 	struct i2c_atr *atr;
+	struct i2c_mux_core *mux;
 
 	struct media_pad *pads;
 	struct max_source *sources;
@@ -247,6 +249,43 @@ static int max_ser_i2c_atr_init(struct max_ser_priv *priv)
 	i2c_atr_set_driver_data(priv->atr, priv);
 
 	return i2c_atr_add_adapter(priv->atr, &desc);
+}
+
+static int max_ser_i2c_mux_select(struct i2c_mux_core *mux, u32 chan)
+{
+	return 0;
+}
+
+static void max_ser_i2c_mux_deinit(struct max_ser_priv *priv)
+{
+	i2c_mux_del_adapters(priv->mux);
+}
+
+static int max_ser_i2c_mux_init(struct max_ser_priv *priv)
+{
+	priv->mux = i2c_mux_alloc(priv->client->adapter, &priv->client->dev,
+				  1, 0, I2C_MUX_LOCKED | I2C_MUX_GATE,
+				  max_ser_i2c_mux_select, NULL);
+	if (!priv->mux)
+		return -ENOMEM;
+
+	return i2c_mux_add_adapter(priv->mux, 0, 0);
+}
+
+static int max_ser_i2c_adapter_init(struct max_ser_priv *priv)
+{
+	if (device_get_named_child_node(priv->dev, "i2c-gate"))
+		return max_ser_i2c_mux_init(priv);
+	else
+		return max_ser_i2c_atr_init(priv);
+}
+
+static void max_ser_i2c_adapter_deinit(struct max_ser_priv *priv)
+{
+	if (device_get_named_child_node(priv->dev, "i2c-gate"))
+		max_ser_i2c_mux_deinit(priv);
+	else
+		max_ser_i2c_atr_deinit(priv);
 }
 
 static int max_ser_set_fmt(struct v4l2_subdev *sd,
@@ -1323,11 +1362,20 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser)
 	if (ret)
 		return ret;
 
-	ret = max_ser_i2c_atr_init(priv);
+	ret = max_ser_i2c_adapter_init(priv);
 	if (ret)
 		return ret;
 
-	return max_ser_v4l2_register(priv);
+	ret = max_ser_v4l2_register(priv);
+	if (ret)
+		goto err_i2c_adapter_deinit;
+
+	return 0;
+
+err_i2c_adapter_deinit:
+	max_ser_i2c_adapter_deinit(priv);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(max_ser_probe);
 
@@ -1337,7 +1385,7 @@ int max_ser_remove(struct max_ser *ser)
 
 	max_ser_v4l2_unregister(priv);
 
-	max_ser_i2c_atr_deinit(priv);
+	max_ser_i2c_adapter_deinit(priv);
 
 	return 0;
 }
