@@ -1089,11 +1089,15 @@ static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 static int max_des_i2c_mux_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
+	u32 flags = I2C_MUX_LOCKED;
 	unsigned int i;
 	int ret;
 
+	if (des->ops->num_links == 1)
+		flags |= I2C_MUX_GATE;
+
 	priv->mux = i2c_mux_alloc(priv->client->adapter, priv->dev,
-				  des->ops->num_links, 0, I2C_MUX_LOCKED,
+				  des->ops->num_links, 0, flags,
 				  max_des_i2c_mux_select, NULL);
 	if (!priv->mux)
 		return -ENOMEM;
