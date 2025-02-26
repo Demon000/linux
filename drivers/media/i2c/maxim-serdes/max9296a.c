@@ -94,6 +94,20 @@
 #define MAX9296A_MIPI_PHY20(x)			(0x342)
 #define MAX9296A_MIPI_PHY20_PHY_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
 
+#define MAX9296A_MIPI_TX3(x)			(0x403 + (x) * 0x40)
+#define MAX9296A_MIPI_TX3_DESKEW_INIT_WIDTH	GENMASK(2, 0)
+#define MAX9296A_MIPI_TX3_DESKEW_INIT_8X32K	FIELD_PREP(MAX9296A_MIPI_TX3_DESKEW_INIT_WIDTH, 0b001)
+#define MAX9296A_MIPI_TX3_DESKEW_INIT_AUTO	BIT(7)
+
+#define MAX9296A_MIPI_TX4(x)			(0x404 + (x) * 0x40)
+#define MAX9296A_MIPI_TX4_DESKEW_PER_WIDTH	GENMASK(2, 0)
+#define MAX9296A_MIPI_TX4_DESKEW_PER_2K		FIELD_PREP(MAX9296A_MIPI_TX4_DESKEW_PER_WIDTH, 0b001)
+#define MAX9296A_MIPI_TX4_DESKEW_PER_AUTO	BIT(7)
+
+#define MAX9296A_MIPI_TX10(x)			(0x40a + 0x40 * (x))
+#define MAX9296A_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
+#define MAX9296A_MIPI_TX10_CSI2_CPHY_EN		BIT(5)
+
 #define MAX9296A_MIPI_TX11(p)			(0x40b + (p) * 0x40)
 #define MAX9296A_MIPI_TX12(p)			(0x40c + (p) * 0x40)
 
@@ -113,20 +127,6 @@
 #define MAX9296A_MIPI_TX51_ALT_MEM_MAP_8	BIT(1)
 #define MAX9296A_MIPI_TX51_ALT_MEM_MAP_10	BIT(2)
 #define MAX9296A_MIPI_TX51_ALT2_MEM_MAP_8	BIT(4)
-
-#define MAX9296A_MIPI_TX3(x)			(0x443 + (x) * 0x40)
-#define MAX9296A_MIPI_TX3_DESKEW_INIT_WIDTH	GENMASK(2, 0)
-#define MAX9296A_MIPI_TX3_DESKEW_INIT_8X32K	FIELD_PREP(MAX9296A_MIPI_TX3_DESKEW_INIT_WIDTH, 0b001)
-#define MAX9296A_MIPI_TX3_DESKEW_INIT_AUTO	BIT(7)
-
-#define MAX9296A_MIPI_TX4(x)			(0x444 + (x) * 0x40)
-#define MAX9296A_MIPI_TX4_DESKEW_PER_WIDTH	GENMASK(2, 0)
-#define MAX9296A_MIPI_TX4_DESKEW_PER_2K		FIELD_PREP(MAX9296A_MIPI_TX4_DESKEW_PER_WIDTH, 0b001)
-#define MAX9296A_MIPI_TX4_DESKEW_PER_AUTO	BIT(7)
-
-#define MAX9296A_MIPI_TX10(x)			(0x44a + 0x40 * (x))
-#define MAX9296A_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
-#define MAX9296A_MIPI_TX10_CSI2_CPHY_EN		BIT(5)
 
 #define MAX9296A_MIPI_TX52(x)			(0x434 + 0x40 * (x))
 #define MAX9296A_MIPI_TX52_TUN_DEST		BIT(1)
@@ -151,6 +151,7 @@
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
 #define MAX9296A_PIPES_NUM		4
+#define MAX9296A_PHYS_NUM		2
 
 static const struct regmap_config max9296a_i2c_regmap = {
 	.reg_bits = 16,
@@ -171,6 +172,7 @@ struct max9296a_chip_info {
 	enum max_gmsl_version versions;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
+	unsigned int phy_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int num_phys;
 	unsigned int num_links;
 	struct max_phys_configs phys_configs;
@@ -245,6 +247,12 @@ static unsigned int max9296a_pipe_id(struct max9296a_priv *priv,
 				     struct max_des_pipe *pipe)
 {
 	return priv->info->pipe_hw_ids[pipe->index];
+}
+
+static unsigned int max9296a_phy_id(struct max9296a_priv *priv,
+				    struct max_des_phy *phy)
+{
+	return priv->info->phy_hw_ids[phy->index];
 }
 
 static int max9296a_reg_read(struct max_des *des, unsigned int reg,
@@ -338,6 +346,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
+	unsigned int hw_index = max9296a_phy_id(priv, phy);
 	unsigned int index = phy->index;
 	unsigned int used_data_lanes = 0;
 	unsigned int val;
@@ -387,14 +396,14 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 */
 
 	/* Configure a lane count. */
-	ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX10(index),
+	ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX10(hw_index),
 				 MAX9296A_MIPI_TX10_CSI2_LANE_CNT,
 				 FIELD_PREP(MAX9296A_MIPI_TX10_CSI2_LANE_CNT,
 					    num_data_lanes - 1));
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX10(index),
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX10(hw_index),
 				 MAX9296A_MIPI_TX10_CSI2_CPHY_EN, is_cphy);
 	if (ret)
 		return ret;
@@ -521,26 +530,26 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 
 	if (dpll_freq > 1500000000ull) {
 		/* Enable initial deskew with 2 x 32k UI. */
-		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX3(index),
+		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX3(hw_index),
 				   MAX9296A_MIPI_TX3_DESKEW_INIT_AUTO |
 				   MAX9296A_MIPI_TX3_DESKEW_INIT_8X32K);
 		if (ret)
 			return ret;
 
 		/* Enable periodic deskew with 2 x 1k UI.. */
-		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX4(index),
+		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX4(hw_index),
 				   MAX9296A_MIPI_TX4_DESKEW_PER_AUTO |
 				   MAX9296A_MIPI_TX4_DESKEW_PER_2K);
 		if (ret)
 			return ret;
 	} else {
 		/* Disable initial deskew. */
-		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX3(index), 0x0);
+		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX3(hw_index), 0x0);
 		if (ret)
 			return ret;
 
 		/* Disable periodic deskew. */
-		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX4(index), 0x0);
+		ret = regmap_write(priv->regmap, MAX9296A_MIPI_TX4(hw_index), 0x0);
 		if (ret)
 			return ret;
 	}
@@ -1024,6 +1033,7 @@ static const struct max9296a_chip_info max9296a_info = {
 	.num_pipes = 4,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 2,
+	.phy_hw_ids = { 1, 2 },
 	.num_links = 2,
 };
 
@@ -1042,6 +1052,7 @@ static const struct max9296a_chip_info max96714_info = {
 	.num_pipes = 1,
 	.pipe_hw_ids = { 1 },
 	.num_phys = 1,
+	.phy_hw_ids = { 1 },
 	.num_links = 1,
 };
 
@@ -1063,6 +1074,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
 	.num_phys = 2,
+	.phy_hw_ids = { 1, 2 },
 	.num_links = 2,
 };
 
@@ -1086,6 +1098,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
 	.num_phys = 2,
+	.phy_hw_ids = { 1, 2 },
 	.num_links = 2,
 };
 
