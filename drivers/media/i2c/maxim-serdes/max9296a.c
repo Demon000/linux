@@ -981,6 +981,24 @@ static const struct max9296a_chip_info max9296a_info = {
 	.num_links = 2,
 };
 
+static const struct max9296a_chip_info max96714_info = {
+	.max_register = 0x5011,
+	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_enable = max96714_set_pipe_enable,
+	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
+	.phys_configs = {
+		.num_configs = ARRAY_SIZE(max96714_phys_configs),
+		.configs = max96714_phys_configs,
+	},
+	.polarity_on_physical_lanes = true,
+	.supports_phy_log = true,
+	.adjust_rlms = true,
+	.num_pipes = 1,
+	.pipe_hw_ids = { 1 },
+	.num_phys = 1,
+	.num_links = 1,
+};
+
 static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
@@ -998,24 +1016,6 @@ static const struct max9296a_chip_info max96716a_info = {
 	.pipe_hw_ids = { 1, 2 },
 	.num_phys = 2,
 	.num_links = 2,
-};
-
-static const struct max9296a_chip_info max96714_info = {
-	.max_register = 0x5011,
-	.set_pipe_stream_id = max96714_set_pipe_stream_id,
-	.set_pipe_enable = max96714_set_pipe_enable,
-	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
-	.phys_configs = {
-		.num_configs = ARRAY_SIZE(max96714_phys_configs),
-		.configs = max96714_phys_configs,
-	},
-	.polarity_on_physical_lanes = true,
-	.supports_phy_log = true,
-	.adjust_rlms = true,
-	.num_pipes = 1,
-	.pipe_hw_ids = { 1 },
-	.num_phys = 1,
-	.num_links = 1,
 };
 
 static const struct max9296a_chip_info max96792a_info = {
