@@ -186,6 +186,8 @@ struct max9296a_chip_info {
 			    struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      bool enable);
+	int (*select_link_version)(struct max_des *des, struct max_des_link *link,
+				   enum max_gmsl_version version);
 };
 
 #define des_to_priv(des) \
@@ -841,7 +843,7 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 	return 0;
 }
 
-static int max9296a_select_link_version(struct max_des *des,
+static int max96792a_select_link_version(struct max_des *des,
 					struct max_des_link *link,
 					enum max_gmsl_version version)
 {
@@ -895,7 +897,6 @@ static const struct max_des_ops max9296a_ops = {
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
-	.select_link_version = max9296a_select_link_version,
 };
 
 static int max9296a_probe(struct i2c_client *client)
@@ -941,6 +942,7 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
+	ops->select_link_version = priv->info->select_link_version;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -1025,6 +1027,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
+	.select_link_version = max96792a_select_link_version,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
