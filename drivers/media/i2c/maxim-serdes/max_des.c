@@ -7,6 +7,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c-atr.h>
+#include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 
@@ -33,6 +34,7 @@ struct max_des_priv {
 	struct device *dev;
 	struct i2c_client *client;
 	struct i2c_atr *atr;
+	struct i2c_mux_core *mux;
 
 	struct media_pad *pads;
 	struct max_source *sources;
@@ -940,8 +942,11 @@ static int max_des_init(struct max_des_priv *priv)
 static int max_des_post_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
-	unsigned int i, mask = 0;
-	int ret;
+	unsigned int mask = 0;
+	unsigned int i;
+
+	if (!des->ops->select_links)
+		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
@@ -952,11 +957,7 @@ static int max_des_post_init(struct max_des_priv *priv)
 		mask |= BIT(link->index);
 	}
 
-	ret = des->ops->select_links(des, mask);
-	if (ret)
-		return ret;
-
-	return 0;
+	return des->ops->select_links(des, mask);
 }
 
 static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
@@ -1067,6 +1068,77 @@ err_add_adapters:
 	max_des_i2c_atr_deinit(priv);
 
 	return ret;
+}
+
+static void max_des_i2c_mux_deinit(struct max_des_priv *priv)
+{
+	i2c_mux_del_adapters(priv->mux);
+}
+
+static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct max_des_priv *priv = i2c_mux_priv(muxc);
+	struct max_des *des = priv->des;
+
+	if (!des->ops->select_links_dynamic)
+		return 0;
+
+	return des->ops->select_links_dynamic(des, BIT(chan));
+}
+
+static int max_des_i2c_mux_init(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	priv->mux = i2c_mux_alloc(priv->client->adapter, priv->dev,
+				  des->ops->num_links, 0, I2C_MUX_LOCKED,
+				  max_des_i2c_mux_select, NULL);
+	if (!priv->mux)
+		return -ENOMEM;
+
+	priv->mux->priv = priv;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		ret = i2c_mux_add_adapter(priv->mux, 0, i);
+		if (ret)
+			goto err_add_adapters;
+	}
+
+	return 0;
+
+err_add_adapters:
+	i2c_mux_del_adapters(priv->mux);
+
+	return ret;
+}
+
+static void max_des_i2c_adapter_deinit(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+
+	if (des->ops->select_links)
+		return max_des_i2c_atr_deinit(priv);
+	else
+		return max_des_i2c_mux_deinit(priv);
+}
+
+static int max_des_i2c_adapter_init(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+
+	if (des->ops->select_links)
+		return max_des_i2c_atr_init(priv);
+	else
+		return max_des_i2c_mux_init(priv);
+
+	return 0;
 }
 
 static int max_des_set_fmt(struct v4l2_subdev *sd,
@@ -2115,6 +2187,12 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (!priv)
 		return -ENOMEM;
 
+	if (des->ops->select_link_version && !des->ops->select_links) {
+		dev_err(dev,
+			"Cannot implement .select_link_version() without .select_links()\n");
+		return -EINVAL;
+	}
+
 	priv->versions = des->ops->versions;
 	if (!priv->versions)
 		priv->versions = BIT(MAX_GMSL_2);
@@ -2144,24 +2222,24 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (ret)
 		return ret;
 
-	ret = max_des_i2c_atr_init(priv);
+	ret = max_des_i2c_adapter_init(priv);
 	if (ret)
 		return ret;
 
 	ret = max_des_post_init(priv);
 	if (ret) {
-		goto err_i2c_atr_deinit;
+		goto err_i2c_adapter_deinit;
 		return ret;
 	}
 
 	ret = max_des_v4l2_register(priv);
 	if (ret)
-		goto err_i2c_atr_deinit;
+		goto err_i2c_adapter_deinit;
 
 	return 0;
 
-err_i2c_atr_deinit:
-	max_des_i2c_atr_deinit(priv);
+err_i2c_adapter_deinit:
+	max_des_i2c_adapter_deinit(priv);
 
 	return ret;
 }
@@ -2173,7 +2251,7 @@ int max_des_remove(struct max_des *des)
 
 	max_des_v4l2_unregister(priv);
 
-	max_des_i2c_atr_deinit(priv);
+	max_des_i2c_adapter_deinit(priv);
 
 	return 0;
 }
