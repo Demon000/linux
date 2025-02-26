@@ -126,6 +126,7 @@
 
 #define MAX9296A_MIPI_TX10(x)			(0x44a + 0x40 * (x))
 #define MAX9296A_MIPI_TX10_CSI2_LANE_CNT	GENMASK(7, 6)
+#define MAX9296A_MIPI_TX10_CSI2_CPHY_EN		BIT(5)
 
 #define MAX9296A_MIPI_TX52(x)			(0x434 + 0x40 * (x))
 #define MAX9296A_MIPI_TX52_TUN_DEST		BIT(1)
@@ -178,6 +179,7 @@ struct max9296a_chip_info {
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
+	bool supports_cphy;
 	bool supports_phy_log;
 	bool adjust_rlms;
 	bool fix_tx_ids;
@@ -334,6 +336,7 @@ static int max9296a_init(struct max_des *des)
 static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
+	bool is_cphy = phy->bus_type == V4L2_MBUS_CSI2_CPHY;
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
@@ -342,6 +345,11 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int val;
 	unsigned int i;
 	int ret;
+
+	if (is_cphy && !priv->info->supports_cphy) {
+		dev_err(priv->dev, "CPHY not supported\n");
+		return -EINVAL;
+	}
 
 	num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
@@ -381,11 +389,15 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 	 */
 
 	/* Configure a lane count. */
-	/* TODO: Add support CPHY mode. */
 	ret = regmap_update_bits(priv->regmap, MAX9296A_MIPI_TX10(index),
 				 MAX9296A_MIPI_TX10_CSI2_LANE_CNT,
 				 FIELD_PREP(MAX9296A_MIPI_TX10_CSI2_LANE_CNT,
 					    num_data_lanes - 1));
+	if (ret)
+		return ret;
+
+	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX10(index),
+				 MAX9296A_MIPI_TX10_CSI2_CPHY_EN, is_cphy);
 	if (ret)
 		return ret;
 
@@ -1048,6 +1060,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	},
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
+	.supports_cphy = true,
 	.supports_phy_log = true,
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
@@ -1070,6 +1083,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	},
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
+	.supports_cphy = true,
 	.supports_phy_log = true,
 	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
