@@ -1,5 +1,4 @@
 {%- set reset_pin = cam_cfg.reset_pin | d(0) -%}
-{%- set vc_id = cam_cfg.vc_id | d(0) -%}
 
 {%- set cam_label = ser_label ~ "_cam_" ~ cam_idx -%}
 {%- set vcm_label = ser_label ~ "_vcm_" ~ cam_idx -%}
@@ -35,7 +34,6 @@
 
 &{{cam_out_label}} {
 	remote-endpoint = <&{{cam_out_remote_label}}>;
-	vc-ids = <{{vc_id}}>;
 };
 
 &{{ser_label}} {
