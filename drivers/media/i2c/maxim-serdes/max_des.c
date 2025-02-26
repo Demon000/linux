@@ -2,7 +2,7 @@
 /*
  * Maxim GMSL2 Deserializer Driver
  *
- * Copyright (C) 2023 Analog Devices Inc.
+ * Copyright (C) 2025 Analog Devices Inc.
  */
 
 #include <linux/delay.h>
