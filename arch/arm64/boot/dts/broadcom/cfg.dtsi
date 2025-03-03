@@ -1,17 +1,17 @@
 &i2c_bus {
-	max_des_0: gmsl-deserializer@27 {
+	max_des_0: gmsl-deserializer@4c {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		compatible = "maxim,max96724";
-		reg = <0x27>;
+		compatible = "maxim,max96792a";
+		reg = <0x4c>;
 	};
 };
 
 &max_des_0 {
-	i2c-alias-pool = <0x40 0x41 0x42 0x43>;
+	i2c-alias-pool = <0x40 0x41>;
 
-	max_des_0_i2c_adapter: i2c-mux {
+	max_des_0_i2c_adapter: i2c-atr {
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -36,7 +36,7 @@
 		#size-cells = <0>;
 		#gpio-cells = <2>;
 
-		compatible = "maxim,max96717";
+		compatible = "maxim,max96793";
 		reg = <0x40>;
 
 		gpio-controller;
@@ -99,7 +99,7 @@
 &max_des_0_ser_0_cam_0 {
 	status = "okay";
 
-	reset-gpios = <&max_des_0_ser_0 0 GPIO_ACTIVE_HIGH>;
+	reset-gpios = <&max_des_0_ser_0 2 GPIO_ACTIVE_HIGH>;
 };
 
 &max_des_0_ser_0_cam_0_out {
@@ -222,212 +222,6 @@
 };
 
 &max_des_0_ser_1_in_0 {
-	clock-lanes = <0>;
-	data-lanes = <1 2>;
-	clock-noncontinuous;
-	link-frequencies = /bits/ 64 <456000000>;
-};
-
-&max_des_0_i2c_adapter {
-	max_des_0_i2c_2: i2c@2 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x2>;
-	};
-};
-
-&max_des_0_i2c_2 {
-	max_des_0_ser_2: gmsl-serializer@40 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		#gpio-cells = <2>;
-
-		compatible = "maxim,max96717";
-		reg = <0x40>;
-
-		gpio-controller;
-		gpio-ranges = <&max_des_0_ser_2 0 0 11>;
-	};
-};
-
-&max_des_0_ser_2 {
-	i2c-alias-pool = <0x54 0x55>;
-
-	i2c-atr {
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			max_des_0_ser_2_out: endpoint {
-				remote-endpoint = <&max_des_0_in_2>;
-			};
-		};
-	};
-};
-
-&max_des_0 {
-	ports {
-		port@2 {
-			reg = <0x2>;
-
-			max_des_0_in_2: endpoint {
-				remote-endpoint = <&max_des_0_ser_2_out>;
-			};
-		};
-	};
-};&max_des_0_ser_2 {
-	i2c-atr {
-		max_des_0_ser_2_i2c_0: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x0>;
-		};
-	};
-};
-
-#define i2c_csi_dsi0 max_des_0_ser_2_i2c_0
-#define cam_node max_des_0_ser_2_cam_0
-#define cam_endpoint max_des_0_ser_2_cam_0_out
-#define vcm max_des_0_ser_2_vcm_0
-#include "rpi5-csi0-imx219.dtsi"
-#undef vcm
-#undef cam_node
-#undef cam_endpoint
-#undef i2c_csi_dsi0
-
-&max_des_0_ser_2_cam_0 {
-	status = "okay";
-
-	reset-gpios = <&max_des_0_ser_2 0 GPIO_ACTIVE_HIGH>;
-};
-
-&max_des_0_ser_2_cam_0_out {
-	remote-endpoint = <&max_des_0_ser_2_in_0>;
-};
-
-&max_des_0_ser_2 {
-	ports {
-		port@0 {
-			reg = <0>;
-
-			max_des_0_ser_2_in_0: endpoint {
-				remote-endpoint = <&max_des_0_ser_2_cam_0_out>;
-			};
-		};
-	};
-};
-
-&max_des_0_ser_2_in_0 {
-	clock-lanes = <0>;
-	data-lanes = <1 2>;
-	clock-noncontinuous;
-	link-frequencies = /bits/ 64 <456000000>;
-};
-
-&max_des_0_i2c_adapter {
-	max_des_0_i2c_3: i2c@3 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg = <0x3>;
-	};
-};
-
-&max_des_0_i2c_3 {
-	max_des_0_ser_3: gmsl-serializer@40 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		#gpio-cells = <2>;
-
-		compatible = "maxim,max96717";
-		reg = <0x40>;
-
-		gpio-controller;
-		gpio-ranges = <&max_des_0_ser_3 0 0 11>;
-	};
-};
-
-&max_des_0_ser_3 {
-	i2c-alias-pool = <0x56 0x57>;
-
-	i2c-atr {
-		#address-cells = <1>;
-		#size-cells = <0>;
-	};
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-
-			max_des_0_ser_3_out: endpoint {
-				remote-endpoint = <&max_des_0_in_3>;
-			};
-		};
-	};
-};
-
-&max_des_0 {
-	ports {
-		port@3 {
-			reg = <0x3>;
-
-			max_des_0_in_3: endpoint {
-				remote-endpoint = <&max_des_0_ser_3_out>;
-			};
-		};
-	};
-};&max_des_0_ser_3 {
-	i2c-atr {
-		max_des_0_ser_3_i2c_0: i2c@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <0x0>;
-		};
-	};
-};
-
-#define i2c_csi_dsi0 max_des_0_ser_3_i2c_0
-#define cam_node max_des_0_ser_3_cam_0
-#define cam_endpoint max_des_0_ser_3_cam_0_out
-#define vcm max_des_0_ser_3_vcm_0
-#include "rpi5-csi0-imx219.dtsi"
-#undef vcm
-#undef cam_node
-#undef cam_endpoint
-#undef i2c_csi_dsi0
-
-&max_des_0_ser_3_cam_0 {
-	status = "okay";
-
-	reset-gpios = <&max_des_0_ser_3 0 GPIO_ACTIVE_HIGH>;
-};
-
-&max_des_0_ser_3_cam_0_out {
-	remote-endpoint = <&max_des_0_ser_3_in_0>;
-};
-
-&max_des_0_ser_3 {
-	ports {
-		port@0 {
-			reg = <0>;
-
-			max_des_0_ser_3_in_0: endpoint {
-				remote-endpoint = <&max_des_0_ser_3_cam_0_out>;
-			};
-		};
-	};
-};
-
-&max_des_0_ser_3_in_0 {
 	clock-lanes = <0>;
 	data-lanes = <1 2>;
 	clock-noncontinuous;
