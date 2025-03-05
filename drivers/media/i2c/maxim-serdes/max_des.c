@@ -2234,10 +2234,8 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 		return ret;
 
 	ret = max_des_post_init(priv);
-	if (ret) {
+	if (ret)
 		goto err_i2c_adapter_deinit;
-		return ret;
-	}
 
 	ret = max_des_v4l2_register(priv);
 	if (ret)
