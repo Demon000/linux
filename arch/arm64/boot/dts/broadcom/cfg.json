@@ -1,6 +1,9 @@
 [
     {
         "name": "max96724",
+        "vpoc_cfg": {
+            "name": "max20087"
+        },
         "links": [
             {
                 "name": "max96717",
