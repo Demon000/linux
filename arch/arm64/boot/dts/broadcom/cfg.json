@@ -1,16 +1,12 @@
 [
     {
-        "name": "max9296a",
-        "compatible": "maxim,max96792a",
-        "address": "0x4c",
+        "name": "max96724",
         "links": [
             {
                 "name": "max96717",
-                "compatible": "maxim,max96793",
                 "cameras": [
                     {
-                        "name": "imx219",
-                        "reset_pin": 2
+                        "name": "imx219"
                     }
                 ],
                 "pool_addrs": ["0x50", "0x51"]
@@ -23,6 +19,24 @@
                     }
                 ],
                 "pool_addrs": ["0x52", "0x53"]
+            },
+            {
+                "name": "max96717",
+                "cameras": [
+                    {
+                        "name": "imx219"
+                    }
+                ],
+                "pool_addrs": ["0x54", "0x55"]
+            },
+            {
+                "name": "max96717",
+                "cameras": [
+                    {
+                        "name": "imx219"
+                    }
+                ],
+                "pool_addrs": ["0x56", "0x57"]
             }
         ]
     }
