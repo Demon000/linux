@@ -1,0 +1,18 @@
+&i2c_bus {
+	regulator@28 {
+		compatible = "maxim,max20087";
+		reg = <0x28>;
+
+		regulators {
+
+{%- if vpoc_cfg -%}
+{%- for ser_cfg in des_cfg.links -%}
+{% set ser_idx = loop.index0 %}
+			{{des_vpoc_label_x(ser_idx)}}: OUT{{ser_idx + 1}} {
+				regulator-name = "VPOC{{ser_idx}}";
+			};
+{% endfor %}
+{% endif %}
+		};
+	};
+};

@@ -5,6 +5,37 @@
 
 		compatible = "maxim,max96724";
 		reg = <0x27>;
+		port0-poc-supply = <&max_des_0_vpoc_0>;
+		port1-poc-supply = <&max_des_0_vpoc_1>;
+		port2-poc-supply = <&max_des_0_vpoc_2>;
+		port3-poc-supply = <&max_des_0_vpoc_3>;
+	};
+};
+
+&i2c_bus {
+	regulator@28 {
+		compatible = "maxim,max20087";
+		reg = <0x28>;
+
+		regulators {
+			max_des_0_vpoc_0: OUT1 {
+				regulator-name = "VPOC0";
+			};
+
+			max_des_0_vpoc_1: OUT2 {
+				regulator-name = "VPOC1";
+			};
+
+			max_des_0_vpoc_2: OUT3 {
+				regulator-name = "VPOC2";
+			};
+
+			max_des_0_vpoc_3: OUT4 {
+				regulator-name = "VPOC3";
+			};
+
+
+		};
 	};
 };
 
