@@ -32,6 +32,16 @@
 
 			max_des_0_vpoc_3: OUT4 {
 				regulator-name = "VPOC3";
+				/*
+				 * Serializer evaluation kits have a Teensy microcontroller
+				 * that takes a few seconds to boot and which does a reset of
+				 * the serializer chip afterwards. If the VPOCs are initially
+				 * turned off, then turning them on will cause the Teensy to
+				 * start booting. Add a delay after the last VPOC to make sure
+				 * that the Teensy did its reset before starting programming
+				 * the serializers.
+				 */
+				regulator-enable-ramp-delay = <3000000>;
 			};
 
 

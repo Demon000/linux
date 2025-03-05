@@ -2,7 +2,8 @@
     {
         "name": "max96724",
         "vpoc_cfg": {
-            "name": "max20087"
+            "name": "max20087",
+            "wait_for_teensy_reset_ms": 3000
         },
         "links": [
             {
