@@ -3,6 +3,7 @@
 {%- set default_compatible = 'maxim,max96724' -%}
 {%- set compatible = des_cfg.compatible | d(default_compatible) | str_quote -%}
 {%- set pool_addrs = des_cfg.pool_addrs | d(['0x40', '0x41', '0x42', '0x43']) | join(' ') -%}
+{%- set vpoc_cfg = des_cfg.vpoc_cfg -%}
 
 {%- set des_label = 'max_des_' ~ des_idx -%}
 {%- macro des_in_label_x(x) -%}
@@ -10,6 +11,9 @@
 {%- endmacro %}
 {%- macro des_i2c_label_x(x) -%}
 	{{ des_label ~ '_i2c_' ~ x }}
+{%- endmacro %}
+{%- macro des_vpoc_label_x(x) -%}
+	{{ des_label ~ '_vpoc_' ~ x }}
 {%- endmacro %}
 {%- set des_i2c_adapter_label = des_label ~ '_i2c_adapter' -%}
 
@@ -20,8 +24,19 @@
 
 		compatible = {{compatible}};
 		reg = <{{address}}>;
+
+{%- if vpoc_cfg -%}
+{%- for ser_cfg in des_cfg.links -%}
+{% set ser_idx = loop.index0 %}
+		port{{ser_idx}}-poc-supply = <&{{des_vpoc_label_x(ser_idx)}}>;
+{%- endfor -%}
+{% endif %}
 	};
 };
+
+{% if vpoc_cfg %}
+{%- include '%s.dtsi.in' % vpoc_cfg.name -%}
+{% endif %}
 
 &{{des_label}} {
 	i2c-alias-pool = <{{pool_addrs}}>;
