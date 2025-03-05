@@ -1801,6 +1801,9 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 		struct max_source *source;
 		struct max_asc *asc;
 
+		if (!link->enabled)
+			continue;
+
 		source = max_des_find_link_source(priv, link);
 		if (!source)
 			return -ENOENT;
