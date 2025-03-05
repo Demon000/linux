@@ -10,6 +10,7 @@
 #include <linux/i2c-mux.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
+#include <linux/regulator/consumer.h>
 
 #include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
@@ -37,6 +38,7 @@ struct max_des_priv {
 	struct i2c_mux_core *mux;
 
 	struct media_pad *pads;
+	struct regulator **pocs;
 	struct max_source *sources;
 	u64 *streams_masks;
 
@@ -1906,6 +1908,38 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 	media_entity_cleanup(&sd->entity);
 }
 
+static int max_des_update_pocs(struct max_des_priv *priv, bool enable)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		unsigned int index = link->index;
+
+		if (!link->enabled)
+			continue;
+
+		if (!priv->pocs)
+			continue;
+
+		if (enable)
+			ret = regulator_enable(priv->pocs[index]);
+		else
+			ret = regulator_disable(priv->pocs[index]);
+
+		if (ret) {
+			dev_err(priv->dev,
+				"Failed to set POC supply to %u: %u\n",
+				enable, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 					  struct max_des_link *link,
 					  struct max_source *source,
@@ -1913,7 +1947,10 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	u32 pad = max_des_link_to_pad(des, link);
+	unsigned int index = link->index;
 	struct fwnode_handle *ep;
+	char poc_name[10];
+	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(fwnode, pad, 0, 0);
 	if (!ep)
@@ -1927,9 +1964,28 @@ static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 		return -ENODEV;
 	}
 
+	snprintf(poc_name, sizeof(poc_name), "port%u-poc", index);
+	priv->pocs[index] = devm_regulator_get_optional(priv->dev, poc_name);
+	if (IS_ERR(priv->pocs[index])) {
+		ret = PTR_ERR(priv->pocs[index]);
+		if (ret != -ENODEV) {
+			dev_err(priv->dev,
+				"Failed to get POC supply on port %u: %d\n",
+				index, ret);
+			goto err_put_source_ep_fwnode;
+		}
+
+		priv->pocs[index] = NULL;
+	}
+
 	link->enabled = true;
 
 	return 0;
+
+err_put_source_ep_fwnode:
+	fwnode_handle_put(source->ep_fwnode);
+
+	return ret;
 }
 
 static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
@@ -2161,6 +2217,11 @@ static int max_des_allocate(struct max_des_priv *priv)
 	if (!priv->sources)
 		return -ENOMEM;
 
+	priv->pocs = devm_kcalloc(priv->dev, des->ops->num_links,
+				  sizeof(*priv->pocs), GFP_KERNEL);
+	if (!priv->pocs)
+		return -ENOMEM;
+
 	priv->pads = devm_kcalloc(priv->dev, num_pads,
 				  sizeof(*priv->pads), GFP_KERNEL);
 	if (!priv->pads)
@@ -2229,9 +2290,13 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (ret)
 		return ret;
 
-	ret = max_des_i2c_adapter_init(priv);
+	ret = max_des_update_pocs(priv, true);
 	if (ret)
 		return ret;
+
+	ret = max_des_i2c_adapter_init(priv);
+	if (ret)
+		goto err_disable_pocs;
 
 	ret = max_des_post_init(priv);
 	if (ret)
@@ -2246,6 +2311,9 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 err_i2c_adapter_deinit:
 	max_des_i2c_adapter_deinit(priv);
 
+err_disable_pocs:
+	max_des_update_pocs(priv, false);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(max_des_probe);
@@ -2257,6 +2325,8 @@ int max_des_remove(struct max_des *des)
 	max_des_v4l2_unregister(priv);
 
 	max_des_i2c_adapter_deinit(priv);
+
+	max_des_update_pocs(priv, false);
 
 	return 0;
 }
