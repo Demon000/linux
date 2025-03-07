@@ -941,27 +941,6 @@ static int max_des_init(struct max_des_priv *priv)
 	return 0;
 }
 
-static int max_des_post_init(struct max_des_priv *priv)
-{
-	struct max_des *des = priv->des;
-	unsigned int mask = 0;
-	unsigned int i;
-
-	if (!des->ops->select_links)
-		return 0;
-
-	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-
-		if (!link->enabled)
-			continue;
-
-		mask |= BIT(link->index);
-	}
-
-	return des->ops->select_links(des, mask);
-}
-
 static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 				       u16 addr, u16 alias)
 {
@@ -1035,6 +1014,7 @@ static void max_des_i2c_atr_deinit(struct max_des_priv *priv)
 static int max_des_i2c_atr_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
+	unsigned int mask = 0;
 	unsigned int i;
 	int ret;
 
@@ -1064,7 +1044,16 @@ static int max_des_i2c_atr_init(struct max_des_priv *priv)
 			goto err_add_adapters;
 	}
 
-	return 0;
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		mask |= BIT(link->index);
+	}
+
+	return des->ops->select_links(des, mask);
 
 err_add_adapters:
 	max_des_i2c_atr_deinit(priv);
@@ -2297,10 +2286,6 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	ret = max_des_i2c_adapter_init(priv);
 	if (ret)
 		goto err_disable_pocs;
-
-	ret = max_des_post_init(priv);
-	if (ret)
-		goto err_i2c_adapter_deinit;
 
 	ret = max_des_v4l2_register(priv);
 	if (ret)
