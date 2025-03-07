@@ -244,6 +244,18 @@ static int max96724_reg_write(struct max_des *des, unsigned int reg,
 	return regmap_write(priv->regmap, reg, val);
 }
 
+static unsigned int max96724_phy_id(struct max_des *des,
+					  struct max_des_phy *phy)
+{
+	unsigned int num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
+
+	/* PHY 1 is the master PHY when combining PHY 0 and PHY 1. */
+	if (phy->index == 0 && num_hw_data_lanes == 4)
+		return 1;
+
+	return phy->index;
+}
+
 static int max96724_log_pipe_status(struct max_des *des,
 				    struct max_des_pipe *pipe, const char *name)
 {
@@ -298,7 +310,7 @@ static int max96724_log_phy_status(struct max_des *des,
 				   struct max_des_phy *phy, const char *name)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int index = phy->index;
+	unsigned int index = max96724_phy_id(des, phy);
 	unsigned int val;
 	int ret;
 
@@ -344,13 +356,18 @@ static const struct max_phys_config max96724_phys_configs[] = {
 	 * clock lane of PHY 1.
 	 * Specifying clock-lanes as 5 turns on alternate clocking mode.
 	 */
-	{ { 0, 2, 2, 2 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
-	{ { 0, 2, 4, 0 }, { 0, MAX96724_PHY1_ALT_CLOCK, 0, 0 } },
+	{ { 2, 0, 2, 2 }, { MAX96724_PHY1_ALT_CLOCK, 0, 0, 0 } },
+	{ { 2, 0, 4, 0 }, { MAX96724_PHY1_ALT_CLOCK, 0, 0, 0 } },
 
+	/*
+	 * When combining PHY 0 and PHY 1 to make them function in 4-lane mode,
+	 * PHY 1 is the master PHY, but we use PHY 0 here to maintain
+	 * compatibility.
+	 */
 	{ { 2, 2, 2, 2 } },
-	{ { 0, 4, 2, 2 } },
+	{ { 4, 0, 2, 2 } },
 	{ { 2, 2, 4, 0 } },
-	{ { 0, 4, 4, 0 } },
+	{ { 4, 0, 4, 0 } },
 };
 
 static int max96724_init(struct max_des *des)
@@ -392,12 +409,13 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 	unsigned int num_data_lanes = phy->mipi.num_data_lanes;
 	unsigned int dpll_freq = phy->link_frequency * 2;
 	unsigned int num_hw_data_lanes;
-	unsigned int index = phy->index;
+	unsigned int index;
 	unsigned int used_data_lanes = 0;
 	unsigned int val, mask;
 	unsigned int i;
 	int ret;
 
+	index = max96724_phy_id(des, phy);
 	num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
 	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX10(index),
@@ -543,7 +561,7 @@ static int max96724_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
 				 struct max_des_phy_mode *mode)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int index = phy->index;
+	unsigned int index = max96724_phy_id(des, phy);
 	int ret;
 
 	/* Set alternate memory map modes. */
@@ -578,7 +596,7 @@ static int max96724_set_phy_active(struct max_des *des, struct max_des_phy *phy,
 				   bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	unsigned int index = phy->index;
+	unsigned int index = max96724_phy_id(des, phy);
 	unsigned int num_hw_data_lanes;
 	unsigned int mask;
 
@@ -649,20 +667,21 @@ static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 				 struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int phy_index = max96724_phy_id(des, phy);
 	unsigned int index = pipe->index;
 	int ret;
 
 	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(index),
 				 MAX96724_MIPI_TX57_TUN_DEST,
 				 FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
-					    phy->index));
+					    phy_index));
 	if (ret)
 		return ret;
 
 	return regmap_update_bits(priv->regmap, MAX96724_MIPI_CTRL_SEL,
 				  MAX96724_MIPI_CTRL_SEL_MASK(index),
 				  field_prep(MAX96724_MIPI_CTRL_SEL_MASK(index),
-					     phy->index));
+					     phy_index));
 }
 
 static int max96724_set_pipe_enable(struct max_des *des, struct max_des_pipe *pipe,
