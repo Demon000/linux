@@ -749,7 +749,7 @@ static int max96724_set_pipe_tunnel_enable(struct max_des *des,
 				  MAX96724_MIPI_TX54_TUN_EN, enable);
 }
 
-static int max96724_select_links_dynamic(struct max_des *des, unsigned int mask)
+static int max96724_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int val = 0;
@@ -789,7 +789,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
-	.select_links_dynamic = max96724_select_links_dynamic,
+	.select_links = max96724_select_links,
 };
 
 static const struct max96724_chip_info max96724_info = {

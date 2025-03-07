@@ -72,6 +72,7 @@ struct max_des_ops {
 	unsigned int num_remaps_per_pipe;
 	unsigned int versions;
 	bool fix_tx_ids;
+	bool select_resets_link;
 
 	struct max_phys_configs phys_configs;
 
@@ -105,7 +106,6 @@ struct max_des_ops {
 				      bool enable);
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
 	int (*select_links)(struct max_des *des, unsigned int mask);
-	int (*select_links_dynamic)(struct max_des *des, unsigned int mask);
 	int (*select_link_version)(struct max_des *des, struct max_des_link *link,
 				   enum max_gmsl_version version);
 };

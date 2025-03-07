@@ -1071,10 +1071,10 @@ static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
 	struct max_des_priv *priv = i2c_mux_priv(muxc);
 	struct max_des *des = priv->des;
 
-	if (!des->ops->select_links_dynamic)
+	if (!des->ops->select_links)
 		return 0;
 
-	return des->ops->select_links_dynamic(des, BIT(chan));
+	return des->ops->select_links(des, BIT(chan));
 }
 
 static int max_des_i2c_mux_init(struct max_des_priv *priv)
@@ -1118,7 +1118,7 @@ static void max_des_i2c_adapter_deinit(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
 
-	if (des->ops->select_links)
+	if (des->ops->select_resets_link)
 		return max_des_i2c_atr_deinit(priv);
 	else
 		return max_des_i2c_mux_deinit(priv);
@@ -1128,7 +1128,7 @@ static int max_des_i2c_adapter_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
 
-	if (des->ops->select_links)
+	if (des->ops->select_resets_link)
 		return max_des_i2c_atr_init(priv);
 	else
 		return max_des_i2c_mux_init(priv);
@@ -2247,6 +2247,12 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (des->ops->select_link_version && !des->ops->select_links) {
 		dev_err(dev,
 			"Cannot implement .select_link_version() without .select_links()\n");
+		return -EINVAL;
+	}
+
+	if (des->ops->select_link_version && !des->ops->select_resets_link) {
+		dev_err(dev,
+			"Cannot implement .select_link_version() without .select_resets_link\n");
 		return -EINVAL;
 	}
 
