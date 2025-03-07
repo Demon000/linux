@@ -38,6 +38,11 @@ properties:
   reg:
     maxItems: 1
 
+  powerdown-gpios:
+    maxItems: 1
+    description:
+      Specifier for the GPIO connected to the PWDNB pin.
+
 allOf:
   - if:
       properties:
