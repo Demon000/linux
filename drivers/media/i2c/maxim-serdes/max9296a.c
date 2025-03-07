@@ -165,6 +165,8 @@ struct max9296a_priv {
 	struct device *dev;
 	struct i2c_client *client;
 	struct regmap *regmap;
+
+	struct gpio_desc *gpiod_pwdn;
 };
 
 struct max9296a_chip_info {
@@ -980,6 +982,20 @@ static int max9296a_probe(struct i2c_client *client)
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
+	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "powerdown",
+						   GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->gpiod_pwdn))
+		return PTR_ERR(priv->gpiod_pwdn);
+
+	if (priv->gpiod_pwdn) {
+		/* PWDN must be held for 1us for reset */
+		udelay(1);
+
+		gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
+		/* Maximum power-up time (tLOCK) 4ms */
+		usleep_range(4000, 5000);
+	}
+
 	*ops = max9296a_ops;
 
 	ops->versions = priv->info->versions;
@@ -1009,6 +1025,8 @@ static void max9296a_remove(struct i2c_client *client)
 	struct max9296a_priv *priv = i2c_get_clientdata(client);
 
 	max_des_remove(&priv->des);
+
+	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
 }
 
 static const struct max_phys_config max9296a_phys_configs[] = {
