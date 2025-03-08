@@ -88,10 +88,10 @@
 #define MAX9296A_MIPI_PHY5_PHY_POL_MAP_2_3	GENMASK(4, 3)
 #define MAX9296A_MIPI_PHY5_PHY_POL_MAP_CLK(x)	((x) == 0 ? BIT(5) : BIT(2))
 
-#define MAX9296A_MIPI_PHY18(x)			(0x342)
+#define MAX9296A_MIPI_PHY18			(0x342)
 #define MAX9296A_MIPI_PHY18_CSI2_TX_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
 
-#define MAX9296A_MIPI_PHY20(x)			(0x342)
+#define MAX9296A_MIPI_PHY20			(0x342)
 #define MAX9296A_MIPI_PHY20_PHY_PKT_CNT(x)	(GENMASK(3, 0) << (4 * (x)))
 
 #define MAX9296A_MIPI_TX3(x)			(0x403 + (x) * 0x40)
@@ -302,14 +302,14 @@ static int max9296a_log_phy_status(struct max_des *des,
 	if (!priv->info->supports_phy_log)
 		return 0;
 
-	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY18(index), &val);
+	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY18, &val);
 	if (ret)
 		return ret;
 
 	pr_info("%s: \tcsi2_pkt_cnt: %lu\n", name,
 		field_get(MAX9296A_MIPI_PHY18_CSI2_TX_PKT_CNT(index), val));
 
-	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY20(index), &val);
+	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY20, &val);
 	if (ret)
 		return ret;
 
