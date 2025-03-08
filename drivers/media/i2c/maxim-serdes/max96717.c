@@ -195,8 +195,8 @@ struct max96717_chip_info {
 	unsigned int phy_hw_ids[MAX96717_PHYS_NUM];
 };
 
-#define ser_to_priv(ser) \
-	container_of(ser, struct max96717_priv, ser)
+#define ser_to_priv(_ser) \
+	container_of(_ser, struct max96717_priv, ser)
 
 static inline struct max96717_priv *clk_hw_to_priv(struct clk_hw *hw)
 {
