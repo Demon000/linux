@@ -242,8 +242,7 @@ static int max96724_reg_write(struct max_des *des, unsigned int reg,
 	return regmap_write(priv->regmap, reg, val);
 }
 
-static unsigned int max96724_phy_id(struct max_des *des,
-					  struct max_des_phy *phy)
+static unsigned int max96724_phy_id(struct max_des *des, struct max_des_phy *phy)
 {
 	unsigned int num_hw_data_lanes = max_des_phy_hw_data_lanes(des, phy);
 
