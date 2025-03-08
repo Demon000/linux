@@ -500,7 +500,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		    phy->mode.alt_mem_map10 == mode.alt_mem_map10 &&
 		    phy->mode.alt_mem_map12 == mode.alt_mem_map12 &&
 		    phy->mode.alt2_mem_map8 == mode.alt2_mem_map8)
-		    continue;
+			continue;
 
 		ret = des->ops->set_phy_mode(des, phy, &mode);
 		if (ret)
@@ -520,7 +520,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		    pipe->mode.dbl12 == mode.dbl12 &&
 		    pipe->mode.dbl8mode == mode.dbl8mode &&
 		    pipe->mode.dbl10mode == mode.dbl10mode)
-		    continue;
+			continue;
 
 		ret = des->ops->set_pipe_mode(des, pipe, &mode);
 		if (ret)
