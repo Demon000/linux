@@ -1149,7 +1149,7 @@ static int max96717_init(struct max_ser *ser)
 	return 0;
 }
 
-static struct pinctrl_ops max96717_ctrl_ops = {
+static const struct pinctrl_ops max96717_ctrl_ops = {
 	.get_groups_count = max96717_ctrl_get_groups_count,
 	.get_group_name = max96717_ctrl_get_group_name,
 	.get_group_pins = max96717_ctrl_get_group_pins,
