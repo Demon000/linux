@@ -416,7 +416,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	for (i = 0; i < des->ops->num_phys; i++) {
 		if (context->phys_bpp8_shared_with_16[i] && bpp8_not_shared_with_16_phys[i]) {
 			dev_err(priv->dev,
-				"Cannot stream 8bpp coming from pipes padded to 16bpp"
+				"Cannot stream 8bpp coming from pipes padded to 16bpp "
 				"and pipes not padded to 16bpp on the same PHY\n");
 			return -EINVAL;
 		}
