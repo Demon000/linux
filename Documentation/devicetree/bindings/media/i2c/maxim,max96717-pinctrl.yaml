@@ -1,5 +1,5 @@
-# SPDX-License-Identifier: GPL-2.0
-# Copyright (C) 2023 Analog Devices Inc.
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+# Copyright (C) 2025 Analog Devices Inc.
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/media/i2c/maxim,max96717-pinctrl.yaml#
