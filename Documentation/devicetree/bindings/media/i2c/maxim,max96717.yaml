@@ -134,7 +134,7 @@ allOf:
                   reg:
                     maxItems: 1
                     items:
-                      max: 0
+                      maximum: 0
 
 examples:
   - |
