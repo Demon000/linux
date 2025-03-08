@@ -895,8 +895,8 @@ static int max96716_select_links(struct max_des *des, unsigned int mask)
 }
 
 static int max96792a_select_link_version(struct max_des *des,
-					struct max_des_link *link,
-					enum max_gmsl_version version)
+					 struct max_des_link *link,
+					 enum max_gmsl_version version)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
