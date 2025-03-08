@@ -326,15 +326,17 @@ static int max96717_ctrl_get_groups_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *max96717_ctrl_get_group_name(struct pinctrl_dev *pctldev,
-						unsigned selector)
+						unsigned int selector)
 {
 	return max96717_ctrl_groups[selector].name;
 }
 
-static int max96717_ctrl_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-					const unsigned **pins, unsigned *num_pins)
+static int max96717_ctrl_get_group_pins(struct pinctrl_dev *pctldev,
+					unsigned selector,
+					const unsigned int **pins,
+					unsigned int *num_pins)
 {
-	*pins = (unsigned *) max96717_ctrl_groups[selector].pins;
+	*pins = (unsigned int *) max96717_ctrl_groups[selector].pins;
 	*num_pins = max96717_ctrl_groups[selector].npins;
 
 	return 0;
