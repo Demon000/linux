@@ -172,7 +172,7 @@ allOf:
         port0-poc-supply:
           description: Regulator providing Power over Coax for GMSL port 0
 
-        port0-poc-supply:
+        port1-poc-supply:
           description: Regulator providing Power over Coax for GMSL port 1
 
         ports:
