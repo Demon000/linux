@@ -198,8 +198,8 @@ struct max9296a_chip_info {
 				   enum max_gmsl_version version);
 };
 
-#define des_to_priv(des) \
-	container_of(des, struct max9296a_priv, des)
+#define des_to_priv(_des) \
+	container_of(_des, struct max9296a_priv, des)
 
 static int max9296a_wait_for_device(struct max9296a_priv *priv)
 {
