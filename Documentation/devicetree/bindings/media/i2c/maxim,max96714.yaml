@@ -217,9 +217,9 @@ allOf:
 
           anyOf:
             - required:
-              - port@2
+                - port@2
             - required:
-              - port@3
+                - port@3
 
 examples:
   - |
