@@ -153,9 +153,8 @@ int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
 		u32 bpp_or_double = BIT(min_bpp) | BIT(min_bpp * 2);
 		u32 other_bpps = bpps & ~bpp_or_double;
 
-		if (!other_bpps) {
+		if (!other_bpps)
 			doubled = true;
-		}
 	}
 
 	if (doubled && (allowed_double_bpps & BIT(min_bpp))) {
