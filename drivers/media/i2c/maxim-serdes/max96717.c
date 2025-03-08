@@ -336,7 +336,7 @@ static int max96717_ctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					const unsigned int **pins,
 					unsigned int *num_pins)
 {
-	*pins = (unsigned int *) max96717_ctrl_groups[selector].pins;
+	*pins = (unsigned int *)max96717_ctrl_groups[selector].pins;
 	*num_pins = max96717_ctrl_groups[selector].npins;
 
 	return 0;
