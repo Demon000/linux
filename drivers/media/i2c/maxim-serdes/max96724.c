@@ -26,7 +26,7 @@
 #define MAX96724_PWR1_RESET_ALL			BIT(6)
 
 #define MAX96724_VIDEO_PIPE_SEL(p)		(0xf0 + (p) / 2)
-#define MAX96724_VIDEO_PIPE_SEL_STREAM(p) 	(GENMASK(1, 0) << (4 * ((p) % 2)))
+#define MAX96724_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (4 * ((p) % 2)))
 
 #define MAX96724_VIDEO_PIPE_EN			0xf4
 #define MAX96724_VIDEO_PIPE_EN_MASK(p)		BIT(p)
