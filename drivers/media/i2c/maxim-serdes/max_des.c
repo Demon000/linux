@@ -40,8 +40,6 @@ struct max_des_priv {
 	struct max_source *sources;
 	u64 *streams_masks;
 
-	struct mutex lock;
-
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
 
@@ -2268,8 +2266,6 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	priv->dev = dev;
 	priv->des = des;
 	des->priv = priv;
-
-	mutex_init(&priv->lock);
 
 	ret = max_des_allocate(priv);
 	if (ret)
