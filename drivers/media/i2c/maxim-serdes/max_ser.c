@@ -32,8 +32,6 @@ struct max_ser_priv {
 	u64 *streams_masks;
 	u32 double_bpps;
 
-	struct mutex lock;
-
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
 };
@@ -1345,8 +1343,6 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser)
 	priv->dev = dev;
 	priv->ser = ser;
 	ser->priv = priv;
-
-	mutex_init(&priv->lock);
 
 	ret = max_ser_allocate(priv);
 	if (ret)
