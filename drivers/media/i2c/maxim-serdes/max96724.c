@@ -883,9 +883,8 @@ static void max96724_remove(struct i2c_client *client)
 }
 
 static const struct of_device_id max96724_of_table[] = {
-	{ .compatible = "maxim,max96724", .data = &max96724_info },
-	{ .compatible = "maxim,max96724f", .data = &max96724_info },
 	{ .compatible = "maxim,max96712", .data = &max96712_info },
+	{ .compatible = "maxim,max96724", .data = &max96724_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max96724_of_table);
