@@ -332,7 +332,7 @@ static const char *max96717_ctrl_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int max96717_ctrl_get_group_pins(struct pinctrl_dev *pctldev,
-					unsigned selector,
+					unsigned int selector,
 					const unsigned int **pins,
 					unsigned int *num_pins)
 {
