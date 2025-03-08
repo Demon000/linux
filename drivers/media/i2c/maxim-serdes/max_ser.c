@@ -163,7 +163,7 @@ static int max_ser_set_pipe_mode(struct max_ser_priv *priv, struct max_ser_pipe 
 	    mode->dbl8 == pipe->mode.dbl8 &&
 	    mode->dbl10 == pipe->mode.dbl10 &&
 	    mode->dbl12 == pipe->mode.dbl12)
-	    return 0;
+		return 0;
 
 	return ser->ops->set_pipe_mode(ser, pipe, mode);
 }
