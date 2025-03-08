@@ -11,7 +11,7 @@
 #include <media/v4l2-subdev.h>
 
 #define MAX_SERDES_PHYS_MAX		4
-#define MAX_SERDES_STREAMS_NUM 		4
+#define MAX_SERDES_STREAMS_NUM		4
 #define MAX_SERDES_VC_ID_NUM		4
 
 enum max_gmsl_version {
