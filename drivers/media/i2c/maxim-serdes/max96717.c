@@ -631,15 +631,15 @@ static int max96717_mux_get_functions_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *max96717_mux_get_function_name(struct pinctrl_dev *pctldev,
-						  unsigned selector)
+						  unsigned int selector)
 {
 	return max96717_functions[selector].name;
 }
 
 static int max96717_mux_get_groups(struct pinctrl_dev *pctldev,
-				   unsigned selector,
+				   unsigned int selector,
 				   const char * const **groups,
-				   unsigned * const num_groups)
+				   unsigned int * const num_groups)
 {
 	*groups = max96717_functions[selector].groups;
 	*num_groups = max96717_functions[selector].ngroups;
@@ -673,8 +673,8 @@ static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int gro
 	return 0;
 }
 
-static int max96717_mux_set(struct pinctrl_dev *pctldev, unsigned selector,
-			    unsigned group)
+static int max96717_mux_set(struct pinctrl_dev *pctldev, unsigned int selector,
+			    unsigned int group)
 {
 	struct max96717_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 
