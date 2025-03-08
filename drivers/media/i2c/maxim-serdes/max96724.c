@@ -461,8 +461,10 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_PHY5(index),
 					 MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1 |
 					 MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3,
-					 FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1, val) |
-					 FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3, val >> 2));
+					 FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_0_1,
+						    val) |
+					 FIELD_PREP(MAX96724_MIPI_PHY5_PHY_POL_MAP_4_2_3,
+						    val >> 2));
 		if (ret)
 			return ret;
 
