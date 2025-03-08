@@ -282,8 +282,9 @@ static const struct pingroup max96717_ctrl_groups[] = {
 	static const char * const name ## _groups[] = { __VA_ARGS__ }
 
 MAX96717_FUNC_GROUPS(gpio, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp5",
-			   "mfp6", "mfp7", "mfp8", "mfp9", "mfp10");
-MAX96717_FUNC_GROUPS(rclkout, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp7", "mfp8");
+		     "mfp6", "mfp7", "mfp8", "mfp9", "mfp10");
+MAX96717_FUNC_GROUPS(rclkout, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4",
+		     "mfp7", "mfp8");
 
 enum max96717_func {
 	max96717_func_gpio,
