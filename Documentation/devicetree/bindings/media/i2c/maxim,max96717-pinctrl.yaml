@@ -56,8 +56,8 @@ properties:
     description: |
       Identifier used while receiving value from GMSL link.
       Default value matches the pin number.
-    min: 0
-    max: 31
+    minimum: 0
+    maximum: 31
 
   maxim,rclkout-clock:
     $ref: /schemas/types.yaml#/definitions/uint32
