@@ -217,7 +217,7 @@ static int max96724_reset(struct max96724_priv *priv)
 	if (ret)
 		return ret;
 
-	msleep(10);
+	fsleep(10000);
 
 	ret = max96724_wait_for_device(priv);
 	if (ret)
