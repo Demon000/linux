@@ -132,6 +132,7 @@ allOf:
                 $ref: /schemas/i2c/i2c-controller.yaml#
                 properties:
                   reg:
+                    maxItems: 1
                     items:
                       max: 0
 
