@@ -1004,8 +1004,8 @@ static int max_ser_init(struct max_ser_priv *priv)
 }
 
 static int max_ser_notify_bound(struct v4l2_async_notifier *nf,
-			        struct v4l2_subdev *subdev,
-			        struct v4l2_async_connection *base_asc)
+				struct v4l2_subdev *subdev,
+				struct v4l2_async_connection *base_asc)
 {
 	struct max_ser_priv *priv = nf_to_priv(nf);
 	struct max_asc *asc = asc_to_max(base_asc);
