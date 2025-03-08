@@ -79,13 +79,13 @@ properties:
 
     anyOf:
       - required:
-        - port@4
+          - port@4
       - required:
-        - port@5
+          - port@5
       - required:
-        - port@6
+          - port@6
       - required:
-        - port@7
+          - port@7
 
 required:
   - compatible
