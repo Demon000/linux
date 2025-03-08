@@ -685,6 +685,7 @@ static int max96717_mux_set(struct pinctrl_dev *pctldev, unsigned int selector,
 
 	return 0;
 }
+
 static int max96717_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
 {
 	unsigned long config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT_ENABLE, 0);
