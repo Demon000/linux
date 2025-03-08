@@ -67,5 +67,5 @@ properties:
       1 - XTAL / 2 = 12.5MHz
       2 - XTAL / 4 = 6.25MHz
       3 - Reference PLL output
-    min: 0
-    max: 3
+    minimum: 0
+    maximum: 3
