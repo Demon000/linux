@@ -180,8 +180,8 @@ struct max96724_chip_info {
 	unsigned int num_pipes;
 };
 
-#define des_to_priv(des) \
-	container_of(des, struct max96724_priv, des)
+#define des_to_priv(_des) \
+	container_of(_des, struct max96724_priv, des)
 
 static int max96724_wait_for_device(struct max96724_priv *priv)
 {
