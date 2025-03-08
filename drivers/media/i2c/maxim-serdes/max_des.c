@@ -353,7 +353,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	 * the PHYs and the pipes, since that needs to be special cased.
 	 *
 	 * After going over all the streams, remove the undoubled streams from
-	 * the doubled ones. Doubled and undoubled streams cannnot be streamed
+	 * the doubled ones. Doubled and undoubled streams cannot be streamed
 	 * over the same PHY.
 	 *
 	 * Then, do a second pass to remove the undoubled streams from the pipes.
