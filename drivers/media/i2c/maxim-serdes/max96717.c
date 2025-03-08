@@ -385,7 +385,7 @@ static int max96717_get_pin_config_reg(unsigned int offset, u32 param,
 
 	*reg = MAX96717_GPIO_B(offset);
 
-	switch(param) {
+	switch (param) {
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 		*mask = MAX96717_GPIO_B_GPIO_TX_ID;
 		return 0;
@@ -411,7 +411,7 @@ static int max96717_get_pin_config_reg(unsigned int offset, u32 param,
 		return 0;
 	}
 
-	switch(param) {
+	switch (param) {
 	case PIN_CONFIG_SLEW_RATE:
 		if (offset < 3) {
 			*reg = MAX96717_PIO_SLEW_0;
