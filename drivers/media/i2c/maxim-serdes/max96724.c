@@ -170,6 +170,7 @@ struct max96724_priv {
 	struct regmap *regmap;
 
 	struct gpio_desc *gpiod_enable;
+	struct gpio_desc *gpiod_pwdn;
 };
 
 struct max96724_chip_info {
@@ -854,6 +855,20 @@ static int max96724_probe(struct i2c_client *client)
 		/* Maximum power-up time (tLOCK) 4ms */
 		usleep_range(4000, 5000);
 
+	priv->gpiod_pwdn = devm_gpiod_get_optional(&client->dev, "powerdown",
+						   GPIOD_OUT_HIGH);
+	if (IS_ERR(priv->gpiod_pwdn))
+		return PTR_ERR(priv->gpiod_pwdn);
+
+	if (priv->gpiod_pwdn) {
+		/* PWDN must be held for 1us for reset */
+		udelay(1);
+
+		gpiod_set_value_cansleep(priv->gpiod_pwdn, 0);
+		/* Maximum power-up time (tLOCK) 4ms */
+		usleep_range(4000, 5000);
+	}
+
 	*ops = max96724_ops;
 	ops->num_pipes = priv->info->num_pipes;
 	priv->des.ops = ops;
@@ -871,6 +886,7 @@ static void max96724_remove(struct i2c_client *client)
 
 	max_des_remove(&priv->des);
 
+	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
 	gpiod_set_value_cansleep(priv->gpiod_enable, 0);
 }
 
