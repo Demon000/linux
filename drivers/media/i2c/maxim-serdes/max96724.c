@@ -374,11 +374,13 @@ static int max96724_init(struct max_des *des)
 	unsigned int i;
 	int ret;
 
-	for (i = 0; i < des->ops->num_pipes; i++) {
-		ret = regmap_set_bits(priv->regmap, MAX96724_MIPI_TX57(i),
-				      MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET);
-		if (ret)
-			return ret;
+	if (priv->info->set_pipe_tunnel_enable) {
+		for (i = 0; i < des->ops->num_pipes; i++) {
+			ret = regmap_set_bits(priv->regmap, MAX96724_MIPI_TX57(i),
+					      MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (priv->info->supports_pipe_stream_autoselect) {
@@ -671,12 +673,14 @@ static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 	unsigned int index = pipe->index;
 	int ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(index),
-				 MAX96724_MIPI_TX57_TUN_DEST,
-				 FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
-					    phy_index));
-	if (ret)
-		return ret;
+	if (priv->info->set_pipe_tunnel_enable) {
+		ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(index),
+					MAX96724_MIPI_TX57_TUN_DEST,
+					FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
+						   phy_index));
+		if (ret)
+			return ret;
+	}
 
 	return regmap_update_bits(priv->regmap, MAX96724_MIPI_CTRL_SEL,
 				  MAX96724_MIPI_CTRL_SEL_MASK(index),
