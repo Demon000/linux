@@ -620,6 +620,8 @@ static int max96724_set_pipe_remap(struct max_des *des,
 				   struct max_des_remap *remap)
 {
 	struct max96724_priv *priv = des_to_priv(des);
+	struct max_des_phy *phy = &des->phys[remap->phy];
+	unsigned int phy_id = max96724_phy_id(des, phy);
 	unsigned int index = pipe->index;
 	int ret;
 
@@ -647,7 +649,7 @@ static int max96724_set_pipe_remap(struct max_des *des,
 	return regmap_update_bits(priv->regmap, MAX96724_MIPI_TX45(index, i),
 				  MAX96724_MIPI_TX45_MAP_DPHY_DEST(i),
 				  field_prep(MAX96724_MIPI_TX45_MAP_DPHY_DEST(i),
-					     remap->phy));
+					     phy_id));
 }
 
 static int max96724_set_pipe_remaps_enable(struct max_des *des,
