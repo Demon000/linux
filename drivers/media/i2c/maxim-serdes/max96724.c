@@ -850,14 +850,9 @@ static int max96724_probe(struct i2c_client *client)
 	if (IS_ERR(priv->gpiod_enable))
 		return PTR_ERR(priv->gpiod_enable);
 
-	if (priv->gpiod_enable) {
-		/* PWDN must be held for 1us for reset */
-		udelay(1);
-
-		gpiod_set_value_cansleep(priv->gpiod_enable, 0);
+	if (priv->gpiod_enable)
 		/* Maximum power-up time (tLOCK) 4ms */
 		usleep_range(4000, 5000);
-	}
 
 	*ops = max96724_ops;
 	ops->num_pipes = priv->info->num_pipes;
@@ -876,7 +871,7 @@ static void max96724_remove(struct i2c_client *client)
 
 	max_des_remove(&priv->des);
 
-	gpiod_set_value_cansleep(priv->gpiod_enable, 1);
+	gpiod_set_value_cansleep(priv->gpiod_enable, 0);
 }
 
 static const struct of_device_id max96724_of_table[] = {
