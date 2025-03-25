@@ -176,6 +176,9 @@ struct max96724_priv {
 struct max96724_chip_info {
 	bool supports_pipe_stream_autoselect;
 	unsigned int num_pipes;
+
+	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
+				      bool enable);
 };
 
 #define des_to_priv(_des) \
@@ -804,11 +807,11 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
-	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.select_links = max96724_select_links,
 };
 
 static const struct max96724_chip_info max96724_info = {
+	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
@@ -871,6 +874,7 @@ static int max96724_probe(struct i2c_client *client)
 
 	*ops = max96724_ops;
 	ops->num_pipes = priv->info->num_pipes;
+	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	priv->des.ops = ops;
 
 	ret = max96724_reset(priv);
