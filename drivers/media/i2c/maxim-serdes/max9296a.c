@@ -138,7 +138,7 @@
 #define MAX9296A_RLMSA5(x)			(0x14a5 + (x) * 0x100)
 #define MAX9296A_RLMSD8(x)			(0x14d8 + (x) * 0x100)
 
-#define MAX9296A_DPLL_0(x)			(0x1c00 + ((x) == 0 ? 1 : 2) * 0x100)
+#define MAX9296A_DPLL_0(x)			(0x1c00 + (x) * 0x100)
 #define MAX9296A_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
 
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
@@ -499,7 +499,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Put DPLL block into reset. */
-	ret = regmap_clear_bits(priv->regmap, MAX9296A_DPLL_0(index),
+	ret = regmap_clear_bits(priv->regmap, MAX9296A_DPLL_0(hw_index),
 				MAX9296A_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
@@ -557,8 +557,7 @@ static int max9296a_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
 				 struct max_des_phy_mode *mode)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int index = phy->index;
-	unsigned int phy_id = index == 0 ? 1 : 2;
+	unsigned int phy_id = max9296a_phy_id(priv, phy);
 	int ret;
 
 	/* Set alternate memory map modes. */
@@ -604,8 +603,9 @@ static int max9296a_set_pipe_remap(struct max_des *des,
 				   struct max_des_remap *remap)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
+	struct max_des_phy *phy = &des->phys[remap->phy];
+	unsigned int phy_id = max9296a_phy_id(priv, phy);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
-	unsigned int phy_id = remap->phy == 0 ? 1 : 2;
 	int ret;
 
 	/* Set source Data Type and Virtual Channel. */
