@@ -771,6 +771,4 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 	status = "okay";
 };
 
-#define i2c_bus i2c_csi_dsi0
 #include "cfg.dtsi"
-#undef i2c_bus
