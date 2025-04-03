@@ -165,7 +165,7 @@
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		reset-gpios = <&max_des_0_ser_0 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&max_des_0_ser_0 0 0>;
 
 		clocks = <&max_des_0_ser_0_cam_0_xclk>;
 		clock-names = "xclk";
@@ -276,7 +276,7 @@
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		reset-gpios = <&max_des_0_ser_1 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&max_des_0_ser_1 0 0>;
 
 		clocks = <&max_des_0_ser_1_cam_0_xclk>;
 		clock-names = "xclk";
@@ -387,7 +387,7 @@
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		reset-gpios = <&max_des_0_ser_2 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&max_des_0_ser_2 0 0>;
 
 		clocks = <&max_des_0_ser_2_cam_0_xclk>;
 		clock-names = "xclk";
@@ -498,7 +498,7 @@
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		reset-gpios = <&max_des_0_ser_3 0 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&max_des_0_ser_3 0 0>;
 
 		clocks = <&max_des_0_ser_3_cam_0_xclk>;
 		clock-names = "xclk";

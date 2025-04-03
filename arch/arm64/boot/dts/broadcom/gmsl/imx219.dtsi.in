@@ -17,7 +17,7 @@
 		compatible = "sony,imx219";
 		reg = <0x10>;
 
-		reset-gpios = <&{{ser_label}} {{reset_pin}} GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&{{ser_label}} {{reset_pin}} 0>;
 
 		clocks = <&{{xclk_label}}>;
 		clock-names = "xclk";
