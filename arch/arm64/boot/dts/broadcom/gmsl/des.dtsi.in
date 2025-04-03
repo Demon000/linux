@@ -9,7 +9,7 @@
 {%- endmacro %}
 {% macro des_i2c_label_x(x) -%}
 {%- if x >= num_links -%}
-	{{raise_exception('Invalid serializer index')}}
+	{{raise_exception('Invalid serializer index ' ~ x)}}
 {%- endif -%}
 	{{ des_label ~ '_i2c_' ~ x }}
 {%- endmacro %}
