@@ -4,6 +4,7 @@
 {% set compatible = des_cfg.compatible | d(default_compatible) | str_quote %}
 {% set pool_addrs = des_cfg.pool_addrs | d(['0x40', '0x41', '0x42', '0x43']) | join(' ') %}
 {% set vpoc_cfg = des_cfg.vpoc_cfg %}
+{% set platform_cfg = des_cfg.platform_cfg %}
 {% set des_label = 'max_des_' ~ des_idx %}
 {% macro des_in_label_x(x) -%}
 	{{ des_label ~ '_in_' ~ x }}
@@ -13,6 +14,12 @@
 {%- endmacro %}
 {% macro des_vpoc_label_x(x) -%}
 	{{ des_label ~ '_vpoc_' ~ x }}
+{%- endmacro %}
+{% macro des_phy_out_label_x(x) -%}
+	{{ des_label ~ '_phy_' ~ x ~ '_out' }}
+{%- endmacro %}
+{% macro des_phy_port_idx_x(x) -%}
+	{{ x + 4 }}
 {%- endmacro %}
 {% set des_i2c_adapter_label = des_label ~ '_i2c_adapter' %}
 {% macro des_i2c_x(ch_idx) -%}
@@ -56,6 +63,30 @@
 		#size-cells = <0>;
 	};
 };
+
+{% for phy_cfg in des_cfg.phys %}
+{% set phy_idx = phy_cfg.phy_idx %}
+{% set clock_lanes = phy_cfg.clock_lanes | join(' ') %}
+{% set data_lanes = phy_cfg.data_lanes | join(' ') %}
+{% set link_frequencies = phy_cfg.link_frequencies | join(' ') %}
+&{{des_label}} {
+	ports {
+		port@{{des_phy_port_idx_x(phy_idx)}} {
+			reg = <{{des_phy_port_idx_x(phy_idx)}}>;
+
+			{{des_phy_out_label_x(phy_idx)}}: endpoint {
+				clock-lanes = <{{clock_lanes}}>;
+				data-lanes = <{{data_lanes}}>;
+				link-frequencies = /bits/ 64 <{{link_frequencies}}>;
+			};
+		};
+	};
+};
+{% endfor %}
+
+{% if platform_cfg %}
+{% include '%s.dtsi.in' % platform_cfg.name %}
+{% endif %}
 {% for ser_cfg in des_cfg.links %}
 	{% set ser_idx = loop.index0 %}
 	{% include '%s.dtsi.in' % ser_cfg.name %}
