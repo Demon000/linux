@@ -1,4 +1,4 @@
-&i2c_bus {
+&i2c_csi_dsi0 {
 	max_des_0: gmsl-deserializer@29 {
 		#address-cells = <1>;
 		#size-cells = <0>;

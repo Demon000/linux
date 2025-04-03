@@ -31,7 +31,7 @@
 	};
 };
 {%- endmacro %}
-&i2c_bus {
+&{{des_cfg.i2c_bus}} {
 	{{des_label}}: gmsl-deserializer@{{address | hex_remove_0x}} {
 		#address-cells = <1>;
 		#size-cells = <0>;
