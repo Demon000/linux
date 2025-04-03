@@ -1,8 +1,6 @@
 [
     {
-        "name": "max96724",
-        "compatible": "maxim,max96712",
-        "address": "0x29",
+        "name": "max96712",
         "i2c_bus": "i2c_csi_dsi0",
         "vpoc_cfg": {
             "name": "max20087",
