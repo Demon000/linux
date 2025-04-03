@@ -774,36 +774,3 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 #define i2c_bus i2c_csi_dsi0
 #include "cfg.dtsi"
 #undef i2c_bus
-
-&max_des_0 {
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@4 {
-			reg = <4>;
-
-			max_des_phy_0_out: endpoint {
-				clock-lanes = <0>;
-				data-lanes = <1 2 3 4>;
-				link-frequencies = /bits/ 64 <750000000>;
-				remote-endpoint = <&csi_ep>;
-			};
-		};
-	};
-};
-
-&csi0 {
-	status = "okay";
-	brcm,media-controller;
-
-	port {
-		csi_ep: endpoint {
-			remote-endpoint = <&max_des_phy_0_out>;
-			clock-lanes = <0>;
-			data-lanes = <1 2 3 4>;
-			clock-noncontinuous;
-			link-frequencies = /bits/ 64 <750000000>;
-		};
-	};
-};
