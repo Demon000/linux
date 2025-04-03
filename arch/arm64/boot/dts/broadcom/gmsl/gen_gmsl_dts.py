@@ -47,14 +47,19 @@ def read_template(dir: str, name: str, vars: vars_type) -> str:
 
     return template.render(**vars)
 
-def write_config(config_path: str, dts_path: str | None = None):
+def write_config(
+        config_path: str,
+        dts_path: str | None = None,
+        dtbo = False,
+):
     config_dir = path.dirname(config_path)
 
     config_name = path.basename(config_path)
     config_root, _ = path.splitext(config_name)
 
     if dts_path is None:
-        dts_name = f'{config_root}.dtsi'
+        ext = 'dtso' if dtbo else 'dtsi'
+        dts_name = f'{config_root}.{ext}'
         dts_path = path.join(config_dir, dts_name)
 
     with open(config_path, 'r') as f:
@@ -62,6 +67,13 @@ def write_config(config_path: str, dts_path: str | None = None):
 
     with open(dts_path, 'w') as f:
         data = ''
+        if dtbo:
+            data += '''
+/dts-v1/;
+/plugin/;
+
+'''.lstrip()
+
         for i, des_cfg in enumerate(config):
             data += read_template(config_dir, des_cfg['name'], {
                 'des_cfg': des_cfg,
@@ -72,8 +84,9 @@ def write_config(config_path: str, dts_path: str | None = None):
 if __name__ == '__main__':
     parser = ArgumentParser(description='Generate GMSL DTS')
     parser.add_argument('-o', '--output', help='DTS output path')
+    parser.add_argument('--dtbo', action='store_true', help='Output as overlay')
     parser.add_argument('config', help='JSON configuration file')
 
     args = parser.parse_args()
 
-    write_config(args.config, args.output)
+    write_config(args.config, args.output, args.dtbo)
