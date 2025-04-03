@@ -771,4 +771,4 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 	status = "okay";
 };
 
-#include "cfg.dtsi"
+#include "gmsl/cfg.dtsi"
