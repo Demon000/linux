@@ -9,7 +9,7 @@
             "wait_for_teensy_reset_ms": 3000
         },
         "platform_cfg": {
-            "name": "rpi-5-b-gmsl",
+            "name": "rpi-5-b",
             "csi_idx": 0,
             "phy_idx": 0
         },
