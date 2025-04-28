@@ -46,7 +46,9 @@
 };
 
 &max_des_0 {
-	max_des_0_i2c_adapter: i2c-mux {
+	i2c-alias-pool = <0x40 0x41 0x42 0x43>;
+
+	max_des_0_i2c_adapter: i2c-atr {
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
