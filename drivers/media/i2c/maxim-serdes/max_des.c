@@ -485,7 +485,8 @@ static void max_des_get_phy_mode(struct max_des_mode_context *context,
 }
 
 static int max_des_set_modes(struct max_des_priv *priv,
-			     struct max_des_mode_context *context)
+			     struct max_des_remap_context *context,
+			     struct max_des_mode_context *mode_context)
 {
 	struct max_des *des = priv->des;
 	unsigned int i;
@@ -495,7 +496,8 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_phy *phy = &des->phys[i];
 		struct max_des_phy_mode mode = { 0 };
 
-		max_des_get_phy_mode(context, phy, &mode);
+		if (!context->tunnel_enable)
+			max_des_get_phy_mode(mode_context, phy, &mode);
 
 		if (phy->mode.alt_mem_map8 == mode.alt_mem_map8 &&
 		    phy->mode.alt_mem_map10 == mode.alt_mem_map10 &&
@@ -514,7 +516,8 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_pipe *pipe = &des->pipes[i];
 		struct max_des_pipe_mode mode = { 0 };
 
-		max_des_get_pipe_mode(context, pipe, &mode);
+		if (!context->tunnel_enable)
+			max_des_get_pipe_mode(mode_context, pipe, &mode);
 
 		if (pipe->mode.dbl8 == mode.dbl8 &&
 		    pipe->mode.dbl10 == mode.dbl10 &&
@@ -534,6 +537,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_link *link = &des->links[i];
 		struct max_des_pipe *pipe;
 		struct max_source *source;
+		u32 pipe_double_bpps = 0;
 
 		if (!link->enabled)
 			continue;
@@ -552,8 +556,10 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		ret = max_ser_set_double_bpps(source->sd,
-					      context->pipes_double_bpps[pipe->index]);
+		if (!context->tunnel_enable)
+			pipe_double_bpps = mode_context->pipes_double_bpps[pipe->index];
+
+		ret = max_ser_set_double_bpps(source->sd, pipe_double_bpps);
 		if (ret)
 			return ret;
 	}
@@ -1591,7 +1597,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_free_streams_masks;
 
-	ret = max_des_set_modes(priv, &mode_context);
+	ret = max_des_set_modes(priv, &context, &mode_context);
 	if (ret)
 		goto err_free_streams_masks;
 
