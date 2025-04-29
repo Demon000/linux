@@ -596,9 +596,6 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 		if (!pipe)
 			return -ENOENT;
 
-		if (!source->sd)
-			continue;
-
 		if (des->ops->set_pipe_tunnel_enable) {
 			ret = des->ops->set_pipe_tunnel_enable(des, pipe,
 							       context->tunnel_enable);
