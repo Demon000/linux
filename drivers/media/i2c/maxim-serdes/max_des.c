@@ -577,9 +577,19 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	if (des->tunnel == context->tunnel_enable)
 		return 0;
 
+	if (des->ops->set_pipe_tunnel_enable) {
+		for (i = 0; i < des->ops->num_pipes; i++) {
+			struct max_des_pipe *pipe = &des->pipes[i];
+
+			ret = des->ops->set_pipe_tunnel_enable(des, pipe,
+							       context->tunnel_enable);
+			if (ret)
+				return ret;
+		}
+	}
+
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
 		struct max_source *source;
 
 		if (!link->enabled)
@@ -591,17 +601,6 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 
 		if (!source->sd)
 			continue;
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		if (des->ops->set_pipe_tunnel_enable) {
-			ret = des->ops->set_pipe_tunnel_enable(des, pipe,
-							       context->tunnel_enable);
-			if (ret)
-				return ret;
-		}
 
 		ret = max_ser_set_tunnel_enable(source->sd, context->tunnel_enable);
 		if (ret)
