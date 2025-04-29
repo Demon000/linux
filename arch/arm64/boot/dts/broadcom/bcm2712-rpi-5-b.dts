@@ -763,5 +763,3 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 		pwr_led_trigger = <&led_pwr>, "linux,default-trigger";
 	};
 };
-
-#include "gmsl/cfg.dtsi"
