@@ -1,4 +1,4 @@
-&{{des_cfg.i2c_bus}} {
+&{{i2c_bus()}} {
 	regulator@28 {
 		compatible = "maxim,max20087";
 		reg = <0x28>;

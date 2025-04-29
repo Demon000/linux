@@ -764,11 +764,4 @@ spi10_cs_pins: &spi10_cs_gpio1 {};
 	};
 };
 
-&i2c_csi_dsi0 {
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	status = "okay";
-};
-
 #include "gmsl/cfg.dtsi"

@@ -1,7 +1,6 @@
 [
     {
         "name": "max96724",
-        "i2c_bus": "i2c_csi_dsi0",
         "vpoc_cfg": {
             "name": "max20087",
             "wait_for_teensy_reset_ms": 3000

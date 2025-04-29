@@ -43,7 +43,10 @@
 };
 {%- endmacro %}
 {% endif %}
-&{{des_cfg.i2c_bus}} {
+{% if platform_cfg %}
+{% from '%s.dtsi.in' % platform_cfg.name import i2c_bus with context %}
+{% endif %}
+&{{i2c_bus()}} {
 	{{des_label}}: gmsl-deserializer@{{address | hex_remove_0x}} {
 		#address-cells = <1>;
 		#size-cells = <0>;

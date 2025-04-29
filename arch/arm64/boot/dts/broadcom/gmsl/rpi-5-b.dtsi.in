@@ -13,9 +13,19 @@
 {% set clock_lanes = phy_cfg.clock_lanes | join(' ') %}
 {% set data_lanes = phy_cfg.data_lanes | join(' ') %}
 {% set link_frequencies = phy_cfg.link_frequencies | join(' ') %}
+{% macro i2c_bus() -%}
+	{{ 'i2c_csi_dsi' ~ csi_idx }}
+{%- endmacro %}
 {% macro csi_in_label_x(x) -%}
 	{{ "csi" ~ x ~ '_ep' }}
 {%- endmacro %}
+&{{i2c_bus()}} {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	status = "okay";
+};
+
 &csi{{csi_idx}} {
 	status = "okay";
 	brcm,media-controller;
