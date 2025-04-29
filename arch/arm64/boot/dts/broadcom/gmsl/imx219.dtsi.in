@@ -4,7 +4,7 @@
 {% set cam_out_label = cam_label ~ "_out" %}
 {% set cam_out_remote_label = ser_in_label_x(cam_idx) %}
 
-/ {
+&{/} {
 	{{xclk_label}}: {{xclk_label}} {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
