@@ -519,7 +519,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = regmap_set_bits(priv->regmap, MAX9296A_DPLL_0(index),
+	ret = regmap_set_bits(priv->regmap, MAX9296A_DPLL_0(hw_index),
 			      MAX9296A_DPLL_0_CONFIG_SOFT_RST_N);
 	if (ret)
 		return ret;
