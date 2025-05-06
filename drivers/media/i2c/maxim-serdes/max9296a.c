@@ -474,7 +474,7 @@ static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 		 */
 
 		if (priv->info->polarity_on_physical_lanes)
-			map = phy->mipi.data_lanes[i];
+			map = phy->mipi.data_lanes[i] - 1;
 		else
 			map = i;
 
