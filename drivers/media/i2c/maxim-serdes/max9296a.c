@@ -1129,6 +1129,7 @@ static const struct of_device_id max9296a_of_table[] = {
 	{ .compatible = "maxim,max9296a", .data = &max9296a_info },
 	{ .compatible = "maxim,max96714", .data = &max96714_info },
 	{ .compatible = "maxim,max96714f", .data = &max96714f_info },
+	{ .compatible = "maxim,max96714r", .data = &max96714f_info },
 	{ .compatible = "maxim,max96716a", .data = &max96716a_info },
 	{ .compatible = "maxim,max96792a", .data = &max96792a_info },
 	{ },
