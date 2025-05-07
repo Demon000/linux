@@ -790,6 +790,7 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 }
 
 static const struct max_des_ops max96724_ops = {
+	.versions = BIT(MAX_GMSL_2),
 	.num_phys = 4,
 	.num_links = 4,
 	.num_remaps_per_pipe = 16,

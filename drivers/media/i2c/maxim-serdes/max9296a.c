@@ -1007,6 +1007,7 @@ static const struct max_phys_config max96714_phys_configs[] = {
 
 static const struct max9296a_chip_info max9296a_info = {
 	.max_register = 0x1f00,
+	.versions = BIT(MAX_GMSL_2),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.select_links = max9296a_select_links,
@@ -1026,6 +1027,7 @@ static const struct max9296a_chip_info max9296a_info = {
 
 static const struct max9296a_chip_info max96714_info = {
 	.max_register = 0x5011,
+	.versions = BIT(MAX_GMSL_2),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1045,6 +1047,7 @@ static const struct max9296a_chip_info max96714_info = {
 
 static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
+	.versions = BIT(MAX_GMSL_2),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,

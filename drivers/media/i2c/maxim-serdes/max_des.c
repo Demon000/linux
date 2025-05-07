@@ -28,7 +28,6 @@
 
 struct max_des_priv {
 	struct max_des *des;
-	unsigned int versions;
 
 	struct device *dev;
 	struct i2c_client *client;
@@ -958,7 +957,7 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 	}
 
 	for (i = MAX_GMSL_MAX; i >= MAX_GMSL_MIN; i--) {
-		if (!(priv->versions & BIT(i)))
+		if (!(des->ops->versions & BIT(i)))
 			continue;
 
 		if (des->ops->select_link_version) {
@@ -2256,11 +2255,7 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 		return -EINVAL;
 	}
 
-	priv->versions = des->ops->versions;
-	if (!priv->versions)
-		priv->versions = BIT(MAX_GMSL_2);
-
-	if (hweight_long(priv->versions) != 1 &&
+	if (hweight_long(des->ops->versions) != 1 &&
 	    !des->ops->select_link_version) {
 		dev_err(dev, "Multiple version without .select_link_version()\n");
 		return -EINVAL;
