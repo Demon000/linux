@@ -870,7 +870,7 @@ static int max96792a_select_link_version(struct max_des *des,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	bool en = version == MAX_GMSL_3;
+	bool gmsl3_en = version == MAX_GMSL_3;
 	unsigned int reg, mask, val;
 	int ret;
 
@@ -882,24 +882,24 @@ static int max96792a_select_link_version(struct max_des *des,
 		mask = MAX9296A_REG4_RX_RATE_B;
 	}
 
-	val = en ? MAX9296A_REG1_RX_RATE_12Gbps
-		 : MAX9296A_REG1_RX_RATE_6Gbps;
+	val = gmsl3_en ? MAX9296A_REG1_RX_RATE_12Gbps
+		       : MAX9296A_REG1_RX_RATE_6Gbps;
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
-				 MAX9296A_MIPI_TX0_RX_FEC_EN, en);
+				 MAX9296A_MIPI_TX0_RX_FEC_EN, gmsl3_en);
 	if (ret)
 		return ret;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_REG6,
-				 MAX9296A_REG6_GMSL2_X(index), !en);
+				 MAX9296A_REG6_GMSL2_X(index), !gmsl3_en);
 	if (ret)
 		return ret;
 
 	return regmap_assign_bits(priv->regmap, MAX9296A_REG4,
-				  MAX9296A_REG4_GMSL3_X(index), en);
+				  MAX9296A_REG4_GMSL3_X(index), gmsl3_en);
 }
 
 static const struct max_des_ops max9296a_ops = {
