@@ -16,7 +16,8 @@
 
 enum max_gmsl_version {
 	MAX_GMSL_MIN,
-	MAX_GMSL_2 = MAX_GMSL_MIN,
+	MAX_GMSL_2_3Gbps = MAX_GMSL_MIN,
+	MAX_GMSL_2_6Gbps,
 	MAX_GMSL_3,
 	MAX_GMSL_MAX = MAX_GMSL_3,
 };

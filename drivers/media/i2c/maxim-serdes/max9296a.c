@@ -16,6 +16,7 @@
 
 #define MAX9296A_REG1				0x1
 #define MAX9296A_REG1_RX_RATE_A			GENMASK(1, 0)
+#define MAX9296A_REG1_RX_RATE_3Gbps		0b01
 #define MAX9296A_REG1_RX_RATE_6Gbps		0b10
 #define MAX9296A_REG1_RX_RATE_12Gbps		0b11
 
@@ -882,8 +883,13 @@ static int max96792a_select_link_version(struct max_des *des,
 		mask = MAX9296A_REG4_RX_RATE_B;
 	}
 
-	val = gmsl3_en ? MAX9296A_REG1_RX_RATE_12Gbps
-		       : MAX9296A_REG1_RX_RATE_6Gbps;
+	if (version == MAX_GMSL_3)
+		val = MAX9296A_REG1_RX_RATE_12Gbps;
+	else if (version == MAX_GMSL_2_6Gbps)
+		val = MAX9296A_REG1_RX_RATE_6Gbps;
+	else
+		val = MAX9296A_REG1_RX_RATE_3Gbps;
+
 	ret = regmap_update_bits(priv->regmap, reg, mask, val);
 	if (ret)
 		return ret;
@@ -1007,7 +1013,8 @@ static const struct max_phys_config max96714_phys_configs[] = {
 
 static const struct max9296a_chip_info max9296a_info = {
 	.max_register = 0x1f00,
-	.versions = BIT(MAX_GMSL_2),
+	.versions = BIT(MAX_GMSL_2_3Gbps) |
+		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.select_links = max9296a_select_links,
@@ -1027,7 +1034,8 @@ static const struct max9296a_chip_info max9296a_info = {
 
 static const struct max9296a_chip_info max96714_info = {
 	.max_register = 0x5011,
-	.versions = BIT(MAX_GMSL_2),
+	.versions = BIT(MAX_GMSL_2_3Gbps) |
+		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1047,7 +1055,8 @@ static const struct max9296a_chip_info max96714_info = {
 
 static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
-	.versions = BIT(MAX_GMSL_2),
+	.versions = BIT(MAX_GMSL_2_3Gbps) |
+		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
@@ -1071,7 +1080,9 @@ static const struct max9296a_chip_info max96716a_info = {
 
 static const struct max9296a_chip_info max96792a_info = {
 	.max_register = 0x52d6,
-	.versions = BIT(MAX_GMSL_2) | BIT(MAX_GMSL_3),
+	.versions = BIT(MAX_GMSL_2_3Gbps) |
+		    BIT(MAX_GMSL_2_6Gbps) |
+		    BIT(MAX_GMSL_3),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_enable = max96714_set_pipe_enable,

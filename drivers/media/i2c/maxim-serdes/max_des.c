@@ -68,7 +68,8 @@ struct max_des_mode_context {
 };
 
 static const char *max_des_gmsl_versions[] = {
-	[MAX_GMSL_2] = "GMSL2",
+	[MAX_GMSL_2_3Gbps] = "GMSL2 3Gbps",
+	[MAX_GMSL_2_6Gbps] = "GMSL2 6Gbps",
 	[MAX_GMSL_3] = "GMSL3",
 };
 
@@ -952,8 +953,8 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
-	unsigned int i;
 	int ret;
+	int i;
 
 	if (link->ser_xlate.en) {
 		dev_err(priv->dev, "Serializer for link %u already bound\n",

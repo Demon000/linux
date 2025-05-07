@@ -19,6 +19,11 @@
 #define MAX96724_REG6				0x6
 #define MAX96724_REG6_LINK_EN			GENMASK(3, 0)
 
+#define MAX96724_REG26(x)			(0x10 + (x) / 2)
+#define MAX96724_REG26_RX_RATE_PHY(x)		(GENMASK(1, 0) << (4 * ((x) % 2)))
+#define MAX96724_REG26_RX_RATE_3Gbps		0b01
+#define MAX96724_REG26_RX_RATE_6Gbps		0b10
+
 #define MAX96724_PWR1				0x13
 #define MAX96724_PWR1_RESET_ALL			BIT(6)
 
@@ -789,8 +794,26 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 	return 0;
 }
 
+static int max96724_select_link_version(struct max_des *des,
+					struct max_des_link *link,
+					enum max_gmsl_version version)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = link->index;
+	unsigned int val;
+
+	if (version == MAX_GMSL_2_6Gbps)
+		val = MAX96724_REG26_RX_RATE_6Gbps;
+	else
+		val = MAX96724_REG26_RX_RATE_3Gbps;
+
+	return regmap_update_bits(priv->regmap, MAX96724_REG26(index),
+				  MAX96724_REG26_RX_RATE_PHY(index),
+				  field_prep(MAX96724_REG26_RX_RATE_PHY(index), val));
+}
+
 static const struct max_des_ops max96724_ops = {
-	.versions = BIT(MAX_GMSL_2),
+	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
 	.num_phys = 4,
 	.num_links = 4,
 	.num_remaps_per_pipe = 16,
@@ -815,6 +838,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
 	.select_links = max96724_select_links,
+	.select_link_version = max96724_select_link_version,
 };
 
 static const struct max96724_chip_info max96724_info = {
