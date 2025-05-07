@@ -43,9 +43,20 @@ properties:
     maxItems: 1
     description: Specifier for the GPIO connected to the PWDNB pin.
 
-  i2c-mux:
-    $ref: /schemas/i2c/i2c-mux.yaml#
-    unevaluatedProperties: false
+  i2c-alias-pool:
+    maxItems: 4
+
+  i2c-atr:
+    type: object
+    additionalProperties: false
+
+    properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
     patternProperties:
       '^i2c@[0-3]$':
         $ref: /schemas/i2c/i2c-controller.yaml#
@@ -101,6 +112,13 @@ required:
   - ports
 
 additionalProperties: false
+
+allOf:
+  - $ref: /schemas/i2c/i2c-atr.yaml#
+
+dependentRequired:
+  i2c-atr: [i2c-alias-pool]
+  i2c-alias-pool: [i2c-atr]
 
 examples:
   - |
