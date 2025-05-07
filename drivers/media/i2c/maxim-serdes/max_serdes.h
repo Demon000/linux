@@ -15,9 +15,9 @@
 #define MAX_SERDES_VC_ID_NUM		4
 
 enum max_gmsl_version {
-	MAX_GMSL_2 = 2,
-	MAX_GMSL_MIN = MAX_GMSL_2,
-	MAX_GMSL_3 = 3,
+	MAX_GMSL_MIN,
+	MAX_GMSL_2 = MAX_GMSL_MIN,
+	MAX_GMSL_3,
 	MAX_GMSL_MAX = MAX_GMSL_3,
 };
 
