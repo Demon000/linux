@@ -179,6 +179,7 @@ struct max96724_priv {
 };
 
 struct max96724_chip_info {
+	unsigned int versions;
 	bool supports_pipe_stream_autoselect;
 	unsigned int num_pipes;
 
@@ -813,7 +814,6 @@ static int max96724_select_link_version(struct max_des *des,
 }
 
 static const struct max_des_ops max96724_ops = {
-	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
 	.num_phys = 4,
 	.num_links = 4,
 	.num_remaps_per_pipe = 16,
@@ -842,12 +842,21 @@ static const struct max_des_ops max96724_ops = {
 };
 
 static const struct max96724_chip_info max96724_info = {
+	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
+	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
+	.supports_pipe_stream_autoselect = true,
+	.num_pipes = 4,
+};
+
+static const struct max96724_chip_info max96724f_info = {
+	.versions = BIT(MAX_GMSL_2_3Gbps),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
 
 static const struct max96724_chip_info max96712_info = {
+	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
 	.num_pipes = 8,
 };
 
@@ -904,6 +913,7 @@ static int max96724_probe(struct i2c_client *client)
 	}
 
 	*ops = max96724_ops;
+	ops->versions = priv->info->versions;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	priv->des.ops = ops;
@@ -928,6 +938,8 @@ static void max96724_remove(struct i2c_client *client)
 static const struct of_device_id max96724_of_table[] = {
 	{ .compatible = "maxim,max96712", .data = &max96712_info },
 	{ .compatible = "maxim,max96724", .data = &max96724_info },
+	{ .compatible = "maxim,max96724f", .data = &max96724f_info },
+	{ .compatible = "maxim,max96724r", .data = &max96724f_info },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max96724_of_table);
