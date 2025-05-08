@@ -27,6 +27,9 @@
 #define MAX96724_PWR1				0x13
 #define MAX96724_PWR1_RESET_ALL			BIT(6)
 
+#define MAX96724_CTRL1				0x18
+#define MAX96724_CTRL1_RESET_ONESHOT		GENMASK(3, 0)
+
 #define MAX96724_VIDEO_PIPE_SEL(p)		(0xf0 + (p) / 2)
 #define MAX96724_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (4 * ((p) % 2)))
 
@@ -787,6 +790,11 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 
 	ret = regmap_update_bits(priv->regmap, MAX96724_REG6, MAX96724_REG6_LINK_EN,
 				 field_prep(MAX96724_REG6_LINK_EN, mask));
+	if (ret)
+		return ret;
+
+	ret = regmap_set_bits(priv->regmap, MAX96724_CTRL1,
+			      MAX96724_CTRL1_RESET_ONESHOT);
 	if (ret)
 		return ret;
 
