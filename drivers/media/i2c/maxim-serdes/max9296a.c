@@ -1104,8 +1104,8 @@ static const struct max9296a_chip_info max96792a_info = {
 		    BIT(MAX_GMSL_2_6Gbps) |
 		    BIT(MAX_GMSL_3),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
-	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_enable = max96714_set_pipe_enable,
+	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.select_links = max9296a_select_links,
 	.select_link_version = max96792a_select_link_version,
