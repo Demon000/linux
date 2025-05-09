@@ -2261,7 +2261,7 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 		return -EINVAL;
 	}
 
-	if (hweight_long(des->ops->versions) != 1 &&
+	if (hweight_long(des->ops->versions) >= 1 &&
 	    !des->ops->select_link_version) {
 		dev_err(dev, "Multiple version without .select_link_version()\n");
 		return -EINVAL;
