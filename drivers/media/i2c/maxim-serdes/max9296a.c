@@ -177,6 +177,7 @@ struct max9296a_chip_info {
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
+	bool supports_per_link_version;
 	bool supports_cphy;
 	bool supports_phy_log;
 	bool adjust_rlms;
@@ -190,9 +191,6 @@ struct max9296a_chip_info {
 			    struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      bool enable);
-	int (*select_links)(struct max_des *des, unsigned int mask);
-	int (*select_link_version)(struct max_des *des, struct max_des_link *link,
-				   enum max_gmsl_version version);
 };
 
 #define des_to_priv(_des) \
@@ -865,15 +863,18 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 	return 0;
 }
 
-static int max96792a_select_link_version(struct max_des *des,
-					 struct max_des_link *link,
-					 enum max_gmsl_version version)
+static int max9296a_select_link_version(struct max_des *des,
+					struct max_des_link *link,
+					enum max_gmsl_version version)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
 	bool gmsl3_en = version == MAX_GMSL_3;
 	unsigned int reg, mask, val;
 	int ret;
+
+	if (!priv->info->supports_per_link_version)
+		index = 0;
 
 	if (index == 0) {
 		reg = MAX9296A_REG1;
@@ -926,6 +927,8 @@ static const struct max_des_ops max9296a_ops = {
 	.set_pipe_remaps_enable = max9296a_set_pipe_remaps_enable,
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
+	.select_links = max9296a_select_links,
+	.select_link_version = max9296a_select_link_version,
 };
 
 static int max9296a_probe(struct i2c_client *client)
@@ -976,6 +979,7 @@ static int max9296a_probe(struct i2c_client *client)
 	*ops = max9296a_ops;
 
 	ops->versions = priv->info->versions;
+	ops->supports_per_link_version = priv->info->supports_per_link_version;
 	ops->fix_tx_ids = priv->info->fix_tx_ids;
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
@@ -985,8 +989,6 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
-	ops->select_links = priv->info->select_links;
-	ops->select_link_version = priv->info->select_link_version;
 	ops->select_resets_link = priv->info->select_resets_link;
 	priv->des.ops = ops;
 
@@ -1020,7 +1022,6 @@ static const struct max9296a_chip_info max9296a_info = {
 		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
-	.select_links = max9296a_select_links,
 	.select_resets_link = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
@@ -1039,6 +1040,7 @@ static const struct max9296a_chip_info max96714_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
+	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1059,6 +1061,7 @@ static const struct max9296a_chip_info max96714_info = {
 static const struct max9296a_chip_info max96714f_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps),
+	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1080,11 +1083,11 @@ static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
+	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
-	.select_links = max9296a_select_links,
 	.select_resets_link = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
@@ -1106,12 +1109,11 @@ static const struct max9296a_chip_info max96792a_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps) |
 		    BIT(MAX_GMSL_3),
+	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
-	.select_links = max9296a_select_links,
-	.select_link_version = max96792a_select_link_version,
 	.select_resets_link = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),

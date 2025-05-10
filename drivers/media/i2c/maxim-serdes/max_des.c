@@ -948,13 +948,44 @@ static int max_des_init(struct max_des_priv *priv)
 	return 0;
 }
 
+static void max_des_ser_find_version_range(struct max_des *des,
+					   enum max_gmsl_version *min,
+					   enum max_gmsl_version *max)
+{
+	unsigned int i;
+
+	*min = MAX_GMSL_MIN;
+	*max = MAX_GMSL_MAX;
+
+	if (des->ops->supports_per_link_version)
+		return;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		if (!link->ser_xlate.en)
+			continue;
+
+		*min = *max = link->version;
+
+		return;
+	}
+}
+
 static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
 				   u16 addr, u16 alias)
 {
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
+	enum max_gmsl_version max;
+	enum max_gmsl_version min;
 	int ret;
 	int i;
+
+	max_des_ser_find_version_range(des, &min, &max);
 
 	if (link->ser_xlate.en) {
 		dev_err(priv->dev, "Serializer for link %u already bound\n",
@@ -962,7 +993,7 @@ static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
 		return -EINVAL;
 	}
 
-	for (i = MAX_GMSL_MAX; i >= MAX_GMSL_MIN; i--) {
+	for (i = max; i >= min; i--) {
 		if (!(des->ops->versions & BIT(i)))
 			continue;
 
