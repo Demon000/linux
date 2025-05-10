@@ -39,6 +39,7 @@ struct max_des_priv {
 	struct max_source *sources;
 	u64 *streams_masks;
 
+	struct notifier_block i2c_nb;
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
 
@@ -947,10 +948,9 @@ static int max_des_init(struct max_des_priv *priv)
 	return 0;
 }
 
-static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
-				       u16 addr, u16 alias)
+static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
+				   u16 addr, u16 alias)
 {
-	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
 	int ret;
@@ -990,6 +990,14 @@ static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 	link->ser_xlate.en = true;
 
 	return 0;
+}
+
+static int max_des_ser_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
+				       u16 addr, u16 alias)
+{
+	struct max_des_priv *priv = i2c_atr_get_driver_data(atr);
+
+	return max_des_ser_attach_addr(priv, chan_id, addr, alias);
 }
 
 static void max_des_ser_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 addr)
@@ -1070,6 +1078,40 @@ err_add_adapters:
 static void max_des_i2c_mux_deinit(struct max_des_priv *priv)
 {
 	i2c_mux_del_adapters(priv->mux);
+	bus_unregister_notifier(&i2c_bus_type, &priv->i2c_nb);
+}
+
+static int max_des_i2c_mux_bus_notifier_call(struct notifier_block *nb,
+					     unsigned long event, void *device)
+{
+	struct max_des_priv *priv = container_of(nb, struct max_des_priv, i2c_nb);
+	struct device *dev = device;
+	struct i2c_client *client;
+	u32 chan_id;
+
+	/*
+	 * Ideally, we would want to negotiate the GMSL version on
+	 * BUS_NOTIFY_ADD_DEVICE, but the adapters list is only populated with
+	 * the new adapter after BUS_NOTIFY_ADD_DEVICE is issued.
+	 */
+	if (event != BUS_NOTIFY_BIND_DRIVER)
+		return NOTIFY_DONE;
+
+	client = i2c_verify_client(dev);
+	if (!client)
+		return NOTIFY_DONE;
+
+	for (chan_id = 0; chan_id < priv->mux->max_adapters; ++chan_id) {
+		if (client->adapter == priv->mux->adapter[chan_id])
+			break;
+	}
+
+	if (chan_id == priv->mux->max_adapters)
+		return NOTIFY_DONE;
+
+	max_des_ser_attach_addr(priv, chan_id, client->addr, client->addr);
+
+	return NOTIFY_DONE;
 }
 
 static int max_des_i2c_mux_select(struct i2c_mux_core *muxc, u32 chan)
@@ -1101,6 +1143,11 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 
 	priv->mux->priv = priv;
 
+	priv->i2c_nb.notifier_call = max_des_i2c_mux_bus_notifier_call;
+	ret = bus_register_notifier(&i2c_bus_type, &priv->i2c_nb);
+	if (ret)
+		return ret;
+
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
 
@@ -1115,7 +1162,7 @@ static int max_des_i2c_mux_init(struct max_des_priv *priv)
 	return 0;
 
 err_add_adapters:
-	i2c_mux_del_adapters(priv->mux);
+	max_des_i2c_mux_deinit(priv);
 
 	return ret;
 }
@@ -2252,12 +2299,6 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (des->ops->select_link_version && !des->ops->select_links) {
 		dev_err(dev,
 			"Cannot implement .select_link_version() without .select_links()\n");
-		return -EINVAL;
-	}
-
-	if (des->ops->select_link_version && !des->ops->select_resets_link) {
-		dev_err(dev,
-			"Cannot implement .select_link_version() without .select_resets_link\n");
 		return -EINVAL;
 	}
 
