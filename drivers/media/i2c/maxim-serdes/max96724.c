@@ -803,9 +803,9 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 	return 0;
 }
 
-static int max96724_select_link_version(struct max_des *des,
-					struct max_des_link *link,
-					enum max_gmsl_version version)
+static int max96724_set_link_version(struct max_des *des,
+				     struct max_des_link *link,
+				     enum max_gmsl_version version)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
@@ -847,7 +847,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
 	.select_links = max96724_select_links,
-	.select_link_version = max96724_select_link_version,
+	.set_link_version = max96724_set_link_version,
 };
 
 static const struct max96724_chip_info max96724_info = {

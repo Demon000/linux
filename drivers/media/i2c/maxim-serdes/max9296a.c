@@ -863,9 +863,9 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 	return 0;
 }
 
-static int max9296a_select_link_version(struct max_des *des,
-					struct max_des_link *link,
-					enum max_gmsl_version version)
+static int max9296a_set_link_version(struct max_des *des,
+				     struct max_des_link *link,
+				     enum max_gmsl_version version)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
@@ -928,7 +928,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
-	.select_link_version = max9296a_select_link_version,
+	.set_link_version = max9296a_set_link_version,
 };
 
 static int max9296a_probe(struct i2c_client *client)

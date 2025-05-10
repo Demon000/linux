@@ -997,8 +997,8 @@ static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
 		if (!(des->ops->versions & BIT(i)))
 			continue;
 
-		if (des->ops->select_link_version) {
-			ret = des->ops->select_link_version(des, link, i);
+		if (des->ops->set_link_version) {
+			ret = des->ops->set_link_version(des, link, i);
 			if (ret)
 				return ret;
 		}
@@ -2327,14 +2327,14 @@ int max_des_probe(struct i2c_client *client, struct max_des *des)
 	if (!priv)
 		return -ENOMEM;
 
-	if (des->ops->select_link_version && !des->ops->select_links) {
+	if (des->ops->set_link_version && !des->ops->select_links) {
 		dev_err(dev,
 			"Cannot implement .select_link_version() without .select_links()\n");
 		return -EINVAL;
 	}
 
 	if (hweight_long(des->ops->versions) >= 1 &&
-	    !des->ops->select_link_version) {
+	    !des->ops->set_link_version) {
 		dev_err(dev, "Multiple version without .select_link_version()\n");
 		return -EINVAL;
 	}
