@@ -894,6 +894,9 @@ static int max96792a_select_link_version(struct max_des *des,
 	if (ret)
 		return ret;
 
+	if (!(priv->info->versions & BIT(MAX_GMSL_3)))
+		return 0;
+
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
 				 MAX9296A_MIPI_TX0_RX_FEC_EN, gmsl3_en);
 	if (ret)
