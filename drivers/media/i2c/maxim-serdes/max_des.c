@@ -1202,7 +1202,7 @@ static void max_des_i2c_adapter_deinit(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
 
-	if (des->ops->select_resets_link)
+	if (des->ops->use_atr)
 		return max_des_i2c_atr_deinit(priv);
 	else
 		return max_des_i2c_mux_deinit(priv);
@@ -1212,7 +1212,7 @@ static int max_des_i2c_adapter_init(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
 
-	if (des->ops->select_resets_link)
+	if (des->ops->use_atr)
 		return max_des_i2c_atr_init(priv);
 	else
 		return max_des_i2c_mux_init(priv);

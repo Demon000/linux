@@ -173,7 +173,7 @@ struct max9296a_chip_info {
 	unsigned int num_phys;
 	unsigned int num_links;
 	struct max_phys_configs phys_configs;
-	bool select_resets_link;
+	bool use_atr;
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
@@ -989,7 +989,7 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
-	ops->select_resets_link = priv->info->select_resets_link;
+	ops->use_atr = priv->info->use_atr;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -1022,7 +1022,7 @@ static const struct max9296a_chip_info max9296a_info = {
 		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
-	.select_resets_link = true,
+	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
@@ -1088,7 +1088,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
-	.select_resets_link = true,
+	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
@@ -1114,7 +1114,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
-	.select_resets_link = true,
+	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,

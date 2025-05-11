@@ -72,7 +72,7 @@ struct max_des_ops {
 	unsigned int num_remaps_per_pipe;
 	unsigned int versions;
 	bool fix_tx_ids;
-	bool select_resets_link;
+	bool use_atr;
 	bool supports_per_link_version;
 
 	struct max_phys_configs phys_configs;
