@@ -891,7 +891,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	else
 		val = MAX9296A_REG1_RX_RATE_3Gbps;
 
-	ret = regmap_update_bits(priv->regmap, reg, mask, val);
+	ret = regmap_update_bits(priv->regmap, reg, mask, field_prep(mask, val));
 	if (ret)
 		return ret;
 
