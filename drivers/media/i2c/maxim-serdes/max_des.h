@@ -74,6 +74,7 @@ struct max_des_ops {
 	bool fix_tx_ids;
 	bool use_atr;
 	bool needs_single_link_version;
+	bool needs_unique_stream_id;
 
 	struct max_phys_configs phys_configs;
 

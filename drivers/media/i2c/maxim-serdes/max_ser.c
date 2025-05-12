@@ -1395,6 +1395,16 @@ int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps)
 }
 EXPORT_SYMBOL_GPL(max_ser_set_double_bpps);
 
+int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+	struct max_ser_pipe *pipe = &ser->pipes[0];
+
+	return ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
+}
+EXPORT_SYMBOL_GPL(max_ser_set_stream_id);
+
 bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);

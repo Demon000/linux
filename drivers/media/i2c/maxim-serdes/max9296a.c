@@ -178,6 +178,7 @@ struct max9296a_chip_info {
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
 	bool needs_single_link_version;
+	bool needs_unique_stream_id;
 	bool supports_cphy;
 	bool supports_phy_log;
 	bool adjust_rlms;
@@ -966,6 +967,7 @@ static int max9296a_probe(struct i2c_client *client)
 
 	ops->versions = priv->info->versions;
 	ops->needs_single_link_version = priv->info->needs_single_link_version;
+	ops->needs_unique_stream_id = priv->info->needs_unique_stream_id;
 	ops->fix_tx_ids = priv->info->fix_tx_ids;
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
@@ -1009,6 +1011,7 @@ static const struct max9296a_chip_info max9296a_info = {
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.needs_single_link_version = true,
+	.needs_unique_stream_id = true,
 	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),

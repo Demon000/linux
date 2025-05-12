@@ -618,6 +618,45 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	if (!des->ops->needs_unique_stream_id)
+		return 0;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		struct max_des_pipe *pipe;
+		struct max_source *source;
+
+		if (!link->enabled)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		ret = max_ser_set_stream_id(source->sd, pipe->stream_id);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int max_des_set_pipes_phy(struct max_des_priv *priv,
 				 struct max_des_remap_context *context)
 {
@@ -1682,6 +1721,10 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_free_streams_masks;
 
+	ret = max_des_set_pipes_stream_id(priv);
+	if (ret)
+		goto err_free_streams_masks;
+
 	if (!enable) {
 		ret = max_des_enable_disable_streams(priv, state, pad,
 						     updated_streams_mask, enable);
@@ -2229,10 +2272,13 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		 * same link, and some deserializers support stream id autoselect
 		 * allowing them to receive data from all stream ids.
 		 * Deserializers that support that feature should enable it.
-		 * Others are limited to using just stream id 0 for now to
-		 * prevent the routing from getting too complicated.
+		 * Deserializers that support per-link stream ids do not need
+		 * to assign unique stream ids to each serializer.
 		 */
-		pipe->stream_id = 0;
+		if (des->ops->needs_unique_stream_id)
+			pipe->stream_id = i;
+		else
+			pipe->stream_id = 0;
 
 		/*
 		 * We already checked that num_pipes >= num_links.

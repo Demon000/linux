@@ -116,6 +116,7 @@ int max_ser_remove(struct max_ser *ser);
 int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
 bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd);
 int max_ser_set_tunnel_enable(struct v4l2_subdev *sd, bool enable);
+int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id);
 
 int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
 int max_ser_wait(struct i2c_adapter *adapter, u8 addr);
