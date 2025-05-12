@@ -886,9 +886,11 @@ static int max_des_init(struct max_des_priv *priv)
 	unsigned int i;
 	int ret;
 
-	ret = des->ops->init(des);
-	if (ret)
-		return ret;
+	if (des->ops->init) {
+		ret = des->ops->init(des);
+		if (ret)
+			return ret;
+	}
 
 	ret = des->ops->set_enable(des, false);
 	if (ret)
