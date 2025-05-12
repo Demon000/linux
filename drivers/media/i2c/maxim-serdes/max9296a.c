@@ -679,11 +679,11 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 				       unsigned int stream_id)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	unsigned int index = max9296a_pipe_id(priv, pipe);
+	unsigned int index = pipe->index;
 
 	return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_SEL,
-				  MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
-				  field_prep(MAX9296A_VIDEO_PIPE_SEL_STREAM(index - 1),
+				  MAX9296A_VIDEO_PIPE_SEL_STREAM(index),
+				  field_prep(MAX9296A_VIDEO_PIPE_SEL_STREAM(index),
 					     stream_id));
 }
 
