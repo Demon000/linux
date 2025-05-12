@@ -133,9 +133,6 @@ patternProperties:
   '-pins$':
     type: object
     additionalProperties: false
-    allOf:
-      - $ref: /schemas/pinctrl/pincfg-node.yaml#
-      - $ref: /schemas/pinctrl/pinmux-node.yaml#
 
     properties:
       function:
@@ -218,6 +215,9 @@ patternProperties:
       - function
 
     allOf:
+      - $ref: /schemas/pinctrl/pincfg-node.yaml#
+      - $ref: /schemas/pinctrl/pinmux-node.yaml#
+
       - if:
           properties:
             function:
