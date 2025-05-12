@@ -18,10 +18,6 @@
 #define MAX_SER_CTRL0				0x10
 #define MAX_SER_CTRL0_RESET_ALL			BIT(7)
 
-#define MAX_SER_REG13				0xd
-#define MAX_SER_MAX96717_DEV_ID			0xbf
-#define MAX_SER_MAX9265A_DEV_ID			0x91
-
 #define MAX_SER_CFGI_INFOFR_TR3			0x7b
 #define MAX_SER_CFGL_SPI_TR3			0x83
 #define MAX_SER_CFGC_CC_TR3			0x8b

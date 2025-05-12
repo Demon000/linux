@@ -1525,11 +1525,6 @@ int max_ser_wait(struct i2c_adapter *adapter, u8 addr)
 }
 EXPORT_SYMBOL_GPL(max_ser_wait);
 
-static int max_ser_get_dev_id(struct i2c_adapter *adapter, u8 addr, u8 *dev_id)
-{
-	return max_ser_read_reg(adapter, addr, MAX_SER_REG13, dev_id);
-}
-
 int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr)
 {
 	unsigned int addr_regs[] = {
@@ -1541,24 +1536,12 @@ int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr)
 		MAX_SER_CFGL_IIC_Y_TR3,
 	};
 	unsigned int i;
-	u8 dev_id;
 	int ret;
 
-	ret = max_ser_get_dev_id(adapter, addr, &dev_id);
-	if (ret)
-		return ret;
-
-	switch (dev_id) {
-	case MAX_SER_MAX9265A_DEV_ID:
-		for (i = 0; i < ARRAY_SIZE(addr_regs); i++) {
-			ret = max_ser_write_reg(adapter, addr, addr_regs[i], addr);
-			if (ret)
-				return ret;
-		}
-
-		break;
-	default:
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(addr_regs); i++) {
+		ret = max_ser_write_reg(adapter, addr, addr_regs[i], addr);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
