@@ -320,20 +320,6 @@ static int max9296a_set_enable(struct max_des *des, bool enable)
 				  MAX9296A_BACKTOP12_CSI_OUT_EN, enable);
 }
 
-static int max9296a_init(struct max_des *des)
-{
-	struct max9296a_priv *priv = des_to_priv(des);
-	int ret;
-
-	/* Disable link auto-select. */
-	ret = regmap_clear_bits(priv->regmap, MAX9296A_CTRL0,
-				MAX9296A_CTRL0_AUTO_LINK);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
@@ -845,6 +831,7 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 		return ret;
 
 	ret = regmap_update_bits(priv->regmap, MAX9296A_CTRL0,
+				 MAX9296A_CTRL0_AUTO_LINK |
 				 MAX9296A_CTRL0_LINK_CFG |
 				 MAX9296A_CTRL0_RESET_ONESHOT,
 				 FIELD_PREP(MAX9296A_CTRL0_LINK_CFG, mask) |
@@ -919,7 +906,6 @@ static const struct max_des_ops max9296a_ops = {
 	.log_pipe_status = max9626a_log_pipe_status,
 	.log_phy_status = max9296a_log_phy_status,
 	.set_enable = max9296a_set_enable,
-	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
 	.set_phy_mode = max9296a_set_phy_mode,
 	.set_phy_active = max9296a_set_phy_active,
