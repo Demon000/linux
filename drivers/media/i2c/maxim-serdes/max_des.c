@@ -959,7 +959,7 @@ static void max_des_ser_find_version_range(struct max_des *des,
 	*min = MAX_GMSL_MIN;
 	*max = MAX_GMSL_MAX;
 
-	if (des->ops->supports_per_link_version)
+	if (!des->ops->needs_single_link_version)
 		return;
 
 	for (i = 0; i < des->ops->num_links; i++) {

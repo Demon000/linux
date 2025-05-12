@@ -830,7 +830,6 @@ static const struct max_des_ops max96724_ops = {
 		.configs = max96724_phys_configs,
 	},
 	.use_atr = true,
-	.supports_per_link_version = true,
 	.reg_read = max96724_reg_read,
 	.reg_write = max96724_reg_write,
 	.log_pipe_status = max96724_log_pipe_status,

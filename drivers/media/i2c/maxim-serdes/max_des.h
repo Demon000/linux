@@ -73,7 +73,7 @@ struct max_des_ops {
 	unsigned int versions;
 	bool fix_tx_ids;
 	bool use_atr;
-	bool supports_per_link_version;
+	bool needs_single_link_version;
 
 	struct max_phys_configs phys_configs;
 

@@ -177,7 +177,7 @@ struct max9296a_chip_info {
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
-	bool supports_per_link_version;
+	bool needs_single_link_version;
 	bool supports_cphy;
 	bool supports_phy_log;
 	bool adjust_rlms;
@@ -860,7 +860,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	unsigned int reg, mask, val;
 	int ret;
 
-	if (!priv->info->supports_per_link_version)
+	if (priv->info->needs_single_link_version)
 		index = 0;
 
 	if (index == 0) {
@@ -965,7 +965,7 @@ static int max9296a_probe(struct i2c_client *client)
 	*ops = max9296a_ops;
 
 	ops->versions = priv->info->versions;
-	ops->supports_per_link_version = priv->info->supports_per_link_version;
+	ops->needs_single_link_version = priv->info->needs_single_link_version;
 	ops->fix_tx_ids = priv->info->fix_tx_ids;
 	ops->num_phys = priv->info->num_phys;
 	ops->num_pipes = priv->info->num_pipes;
@@ -1008,6 +1008,7 @@ static const struct max9296a_chip_info max9296a_info = {
 		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
+	.needs_single_link_version = true,
 	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
@@ -1026,7 +1027,6 @@ static const struct max9296a_chip_info max96714_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
-	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1047,7 +1047,6 @@ static const struct max9296a_chip_info max96714_info = {
 static const struct max9296a_chip_info max96714f_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps),
-	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1069,7 +1068,6 @@ static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
-	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716a_set_pipe_phy,
@@ -1095,7 +1093,6 @@ static const struct max9296a_chip_info max96792a_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps) |
 		    BIT(MAX_GMSL_3),
-	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716a_set_pipe_phy,
