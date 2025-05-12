@@ -687,9 +687,9 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 					     stream_id));
 }
 
-static int max96716_set_pipe_phy(struct max_des *des,
-				 struct max_des_pipe *pipe,
-				 struct max_des_phy *phy)
+static int max96716a_set_pipe_phy(struct max_des *des,
+				  struct max_des_pipe *pipe,
+				  struct max_des_phy *phy)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
@@ -1072,7 +1072,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
-	.set_pipe_phy = max96716_set_pipe_phy,
+	.set_pipe_phy = max96716a_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.use_atr = true,
 	.phys_configs = {
@@ -1098,7 +1098,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.supports_per_link_version = true,
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
-	.set_pipe_phy = max96716_set_pipe_phy,
+	.set_pipe_phy = max96716a_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.use_atr = true,
 	.phys_configs = {
