@@ -153,6 +153,9 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
+	if (!des->ops->set_pipe_remap)
+		return 0;
+
 	for (i = 0; i < num_remaps; i++) {
 		ret = des->ops->set_pipe_remap(des, pipe, i, &remaps[i]);
 		if (ret)
@@ -592,9 +595,11 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		    phy->mode.alt2_mem_map8 == mode.alt2_mem_map8)
 			continue;
 
-		ret = des->ops->set_phy_mode(des, phy, &mode);
-		if (ret)
-			return ret;
+		if (des->ops->set_phy_mode) {
+			ret = des->ops->set_phy_mode(des, phy, &mode);
+			if (ret)
+				return ret;
+		}
 
 		phy->mode = mode;
 	}
@@ -612,9 +617,11 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		    pipe->mode.dbl10mode == mode.dbl10mode)
 			continue;
 
-		ret = des->ops->set_pipe_mode(des, pipe, &mode);
-		if (ret)
-			return ret;
+		if (des->ops->set_pipe_mode) {
+			ret = des->ops->set_pipe_mode(des, pipe, &mode);
+			if (ret)
+				return ret;
+		}
 
 		pipe->mode = mode;
 	}
@@ -738,9 +745,11 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		if (ret)
 			return ret;
 
-		ret = des->ops->set_pipe_stream_id(des, pipe, stream_id);
-		if (ret)
-			return ret;
+		if (des->ops->set_pipe_stream_id) {
+			ret = des->ops->set_pipe_stream_id(des, pipe, stream_id);
+			if (ret)
+				return ret;
+		}
 
 		pipe->stream_id = stream_id;
 	}
@@ -1018,9 +1027,11 @@ static int max_des_init(struct max_des_priv *priv)
 			return ret;
 	}
 
-	ret = des->ops->set_enable(des, false);
-	if (ret)
-		return ret;
+	if (des->ops->set_enable) {
+		ret = des->ops->set_enable(des, false);
+		if (ret)
+			return ret;
+	}
 
 	for (i = 0; i < des->ops->num_phys; i++) {
 		struct max_des_phy *phy = &des->phys[i];
@@ -1050,9 +1061,11 @@ static int max_des_init(struct max_des_priv *priv)
 				return ret;
 		}
 
-		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
-		if (ret)
-			return ret;
+		if (des->ops->set_pipe_stream_id) {
+			ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
+			if (ret)
+				return ret;
+		}
 
 		if (des->ops->set_pipe_link) {
 			ret = des->ops->set_pipe_link(des, pipe, link);
@@ -1425,21 +1438,26 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			v4l2_info(sd, "\tphy_id: invalid\n");
 		else
 			v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
-		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
 		v4l2_info(sd, "\tlink_id: %u\n", pipe->link_id);
-		v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
-		v4l2_info(sd, "\tdbl8mode: %u\n", pipe->mode.dbl8mode);
-		v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
-		v4l2_info(sd, "\tdbl10mode: %u\n", pipe->mode.dbl10mode);
-		v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
-		v4l2_info(sd, "\tremaps: %u\n", pipe->num_remaps);
-		for (j = 0; j < pipe->num_remaps; j++) {
-			struct max_des_remap *remap = &pipe->remaps[j];
+		if (des->ops->set_pipe_stream_id)
+			v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
+		if (des->ops->set_pipe_mode) {
+			v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
+			v4l2_info(sd, "\tdbl8mode: %u\n", pipe->mode.dbl8mode);
+			v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
+			v4l2_info(sd, "\tdbl10mode: %u\n", pipe->mode.dbl10mode);
+			v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
+		}
+		if (des->ops->set_pipe_remap) {
+			v4l2_info(sd, "\tremaps: %u\n", pipe->num_remaps);
+			for (j = 0; j < pipe->num_remaps; j++) {
+				struct max_des_remap *remap = &pipe->remaps[j];
 
-			v4l2_info(sd, "\t\tremap: from: vc: %u, dt: 0x%02x\n",
-				  remap->from_vc, remap->from_dt);
-			v4l2_info(sd, "\t\t       to:   vc: %u, dt: 0x%02x, phy: %u\n",
-				  remap->to_vc, remap->to_dt, remap->phy);
+				v4l2_info(sd, "\t\tremap: from: vc: %u, dt: 0x%02x\n",
+					  remap->from_vc, remap->from_dt);
+				v4l2_info(sd, "\t\t       to:   vc: %u, dt: 0x%02x, phy: %u\n",
+					  remap->to_vc, remap->to_dt, remap->phy);
+			}
 		}
 		if (des->ops->log_pipe_status) {
 			ret = des->ops->log_pipe_status(des, pipe, sd->name);
@@ -1464,10 +1482,12 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "\tlink_frequency: %llu\n", phy->link_frequency);
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
-		v4l2_info(sd, "\talt_mem_map8: %u\n", phy->mode.alt_mem_map8);
-		v4l2_info(sd, "\talt2_mem_map8: %u\n", phy->mode.alt2_mem_map8);
-		v4l2_info(sd, "\talt_mem_map10: %u\n", phy->mode.alt_mem_map10);
-		v4l2_info(sd, "\talt_mem_map12: %u\n", phy->mode.alt_mem_map12);
+		if (des->ops->set_phy_mode) {
+			v4l2_info(sd, "\talt_mem_map8: %u\n", phy->mode.alt_mem_map8);
+			v4l2_info(sd, "\talt2_mem_map8: %u\n", phy->mode.alt2_mem_map8);
+			v4l2_info(sd, "\talt_mem_map10: %u\n", phy->mode.alt_mem_map10);
+			v4l2_info(sd, "\talt_mem_map12: %u\n", phy->mode.alt_mem_map12);
+		}
 		if (des->ops->log_phy_status) {
 			ret = des->ops->log_phy_status(des, phy, sd->name);
 			if (ret)
@@ -1716,9 +1736,11 @@ static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks,
 	if (active != expected_active || des->active == active)
 		return 0;
 
-	ret = des->ops->set_enable(des, active);
-	if (ret)
-		return ret;
+	if (des->ops->set_enable) {
+		ret = des->ops->set_enable(des, active);
+		if (ret)
+			return ret;
+	}
 
 	des->active = active;
 

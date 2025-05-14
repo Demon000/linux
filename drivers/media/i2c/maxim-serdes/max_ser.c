@@ -101,9 +101,11 @@ static int max_ser_phy_set_active(struct max_ser *ser, struct max_ser_phy *phy,
 {
 	int ret;
 
-	ret = ser->ops->set_phy_active(ser, phy, active);
-	if (ret)
-		return ret;
+	if (ser->ops->set_phy_active) {
+		ret = ser->ops->set_phy_active(ser, phy, active);
+		if (ret)
+			return ret;
+	}
 
 	phy->active = active;
 
@@ -130,6 +132,9 @@ static int max_ser_set_pipe_dts(struct max_ser_priv *priv, struct max_ser_pipe *
 	struct max_ser *ser = priv->ser;
 	unsigned int i;
 	int ret;
+
+	if (!ser->ops->set_pipe_dt || !ser->ops->set_pipe_dt_en)
+		return 0;
 
 	for (i = 0; i < num_dts; i++) {
 		ret = ser->ops->set_pipe_dt(ser, pipe, i, dts[i]);
@@ -163,6 +168,9 @@ static int max_ser_set_pipe_mode(struct max_ser_priv *priv, struct max_ser_pipe 
 	    mode->dbl8 == pipe->mode.dbl8 &&
 	    mode->dbl10 == pipe->mode.dbl10 &&
 	    mode->dbl12 == pipe->mode.dbl12)
+		return 0;
+
+	if (!ser->ops->set_pipe_mode)
 		return 0;
 
 	return ser->ops->set_pipe_mode(ser, pipe, mode);
@@ -351,15 +359,22 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
 		v4l2_info(sd, "\tstream_id: %u\n", pipe->stream_id);
-		v4l2_info(sd, "\tdts: %u\n", pipe->num_dts);
-		for (j = 0; j < pipe->num_dts; j++)
-			v4l2_info(sd, "\t\tdt: 0x%02x\n", pipe->dts[j]);
-		v4l2_info(sd, "\tvcs: 0x%08x\n", pipe->vcs);
-		v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
-		v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
-		v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
-		v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->mode.soft_bpp);
-		v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
+		if (ser->ops->set_pipe_phy)
+			v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
+		if (ser->ops->set_pipe_dt) {
+			v4l2_info(sd, "\tdts: %u\n", pipe->num_dts);
+			for (j = 0; j < pipe->num_dts; j++)
+				v4l2_info(sd, "\t\tdt: 0x%02x\n", pipe->dts[j]);
+		}
+		if (ser->ops->set_pipe_vcs)
+			v4l2_info(sd, "\tvcs: 0x%08x\n", pipe->vcs);
+		if (ser->ops->set_pipe_mode) {
+			v4l2_info(sd, "\tdbl8: %u\n", pipe->mode.dbl8);
+			v4l2_info(sd, "\tdbl10: %u\n", pipe->mode.dbl10);
+			v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
+			v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->mode.soft_bpp);
+			v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
+		}
 		if (ser->ops->log_pipe_status) {
 			ret = ser->ops->log_pipe_status(ser, pipe, sd->name);
 			if (ret)
@@ -660,6 +675,9 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	unsigned int vcs;
 	int ret;
 
+	if (!ser->ops->num_dts_per_pipe)
+	    return 0;
+
 	dts = devm_kcalloc(priv->dev, ser->ops->num_dts_per_pipe, sizeof(*dts),
 			   GFP_KERNEL);
 	if (!dts)
@@ -674,9 +692,11 @@ static int max_ser_update_pipe(struct max_ser_priv *priv,
 	if (ret)
 		goto err_free_dts;
 
-	ret = ser->ops->set_pipe_vcs(ser, pipe, vcs);
-	if (ret)
-		goto err_free_dts;
+	if (ser->ops->set_pipe_vcs) {
+		ret = ser->ops->set_pipe_vcs(ser, pipe, vcs);
+		if (ret)
+			goto err_free_dts;
+	}
 
 	ret = max_ser_set_pipe_mode(priv, pipe, &mode);
 	if (ret)
@@ -701,7 +721,8 @@ err_revert_mode:
 	max_ser_set_pipe_mode(priv, pipe, &pipe->mode);
 
 err_revert_vcs:
-	ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);
+	if (ser->ops->set_pipe_vcs)
+		ser->ops->set_pipe_vcs(ser, pipe, pipe->vcs);
 
 err_free_dts:
 	devm_kfree(priv->dev, dts);
@@ -951,9 +972,11 @@ static int max_ser_init(struct max_ser_priv *priv)
 	unsigned int i;
 	int ret;
 
-	ret = ser->ops->init(ser);
-	if (ret)
-		return ret;
+	if (ser->ops->init) {
+		ret = ser->ops->init(ser);
+		if (ret)
+			return ret;
+	}
 
 	if (ser->ops->set_tunnel_enable) {
 		ret = ser->ops->set_tunnel_enable(ser, false);
@@ -970,9 +993,11 @@ static int max_ser_init(struct max_ser_priv *priv)
 				return ret;
 		}
 
-		ret = ser->ops->set_phy_active(ser, phy, false);
-		if (ret)
-			return ret;
+		if (ser->ops->set_phy_active) {
+			ret = ser->ops->set_phy_active(ser, phy, false);
+			if (ret)
+				return ret;
+		}
 	}
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {
@@ -983,21 +1008,29 @@ static int max_ser_init(struct max_ser_priv *priv)
 		if (ret)
 			return ret;
 
-		ret = ser->ops->set_pipe_stream_id(ser, pipe, pipe->stream_id);
-		if (ret)
-			return ret;
+		if (ser->ops->set_pipe_stream_id) {
+			ret = ser->ops->set_pipe_stream_id(ser, pipe, pipe->stream_id);
+			if (ret)
+				return ret;
+		}
 
-		ret = ser->ops->set_pipe_phy(ser, pipe, phy);
-		if (ret)
-			return ret;
+		if (ser->ops->set_pipe_phy) {
+			ret = ser->ops->set_pipe_phy(ser, pipe, phy);
+			if (ret)
+				return ret;
+		}
 
-		ret = ser->ops->set_pipe_vcs(ser, pipe, 0);
-		if (ret)
-			return ret;
+		if (ser->ops->set_pipe_vcs) {
+			ret = ser->ops->set_pipe_vcs(ser, pipe, 0);
+			if (ret)
+				return ret;
+		}
 
-		ret = ser->ops->set_pipe_mode(ser, pipe, &pipe->mode);
-		if (ret)
-			return ret;
+		if (ser->ops->set_pipe_mode) {
+			ret = ser->ops->set_pipe_mode(ser, pipe, &pipe->mode);
+			if (ret)
+				return ret;
+		}
 
 		ret = max_ser_set_pipe_dts(priv, pipe, NULL, 0);
 		if (ret)
