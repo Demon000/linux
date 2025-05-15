@@ -631,6 +631,7 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		struct max_des_link *link = &des->links[i];
 		struct max_des_pipe *pipe;
 		struct max_source *source;
+		unsigned int stream_id;
 
 		if (!link->enabled)
 			continue;
@@ -649,9 +650,21 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		if (!source->sd)
 			continue;
 
-		ret = max_ser_set_stream_id(source->sd, pipe->stream_id);
+		stream_id = pipe->stream_id;
+
+		ret = max_ser_set_stream_id(source->sd, stream_id);
 		if (ret)
 			return ret;
+
+		ret = max_ser_get_stream_id(source->sd, &stream_id);
+		if (ret)
+			return ret;
+
+		ret = des->ops->set_pipe_stream_id(des, pipe, stream_id);
+		if (ret)
+			return ret;
+
+		pipe->stream_id = stream_id;
 	}
 
 	return 0;

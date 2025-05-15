@@ -1394,15 +1394,31 @@ int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id)
 	struct max_ser_pipe *pipe = &ser->pipes[0];
 	int ret;
 
-	ret = ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
-	if (ret)
-		return ret;
+	if (ser->ops->set_pipe_stream_id) {
+		ret = ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
+		if (ret)
+			return ret;
+	} else {
+		stream_id = ser->ops->get_pipe_stream_id(ser, pipe);
+	}
 
 	pipe->stream_id = stream_id;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_set_stream_id);
+
+int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+	struct max_ser_pipe *pipe = &ser->pipes[0];
+
+	*stream_id = pipe->stream_id;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(max_ser_get_stream_id);
 
 bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd)
 {
