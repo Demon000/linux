@@ -58,7 +58,6 @@ struct max_ser_ops {
 	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
 	unsigned int num_i2c_xlates;
-	bool supports_noncontinuous_clock;
 
 	struct max_phys_configs phys_configs;
 

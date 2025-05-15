@@ -915,6 +915,12 @@ static int max96717_init_phy(struct max_ser *ser,
 		return -EINVAL;
 	}
 
+	if (phy->mipi.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK &&
+	    !priv->info->supports_noncontinuous_clock) {
+		dev_err(priv->dev, "Unsupported non-continuous mode\n");
+		return -EINVAL;
+	}
+
 	/* Configure a lane count. */
 	ret = regmap_update_bits(priv->regmap, MAX96717_MIPI_RX1,
 				 MAX96717_MIPI_RX1_CTRL_NUM_LANES,
@@ -1428,7 +1434,6 @@ static int max96717_probe(struct i2c_client *client)
 	if (priv->info->supports_tunnel_mode)
 		ops->set_tunnel_enable = max96717_set_tunnel_enable;
 
-	ops->supports_noncontinuous_clock = priv->info->supports_noncontinuous_clock;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_dts_per_pipe = priv->info->num_dts_per_pipe;
 	ops->num_phys = priv->info->num_phys;

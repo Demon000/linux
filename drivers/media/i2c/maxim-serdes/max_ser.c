@@ -1179,7 +1179,6 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 	struct max_ser *ser = priv->ser;
 	u32 pad = max_ser_phy_to_pad(ser, phy);
 	struct v4l2_fwnode_endpoint v4l2_ep = { .bus_type = V4L2_MBUS_CSI2_DPHY };
-	struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
 	struct fwnode_handle *ep;
 	int ret;
 
@@ -1199,13 +1198,6 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 	if (ret) {
 		dev_err(priv->dev, "Could not parse endpoint on port %u\n", pad);
 		return ret;
-	}
-
-	if (mipi->flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK &&
-	    !ser->ops->supports_noncontinuous_clock) {
-		dev_err(priv->dev,
-			"Clock non-continuous mode is not supported on port %u\n", pad);
-		return -EINVAL;
 	}
 
 	phy->mipi = v4l2_ep.bus.mipi_csi2;
