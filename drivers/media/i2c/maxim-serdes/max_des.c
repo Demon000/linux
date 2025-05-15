@@ -330,6 +330,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 }
 
 static int max_des_populate_mode_context(struct max_des_priv *priv,
+					 struct max_des_remap_context *remap_context,
 					 struct max_des_mode_context *context,
 					 const struct v4l2_subdev_krouting *routing)
 {
@@ -346,6 +347,9 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	u32 stream_bpps;
 	u32 sink_bpps;
 	int ret;
+
+	if (remap_context->tunnel_enable)
+		return 0;
 
 	/*
 	 * Go over all streams and check if the current stream is doubled.
@@ -491,8 +495,7 @@ static void max_des_get_phy_mode(struct max_des_mode_context *context,
 }
 
 static int max_des_set_modes(struct max_des_priv *priv,
-			     struct max_des_remap_context *context,
-			     struct max_des_mode_context *mode_context)
+			     struct max_des_mode_context *context)
 {
 	struct max_des *des = priv->des;
 	unsigned int i;
@@ -502,8 +505,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_phy *phy = &des->phys[i];
 		struct max_des_phy_mode mode = { 0 };
 
-		if (!context->tunnel_enable)
-			max_des_get_phy_mode(mode_context, phy, &mode);
+		max_des_get_phy_mode(context, phy, &mode);
 
 		if (phy->mode.alt_mem_map8 == mode.alt_mem_map8 &&
 		    phy->mode.alt_mem_map10 == mode.alt_mem_map10 &&
@@ -522,8 +524,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		struct max_des_pipe *pipe = &des->pipes[i];
 		struct max_des_pipe_mode mode = { 0 };
 
-		if (!context->tunnel_enable)
-			max_des_get_pipe_mode(mode_context, pipe, &mode);
+		max_des_get_pipe_mode(context, pipe, &mode);
 
 		if (pipe->mode.dbl8 == mode.dbl8 &&
 		    pipe->mode.dbl10 == mode.dbl10 &&
@@ -562,8 +563,7 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		if (!context->tunnel_enable)
-			pipe_double_bpps = mode_context->pipes_double_bpps[pipe->index];
+		pipe_double_bpps = context->pipes_double_bpps[pipe->index];
 
 		ret = max_ser_set_double_bpps(source->sd, pipe_double_bpps);
 		if (ret)
@@ -1699,7 +1699,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_populate_mode_context(priv, &mode_context, &state->routing);
+	ret = max_des_populate_mode_context(priv, &context, &mode_context,
+					    &state->routing);
 	if (ret)
 		return ret;
 
@@ -1717,7 +1718,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_free_streams_masks;
 
-	ret = max_des_set_modes(priv, &context, &mode_context);
+	ret = max_des_set_modes(priv, &mode_context);
 	if (ret)
 		goto err_free_streams_masks;
 
