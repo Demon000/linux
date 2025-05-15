@@ -166,7 +166,7 @@ struct max9296a_priv {
 
 struct max9296a_chip_info {
 	unsigned int max_register;
-	enum max_gmsl_version versions;
+	unsigned int versions;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int phy_hw_ids[MAX9296A_PIPES_NUM];
