@@ -1392,8 +1392,15 @@ int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id)
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 	struct max_ser_pipe *pipe = &ser->pipes[0];
+	int ret;
 
-	return ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
+	ret = ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
+	if (ret)
+		return ret;
+
+	pipe->stream_id = stream_id;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(max_ser_set_stream_id);
 
