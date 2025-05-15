@@ -159,9 +159,7 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 	int ret;
 
 	for (i = 0; i < num_remaps; i++) {
-		struct max_des_remap *remap = &remaps[i];
-
-		ret = des->ops->set_pipe_remap(des, pipe, i, remap);
+		ret = des->ops->set_pipe_remap(des, pipe, i, &remaps[i]);
 		if (ret)
 			return ret;
 
