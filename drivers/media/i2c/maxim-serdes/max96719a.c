@@ -564,8 +564,8 @@ static unsigned int max96719a_get_pipe_stream_id(struct max_ser *ser,
 	return MAX96719A_STREAM_ID;
 }
 
-static int max96719a_set_pipe_vc_remap(struct max_ser *ser, struct max_ser_pipe *pipe,
-				       unsigned int i, struct max_vc_remap *vc_remap)
+static int max96719a_set_vc_remap(struct max_ser *ser, unsigned int i,
+				  struct max_serdes_vc_remap *vc_remap)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 
@@ -574,9 +574,7 @@ static int max96719a_set_pipe_vc_remap(struct max_ser *ser, struct max_ser_pipe 
 			    FIELD_PREP(MAX96719A_VC_REMAP_CUST0_MAPPED_VC0, vc_remap->dst));
 }
 
-static int max96719a_set_pipe_vc_remaps_enable(struct max_ser *ser,
-					       struct max_ser_pipe *pipe,
-					       unsigned int mask)
+static int max96719a_set_vc_remaps_enable(struct max_ser *ser, unsigned int mask)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 
@@ -668,7 +666,7 @@ static int max96719a_init_phy(struct max_ser *ser,
 }
 
 static int max96719a_set_i2c_xlate(struct max_ser *ser, unsigned int i,
-				   struct max_i2c_xlate *xlate)
+				   struct max_serdes_i2c_xlate *xlate)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 	int ret;
@@ -717,7 +715,7 @@ static const struct pinmux_ops max96719a_mux_ops = {
 	{ 1920, 1080, { 1, 60 }, (code), (dt), (bpp) }, \
 	{ 1920, 1080, { 1, 120 }, (code), (dt), (bpp) }
 
-static const struct max_tpg_entry max96719a_tpg_entries[] = {
+static const struct max_serdes_tpg_entry max96719a_tpg_entries[] = {
 	MAX96719A_TPG_DT_ENTRIES(MEDIA_BUS_FMT_SRGGB8_1X8, MIPI_CSI2_DT_RAW8, 8),
 	MAX96719A_TPG_DT_ENTRIES(MEDIA_BUS_FMT_SRGGB10_1X10, MIPI_CSI2_DT_RAW10, 10),
 	MAX96719A_TPG_DT_ENTRIES(MEDIA_BUS_FMT_SRGGB12_1X12, MIPI_CSI2_DT_RAW12, 12),
@@ -728,7 +726,8 @@ static const struct max_tpg_entry max96719a_tpg_entries[] = {
 	MAX96719A_TPG_DT_ENTRIES(MEDIA_BUS_FMT_YUV10_1X30, MIPI_CSI2_DT_YUV420_10B, 30),
 };
 
-static int max96719a_set_tpg(struct max_ser *ser, const struct max_tpg_entry *entry)
+static int max96719a_set_tpg(struct max_ser *ser,
+			     const struct max_serdes_tpg_entry *entry)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 	bool enable = entry != NULL;
@@ -752,13 +751,14 @@ static int max96719a_set_tpg(struct max_ser *ser, const struct max_tpg_entry *en
 				  FIELD_PREP(MAX96719A_PATGEN_CFG_PATGEN_EN, enable));
 }
 
-static const struct max_phys_config max96719a_phys_configs[] = {
+static const struct max_serdes_phys_config max96719a_phys_configs[] = {
 	{ { 4 } },
 };
 
 static const struct max_ser_ops max96719a_ops = {
-	.modes = BIT(MAX_GMSL_TUNNEL_MODE),
+	.modes = BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.num_i2c_xlates = 7,
+	.num_vc_remaps = 4,
 	.num_pipes = 1,
 	.num_phys = 1,
 	.phys_configs = {
@@ -769,7 +769,7 @@ static const struct max_ser_ops max96719a_ops = {
 		.num_entries = ARRAY_SIZE(max96719a_tpg_entries),
 		.entries = max96719a_tpg_entries,
 	},
-	.tpg_mode = MAX_GMSL_TUNNEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_TUNNEL_MODE,
 	.reg_read = max96719a_reg_read,
 	.reg_write = max96719a_reg_write,
 	.log_status = max96719a_log_status,
@@ -778,8 +778,8 @@ static const struct max_ser_ops max96719a_ops = {
 	.set_tpg = max96719a_set_tpg,
 	.set_pipe_enable = max96719a_set_pipe_enable,
 	.get_pipe_stream_id = max96719a_get_pipe_stream_id,
-	.set_pipe_vc_remap = max96719a_set_pipe_vc_remap,
-	.set_pipe_vc_remaps_enable = max96719a_set_pipe_vc_remaps_enable,
+	.set_vc_remap = max96719a_set_vc_remap,
+	.set_vc_remaps_enable = max96719a_set_vc_remaps_enable,
 };
 
 static unsigned long max96719a_clk_recalc_rate(struct clk_hw *hw,
