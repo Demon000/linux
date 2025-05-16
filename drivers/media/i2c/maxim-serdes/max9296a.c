@@ -168,7 +168,7 @@ struct max9296a_chip_info {
 	unsigned int versions;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
-	unsigned int phy_hw_ids[MAX9296A_PIPES_NUM];
+	unsigned int phy_hw_ids[MAX9296A_PHYS_NUM];
 	unsigned int num_phys;
 	unsigned int num_links;
 	struct max_phys_configs phys_configs;
