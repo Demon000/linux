@@ -328,10 +328,14 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 		if (ret)
 			return ret;
 	}
-	for (i = 0; i < ser->ops->num_i2c_xlates; i++)
+	v4l2_info(sd, "i2c_xlates:\n");
+	for (i = 0; i < ser->ops->num_i2c_xlates; i++) {
 		v4l2_info(sd, "\ten: %u, src: 0x%02x dst: 0x%02x\n",
 			  ser->i2c_xlates[i].en, ser->i2c_xlates[i].src,
 			  ser->i2c_xlates[i].dst);
+		if (!ser->i2c_xlates[i].en)
+			break;
+	}
 	v4l2_info(sd, "\n");
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {
