@@ -394,9 +394,8 @@ static int max96724_init(struct max_des *des)
 
 	if (priv->info->supports_pipe_stream_autoselect) {
 		/* Enable stream autoselect. */
-		ret = regmap_update_bits(priv->regmap, MAX96724_VIDEO_PIPE_EN,
-					 MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL,
-					 FIELD_PREP(MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL, 1));
+		ret = regmap_set_bits(priv->regmap, MAX96724_VIDEO_PIPE_EN,
+				      MAX96724_VIDEO_PIPE_EN_STREAM_SEL_ALL);
 		if (ret)
 			return ret;
 	}
