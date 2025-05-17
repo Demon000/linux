@@ -1000,9 +1000,7 @@ static int max_des_init(struct max_des_priv *priv)
 	return 0;
 }
 
-static void max_des_ser_find_version_range(struct max_des *des,
-					   enum max_gmsl_version *min,
-					   enum max_gmsl_version *max)
+static void max_des_ser_find_version_range(struct max_des *des, int *min, int *max)
 {
 	unsigned int i;
 
@@ -1032,10 +1030,8 @@ static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
 {
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
-	enum max_gmsl_version max;
-	enum max_gmsl_version min;
+	int i, min, max;
 	int ret;
-	int i;
 
 	max_des_ser_find_version_range(des, &min, &max);
 
