@@ -48,6 +48,11 @@ struct max_mipi_format {
 	u8 bpp;
 };
 
+struct max_vc_remap {
+	u8 src;
+	u8 dst;
+};
+
 struct max_source {
 	struct v4l2_subdev *sd;
 	u16 pad;

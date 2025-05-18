@@ -42,6 +42,8 @@ struct max_des_pipe {
 	unsigned int phy_id;
 	struct max_des_remap *remaps;
 	unsigned int num_remaps;
+	struct max_vc_remap *vc_remaps;
+	unsigned int num_vc_remaps;
 	struct max_des_pipe_mode mode;
 	bool enabled;
 };
@@ -105,6 +107,10 @@ struct max_des_ops {
 			      unsigned int i, struct max_des_remap *remap);
 	int (*set_pipe_remaps_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      unsigned int mask);
+	int (*set_pipe_vc_remap)(struct max_des *des, struct max_des_pipe *pipe,
+				 unsigned int i, struct max_vc_remap *vc_remap);
+	int (*set_pipe_vc_remaps_enable)(struct max_des *des, struct max_des_pipe *pipe,
+					 unsigned int mask);
 	int (*set_pipe_mode)(struct max_des *des, struct max_des_pipe *pipe,
 			     struct max_des_pipe_mode *mode);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,

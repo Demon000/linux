@@ -47,6 +47,8 @@ struct max_ser_pipe {
 	unsigned int *dts;
 	unsigned int num_dts;
 	unsigned int vcs;
+	struct max_vc_remap vc_remaps[MAX_SERDES_VC_ID_NUM];
+	unsigned int num_vc_remaps;
 	struct max_ser_pipe_mode mode;
 	bool enabled;
 };
@@ -86,6 +88,10 @@ struct max_ser_ops {
 			    unsigned int vcs);
 	int (*set_pipe_mode)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			     struct max_ser_pipe_mode *mode);
+	int (*set_pipe_vc_remap)(struct max_ser *ser, struct max_ser_pipe *pipe,
+				 unsigned int i, struct max_vc_remap *vc_remap);
+	int (*set_pipe_vc_remaps_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
+					 unsigned int mask);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
 	unsigned int (*get_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe);
@@ -117,8 +123,11 @@ int max_ser_remove(struct max_ser *ser);
 int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
 unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd);
 int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode);
+bool max_ser_supports_vc_remap(struct v4l2_subdev *sd);
 int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id);
 int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id);
+int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps,
+			  int num_vc_remaps);
 
 int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
 int max_ser_wait(struct i2c_adapter *adapter, u8 addr);

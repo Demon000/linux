@@ -375,6 +375,13 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 			v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->mode.soft_bpp);
 			v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
 		}
+		if (ser->ops->set_pipe_vc_remap) {
+			v4l2_info(sd, "\tvc_remaps: %u\n", pipe->num_vc_remaps);
+			for (j = 0; j < pipe->num_vc_remaps; j++) {
+				v4l2_info(sd, "\t\tvc_remap: src: %u, dst: %u\n",
+					  pipe->vc_remaps[j].src, pipe->vc_remaps[j].dst);
+			}
+		}
 		if (ser->ops->log_pipe_status) {
 			ret = ser->ops->log_pipe_status(ser, pipe, sd->name);
 			if (ret)
@@ -1466,6 +1473,15 @@ unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 }
 EXPORT_SYMBOL(max_ser_get_supported_modes);
 
+bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+
+	return !!ser->ops->set_pipe_vc_remap;
+}
+EXPORT_SYMBOL(max_ser_supports_vc_remap);
+
 int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
@@ -1491,6 +1507,39 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 	return 0;
 }
 EXPORT_SYMBOL(max_ser_set_mode);
+
+int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps,
+			  int num_vc_remaps)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+	struct max_ser_pipe *pipe = &ser->pipes[0];
+	unsigned int mask = 0;
+	unsigned int i;
+	int ret;
+
+	if (!ser->ops->set_pipe_vc_remap)
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < num_vc_remaps; i++) {
+		ret = ser->ops->set_pipe_vc_remap(ser, pipe, i, &vc_remaps[i]);
+		if (ret)
+			return ret;
+
+		mask |= BIT(i);
+	}
+
+	ret = ser->ops->set_pipe_vc_remaps_enable(ser, pipe, mask);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < num_vc_remaps; i++)
+		pipe->vc_remaps[i] = vc_remaps[i];
+
+	pipe->num_vc_remaps = num_vc_remaps;
+
+	return 0;
+}
 
 static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 			    u16 reg, u8 *val)
