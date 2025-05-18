@@ -68,12 +68,6 @@ struct max_des_mode_context {
 	u32 pipes_double_bpps[MAX_DES_PIPES_NUM];
 };
 
-static const char *max_des_gmsl_versions[] = {
-	[MAX_GMSL_2_3Gbps] = "GMSL2 3Gbps",
-	[MAX_GMSL_2_6Gbps] = "GMSL2 6Gbps",
-	[MAX_GMSL_3] = "GMSL3",
-};
-
 static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct max_des_priv, sd);
@@ -1322,7 +1316,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			continue;
 		}
 
-		v4l2_info(sd, "\tversion: %s\n", max_des_gmsl_versions[link->version]);
+		v4l2_info(sd, "\tversion: %s\n", max_gmsl_version_str(link->version));
 		v4l2_info(sd, "\tser_xlate: en: %u, src: 0x%02x dst: 0x%02x\n",
 			  link->ser_xlate.en, link->ser_xlate.src,
 			  link->ser_xlate.dst);

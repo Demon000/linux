@@ -20,6 +20,21 @@
 	.bpp = (_bpp),		\
 }
 
+static const char *max_gmsl_versions[] = {
+	[MAX_GMSL_2_3Gbps] = "GMSL2 3Gbps",
+	[MAX_GMSL_2_6Gbps] = "GMSL2 6Gbps",
+	[MAX_GMSL_3] = "GMSL3",
+};
+
+const char *max_gmsl_version_str(enum max_gmsl_version version)
+{
+	if (version > MAX_GMSL_3)
+		return NULL;
+
+	return max_gmsl_versions[version];
+}
+EXPORT_SYMBOL(max_gmsl_version_str);
+
 static const struct max_mipi_format max_mipi_formats[] = {
 	MAX_MIPI_FMT(MIPI_CSI2_DT_EMBEDDED_8B, 8),
 	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_8B, 16),

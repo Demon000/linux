@@ -61,6 +61,8 @@ static inline struct max_asc *asc_to_max(struct v4l2_async_connection *asc)
 	return container_of(asc, struct max_asc, base);
 }
 
+const char *max_gmsl_version_str(enum max_gmsl_version version);
+
 const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
 
 int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
