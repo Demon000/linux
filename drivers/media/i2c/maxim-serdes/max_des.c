@@ -193,24 +193,23 @@ static int max_des_set_pipe_enable(struct max_des *des, struct max_des_pipe *pip
 
 static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 				     unsigned int pipe_id, unsigned int phy_id,
-				     unsigned int src_vc_id, unsigned int *dst_vc_id)
+				     unsigned int src_vc_id)
 {
 	unsigned int vc_id;
 
 	if (src_vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
 
-	if (context->vc_ids_masks[pipe_id][phy_id] & BIT(src_vc_id)) {
-		*dst_vc_id = context->vc_ids_map[pipe_id][phy_id][src_vc_id];
+	if (context->vc_ids_masks[pipe_id][phy_id] & BIT(src_vc_id))
 		return 0;
-	}
 
-	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id))) {
+	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id)))
 		vc_id = src_vc_id;
-	} else {
-		context->vc_ids_remapped[pipe_id] = true;
+	else
 		vc_id = ffz(context->dst_vc_ids_masks[phy_id]);
-	}
+
+	if (vc_id != src_vc_id)
+		context->vc_ids_remapped[pipe_id] = true;
 
 	if (vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
@@ -221,7 +220,17 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 	context->vc_ids_map[pipe_id][phy_id][src_vc_id] = vc_id;
 	context->vc_ids_masks[pipe_id][phy_id] |= BIT(src_vc_id);
 
-	*dst_vc_id = vc_id;
+	return 0;
+}
+
+static int max_des_get_src_dst_vc_id(struct max_des_remap_context *context,
+				     unsigned int pipe_id, unsigned int phy_id,
+				     unsigned int src_vc_id, unsigned int *dst_vc_id)
+{
+	if (!(context->vc_ids_masks[pipe_id][phy_id] & BIT(src_vc_id)))
+		return -ENOENT;
+
+	*dst_vc_id = context->vc_ids_map[pipe_id][phy_id][src_vc_id];
 
 	return 0;
 }
@@ -242,7 +251,6 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		struct max_des_link *link;
 		struct max_des_pipe *pipe;
 		struct max_des_phy *phy;
-		unsigned int vc_id;
 
 		link = max_des_pad_to_link(des, route->sink_pad);
 		if (!link) {
@@ -279,7 +287,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		}
 
 		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
-						entry.bus.csi2.vc, &vc_id);
+						entry.bus.csi2.vc);
 		if (ret)
 			return ret;
 	}
@@ -796,7 +804,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 		src_vc_id = entry.bus.csi2.vc;
 
-		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
+		ret = max_des_get_src_dst_vc_id(context, pipe->index, phy->index,
 						src_vc_id, &dst_vc_id);
 		if (ret)
 			return ret;
@@ -1447,7 +1455,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = max_des_map_src_dst_vc_id(&context, pipe->index, phy->index,
+		ret = max_des_get_src_dst_vc_id(&context, pipe->index, phy->index,
 						entry.bus.csi2.vc, &dst_vc_id);
 		if (ret)
 			return ret;
