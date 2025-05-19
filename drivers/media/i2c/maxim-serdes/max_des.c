@@ -273,6 +273,53 @@ static int max_des_get_supported_modes(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
+					       struct max_des_remap_context *context,
+					       unsigned int modes)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+
+	/*
+	 * If pixel mode is the only supported mode, do not try to see if
+	 * tunnel mode can be used.
+	 */
+	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
+		return 0;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		struct max_des_pipe *pipe;
+		struct max_source *source;
+
+		if (!link->enabled)
+			continue;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		if (hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
+		    !context->vc_ids_remapped[pipe->index])
+			continue;
+
+		context->mode = MAX_GMSL_PIXEL_MODE;
+
+		return 0;
+	}
+
+	context->mode = MAX_GMSL_TUNNEL_MODE;
+
+	return 0;
+}
+
 static int max_des_should_keep_vc(struct max_des_priv *priv,
 				  struct max_source *source,
 			          unsigned int modes)
@@ -290,7 +337,6 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
-	unsigned int link_id;
 	unsigned int modes;
 	int ret;
 
@@ -348,44 +394,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 			return ret;
 	}
 
-	/*
-	 * If pixel mode is the only supported mode, do not try to see if
-	 * tunnel mode can be used.
-	 */
-	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
-		return 0;
-
-	for (link_id = 0; link_id < des->ops->num_links; link_id++) {
-		struct max_des_link *link = &des->links[link_id];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
-
-		if (!link->enabled)
-			continue;
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		if (hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
-		    !context->vc_ids_remapped[pipe->index])
-			continue;
-
-		context->mode = MAX_GMSL_PIXEL_MODE;
-
-		return 0;
-	}
-
-	context->mode = MAX_GMSL_TUNNEL_MODE;
-
-	return 0;
+	return max_des_populate_remap_context_mode(priv, context, modes);
 }
 
 static int max_des_populate_mode_context(struct max_des_priv *priv,
