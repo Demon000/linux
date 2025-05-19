@@ -704,13 +704,27 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_add_remap(struct max_des_remap *remaps,
+static int max_des_add_remap(struct max_des *des, struct max_des_remap *remaps,
 			     unsigned int *num_remaps, unsigned int phy_id,
 			     unsigned int src_vc_id, unsigned int dst_vc_id,
 			     unsigned int dt)
 {
-	struct max_des_remap *remap = &remaps[*num_remaps];
+	struct max_des_remap *remap;
+	unsigned int i;
 
+	for (i = 0; i < *num_remaps; i++) {
+		remap = &remaps[i];
+
+		if (remap->from_dt == dt && remap->to_dt == dt &&
+		    remap->from_vc == src_vc_id && remap->to_vc == dst_vc_id &&
+		    remap->phy == phy_id)
+			return 0;
+	}
+
+	if (*num_remaps == des->ops->num_remaps_per_pipe)
+		return -E2BIG;
+
+	remap = &remaps[*num_remaps];
 	remap->from_dt = dt;
 	remap->from_vc = src_vc_id;
 	remap->to_dt = dt;
@@ -718,6 +732,31 @@ static int max_des_add_remap(struct max_des_remap *remaps,
 	remap->phy = phy_id;
 
 	(*num_remaps)++;
+
+	return 0;
+}
+
+static int max_des_add_remaps(struct max_des *des, struct max_des_remap *remaps,
+			      unsigned int *num_remaps, unsigned int phy_id,
+			      unsigned int src_vc_id, unsigned int dst_vc_id,
+			      unsigned int dt)
+{
+	int ret;
+
+	ret = max_des_add_remap(des, remaps, num_remaps, phy_id,
+				src_vc_id, dst_vc_id, dt);
+	if (ret)
+		return ret;
+
+	ret = max_des_add_remap(des, remaps, num_remaps, phy_id,
+				src_vc_id, dst_vc_id, MIPI_CSI2_DT_FS);
+	if (ret)
+		return ret;
+
+	ret = max_des_add_remap(des, remaps, num_remaps, phy_id,
+				src_vc_id, dst_vc_id, MIPI_CSI2_DT_FE);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -733,8 +772,6 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
-	unsigned long vc_ids_masks = 0;
-	unsigned int phy_id;
 	int ret;
 
 	*num_remaps = 0;
@@ -753,12 +790,6 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		if (!(BIT_ULL(route->sink_stream) & streams_mask))
 			continue;
 
-		if (*num_remaps + 1 > des->ops->num_remaps_per_pipe) {
-			dev_err(priv->dev, "Too many streams for pipe %u\n",
-				pipe->index);
-			return -E2BIG;
-		}
-
 		phy = max_des_pad_to_phy(des, route->source_pad);
 		if (!phy) {
 			dev_err(priv->dev, "Failed to find PHY for pad %u\n",
@@ -776,53 +807,17 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		}
 
 		src_vc_id = entry.bus.csi2.vc;
-		vc_ids_masks |= BIT(src_vc_id);
 
 		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
 						src_vc_id, &dst_vc_id);
 		if (ret)
 			return ret;
 
-		ret = max_des_add_remap(remaps, num_remaps, phy->index,
-					src_vc_id, dst_vc_id,
-					entry.bus.csi2.dt);
+		ret = max_des_add_remaps(des, remaps, num_remaps, phy->index,
+					 src_vc_id, dst_vc_id,
+					 entry.bus.csi2.dt);
 		if (ret)
 			return ret;
-	}
-
-	for (phy_id = 0; phy_id < des->ops->num_phys; phy_id++) {
-		unsigned long mask = context->vc_ids_masks[pipe->index][phy_id];
-		unsigned int src_vc_id;
-
-		for_each_set_bit(src_vc_id, &mask, MAX_SERDES_VC_ID_NUM) {
-			unsigned int dst_vc_id;
-
-			if (!(vc_ids_masks & BIT(src_vc_id)))
-				continue;
-
-			if (*num_remaps + 2 > des->ops->num_remaps_per_pipe) {
-				dev_err(priv->dev, "Too many streams for pipe %u\n",
-					pipe->index);
-				return -E2BIG;
-			}
-
-			ret = max_des_map_src_dst_vc_id(context, pipe->index, phy_id,
-							src_vc_id, &dst_vc_id);
-			if (ret)
-				return ret;
-
-			ret = max_des_add_remap(remaps, num_remaps, phy_id,
-						src_vc_id, dst_vc_id,
-						MIPI_CSI2_DT_FS);
-			if (ret)
-				return ret;
-
-			ret = max_des_add_remap(remaps, num_remaps, phy_id,
-						src_vc_id, dst_vc_id,
-						MIPI_CSI2_DT_FE);
-			if (ret)
-				return ret;
-		}
 	}
 
 	return 0;
