@@ -107,7 +107,7 @@ struct max_ser {
 
 	unsigned int phys_config;
 	unsigned int active;
-	bool tunnel;
+	enum max_gmsl_mode mode;
 };
 
 int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
@@ -115,8 +115,8 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
 int max_ser_remove(struct max_ser *ser);
 
 int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
-bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd);
-int max_ser_set_tunnel_enable(struct v4l2_subdev *sd, bool enable);
+unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd);
+int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode);
 int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id);
 int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id);
 

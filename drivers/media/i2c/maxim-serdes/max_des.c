@@ -47,8 +47,7 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
-	/* Mark whether chip can function in tunnel mode. */
-	bool tunnel_enable;
+	enum max_gmsl_mode mode;
 	/* Mark the PHYs to which each pipe is mapped. */
 	unsigned long pipe_phy_masks[MAX_DES_PIPES_NUM];
 	/* Mark the pipes in use. */
@@ -238,6 +237,42 @@ static int max_des_get_src_dst_vc_id(struct max_des_remap_context *context,
 	return 0;
 }
 
+static int max_des_get_supported_modes(struct max_des_priv *priv,
+				       struct max_des_remap_context *context,
+				       unsigned int *modes)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+
+	*modes = des->ops->modes;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+		struct max_source *source;
+
+		if (!link->enabled)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		*modes &= max_ser_get_supported_modes(source->sd);
+	}
+
+	/*
+	 * Serializers need to all be in the same mode because of hardware
+	 * issues when running them in mixed modes.
+	 */
+	if (!*modes)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int max_des_populate_remap_context(struct max_des_priv *priv,
 					  struct max_des_remap_context *context,
 					  const struct v4l2_subdev_krouting *routing)
@@ -245,8 +280,12 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	unsigned int link_id;
-	bool tunnel_enable;
+	unsigned int modes;
 	int ret;
+
+	ret = max_des_get_supported_modes(priv, context, &modes);
+	if (ret)
+		return ret;
 
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
@@ -295,10 +334,12 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 			return ret;
 	}
 
-	if (!des->ops->set_pipe_tunnel_enable)
+	/*
+	 * If pixel mode is the only supported mode, do not try to see if
+	 * tunnel mode can be used.
+	 */
+	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
 		return 0;
-
-	tunnel_enable = true;
 
 	for (link_id = 0; link_id < des->ops->num_links; link_id++) {
 		struct max_des_link *link = &des->links[link_id];
@@ -319,23 +360,24 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		if (max_ser_supports_tunnel_mode(source->sd) &&
-		    hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
+		if (hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
 		    !context->vc_ids_remapped[pipe->index])
 			continue;
 
-		tunnel_enable = false;
+		context->mode = MAX_GMSL_PIXEL_MODE;
+
+		return 0;
 	}
 
-	context->tunnel_enable = tunnel_enable;
+	context->mode = MAX_GMSL_TUNNEL_MODE;
 
 	return 0;
 }
 
 static int max_des_populate_mode_context(struct max_des_priv *priv,
-					 struct max_des_remap_context *remap_context,
 					 struct max_des_mode_context *context,
-					 const struct v4l2_subdev_krouting *routing)
+					 const struct v4l2_subdev_krouting *routing,
+					 enum max_gmsl_mode mode)
 {
 	bool bpp8_not_shared_with_16_phys[MAX_DES_PHYS_NUM] = { 0 };
 	u32 undoubled_bpps_phys[MAX_DES_PHYS_NUM] = { 0 };
@@ -351,7 +393,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	u32 sink_bpps;
 	int ret;
 
-	if (remap_context->tunnel_enable)
+	if (mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
 	/*
@@ -580,15 +622,12 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
-	if (des->tunnel == context->tunnel_enable)
-		return 0;
-
 	if (des->ops->set_pipe_tunnel_enable) {
 		for (i = 0; i < des->ops->num_pipes; i++) {
 			struct max_des_pipe *pipe = &des->pipes[i];
+			bool tunnel_mode = context->mode == MAX_GMSL_TUNNEL_MODE;
 
-			ret = des->ops->set_pipe_tunnel_enable(des, pipe,
-							       context->tunnel_enable);
+			ret = des->ops->set_pipe_tunnel_enable(des, pipe, tunnel_mode);
 			if (ret)
 				return ret;
 		}
@@ -608,12 +647,12 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		ret = max_ser_set_tunnel_enable(source->sd, context->tunnel_enable);
+		ret = max_ser_set_mode(source->sd, context->mode);
 		if (ret)
 			return ret;
 	}
 
-	des->tunnel = context->tunnel_enable;
+	des->mode = context->mode;
 
 	return 0;
 }
@@ -686,7 +725,8 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 					des->ops->num_phys);
 
 		if (priv->unused_phy &&
-		    (!context->tunnel_enable || phy_id == des->ops->num_phys))
+		    (context->mode != MAX_GMSL_TUNNEL_MODE ||
+		     phy_id == des->ops->num_phys))
 			phy_id = priv->unused_phy->index;
 
 		if (phy_id != des->ops->num_phys) {
@@ -775,7 +815,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 	*num_remaps = 0;
 
-	if (context->tunnel_enable)
+	if (context->mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
 	for_each_active_route(routing, route) {
@@ -1308,7 +1348,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	int ret;
 
 	v4l2_info(sd, "active: %u\n", des->active);
-	v4l2_info(sd, "tunnel: %u", des->tunnel);
+	v4l2_info(sd, "mode: %s", max_gmsl_mode_str(des->mode));
 	if (des->ops->log_status) {
 		ret = des->ops->log_status(des, sd->name);
 		if (ret)
@@ -1707,8 +1747,8 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_des_populate_mode_context(priv, &context, &mode_context,
-					    &state->routing);
+	ret = max_des_populate_mode_context(priv, &mode_context, &state->routing,
+					    context.mode);
 	if (ret)
 		return ret;
 

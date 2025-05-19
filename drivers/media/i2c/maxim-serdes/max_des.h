@@ -127,7 +127,7 @@ struct max_des {
 	struct max_des_link *links;
 
 	unsigned int phys_config;
-	bool tunnel;
+	enum max_gmsl_mode mode;
 	bool active;
 };
 

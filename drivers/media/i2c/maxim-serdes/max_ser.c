@@ -322,7 +322,7 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	unsigned int i, j;
 	int ret;
 
-	v4l2_info(sd, "tunnel: %u\n", ser->tunnel);
+	v4l2_info(sd, "mode: %s\n", max_gmsl_mode_str(ser->mode));
 	if (ser->ops->log_status) {
 		ret = ser->ops->log_status(ser, sd->name);
 		if (ret)
@@ -509,7 +509,7 @@ static int max_ser_get_vcs_dts(struct max_ser_priv *priv,
 	*vcs = 0;
 	*num_dts = 0;
 
-	if (ser->tunnel)
+	if (ser->mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
 	for_each_active_route(routing, route) {
@@ -612,7 +612,7 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 	u32 bpps;
 	int ret;
 
-	if (ser->tunnel)
+	if (ser->mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
 	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, ~0ULL);
@@ -1424,39 +1424,40 @@ int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id)
 }
 EXPORT_SYMBOL_GPL(max_ser_get_stream_id);
 
-bool max_ser_supports_tunnel_mode(struct v4l2_subdev *sd)
+unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 
-	if (!ser->ops->set_tunnel_enable)
-		return false;
-
-	return true;
+	return ser->ops->modes;
 }
-EXPORT_SYMBOL(max_ser_supports_tunnel_mode);
+EXPORT_SYMBOL(max_ser_get_supported_modes);
 
-int max_ser_set_tunnel_enable(struct v4l2_subdev *sd, bool enable)
+int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 	int ret;
 
-	if (!ser->ops->set_tunnel_enable)
+	if (!(ser->ops->modes & BIT(mode)))
+		return -EINVAL;
+
+	if (ser->mode == mode)
 		return 0;
 
-	if (ser->tunnel == enable)
-		return 0;
+	if (ser->ops->set_tunnel_enable) {
+		bool tunnel_enable = mode == MAX_GMSL_TUNNEL_MODE;
 
-	ret = ser->ops->set_tunnel_enable(ser, enable);
-	if (ret)
-		return ret;
+		ret = ser->ops->set_tunnel_enable(ser, tunnel_enable);
+		if (ret)
+			return ret;
+	}
 
-	ser->tunnel = enable;
+	ser->mode = mode;
 
 	return 0;
 }
-EXPORT_SYMBOL(max_ser_set_tunnel_enable);
+EXPORT_SYMBOL(max_ser_set_mode);
 
 static int max_ser_read_reg(struct i2c_adapter *adapter, u8 addr,
 			    u16 reg, u8 *val)
