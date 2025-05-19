@@ -167,6 +167,7 @@ struct max9296a_priv {
 struct max9296a_chip_info {
 	unsigned int max_register;
 	unsigned int versions;
+	unsigned int modes;
 	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int phy_hw_ids[MAX9296A_PHYS_NUM];
@@ -979,6 +980,7 @@ static int max9296a_probe(struct i2c_client *client)
 	*ops = max9296a_ops;
 
 	ops->versions = priv->info->versions;
+	ops->modes = priv->info->modes;
 	ops->needs_single_link_version = priv->info->needs_single_link_version;
 	ops->needs_unique_stream_id = priv->info->needs_unique_stream_id;
 	ops->fix_tx_ids = priv->info->fix_tx_ids;
@@ -1021,6 +1023,7 @@ static const struct max9296a_chip_info max9296a_info = {
 	.max_register = 0x1f00,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.needs_single_link_version = true,
@@ -1043,6 +1046,7 @@ static const struct max9296a_chip_info max96714_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1063,6 +1067,7 @@ static const struct max9296a_chip_info max96714_info = {
 static const struct max9296a_chip_info max96714f_info = {
 	.max_register = 0x5011,
 	.versions = BIT(MAX_GMSL_2_3Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1084,6 +1089,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.max_register = 0x52d6,
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_link = max96716a_set_pipe_link,
 	.set_pipe_enable = max96714_set_pipe_enable,
@@ -1110,6 +1116,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps) |
 		    BIT(MAX_GMSL_3),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716a_set_pipe_phy,

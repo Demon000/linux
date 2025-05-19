@@ -185,9 +185,9 @@ struct max96717_priv {
 
 struct max96717_chip_info {
 	bool supports_3_data_lanes;
-	bool supports_tunnel_mode;
 	bool supports_noncontinuous_clock;
 	bool supports_pkt_cnt;
+	unsigned int modes;
 	unsigned int num_pipes;
 	unsigned int num_dts_per_pipe;
 	unsigned int pipe_hw_ids[MAX96717_PIPES_NUM];
@@ -838,7 +838,7 @@ static int max96717_log_status(struct max_ser *ser, const char *name)
 	unsigned int val;
 	int ret;
 
-	if (!priv->info->supports_tunnel_mode)
+	if (!(priv->info->modes & BIT(MAX_GMSL_TUNNEL_MODE)))
 		return 0;
 
 	ret = regmap_read(priv->regmap, MAX96717_EXT23, &val);
@@ -1431,9 +1431,10 @@ static int max96717_probe(struct i2c_client *client)
 
 	*ops = max96717_ops;
 
-	if (priv->info->supports_tunnel_mode)
+	if (priv->info->modes & BIT(MAX_GMSL_TUNNEL_MODE))
 		ops->set_tunnel_enable = max96717_set_tunnel_enable;
 
+	ops->modes = priv->info->modes;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->num_dts_per_pipe = priv->info->num_dts_per_pipe;
 	ops->num_phys = priv->info->num_phys;
@@ -1462,6 +1463,7 @@ static void max96717_remove(struct i2c_client *client)
 }
 
 static const struct max96717_chip_info max9295a_info = {
+	.modes = BIT(MAX_GMSL_PIXEL_MODE),
 	.num_pipes = 4,
 	.num_dts_per_pipe = 2,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
@@ -1470,9 +1472,9 @@ static const struct max96717_chip_info max9295a_info = {
 };
 
 static const struct max96717_chip_info max96717_info = {
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.supports_3_data_lanes = true,
 	.supports_pkt_cnt = true,
-	.supports_tunnel_mode = true,
 	.supports_noncontinuous_clock = true,
 	.num_pipes = 1,
 	.num_dts_per_pipe = 4,

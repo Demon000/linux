@@ -22,6 +22,11 @@ enum max_gmsl_version {
 	MAX_GMSL_MAX = MAX_GMSL_3,
 };
 
+enum max_gmsl_mode {
+	MAX_GMSL_PIXEL_MODE,
+	MAX_GMSL_TUNNEL_MODE,
+};
+
 struct max_phys_config {
 	unsigned int lanes[MAX_SERDES_PHYS_MAX];
 	unsigned int clock_lane[MAX_SERDES_PHYS_MAX];
@@ -62,6 +67,7 @@ static inline struct max_asc *asc_to_max(struct v4l2_async_connection *asc)
 }
 
 const char *max_gmsl_version_str(enum max_gmsl_version version);
+const char *max_gmsl_mode_str(enum max_gmsl_mode mode);
 
 const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
 

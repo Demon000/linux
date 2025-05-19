@@ -35,6 +35,20 @@ const char *max_gmsl_version_str(enum max_gmsl_version version)
 }
 EXPORT_SYMBOL(max_gmsl_version_str);
 
+static const char *max_gmsl_mode[] = {
+	[MAX_GMSL_PIXEL_MODE] = "pixel",
+	[MAX_GMSL_TUNNEL_MODE] = "tunnel",
+};
+
+const char *max_gmsl_mode_str(enum max_gmsl_mode mode)
+{
+	if (mode > MAX_GMSL_TUNNEL_MODE)
+		return NULL;
+
+	return max_gmsl_mode[mode];
+}
+EXPORT_SYMBOL(max_gmsl_mode_str);
+
 static const struct max_mipi_format max_mipi_formats[] = {
 	MAX_MIPI_FMT(MIPI_CSI2_DT_EMBEDDED_8B, 8),
 	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_8B, 16),

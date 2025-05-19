@@ -71,6 +71,7 @@ struct max_des_ops {
 	unsigned int num_links;
 	unsigned int num_remaps_per_pipe;
 	unsigned int versions;
+	unsigned int modes;
 	bool fix_tx_ids;
 	bool use_atr;
 	bool needs_single_link_version;

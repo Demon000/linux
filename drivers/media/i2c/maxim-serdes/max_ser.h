@@ -54,6 +54,7 @@ struct max_ser_pipe {
 struct max_ser;
 
 struct max_ser_ops {
+	unsigned int modes;
 	unsigned int num_pipes;
 	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;

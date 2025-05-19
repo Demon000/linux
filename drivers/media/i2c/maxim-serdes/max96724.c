@@ -184,6 +184,7 @@ struct max96724_priv {
 
 struct max96724_chip_info {
 	unsigned int versions;
+	unsigned int modes;
 	bool supports_pipe_stream_autoselect;
 	unsigned int num_pipes;
 
@@ -868,6 +869,7 @@ static const struct max_des_ops max96724_ops = {
 
 static const struct max96724_chip_info max96724_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.supports_pipe_stream_autoselect = true,
@@ -876,6 +878,7 @@ static const struct max96724_chip_info max96724_info = {
 
 static const struct max96724_chip_info max96724f_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.supports_pipe_stream_autoselect = true,
@@ -884,6 +887,7 @@ static const struct max96724_chip_info max96724f_info = {
 
 static const struct max96724_chip_info max96712_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
+	.modes = BIT(MAX_GMSL_PIXEL_MODE),
 	.num_pipes = 8,
 };
 
@@ -941,6 +945,7 @@ static int max96724_probe(struct i2c_client *client)
 
 	*ops = max96724_ops;
 	ops->versions = priv->info->versions;
+	ops->modes = priv->info->modes;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
