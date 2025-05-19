@@ -194,7 +194,7 @@ static int max_des_set_pipe_enable(struct max_des *des, struct max_des_pipe *pip
 
 static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 				     unsigned int pipe_id, unsigned int phy_id,
-				     unsigned int src_vc_id)
+				     unsigned int src_vc_id, bool keep_vc)
 {
 	unsigned int vc_id;
 
@@ -204,7 +204,7 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 	if (context->vc_ids_masks[pipe_id][phy_id] & BIT(src_vc_id))
 		return 0;
 
-	if (!(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id)))
+	if (keep_vc && !(context->dst_vc_ids_masks[phy_id] & BIT(src_vc_id)))
 		vc_id = src_vc_id;
 	else
 		vc_id = ffz(context->dst_vc_ids_masks[phy_id]);
@@ -273,6 +273,17 @@ static int max_des_get_supported_modes(struct max_des_priv *priv,
 	return 0;
 }
 
+static int max_des_should_keep_vc(struct max_des_priv *priv,
+				  struct max_source *source,
+			          unsigned int modes)
+{
+	/* Pixel mode deserializers always have the ability to remap VCs. */
+	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
+		return false;
+
+	return true;
+}
+
 static int max_des_populate_remap_context(struct max_des_priv *priv,
 					  struct max_des_remap_context *context,
 					  const struct v4l2_subdev_krouting *routing)
@@ -293,6 +304,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		struct max_des_link *link;
 		struct max_des_pipe *pipe;
 		struct max_des_phy *phy;
+		bool keep_vc;
 
 		link = max_des_pad_to_link(des, route->sink_pad);
 		if (!link) {
@@ -328,8 +340,10 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 			return ret;
 		}
 
+		keep_vc = max_des_should_keep_vc(priv, source, modes);
+
 		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
-						entry.bus.csi2.vc);
+						entry.bus.csi2.vc, keep_vc);
 		if (ret)
 			return ret;
 	}
