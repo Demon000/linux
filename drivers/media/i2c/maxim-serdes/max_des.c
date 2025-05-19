@@ -248,9 +248,17 @@ static int max_des_get_supported_modes(struct max_des_priv *priv,
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
+		struct max_des_pipe *pipe;
 		struct max_source *source;
 
 		if (!link->enabled)
+			continue;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!context->pipe_in_use[pipe->index])
 			continue;
 
 		source = max_des_find_link_source(priv, link);
@@ -300,6 +308,9 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 		pipe = max_des_find_link_pipe(des, link);
 		if (!pipe)
 			return -ENOENT;
+
+		if (!context->pipe_in_use[pipe->index])
+			continue;
 
 		source = max_des_find_link_source(priv, link);
 		if (!source)
@@ -658,9 +669,17 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
+		struct max_des_pipe *pipe;
 		struct max_source *source;
 
 		if (!link->enabled)
+			continue;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		if (!context->pipe_in_use[pipe->index])
 			continue;
 
 		source = max_des_find_link_source(priv, link);
