@@ -51,6 +51,8 @@ struct max_des_remap_context {
 	bool tunnel_enable;
 	/* Mark the PHYs to which each pipe is mapped. */
 	unsigned long pipe_phy_masks[MAX_DES_PIPES_NUM];
+	/* Mark the pipes in use. */
+	unsigned long pipe_in_use[MAX_DES_PIPES_NUM];
 	/* Mark whether pipe has remapped VC ids. */
 	bool vc_ids_remapped[MAX_DES_PIPES_NUM];
 	/* Map between pipe VC ids and PHY VC ids. */
@@ -214,6 +216,7 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 	if (vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
 
+	context->pipe_in_use[pipe_id] = true;
 	context->pipe_phy_masks[pipe_id] |= BIT(phy_id);
 	context->dst_vc_ids_masks[phy_id] |= BIT(vc_id);
 
