@@ -558,9 +558,6 @@ static int max_des_set_modes(struct max_des_priv *priv,
 		if (!pipe)
 			return -ENOENT;
 
-		if (!source->sd)
-			continue;
-
 		pipe_double_bpps = context->pipes_double_bpps[pipe->index];
 
 		ret = max_ser_set_double_bpps(source->sd, pipe_double_bpps);
@@ -644,9 +641,6 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		pipe = max_des_find_link_pipe(des, link);
 		if (!pipe)
 			return -ENOENT;
-
-		if (!source->sd)
-			continue;
 
 		stream_id = pipe->stream_id;
 
