@@ -280,6 +280,8 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 	struct max_des *des = priv->des;
 	unsigned int i;
 
+	context->mode = MAX_GMSL_PIXEL_MODE;
+
 	/*
 	 * If pixel mode is the only supported mode, do not try to see if
 	 * tunnel mode can be used.
@@ -309,8 +311,6 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 		if (hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
 		    !context->vc_ids_remapped[pipe->index])
 			continue;
-
-		context->mode = MAX_GMSL_PIXEL_MODE;
 
 		return 0;
 	}
