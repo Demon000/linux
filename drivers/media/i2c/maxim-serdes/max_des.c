@@ -322,7 +322,7 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		if (hweight_long(context->pipe_phy_masks[pipe->index]) <= 1 &&
+		if (hweight_long(context->pipe_phy_masks[pipe->index]) == 1 &&
 		    !context->vc_ids_remapped[pipe->index])
 			continue;
 
