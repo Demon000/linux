@@ -91,7 +91,7 @@ max_ser_find_phy_pipe(struct max_ser *ser, struct max_ser_phy *phy)
 }
 
 static struct max_source *
-max_ser_find_phy_source(struct max_ser_priv *priv, struct max_ser_phy *phy)
+max_ser_get_phy_source(struct max_ser_priv *priv, struct max_ser_phy *phy)
 {
 	return &priv->sources[phy->index];
 }
@@ -447,10 +447,7 @@ static int max_ser_get_frame_desc_state(struct v4l2_subdev *sd,
 			return -ENOENT;
 		}
 
-		source = max_ser_find_phy_source(priv, phy);
-		if (!source)
-			return -ENOENT;
-
+		source = max_ser_get_phy_source(priv, phy);
 		if (!source->sd)
 			continue;
 
@@ -753,10 +750,7 @@ static int max_ser_update_phy(struct max_ser_priv *priv,
 	if (!pipe)
 		return -ENOENT;
 
-	source = max_ser_find_phy_source(priv, phy);
-	if (!source)
-		return -ENOENT;
-
+	source = max_ser_get_phy_source(priv, phy);
 	if (!source->sd)
 		return 0;
 
@@ -1109,10 +1103,7 @@ static int max_ser_v4l2_notifier_register(struct max_ser_priv *priv)
 		struct max_source *source;
 		struct max_asc *asc;
 
-		source = max_ser_find_phy_source(priv, phy);
-		if (!source)
-			return -ENOENT;
-
+		source = max_ser_get_phy_source(priv, phy);
 		if (!source->ep_fwnode)
 			continue;
 
@@ -1317,10 +1308,7 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 		struct max_ser_phy *phy = &ser->phys[i];
 		struct max_source *source;
 
-		source = max_ser_find_phy_source(priv, phy);
-		if (!source)
-			return -ENOENT;
-
+		source = max_ser_get_phy_source(priv, phy);
 		source->index = i;
 
 		ret = max_ser_parse_sink_dt_endpoint(priv, phy, source, fwnode);
