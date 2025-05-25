@@ -239,7 +239,6 @@ static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 	if (vc_id >= MAX_SERDES_VC_ID_NUM)
 		return -E2BIG;
 
-	context->pipe_in_use[pipe_id] = true;
 	context->pipe_phy_masks[pipe_id] |= BIT(phy_id);
 	context->dst_vc_ids_masks[phy_id] |= BIT(vc_id);
 
@@ -257,6 +256,31 @@ static int max_des_get_src_dst_vc_id(struct max_des_remap_context *context,
 		return -ENOENT;
 
 	*dst_vc_id = context->vc_ids_map[pipe_id][phy_id][src_vc_id];
+
+	return 0;
+}
+
+static int max_des_populate_remap_pipes_in_use(struct max_des_priv *priv,
+					       struct max_des_remap_context *context,
+					       const struct v4l2_subdev_krouting *routing)
+{
+	struct max_des *des = priv->des;
+	struct v4l2_subdev_route *route;
+
+	for_each_active_route(routing, route) {
+		struct max_des_link *link;
+		struct max_des_pipe *pipe;
+
+		link = max_des_pad_to_link(des, route->sink_pad);
+		if (!link)
+			return -ENOENT;
+
+		pipe = max_des_find_link_pipe(des, link);
+		if (!pipe)
+			return -ENOENT;
+
+		context->pipe_in_use[pipe->index] = true;
+	}
 
 	return 0;
 }
@@ -384,6 +408,10 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	struct v4l2_subdev_route *route;
 	unsigned int modes;
 	int ret;
+
+	ret = max_des_populate_remap_pipes_in_use(priv, context, routing);
+	if (ret)
+		return ret;
 
 	ret = max_des_get_supported_modes(priv, context, &modes);
 	if (ret)
