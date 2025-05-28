@@ -100,9 +100,9 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 }
 EXPORT_SYMBOL(max_get_fd_stream_entry);
 
-int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
-		 u32 *bpps, const struct v4l2_subdev_krouting *routing,
-		 u32 pad, u64 streams_mask)
+int max_get_bpps(struct max_source *source, u32 *bpps,
+	         const struct v4l2_subdev_krouting *routing,
+		 u32 sink_pad, u64 sink_streams_mask)
 {
 	struct v4l2_subdev_route *route;
 	int ret;
@@ -112,20 +112,11 @@ int max_get_bpps(struct max_source *sources, u32 source_sink_pad_offset,
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		const struct max_mipi_format *format;
-		struct max_source *source;
 
-		if (route->sink_pad == pad) {
-			if (!(BIT_ULL(route->sink_stream) & streams_mask))
-				continue;
-		} else if (route->source_pad == pad) {
-			if (!(BIT_ULL(route->source_stream) & streams_mask))
-				continue;
-		} else {
+		if (route->sink_pad != sink_pad)
 			continue;
-		}
 
-		source = &sources[route->sink_pad + source_sink_pad_offset];
-		if (!source)
+		if (!(BIT_ULL(route->sink_stream) & sink_streams_mask))
 			continue;
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,

@@ -516,6 +516,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	 */
 
 	for_each_active_route(routing, route) {
+		struct max_source *source;
 		unsigned int min_bpp;
 		unsigned int max_bpp;
 
@@ -531,14 +532,20 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (!pipe)
 			return -ENOENT;
 
-		ret = max_get_bpps(priv->sources, 0, &stream_bpps,
-				   routing, route->sink_pad,
-				   BIT_ULL(route->sink_stream));
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
+
+		ret = max_get_bpps(source, &stream_bpps, routing,
+				   route->sink_pad, BIT_ULL(route->sink_stream));
 		if (ret)
 			return ret;
 
-		ret = max_get_bpps(priv->sources, 0, &sink_bpps,
-				   routing, route->sink_pad, ~0ULL);
+		ret = max_get_bpps(source, &sink_bpps, routing,
+				   route->sink_pad, ~0ULL);
 		if (ret)
 			return ret;
 

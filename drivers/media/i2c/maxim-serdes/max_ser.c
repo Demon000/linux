@@ -625,6 +625,8 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 			    const struct v4l2_subdev_krouting *routing, u32 pad)
 {
 	struct max_ser *ser = priv->ser;
+	struct max_ser_phy *phy;
+	struct max_source *source;
 	unsigned int doubled_bpp;
 	unsigned int min_bpp;
 	unsigned int max_bpp;
@@ -634,7 +636,15 @@ static int max_ser_get_mode(struct max_ser_priv *priv,
 	if (ser->mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
-	ret = max_get_bpps(priv->sources, 0, &bpps, routing, pad, ~0ULL);
+	phy = max_ser_pad_to_phy(ser, pad);
+	if (!phy)
+		return -ENOENT;
+
+	source = max_ser_get_phy_source(priv, phy);
+	if (!source->sd)
+		return 0;
+
+	ret = max_get_bpps(source, &bpps, routing, pad, ~0ULL);
 	if (ret)
 		return ret;
 
