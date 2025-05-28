@@ -19,6 +19,12 @@
 #define MAX96724_REG6				0x6
 #define MAX96724_REG6_LINK_EN			GENMASK(3, 0)
 
+#define MAX96724_DEBUG_EXTRA			0x9
+#define MAX96724_DEBUG_EXTRA_PCLK_SRC		GENMASK(1, 0)
+#define MAX96724_DEBUG_EXTRA_PCLK_SRC_25MHz	0b00
+#define MAX96724_DEBUG_EXTRA_PCLK_SRC_75MHz	0b01
+#define MAX96724_DEBUG_EXTRA_PCLK_SRC_USE_PIPE	0b10
+
 #define MAX96724_REG26(x)			(0x10 + (x) / 2)
 #define MAX96724_REG26_RX_RATE_PHY(x)		(GENMASK(1, 0) << (4 * ((x) % 2)))
 #define MAX96724_REG26_RX_RATE_3Gbps		0b01
@@ -40,6 +46,9 @@
 
 #define MAX96724_VPRBS(p)			(0x1dc + (p) * 0x20)
 #define MAX96724_VPRBS_VIDEO_LOCK		BIT(0)
+#define MAX96724_VPRBS_PATGEN_CLK_SRC		BIT(7)
+#define MAX96724_VPRBS_PATGEN_CLK_SRC_150MHZ	0b0
+#define MAX96724_VPRBS_PATGEN_CLK_SRC_375MHZ	0b1
 
 #define MAX96724_BACKTOP12			0x40b
 #define MAX96724_BACKTOP12_CSI_OUT_EN		BIT(1)
@@ -75,6 +84,7 @@
 #define MAX96724_MIPI_PHY0_PHY_2X4		BIT(2)
 #define MAX96724_MIPI_PHY0_PHY_1X4A_2X2		BIT(3)
 #define MAX96724_MIPI_PHY0_PHY_1X4B_2X2		BIT(4)
+#define MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN	BIT(7)
 
 #define MAX96724_MIPI_PHY2			0x8a2
 #define MAX96724_MIPI_PHY2_PHY_STDB_N_4(x)	(GENMASK(5, 4) << ((x) / 2 * 2))
@@ -148,6 +158,35 @@
 #define MAX96724_MIPI_TX57(x)			(0x939 + (x) * 0x40)
 #define MAX96724_MIPI_TX57_TUN_DEST		GENMASK(5, 4)
 #define MAX96724_MIPI_TX57_DIS_AUTO_TUN_DET	BIT(6)
+#define MAX96724_DET(p)				BIT(p)
+
+#define MAX96724_PATGEN_0			0x1050
+#define MAX96724_PATGEN_0_VTG_MODE		GENMASK(1, 0)
+#define MAX96724_PATGEN_0_VTG_MODE_FREE_RUNNING	0b11
+#define MAX96724_PATGEN_0_DE_INV		BIT(2)
+#define MAX96724_PATGEN_0_HS_INV		BIT(3)
+#define MAX96724_PATGEN_0_VS_INV		BIT(4)
+#define MAX96724_PATGEN_0_GEN_DE		BIT(5)
+#define MAX96724_PATGEN_0_GEN_HS		BIT(6)
+#define MAX96724_PATGEN_0_GEN_VS		BIT(7)
+
+#define MAX96724_PATGEN_1			0x1051
+#define MAX96724_PATGEN_1_PATGEN_MODE		GENMASK(5, 4)
+#define MAX96724_PATGEN_1_PATGEN_MODE_DISABLED	0b00
+#define MAX96724_PATGEN_1_PATGEN_MODE_GRADIENT	0b10
+
+#define MAX96724_VS_DLY_2			0x1052
+#define MAX96724_VS_HIGH_2			0x1055
+#define MAX96724_VS_LOW_2			0x1058
+#define MAX96724_V2H_2				0x105b
+#define MAX96724_HS_HIGH_1			0x105e
+#define MAX96724_HS_LOW_1			0x1060
+#define MAX96724_HS_CNT_1			0x1062
+#define MAX96724_V2D_2				0x1064
+#define MAX96724_DE_HIGH_1			0x1067
+#define MAX96724_DE_LOW_1			0x1069
+#define MAX96724_DE_CNT_1			0x106b
+#define MAX96724_GRAD_INCR			0x106d
 
 #define MAX96724_DE_DET				0x11f0
 #define MAX96724_HS_DET				0x11f1
@@ -160,6 +199,15 @@
 #define MAX96724_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
 
 #define MAX96724_PHY1_ALT_CLOCK			5
+
+#define REG_SEQUENCE_2(reg, val) \
+	{ (reg),     ((val) >> 8) & 0xff }, \
+	{ (reg) + 1, ((val) >> 0) & 0xff }
+
+#define REG_SEQUENCE_3(reg, val) \
+	{ (reg),     ((val) >> 16) & 0xff }, \
+	{ (reg) + 1, ((val) >> 8)  & 0xff }, \
+	{ (reg) + 2, ((val) >> 0)  & 0xff }
 
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
@@ -411,6 +459,11 @@ static int max96724_init(struct max_des *des)
 	ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_PHY0,
 				 MAX96724_MIPI_PHY0_PHY_CONFIG,
 				 max96724_phys_configs_reg_val[des->phys_config]);
+	if (ret)
+		return ret;
+
+	/* Set TPG gradient increase. */
+	ret = regmap_write(priv->regmap, MAX96724_GRAD_INCR, 0x4);
 	if (ret)
 		return ret;
 
@@ -839,6 +892,126 @@ static int max96724_set_link_version(struct max_des *des,
 				  field_prep(MAX96724_REG26_RX_RATE_PHY(index), val));
 }
 
+static int max96724_set_tpg_timings(struct max96724_priv *priv,
+				    const struct max_tpg_timings *tm)
+{
+	const struct reg_sequence regs[] = {
+		REG_SEQUENCE_3(MAX96724_VS_DLY_2, tm->vs_dly),
+		REG_SEQUENCE_3(MAX96724_VS_HIGH_2, tm->vs_high),
+		REG_SEQUENCE_3(MAX96724_VS_LOW_2, tm->vs_low),
+		REG_SEQUENCE_3(MAX96724_V2H_2, tm->v2h),
+		REG_SEQUENCE_2(MAX96724_HS_HIGH_1, tm->hs_high),
+		REG_SEQUENCE_2(MAX96724_HS_LOW_1, tm->hs_low),
+		REG_SEQUENCE_2(MAX96724_HS_CNT_1, tm->hs_cnt),
+		REG_SEQUENCE_3(MAX96724_V2D_2, tm->v2d),
+		REG_SEQUENCE_2(MAX96724_DE_HIGH_1, tm->de_high),
+		REG_SEQUENCE_2(MAX96724_DE_LOW_1, tm->de_low),
+		REG_SEQUENCE_2(MAX96724_DE_CNT_1, tm->de_cnt),
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
+	if (ret)
+		return ret;
+
+	return regmap_write(priv->regmap, MAX96724_PATGEN_0,
+			    FIELD_PREP(MAX96724_PATGEN_0_VTG_MODE,
+				       MAX96724_PATGEN_0_VTG_MODE_FREE_RUNNING) |
+			    FIELD_PREP(MAX96724_PATGEN_0_DE_INV, tm->de_inv) |
+			    FIELD_PREP(MAX96724_PATGEN_0_HS_INV, tm->hs_inv) |
+			    FIELD_PREP(MAX96724_PATGEN_0_VS_INV, tm->vs_inv) |
+			    FIELD_PREP(MAX96724_PATGEN_0_GEN_DE, tm->gen_de) |
+			    FIELD_PREP(MAX96724_PATGEN_0_GEN_HS, tm->gen_hs) |
+			    FIELD_PREP(MAX96724_PATGEN_0_GEN_VS, tm->gen_vs));
+}
+
+static int max96724_set_tpg_clk(struct max96724_priv *priv, const struct videomode *vm)
+{
+	bool patgen_clk_src = 0;
+	u8 pclk_src;
+	int ret;
+
+	if (!vm)
+		return 0;
+
+	switch (vm->pixelclock) {
+	case 25000000:
+		pclk_src = MAX96724_DEBUG_EXTRA_PCLK_SRC_25MHz;
+		break;
+	case 75000000:
+		pclk_src = MAX96724_DEBUG_EXTRA_PCLK_SRC_75MHz;
+		break;
+	case 150000000:
+		pclk_src = MAX96724_DEBUG_EXTRA_PCLK_SRC_USE_PIPE;
+		patgen_clk_src = MAX96724_VPRBS_PATGEN_CLK_SRC_150MHZ;
+		break;
+	case 375000000:
+		pclk_src = MAX96724_DEBUG_EXTRA_PCLK_SRC_USE_PIPE;
+		patgen_clk_src = MAX96724_VPRBS_PATGEN_CLK_SRC_375MHZ;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * TPG data is always injected on link 0, which is always routed to
+	 * pipe 0.
+	 */
+	ret = regmap_update_bits(priv->regmap, MAX96724_VPRBS(0),
+				 MAX96724_VPRBS_PATGEN_CLK_SRC,
+				 FIELD_PREP(MAX96724_VPRBS_PATGEN_CLK_SRC,
+					    patgen_clk_src));
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(priv->regmap, MAX96724_DEBUG_EXTRA,
+				  MAX96724_DEBUG_EXTRA_PCLK_SRC,
+				  FIELD_PREP(MAX96724_DEBUG_EXTRA_PCLK_SRC,
+					     pclk_src));
+}
+
+static int max96724_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	struct max_tpg_timings timings = { 0 };
+	const struct videomode *vm = NULL;
+	bool enable = entry != NULL;
+	int ret;
+
+	if (enable) {
+		vm = max_find_tpg_videomode(entry);
+		if (!vm)
+			return -EINVAL;
+
+		max_get_tpg_timings(vm, &timings);
+	}
+
+	ret = max96724_set_tpg_timings(priv, &timings);
+	if (ret)
+		return ret;
+
+	ret = max96724_set_tpg_clk(priv, vm);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(priv->regmap, MAX96724_PATGEN_1,
+				 MAX96724_PATGEN_1_PATGEN_MODE,
+				 FIELD_PREP(MAX96724_PATGEN_1_PATGEN_MODE,
+					    enable ? MAX96724_PATGEN_1_PATGEN_MODE_GRADIENT
+						   : MAX96724_PATGEN_1_PATGEN_MODE_DISABLED));
+	if (ret)
+		return ret;
+
+	return regmap_assign_bits(priv->regmap, MAX96724_MIPI_PHY0,
+				  MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN, enable);
+}
+
+static const struct max_tpg_entry max96724_tpg_entries[] = {
+	MAX_TPG_ENTRY_640X480P60_RGB888,
+	MAX_TPG_ENTRY_1920X1080P30_RGB888,
+	MAX_TPG_ENTRY_1920X1080P60_RGB888,
+};
+
 static const struct max_des_ops max96724_ops = {
 	.num_phys = 4,
 	.num_links = 4,
@@ -847,6 +1020,11 @@ static const struct max_des_ops max96724_ops = {
 		.num_configs = ARRAY_SIZE(max96724_phys_configs),
 		.configs = max96724_phys_configs,
 	},
+	.tpg_entries = {
+		.num_entries = ARRAY_SIZE(max96724_tpg_entries),
+		.entries = max96724_tpg_entries,
+	},
+	.tpg_mode = MAX_GMSL_PIXEL_MODE,
 	.use_atr = true,
 	.reg_read = max96724_reg_read,
 	.reg_write = max96724_reg_write,
@@ -863,6 +1041,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,
 	.set_pipe_mode = max96724_set_pipe_mode,
+	.set_tpg = max96724_set_tpg,
 	.select_links = max96724_select_links,
 	.set_link_version = max96724_set_link_version,
 };
