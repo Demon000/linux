@@ -63,6 +63,8 @@ struct max_ser_ops {
 	unsigned int num_i2c_xlates;
 
 	struct max_phys_configs phys_configs;
+	struct max_tpg_entries tpg_entries;
+	enum max_gmsl_mode tpg_mode;
 
 	int (*reg_read)(struct max_ser *ser, unsigned int reg, unsigned int *val);
 	int (*reg_write)(struct max_ser *ser, unsigned int reg, unsigned int val);
@@ -75,6 +77,7 @@ struct max_ser_ops {
 	int (*set_i2c_xlate)(struct max_ser *ser, unsigned int i,
 			     struct max_i2c_xlate *i2c_xlate);
 	int (*set_tunnel_enable)(struct max_ser *ser, bool enable);
+	int (*set_tpg)(struct max_ser *ser, const struct max_tpg_entry *entry);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
@@ -110,6 +113,7 @@ struct max_ser {
 
 	struct max_ser_phy *phys;
 	struct max_ser_pipe *pipes;
+	const struct max_tpg_entry *tpg_entry;
 
 	unsigned int phys_config;
 	unsigned int active;

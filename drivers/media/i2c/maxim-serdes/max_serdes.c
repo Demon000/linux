@@ -113,41 +113,6 @@ int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp)
 	return 0;
 }
 
-int max_get_bpps(struct max_source *source, u32 *bpps,
-	         struct v4l2_subdev_state *state,
-		 u32 sink_pad, u64 sink_streams_mask)
-{
-	struct v4l2_subdev_route *route;
-	int ret;
-
-	*bpps = 0;
-
-	for_each_active_route(&state->routing, route) {
-		struct v4l2_mbus_frame_desc_entry entry;
-		const struct max_mipi_format *format;
-
-		if (route->sink_pad != sink_pad)
-			continue;
-
-		if (!(BIT_ULL(route->sink_stream) & sink_streams_mask))
-			continue;
-
-		ret = max_get_fd_stream_entry(source->sd, source->pad,
-					      route->sink_stream, &entry);
-		if (ret)
-			return ret;
-
-		format = max_mipi_format_by_dt(entry.bus.csi2.dt);
-		if (!format)
-			continue;
-
-		*bpps |= BIT(format->bpp);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(max_get_bpps);
-
 int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
 		     unsigned int *doubled_bpp)
 {
