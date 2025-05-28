@@ -10,6 +10,8 @@
 #include <linux/of_graph.h>
 #include <linux/regmap.h>
 
+#include <media/mipi-csi2.h>
+
 #include "max_des.h"
 
 #define MAX9296A_REG0				0x0
@@ -42,6 +44,12 @@
 #define MAX9296A_MIPI_TX0(x)			(0x28 + (x) * 0x5000)
 #define MAX9296A_MIPI_TX0_RX_FEC_EN		BIT(1)
 
+#define MAX9296A_IO_CHK0			0x38
+#define MAX9296A_IO_CHK0_PIN_DRV_EN_0		GENMASK(1, 0)
+#define MAX9296A_IO_CHK0_PIN_DRV_EN_0_25MHz	0b00
+#define MAX9296A_IO_CHK0_PIN_DRV_EN_0_75MHz	0b01
+#define MAX9296A_IO_CHK0_PIN_DRV_EN_0_USE_PIPE	0b10
+
 #define MAX9296A_RX50(p)			(0x50 + (p))
 #define MAX9296A_RX50_STR_SEL			GENMASK(1, 0)
 
@@ -52,8 +60,39 @@
 #define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << ((p) * 3))
 #define MAX9296A_VIDEO_PIPE_SEL_LINK(p)		(BIT(2) << ((p) * 3))
 
-#define MAX9296A_VPRBS(p)			(0x1dc + (p) * 0x20)
+#define MAX9296A_VPRBS(p)			(0x1fc + (p) * 0x20)
 #define MAX9296A_VPRBS_VIDEO_LOCK		BIT(0)
+#define MAX9296A_VPRBS_PATGEN_CLK_SRC		BIT(7)
+#define MAX9296A_VPRBS_PATGEN_CLK_SRC_150MHZ	0b0
+#define MAX9296A_VPRBS_PATGEN_CLK_SRC_600MHZ	0b1
+
+#define MAX9296A_PATGEN_0			0x240
+#define MAX9296A_PATGEN_0_VTG_MODE		GENMASK(1, 0)
+#define MAX9296A_PATGEN_0_VTG_MODE_FREE_RUNNING	0b11
+#define MAX9296A_PATGEN_0_DE_INV		BIT(2)
+#define MAX9296A_PATGEN_0_HS_INV		BIT(3)
+#define MAX9296A_PATGEN_0_VS_INV		BIT(4)
+#define MAX9296A_PATGEN_0_GEN_DE		BIT(5)
+#define MAX9296A_PATGEN_0_GEN_HS		BIT(6)
+#define MAX9296A_PATGEN_0_GEN_VS		BIT(7)
+
+#define MAX9296A_PATGEN_1			0x241
+#define MAX9296A_PATGEN_1_PATGEN_MODE		GENMASK(5, 4)
+#define MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED	0b00
+#define MAX9296A_PATGEN_1_PATGEN_MODE_GRADIENT	0b10
+
+#define MAX9296A_VS_DLY_2			0x242
+#define MAX9296A_VS_HIGH_2			0x245
+#define MAX9296A_VS_LOW_2			0x248
+#define MAX9296A_V2H_2				0x24b
+#define MAX9296A_HS_HIGH_1			0x24e
+#define MAX9296A_HS_LOW_1			0x250
+#define MAX9296A_HS_CNT_1			0x252
+#define MAX9296A_V2D_2				0x254
+#define MAX9296A_DE_HIGH_1			0x257
+#define MAX9296A_DE_LOW_1			0x259
+#define MAX9296A_DE_CNT_1			0x25b
+#define MAX9296A_GRAD_INCR			0x25d
 
 #define MAX9296A_BACKTOP12			0x313
 #define MAX9296A_BACKTOP12_CSI_OUT_EN		BIT(1)
@@ -74,6 +113,9 @@
 
 #define MAX9296A_BACKTOP33			0x328
 #define MAX9296A_BACKTOP32_BPP12DBL(p)		BIT(p)
+
+#define MAX9296A_MIPI_PHY0			0x330
+#define MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN	BIT(7)
 
 #define MAX9296A_MIPI_PHY2			0x332
 #define MAX9296A_MIPI_PHY2_PHY_STDBY_N(x)	(GENMASK(5, 4) << ((x) * 2))
@@ -145,6 +187,15 @@
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
+#define REG_SEQUENCE_2(reg, val) \
+	{ (reg),     ((val) >> 8) & 0xff }, \
+	{ (reg) + 1, ((val) >> 0) & 0xff }
+
+#define REG_SEQUENCE_3(reg, val) \
+	{ (reg),     ((val) >> 16) & 0xff }, \
+	{ (reg) + 1, ((val) >> 8)  & 0xff }, \
+	{ (reg) + 2, ((val) >> 0)  & 0xff }
+
 #define MAX9296A_PIPES_NUM		4
 #define MAX9296A_PHYS_NUM		2
 
@@ -184,6 +235,8 @@ struct max9296a_chip_info {
 	bool supports_phy_log;
 	bool adjust_rlms;
 	bool fix_tx_ids;
+
+	enum max_gmsl_mode tpg_mode;
 
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
 				  unsigned int stream_id);
@@ -823,6 +876,11 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 			return ret;
 	}
 
+	/* Set TPG gradient increase. */
+	ret = regmap_write(priv->regmap, MAX9296A_GRAD_INCR, 0x4);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -914,8 +972,131 @@ static int max9296a_set_link_version(struct max_des *des,
 				  MAX9296A_REG4_GMSL3_X(index), gmsl3_en);
 }
 
+static int max9296a_set_tpg_timings(struct max9296a_priv *priv,
+				    const struct max_tpg_timings *tm)
+{
+	const struct reg_sequence regs[] = {
+		REG_SEQUENCE_3(MAX9296A_VS_DLY_2, tm->vs_dly),
+		REG_SEQUENCE_3(MAX9296A_VS_HIGH_2, tm->vs_high),
+		REG_SEQUENCE_3(MAX9296A_VS_LOW_2, tm->vs_low),
+		REG_SEQUENCE_3(MAX9296A_V2H_2, tm->v2h),
+		REG_SEQUENCE_2(MAX9296A_HS_HIGH_1, tm->hs_high),
+		REG_SEQUENCE_2(MAX9296A_HS_LOW_1, tm->hs_low),
+		REG_SEQUENCE_2(MAX9296A_HS_CNT_1, tm->hs_cnt),
+		REG_SEQUENCE_3(MAX9296A_V2D_2, tm->v2d),
+		REG_SEQUENCE_2(MAX9296A_DE_HIGH_1, tm->de_high),
+		REG_SEQUENCE_2(MAX9296A_DE_LOW_1, tm->de_low),
+		REG_SEQUENCE_2(MAX9296A_DE_CNT_1, tm->de_cnt),
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
+	if (ret)
+		return ret;
+
+	return regmap_write(priv->regmap, MAX9296A_PATGEN_0,
+			    FIELD_PREP(MAX9296A_PATGEN_0_VTG_MODE,
+				       MAX9296A_PATGEN_0_VTG_MODE_FREE_RUNNING) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_DE_INV, tm->de_inv) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_HS_INV, tm->hs_inv) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_VS_INV, tm->vs_inv) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_GEN_DE, tm->gen_de) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_GEN_HS, tm->gen_hs) |
+			    FIELD_PREP(MAX9296A_PATGEN_0_GEN_VS, tm->gen_vs));
+}
+
+static int max9296a_set_tpg_clk(struct max9296a_priv *priv, const struct videomode *vm)
+{
+	bool patgen_clk_src = 0;
+	u8 pin_drv_en;
+	int ret;
+
+	if (!vm)
+		return 0;
+
+	switch (vm->pixelclock) {
+	case 25000000:
+		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_25MHz;
+		break;
+	case 75000000:
+		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_75MHz;
+		break;
+	case 150000000:
+		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_USE_PIPE;
+		patgen_clk_src = MAX9296A_VPRBS_PATGEN_CLK_SRC_150MHZ;
+		break;
+	case 600000000:
+		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_USE_PIPE;
+		patgen_clk_src = MAX9296A_VPRBS_PATGEN_CLK_SRC_600MHZ;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * TPG data is always injected on link 0, which is always routed to
+	 * pipe 0.
+	 */
+	ret = regmap_update_bits(priv->regmap, MAX9296A_VPRBS(0),
+				 MAX9296A_VPRBS_PATGEN_CLK_SRC,
+				 FIELD_PREP(MAX9296A_VPRBS_PATGEN_CLK_SRC,
+					    patgen_clk_src));
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(priv->regmap, MAX9296A_IO_CHK0,
+				  MAX9296A_IO_CHK0_PIN_DRV_EN_0,
+				  FIELD_PREP(MAX9296A_IO_CHK0_PIN_DRV_EN_0,
+					     pin_drv_en));
+}
+
+static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	struct max_tpg_timings timings = { 0 };
+	const struct videomode *vm = NULL;
+	bool enable = entry != NULL;
+	int ret;
+
+	if (enable) {
+		vm = max_find_tpg_videomode(entry);
+		if (!vm)
+			return -EINVAL;
+
+		max_get_tpg_timings(vm, &timings);
+	}
+
+	ret = max9296a_set_tpg_timings(priv, &timings);
+	if (ret)
+		return ret;
+
+	ret = max9296a_set_tpg_clk(priv, vm);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(priv->regmap, MAX9296A_PATGEN_1,
+				 MAX9296A_PATGEN_1_PATGEN_MODE,
+				 FIELD_PREP(MAX9296A_PATGEN_1_PATGEN_MODE,
+					    enable ? MAX9296A_PATGEN_1_PATGEN_MODE_GRADIENT
+						   : MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED));
+	if (ret)
+		return ret;
+
+	return regmap_assign_bits(priv->regmap, MAX9296A_MIPI_PHY0,
+				  MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN, enable);
+}
+
+static const struct max_tpg_entry max9296a_tpg_entries[] = {
+	MAX_TPG_ENTRY_640X480P60_RGB888,
+	MAX_TPG_ENTRY_1920X1080P60_RGB888,
+};
+
 static const struct max_des_ops max9296a_ops = {
 	.num_remaps_per_pipe = 16,
+	.tpg_entries = {
+		.num_entries = ARRAY_SIZE(max9296a_tpg_entries),
+		.entries = max9296a_tpg_entries,
+	},
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
 	.log_pipe_status = max9626a_log_pipe_status,
@@ -927,6 +1108,7 @@ static const struct max_des_ops max9296a_ops = {
 	.set_pipe_remap = max9296a_set_pipe_remap,
 	.set_pipe_remaps_enable = max9296a_set_pipe_remaps_enable,
 	.set_pipe_mode = max9296a_set_pipe_mode,
+	.set_tpg = max9296a_set_tpg,
 	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
 	.set_link_version = max9296a_set_link_version,
@@ -993,6 +1175,7 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	ops->use_atr = priv->info->use_atr;
+	ops->tpg_mode = priv->info->tpg_mode;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -1054,6 +1237,7 @@ static const struct max9296a_chip_info max96714_info = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
+	.tpg_mode = MAX_GMSL_PIXEL_MODE,
 	.polarity_on_physical_lanes = true,
 	.supports_phy_log = true,
 	.adjust_rlms = true,
@@ -1075,6 +1259,7 @@ static const struct max9296a_chip_info max96714f_info = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
+	.tpg_mode = MAX_GMSL_PIXEL_MODE,
 	.polarity_on_physical_lanes = true,
 	.supports_phy_log = true,
 	.adjust_rlms = true,
@@ -1100,6 +1285,7 @@ static const struct max9296a_chip_info max96716a_info = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
+	.tpg_mode = MAX_GMSL_PIXEL_MODE,
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_cphy = true,
@@ -1126,6 +1312,7 @@ static const struct max9296a_chip_info max96792a_info = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
+	.tpg_mode = MAX_GMSL_PIXEL_MODE,
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_cphy = true,
