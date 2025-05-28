@@ -51,7 +51,7 @@ struct max_des_remap_context {
 	/* Mark the PHYs to which each pipe is mapped. */
 	unsigned long pipe_phy_masks[MAX_DES_PIPES_NUM];
 	/* Mark the pipes in use. */
-	unsigned long pipe_in_use[MAX_DES_PIPES_NUM];
+	bool pipe_in_use[MAX_DES_PIPES_NUM];
 	/* Mark whether pipe has remapped VC ids. */
 	bool vc_ids_remapped[MAX_DES_PIPES_NUM];
 	/* Map between pipe VC ids and PHY VC ids. */
