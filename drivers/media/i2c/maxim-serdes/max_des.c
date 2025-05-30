@@ -1009,11 +1009,10 @@ static int max_des_add_remaps(struct max_des *des, struct max_des_remap *remaps,
 static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 				   struct max_des_remap_context *context,
 				   struct max_des_pipe *pipe,
-				   struct max_source *source,
 				   struct max_des_remap *remaps,
 				   unsigned int *num_remaps,
 				   const struct v4l2_subdev_krouting *routing,
-				   u32 pad, u64 *streams_masks)
+				   u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
@@ -1026,11 +1025,10 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 	for_each_active_route(routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
+		struct max_des_link *link;
+		struct max_source *source;
 		struct max_des_phy *phy;
 		unsigned int src_vc_id, dst_vc_id;
-
-		if (pad != route->sink_pad)
-			continue;
 
 		if (!(BIT_ULL(route->sink_stream) & streams_masks[route->sink_pad]))
 			continue;
@@ -1041,6 +1039,20 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 				route->source_pad);
 			return -ENOENT;
 		}
+
+		link = max_des_pad_to_link(des, route->sink_pad);
+		if (!link)
+			return -ENOENT;
+
+		if (max_des_find_link_pipe(des, link) != pipe)
+			continue;
+
+		source = max_des_find_link_source(priv, link);
+		if (!source)
+			return -ENOENT;
+
+		if (!source->sd)
+			continue;
 
 		ret = max_get_fd_stream_entry(source->sd, source->pad,
 					      route->sink_stream, &entry);
@@ -1109,10 +1121,9 @@ err_free_new_vc_remaps:
 
 static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 				      struct max_des_remap_context *context,
-				      struct max_source *source,
 				      struct max_des_pipe *pipe,
 				      const struct v4l2_subdev_krouting *routing,
-				      u32 pad, u64 *streams_masks)
+				      u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
 	struct max_des_remap *remaps;
@@ -1127,8 +1138,8 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 	if (!remaps)
 		return -ENOMEM;
 
-	ret = max_des_get_pipe_remaps(priv, context, pipe, source, remaps,
-				      &num_remaps, routing, pad, streams_masks);
+	ret = max_des_get_pipe_remaps(priv, context, pipe, remaps, &num_remaps,
+				      routing, streams_masks);
 	if (ret)
 		goto err_free_new_remaps;
 
@@ -1152,15 +1163,14 @@ err_free_new_remaps:
 
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
-			       struct max_source *source,
 			       struct max_des_pipe *pipe,
 			       const struct v4l2_subdev_krouting *routing,
-			       u32 pad, u64 *streams_masks)
+			       u64 *streams_masks)
 {
 	int ret;
 
-	ret = max_des_update_pipe_remaps(priv, context, source, pipe,
-					 routing, pad, streams_masks);
+	ret = max_des_update_pipe_remaps(priv, context, pipe,
+					 routing, streams_masks);
 	if (ret)
 		return ret;
 
@@ -1864,7 +1874,6 @@ static int max_des_update_link(struct max_des_priv *priv,
 			       const struct v4l2_subdev_krouting *routing,
 			       u64 *streams_masks)
 {
-	struct max_source *source;
 	struct max_des *des = priv->des;
 	u32 pad = max_des_link_to_pad(des, link);
 	bool enable_changed = !streams_masks[pad] != !priv->streams_masks[pad];
@@ -1876,21 +1885,13 @@ static int max_des_update_link(struct max_des_priv *priv,
 	if (!pipe)
 		return -ENOENT;
 
-	source = max_des_find_link_source(priv, link);
-	if (!source)
-		return -ENOENT;
-
-	if (!source->sd)
-		return 0;
-
 	if (!enable && enable_changed) {
 		ret = max_des_set_pipe_enable(des, pipe, enable);
 		if (ret)
 			return ret;
 	}
 
-	ret = max_des_update_pipe(priv, context, source, pipe,
-				  routing, pad, streams_masks);
+	ret = max_des_update_pipe(priv, context, pipe, routing, streams_masks);
 	if (ret)
 		goto err_revert_pipe_disable;
 
@@ -1903,8 +1904,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 
 err_revert_update_pipe:
-	max_des_update_pipe(priv, context, source, pipe,
-			    routing, pad, priv->streams_masks);
+	max_des_update_pipe(priv, context, pipe, routing, priv->streams_masks);
 
 err_revert_pipe_disable:
 	if (!enable && enable_changed)
