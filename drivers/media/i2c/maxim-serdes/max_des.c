@@ -260,9 +260,9 @@ static int max_des_get_src_dst_vc_id(struct max_des_remap_context *context,
 	return 0;
 }
 
-static int max_des_populate_remap_pipes_in_use(struct max_des_priv *priv,
-					       struct max_des_remap_context *context,
-					       const struct v4l2_subdev_krouting *routing)
+static int max_des_populate_remap_usage(struct max_des_priv *priv,
+					struct max_des_remap_context *context,
+					const struct v4l2_subdev_krouting *routing)
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
@@ -409,7 +409,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	unsigned int modes;
 	int ret;
 
-	ret = max_des_populate_remap_pipes_in_use(priv, context, routing);
+	ret = max_des_populate_remap_usage(priv, context, routing);
 	if (ret)
 		return ret;
 
