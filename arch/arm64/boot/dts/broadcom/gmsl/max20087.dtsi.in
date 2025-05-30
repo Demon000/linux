@@ -1,7 +1,9 @@
+{% set address = vpoc_cfg.address | d(0x28) %}
+
 &{{i2c_bus()}} {
 	regulator@28 {
 		compatible = "maxim,max20087";
-		reg = <0x28>;
+		reg = <{{address}}>;
 
 		regulators {
 {% if vpoc_cfg %}
