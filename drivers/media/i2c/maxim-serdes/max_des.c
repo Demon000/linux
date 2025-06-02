@@ -1914,7 +1914,6 @@ err_revert_pipe_disable:
 }
 
 static int max_des_update_phy(struct max_des_priv *priv,
-			      const struct v4l2_subdev_krouting *routing,
 			      u32 pad, u64 *streams_masks)
 {
 	bool enable_changed = !streams_masks[pad] != !priv->streams_masks[pad];
@@ -2078,7 +2077,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_active_disable;
 
-	ret = max_des_update_phy(priv, &state->routing, pad, streams_masks);
+	ret = max_des_update_phy(priv, pad, streams_masks);
 	if (ret)
 		goto err_revert_links_update;
 
@@ -2102,7 +2101,7 @@ err_revert_active_enable:
 	max_des_update_active(priv, priv->streams_masks, false);
 
 err_revert_phy_update:
-	max_des_update_phy(priv, &state->routing, pad, priv->streams_masks);
+	max_des_update_phy(priv, pad, priv->streams_masks);
 
 err_revert_links_update:
 	max_des_update_links(priv, &context, &state->routing, priv->streams_masks);
