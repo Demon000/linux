@@ -262,12 +262,12 @@ static int max_des_get_src_dst_vc_id(struct max_des_remap_context *context,
 
 static int max_des_populate_remap_usage(struct max_des_priv *priv,
 					struct max_des_remap_context *context,
-					const struct v4l2_subdev_krouting *routing)
+					struct v4l2_subdev_state *state)
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct max_des_link *link;
 		struct max_des_pipe *pipe;
 
@@ -402,14 +402,14 @@ static int max_des_should_keep_vc(struct max_des_priv *priv,
 
 static int max_des_populate_remap_context(struct max_des_priv *priv,
 					  struct max_des_remap_context *context,
-					  const struct v4l2_subdev_krouting *routing)
+					  struct v4l2_subdev_state *state)
 {
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	unsigned int modes;
 	int ret;
 
-	ret = max_des_populate_remap_usage(priv, context, routing);
+	ret = max_des_populate_remap_usage(priv, context, state);
 	if (ret)
 		return ret;
 
@@ -417,7 +417,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 	if (ret)
 		return ret;
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_source *source;
 		struct max_des_link *link;
@@ -472,7 +472,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 
 static int max_des_populate_mode_context(struct max_des_priv *priv,
 					 struct max_des_mode_context *context,
-					 const struct v4l2_subdev_krouting *routing,
+					 struct v4l2_subdev_state *state,
 					 enum max_gmsl_mode mode)
 {
 	bool bpp8_not_shared_with_16_phys[MAX_DES_PHYS_NUM] = { 0 };
@@ -515,7 +515,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	 * processed pipes to need to have their doubled bpps updated.
 	 */
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct max_source *source;
 		unsigned int min_bpp;
 		unsigned int max_bpp;
@@ -539,13 +539,13 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (!source->sd)
 			continue;
 
-		ret = max_get_bpps(source, &stream_bpps, routing,
-				   route->sink_pad, BIT_ULL(route->sink_stream));
+		ret = max_get_bpps(source, &stream_bpps, state, route->sink_pad,
+				   BIT_ULL(route->sink_stream));
 		if (ret)
 			return ret;
 
-		ret = max_get_bpps(source, &sink_bpps, routing,
-				   route->sink_pad, ~0ULL);
+		ret = max_get_bpps(source, &sink_bpps, state, route->sink_pad,
+				   ~0ULL);
 		if (ret)
 			return ret;
 
@@ -584,7 +584,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	for (i = 0; i < des->ops->num_phys; i++)
 		context->phys_double_bpps[i] &= ~undoubled_bpps_phys[i];
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct max_des_link *link;
 		struct max_des_pipe *pipe;
 		struct max_des_phy *phy;
@@ -1011,7 +1011,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 				   struct max_des_pipe *pipe,
 				   struct max_des_remap *remaps,
 				   unsigned int *num_remaps,
-				   const struct v4l2_subdev_krouting *routing,
+				   struct v4l2_subdev_state *state,
 				   u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
@@ -1023,7 +1023,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 	if (context->mode != MAX_GMSL_PIXEL_MODE)
 		return 0;
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		struct max_des_link *link;
 		struct max_source *source;
@@ -1122,7 +1122,7 @@ err_free_new_vc_remaps:
 static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 				      struct max_des_remap_context *context,
 				      struct max_des_pipe *pipe,
-				      const struct v4l2_subdev_krouting *routing,
+				      struct v4l2_subdev_state *state,
 				      u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
@@ -1139,7 +1139,7 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 		return -ENOMEM;
 
 	ret = max_des_get_pipe_remaps(priv, context, pipe, remaps, &num_remaps,
-				      routing, streams_masks);
+				      state, streams_masks);
 	if (ret)
 		goto err_free_new_remaps;
 
@@ -1164,13 +1164,13 @@ err_free_new_remaps:
 static int max_des_update_pipe(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_pipe *pipe,
-			       const struct v4l2_subdev_krouting *routing,
+			       struct v4l2_subdev_state *state,
 			       u64 *streams_masks)
 {
 	int ret;
 
 	ret = max_des_update_pipe_remaps(priv, context, pipe,
-					 routing, streams_masks);
+					 state, streams_masks);
 	if (ret)
 		return ret;
 
@@ -1759,7 +1759,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 
-	ret = max_des_populate_remap_context(priv, &context, &state->routing);
+	ret = max_des_populate_remap_context(priv, &context, state);
 	if (ret)
 		return ret;
 
@@ -1880,7 +1880,7 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 static int max_des_update_link(struct max_des_priv *priv,
 			       struct max_des_remap_context *context,
 			       struct max_des_link *link,
-			       const struct v4l2_subdev_krouting *routing,
+			       struct v4l2_subdev_state *state,
 			       u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
@@ -1900,7 +1900,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 			return ret;
 	}
 
-	ret = max_des_update_pipe(priv, context, pipe, routing, streams_masks);
+	ret = max_des_update_pipe(priv, context, pipe, state, streams_masks);
 	if (ret)
 		goto err_revert_pipe_disable;
 
@@ -1913,7 +1913,7 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 
 err_revert_update_pipe:
-	max_des_update_pipe(priv, context, pipe, routing, priv->streams_masks);
+	max_des_update_pipe(priv, context, pipe, state, priv->streams_masks);
 
 err_revert_pipe_disable:
 	if (!enable && enable_changed)
@@ -1978,7 +1978,7 @@ static int max_des_update_active(struct max_des_priv *priv, u64 *streams_masks,
 
 static int max_des_update_links(struct max_des_priv *priv,
 				struct max_des_remap_context *context,
-				const struct v4l2_subdev_krouting *routing,
+				struct v4l2_subdev_state *state,
 				u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
@@ -1989,7 +1989,7 @@ static int max_des_update_links(struct max_des_priv *priv,
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
 
-		ret = max_des_update_link(priv, context, link, routing,
+		ret = max_des_update_link(priv, context, link, state,
 					  streams_masks);
 		if (ret) {
 			failed_update_link_id = i;
@@ -2003,7 +2003,7 @@ err:
 	for (i = 0; i < failed_update_link_id; i++) {
 		struct max_des_link *link = &des->links[i];
 
-		max_des_update_link(priv, context, link, routing,
+		max_des_update_link(priv, context, link, state,
 				    priv->streams_masks);
 	}
 
@@ -2034,12 +2034,11 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	u64 *streams_masks;
 	int ret;
 
-	ret = max_des_populate_remap_context(priv, &context, &state->routing);
+	ret = max_des_populate_remap_context(priv, &context, state);
 	if (ret)
 		return ret;
 
-	ret = max_des_populate_mode_context(priv, &mode_context, &state->routing,
-					    context.mode);
+	ret = max_des_populate_mode_context(priv, &mode_context, state, context.mode);
 	if (ret)
 		return ret;
 
@@ -2080,7 +2079,7 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_streams_disable;
 
-	ret = max_des_update_links(priv, &context, &state->routing, streams_masks);
+	ret = max_des_update_links(priv, &context, state, streams_masks);
 	if (ret)
 		goto err_revert_active_disable;
 
@@ -2111,7 +2110,7 @@ err_revert_phy_update:
 	max_des_update_phy(priv, pad, priv->streams_masks);
 
 err_revert_links_update:
-	max_des_update_links(priv, &context, &state->routing, priv->streams_masks);
+	max_des_update_links(priv, &context, state, priv->streams_masks);
 
 err_revert_active_disable:
 	max_des_update_active(priv, priv->streams_masks, true);

@@ -80,7 +80,7 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 			    struct v4l2_mbus_frame_desc_entry *entry);
 
 int max_get_bpps(struct max_source *source, u32 *bpps,
-	         const struct v4l2_subdev_krouting *routing,
+	         struct v4l2_subdev_state *state,
 		 u32 sink_pad, u64 sink_streams_mask);
 int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
 		     unsigned int *doubled_bpp);

@@ -101,7 +101,7 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 EXPORT_SYMBOL(max_get_fd_stream_entry);
 
 int max_get_bpps(struct max_source *source, u32 *bpps,
-	         const struct v4l2_subdev_krouting *routing,
+	         struct v4l2_subdev_state *state,
 		 u32 sink_pad, u64 sink_streams_mask)
 {
 	struct v4l2_subdev_route *route;
@@ -109,7 +109,7 @@ int max_get_bpps(struct max_source *source, u32 *bpps,
 
 	*bpps = 0;
 
-	for_each_active_route(routing, route) {
+	for_each_active_route(&state->routing, route) {
 		struct v4l2_mbus_frame_desc_entry entry;
 		const struct max_mipi_format *format;
 
