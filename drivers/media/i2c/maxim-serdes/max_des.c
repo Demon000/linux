@@ -1174,7 +1174,16 @@ static int max_des_update_pipe(struct max_des_priv *priv,
 	if (ret)
 		return ret;
 
-	return max_des_update_pipe_vc_remaps(priv, context, pipe);
+	ret = max_des_update_pipe_vc_remaps(priv, context, pipe);
+	if (ret)
+		goto err_revert_update_pipe_remaps;
+
+	return 0;
+
+err_revert_update_pipe_remaps:
+	max_des_update_pipe_remaps(priv, context, pipe, state, priv->streams_masks);
+
+	return ret;
 }
 
 static int max_des_init_link_ser_xlate(struct max_des_priv *priv,
