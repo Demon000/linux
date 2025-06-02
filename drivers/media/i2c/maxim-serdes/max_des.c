@@ -69,6 +69,15 @@ struct max_des_mode_context {
 	u32 pipes_double_bpps[MAX_DES_PIPES_NUM];
 };
 
+struct max_des_route_hw {
+	struct max_source *source;
+	struct max_des_link *link;
+	struct max_des_pipe *pipe;
+	struct max_des_phy *phy;
+	struct v4l2_mbus_frame_desc fd;
+	struct v4l2_mbus_frame_desc_entry *entry;
+};
+
 static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct max_des_priv, sd);
@@ -141,6 +150,49 @@ static struct max_source *
 max_des_find_link_source(struct max_des_priv *priv, struct max_des_link *link)
 {
 	return &priv->sources[link->index];
+}
+
+static int max_des_route_to_hw(struct max_des_priv *priv,
+			       struct v4l2_subdev_route *route,
+			       struct max_des_route_hw *hw)
+{
+	struct max_des *des = priv->des;
+	unsigned int i;
+	int ret;
+
+	memset(hw, 0, sizeof(*hw));
+
+	hw->phy = max_des_pad_to_phy(des, route->source_pad);
+	if (!hw->phy)
+		return -ENOENT;
+
+	hw->link = max_des_pad_to_link(des, route->sink_pad);
+	if (!hw->link)
+		return -ENOENT;
+
+	hw->pipe = max_des_find_link_pipe(des, hw->link);
+	if (!hw->pipe)
+		return -ENOENT;
+
+	hw->source = max_des_find_link_source(priv, hw->link);
+	if (!hw->source->sd)
+		return 0;
+
+	ret = v4l2_subdev_call(hw->source->sd, pad, get_frame_desc,
+			       hw->source->pad, &hw->fd);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < hw->fd.num_entries; i++)
+		if (hw->fd.entry[i].stream == route->sink_stream)
+			break;
+
+	if (i == hw->fd.num_entries)
+		return -ENOENT;
+
+	hw->entry = &hw->fd.entry[i];
+
+	return 0;
 }
 
 static int max_des_set_pipe_remaps(struct max_des_priv *priv,
@@ -264,22 +316,17 @@ static int max_des_populate_remap_usage(struct max_des_priv *priv,
 					struct max_des_remap_context *context,
 					struct v4l2_subdev_state *state)
 {
-	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
+	int ret;
 
 	for_each_active_route(&state->routing, route) {
-		struct max_des_link *link;
-		struct max_des_pipe *pipe;
+		struct max_des_route_hw hw;
 
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link)
-			return -ENOENT;
+		ret = max_des_route_to_hw(priv, route, &hw);
+		if (ret)
+			return ret;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		context->pipe_in_use[pipe->index] = true;
+		context->pipe_in_use[hw.pipe->index] = true;
 	}
 
 	return 0;
@@ -382,7 +429,7 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 }
 
 static int max_des_should_keep_vc(struct max_des_priv *priv,
-				  struct max_source *source,
+				  struct max_des_route_hw *hw,
 			          unsigned int modes)
 {
 	struct max_des *des = priv->des;
@@ -394,7 +441,8 @@ static int max_des_should_keep_vc(struct max_des_priv *priv,
 	if (des->ops->set_pipe_vc_remap)
 		return false;
 
-	if (max_ser_supports_vc_remap(source->sd))
+	if (hw->source && hw->source->sd &&
+	    max_ser_supports_vc_remap(hw->source->sd))
 		return false;
 
 	return true;
@@ -404,7 +452,6 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 					  struct max_des_remap_context *context,
 					  struct v4l2_subdev_state *state)
 {
-	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	unsigned int modes;
 	int ret;
@@ -418,51 +465,17 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		return ret;
 
 	for_each_active_route(&state->routing, route) {
-		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_source *source;
-		struct max_des_link *link;
-		struct max_des_pipe *pipe;
-		struct max_des_phy *phy;
+		struct max_des_route_hw hw;
 		bool keep_vc;
 
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link) {
-			dev_err(priv->dev, "Failed to find link for pad %u\n",
-				route->sink_pad);
-			return -ENOENT;
-		}
-
-		phy = max_des_pad_to_phy(des, route->source_pad);
-		if (!phy) {
-			dev_err(priv->dev, "Failed to find PHY for pad %u\n",
-				route->source_pad);
-			return -ENOENT;
-		}
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_get_fd_stream_entry(source->sd, source->pad,
-					      route->sink_stream, &entry);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to find frame desc entry for stream %u:%u: %d\n",
-				route->sink_pad, route->sink_stream, ret);
+		ret = max_des_route_to_hw(priv, route, &hw);
+		if (ret)
 			return ret;
-		}
 
-		keep_vc = max_des_should_keep_vc(priv, source, modes);
+		keep_vc = max_des_should_keep_vc(priv, &hw, modes);
 
-		ret = max_des_map_src_dst_vc_id(context, pipe->index, phy->index,
-						entry.bus.csi2.vc, keep_vc);
+		ret = max_des_map_src_dst_vc_id(context, hw.pipe->index, hw.phy->index,
+						hw.entry->bus.csi2.vc, keep_vc);
 		if (ret)
 			return ret;
 	}
@@ -479,13 +492,8 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	u32 undoubled_bpps_phys[MAX_DES_PHYS_NUM] = { 0 };
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
-	struct max_des_link *link;
-	struct max_des_pipe *pipe;
-	struct max_des_phy *phy;
 	unsigned int doubled_bpp;
-	unsigned int bpp;
 	unsigned int i;
-	u32 stream_bpps;
 	u32 sink_bpps;
 	int ret;
 
@@ -516,36 +524,19 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	 */
 
 	for_each_active_route(&state->routing, route) {
-		struct max_source *source;
-		unsigned int min_bpp;
-		unsigned int max_bpp;
+		unsigned int bpp, min_bpp, max_bpp;
+		unsigned int pipe_id, phy_id;
+		struct max_des_route_hw hw;
 
-		phy = max_des_pad_to_phy(des, route->source_pad);
-		if (!phy)
-			return -ENOENT;
-
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link)
-			return -ENOENT;
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_get_bpps(source, &stream_bpps, state, route->sink_pad,
-				   BIT_ULL(route->sink_stream));
+		ret = max_des_route_to_hw(priv, route, &hw);
 		if (ret)
 			return ret;
 
-		ret = max_get_bpps(source, &sink_bpps, state, route->sink_pad,
-				   ~0ULL);
+		ret = max_get_fd_bpp(hw.entry, &bpp);
+		if (ret)
+			return ret;
+
+		ret = max_get_fd_bpps(&hw.fd, &sink_bpps);
 		if (ret)
 			return ret;
 
@@ -553,22 +544,23 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		bpp = __ffs(stream_bpps);
 		min_bpp = __ffs(sink_bpps);
 		max_bpp = __fls(sink_bpps);
+		pipe_id = hw.pipe->index;
+		phy_id = hw.phy->index;
 
 		if (bpp == doubled_bpp) {
-			context->phys_double_bpps[phy->index] |= BIT(bpp);
-			context->pipes_double_bpps[pipe->index] |= BIT(bpp);
+			context->phys_double_bpps[phy_id] |= BIT(bpp);
+			context->pipes_double_bpps[pipe_id] |= BIT(bpp);
 		} else {
-			undoubled_bpps_phys[phy->index] |= BIT(bpp);
+			undoubled_bpps_phys[phy_id] |= BIT(bpp);
 		}
 
 		if (min_bpp == 8 && max_bpp > 8) {
-			context->phys_bpp8_shared_with_16[phy->index] = true;
-			context->pipes_bpp8_shared_with_16[pipe->index] = true;
+			context->phys_bpp8_shared_with_16[phy_id] = true;
+			context->pipes_bpp8_shared_with_16[pipe_id] = true;
 		} else if (min_bpp == 8 && max_bpp == 8) {
-			bpp8_not_shared_with_16_phys[phy->index] = true;
+			bpp8_not_shared_with_16_phys[phy_id] = true;
 		}
 	}
 
@@ -585,24 +577,14 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		context->phys_double_bpps[i] &= ~undoubled_bpps_phys[i];
 
 	for_each_active_route(&state->routing, route) {
-		struct max_des_link *link;
-		struct max_des_pipe *pipe;
-		struct max_des_phy *phy;
+		struct max_des_route_hw hw;
 
-		phy = max_des_pad_to_phy(des, route->source_pad);
-		if (!phy)
-			return -ENOENT;
+		ret = max_des_route_to_hw(priv, route, &hw);
+		if (ret)
+			return ret;
 
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link)
-			return -ENOENT;
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		context->pipes_double_bpps[pipe->index] &=
-			context->phys_double_bpps[phy->index];
+		context->pipes_double_bpps[hw.pipe->index] &=
+			context->phys_double_bpps[hw.phy->index];
 	}
 
 	return 0;
@@ -651,45 +633,22 @@ static int max_des_get_pipe_vc_remaps(struct max_des_priv *priv,
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
-		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_source *source;
-		struct max_des_link *link;
-		struct max_des_phy *phy;
 		unsigned int src_vc_id, dst_vc_id;
+		struct max_des_route_hw hw;
 
 		if (!(BIT_ULL(route->sink_stream) & streams_masks[route->sink_pad]))
 			continue;
 
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link)
-			return -ENOENT;
-
-		if (max_des_find_link_pipe(des, link) != pipe)
-			continue;
-
-		phy = max_des_pad_to_phy(des, route->source_pad);
-		if (!phy)
-			return -ENOENT;
-
-		source = max_des_find_pad_source(priv, route->sink_pad);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_get_fd_stream_entry(source->sd, source->pad,
-					      route->sink_stream, &entry);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to find frame desc entry for stream %u:%u: %d\n",
-				route->sink_pad, route->sink_stream, ret);
+		ret = max_des_route_to_hw(priv, route, &hw);
+		if (ret)
 			return ret;
-		}
 
-		src_vc_id = entry.bus.csi2.vc;
+		if (hw.pipe != pipe)
+			continue;
 
-		ret = max_des_get_src_dst_vc_id(context, pipe->index, phy->index,
+		src_vc_id = hw.entry->bus.csi2.vc;
+
+		ret = max_des_get_src_dst_vc_id(context, pipe->index, hw.phy->index,
 						src_vc_id, &dst_vc_id);
 		if (ret)
 			return ret;
@@ -1080,55 +1039,29 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
-		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_des_link *link;
-		struct max_source *source;
-		struct max_des_phy *phy;
+		struct max_des_route_hw hw;
 		unsigned int src_vc_id, dst_vc_id;
 
 		if (!(BIT_ULL(route->sink_stream) & streams_masks[route->sink_pad]))
 			continue;
 
-		phy = max_des_pad_to_phy(des, route->source_pad);
-		if (!phy) {
-			dev_err(priv->dev, "Failed to find PHY for pad %u\n",
-				route->source_pad);
-			return -ENOENT;
-		}
-
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link)
-			return -ENOENT;
-
-		if (max_des_find_link_pipe(des, link) != pipe)
-			continue;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_get_fd_stream_entry(source->sd, source->pad,
-					      route->sink_stream, &entry);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to find frame desc entry for stream %u:%u: %d\n",
-				route->sink_pad, route->sink_stream, ret);
+		ret = max_des_route_to_hw(priv, route, &hw);
+		if (ret)
 			return ret;
-		}
 
-		src_vc_id = entry.bus.csi2.vc;
+		if (hw.pipe != pipe)
+			continue;
 
-		ret = max_des_get_src_dst_vc_id(context, pipe->index, phy->index,
+		src_vc_id = hw.entry->bus.csi2.vc;
+
+		ret = max_des_get_src_dst_vc_id(context, pipe->index, hw.phy->index,
 						src_vc_id, &dst_vc_id);
 		if (ret)
 			return ret;
 
-		ret = max_des_add_remaps(des, remaps, num_remaps, phy->index,
+		ret = max_des_add_remaps(des, remaps, num_remaps, hw.phy->index,
 					 src_vc_id, dst_vc_id,
-					 entry.bus.csi2.dt);
+					 hw.entry->bus.csi2.dt);
 		if (ret)
 			return ret;
 	}
@@ -1807,16 +1740,8 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 {
 	struct max_des_remap_context context = { 0 };
 	struct max_des_priv *priv = sd_to_priv(sd);
-	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
-	struct max_des_phy *phy;
 	int ret;
-
-	phy = max_des_pad_to_phy(des, pad);
-	if (!phy) {
-		dev_err(priv->dev, "Failed to find PHY for pad %u\n", pad);
-		return -ENOENT;
-	}
 
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
 
@@ -1825,51 +1750,25 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 		return ret;
 
 	for_each_active_route(&state->routing, route) {
-		struct v4l2_mbus_frame_desc_entry entry;
-		struct max_source *source;
-		struct max_des_link *link;
-		struct max_des_pipe *pipe;
+		struct max_des_route_hw hw;
 		unsigned int dst_vc_id;
 
 		if (pad != route->source_pad)
 			continue;
 
-		link = max_des_pad_to_link(des, route->sink_pad);
-		if (!link) {
-			dev_err(priv->dev, "Failed to find link for pad %u\n",
-				route->sink_pad);
-			return -ENOENT;
-		}
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		ret = max_get_fd_stream_entry(source->sd, source->pad,
-					      route->sink_stream, &entry);
-		if (ret) {
-			dev_err(priv->dev,
-				"Failed to find frame desc entry for stream %u:%u: %d\n",
-				route->sink_pad, route->sink_stream, ret);
-			return ret;
-		}
-
-		ret = max_des_get_src_dst_vc_id(&context, pipe->index, phy->index,
-						entry.bus.csi2.vc, &dst_vc_id);
+		ret = max_des_route_to_hw(priv, route, &hw);
 		if (ret)
 			return ret;
 
-		entry.bus.csi2.vc = dst_vc_id;
-		entry.stream = route->source_stream;
+		ret = max_des_get_src_dst_vc_id(&context, hw.pipe->index, hw.phy->index,
+						hw.entry->bus.csi2.vc, &dst_vc_id);
+		if (ret)
+			return ret;
 
-		fd->entry[fd->num_entries++] = entry;
+		hw.entry->bus.csi2.vc = dst_vc_id;
+		hw.entry->stream = route->source_stream;
+
+		fd->entry[fd->num_entries++] = *hw.entry;
 	}
 
 	return 0;
