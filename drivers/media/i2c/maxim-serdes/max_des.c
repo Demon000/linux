@@ -159,6 +159,7 @@ max_des_get_link_source(struct max_des_priv *priv, struct max_des_link *link)
 }
 
 static int max_des_route_to_hw(struct max_des_priv *priv,
+			       struct v4l2_subdev_state *state,
 			       struct v4l2_subdev_route *route,
 			       struct max_des_route_hw *hw)
 {
@@ -353,7 +354,7 @@ static int max_des_populate_remap_usage(struct max_des_priv *priv,
 	for_each_active_route(&state->routing, route) {
 		struct max_des_route_hw hw;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -489,7 +490,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		struct max_des_route_hw hw;
 		bool keep_vc;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -549,7 +550,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		unsigned int pipe_id, phy_id;
 		struct max_des_route_hw hw;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -600,7 +601,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	for_each_active_route(&state->routing, route) {
 		struct max_des_route_hw hw;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -660,7 +661,7 @@ static int max_des_get_pipe_vc_remaps(struct max_des_priv *priv,
 		if (!(BIT_ULL(route->sink_stream) & streams_masks[route->sink_pad]))
 			continue;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -1042,7 +1043,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		if (!(BIT_ULL(route->sink_stream) & streams_masks[route->sink_pad]))
 			continue;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
@@ -1753,7 +1754,7 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 		if (pad != route->source_pad)
 			continue;
 
-		ret = max_des_route_to_hw(priv, route, &hw);
+		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
 			return ret;
 
