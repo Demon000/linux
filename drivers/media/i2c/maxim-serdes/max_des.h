@@ -80,6 +80,8 @@ struct max_des_ops {
 	bool needs_unique_stream_id;
 
 	struct max_phys_configs phys_configs;
+	struct max_tpg_entries tpg_entries;
+	enum max_gmsl_mode tpg_mode;
 
 	int (*reg_read)(struct max_des *des, unsigned int reg, unsigned int *val);
 	int (*reg_write)(struct max_des *des, unsigned int reg, unsigned int val);
@@ -89,6 +91,7 @@ struct max_des_ops {
 	int (*log_phy_status)(struct max_des *des, struct max_des_phy *phy,
 			      const char *name);
 	int (*set_enable)(struct max_des *des, bool enable);
+	int (*set_tpg)(struct max_des *des, const struct max_tpg_entry *entry);
 	int (*init)(struct max_des *des);
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_phy_mode)(struct max_des *des, struct max_des_phy *phy,
@@ -131,6 +134,7 @@ struct max_des {
 	struct max_des_phy *phys;
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
+	const struct max_tpg_entry *tpg_entry;
 
 	unsigned int phys_config;
 	enum max_gmsl_mode mode;
