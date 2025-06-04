@@ -113,27 +113,6 @@ int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp)
 	return 0;
 }
 
-int max_get_fd_bpps(struct v4l2_mbus_frame_desc *fd, u32 *bpps)
-{
-	unsigned int i;
-	int ret;
-
-	*bpps = 0;
-
-	for (i = 0; i < fd->num_entries; i++) {
-		unsigned int bpp;
-
-		ret = max_get_fd_bpp(&fd->entry[i], &bpp);
-		if (ret)
-			continue;
-
-		*bpps |= BIT(bpp);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(max_get_fd_bpps);
-
 int max_get_bpps(struct max_source *source, u32 *bpps,
 	         struct v4l2_subdev_state *state,
 		 u32 sink_pad, u64 sink_streams_mask)

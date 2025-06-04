@@ -623,6 +623,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 {
 	bool bpp8_not_shared_with_16_phys[MAX_DES_PHYS_NUM] = { 0 };
 	u32 undoubled_bpps_phys[MAX_DES_PHYS_NUM] = { 0 };
+	u32 bpps_pipes[MAX_DES_PIPES_NUM] = { 0 };
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	unsigned int doubled_bpp;
@@ -634,7 +635,10 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		return 0;
 
 	/*
-	 * Go over all streams and check if the current stream is doubled.
+	 * Go over all streams and gather the bpps for all pipes.
+	 *
+	 * Then, go over all the streams again and check if the
+	 * current stream is doubled.
 	 *
 	 * If the current stream is doubled, add it to a doubled mask for both
 	 * the pipe and the PHY.
@@ -657,6 +661,21 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	 */
 
 	for_each_active_route(&state->routing, route) {
+		struct max_des_route_hw hw;
+		unsigned int bpp;
+
+		ret = max_des_route_to_hw(priv, state, route, &hw);
+		if (ret)
+			return ret;
+
+		ret = max_get_fd_bpp(hw.entry, &bpp);
+		if (ret)
+			return ret;
+
+		bpps_pipes[hw.pipe->index] |= BIT(bpp);
+	}
+
+	for_each_active_route(&state->routing, route) {
 		unsigned int bpp, min_bpp, max_bpp;
 		unsigned int pipe_id, phy_id;
 		struct max_des_route_hw hw;
@@ -669,9 +688,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		ret = max_get_fd_bpps(&hw.fd, &sink_bpps);
-		if (ret)
-			return ret;
+		sink_bpps = bpps_pipes[hw.pipe->index];
 
 		ret = max_process_bpps(priv->dev, sink_bpps, ~0U, &doubled_bpp);
 		if (ret)

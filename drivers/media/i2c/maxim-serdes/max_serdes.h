@@ -127,7 +127,6 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 			    struct v4l2_mbus_frame_desc_entry *entry);
 
 int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp);
-int max_get_fd_bpps(struct v4l2_mbus_frame_desc *fd, u32 *bpps);
 int max_get_bpps(struct max_source *source, u32 *bpps,
 	         struct v4l2_subdev_state *state,
 		 u32 sink_pad, u64 sink_streams_mask);
