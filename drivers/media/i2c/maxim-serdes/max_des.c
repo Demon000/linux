@@ -78,6 +78,12 @@ struct max_des_route_hw {
 	struct v4l2_mbus_frame_desc_entry *entry;
 };
 
+struct max_des_link_hw {
+	struct max_source *source;
+	struct max_des_link *link;
+	struct max_des_pipe *pipe;
+};
+
 static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
 	return container_of(sd, struct max_des_priv, sd);
@@ -193,6 +199,31 @@ static int max_des_route_to_hw(struct max_des_priv *priv,
 	hw->entry = &hw->fd.entry[i];
 
 	return 0;
+}
+
+static int max_des_link_to_hw(struct max_des_priv *priv,
+			      struct max_des_link *link,
+			      struct max_des_link_hw *hw)
+{
+	struct max_des *des = priv->des;
+
+	memset(hw, 0, sizeof(*hw));
+
+	hw->link = link;
+
+	hw->pipe = max_des_find_link_pipe(des, hw->link);
+	if (!hw->pipe)
+		return -ENOENT;
+
+	hw->source = max_des_find_link_source(priv, hw->link);
+
+	return 0;
+}
+
+static int max_des_link_index_to_hw(struct max_des_priv *priv, unsigned int i,
+				    struct max_des_link_hw *hw)
+{
+	return max_des_link_to_hw(priv, &priv->des->links[i], hw);
 }
 
 static int max_des_set_pipe_remaps(struct max_des_priv *priv,
@@ -338,32 +369,27 @@ static int max_des_get_supported_modes(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	unsigned int i;
+	int ret;
 
 	*modes = des->ops->modes;
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 
-		if (!link->enabled)
+		ret = max_des_link_index_to_hw(priv, i, &hw);
+		if (ret)
+			return ret;
+
+		if (!hw.link->enabled)
 			continue;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		if (!context->pipe_in_use[pipe->index])
+		if (!hw.source->sd)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
+		if (!context->pipe_in_use[hw.pipe->index])
 			continue;
 
-		*modes &= max_ser_get_supported_modes(source->sd);
+		*modes &= max_ser_get_supported_modes(hw.source->sd);
 	}
 
 	/*
@@ -382,6 +408,7 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	unsigned int i;
+	int ret;
 
 	context->mode = MAX_GMSL_PIXEL_MODE;
 
@@ -393,30 +420,24 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 
-		if (!link->enabled)
+		ret = max_des_link_index_to_hw(priv, i, &hw);
+		if (ret)
+			return ret;
+
+		if (!hw.link->enabled)
 			continue;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		if (!context->pipe_in_use[pipe->index])
+		if (!hw.source->sd)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
+		if (!context->pipe_in_use[hw.pipe->index])
 			continue;
 
-		if (hweight_long(context->pipe_phy_masks[pipe->index]) == 1 &&
-		    (!context->vc_ids_remapped[pipe->index] ||
-		     max_ser_supports_vc_remap(source->sd) ||
+		if (hweight_long(context->pipe_phy_masks[hw.pipe->index]) == 1 &&
+		    (!context->vc_ids_remapped[hw.pipe->index] ||
+		     max_ser_supports_vc_remap(hw.source->sd) ||
 		     des->ops->set_pipe_vc_remap))
 			continue;
 
@@ -747,28 +768,22 @@ static int max_des_set_modes(struct max_des_priv *priv,
 	}
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 		u32 pipe_double_bpps = 0;
 
-		if (!link->enabled)
+		ret = max_des_link_index_to_hw(priv, i, &hw);
+		if (ret)
+			return ret;
+
+		if (!hw.link->enabled)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
+		if (!hw.source->sd)
 			continue;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
+		pipe_double_bpps = context->pipes_double_bpps[hw.pipe->index];
 
-		pipe_double_bpps = context->pipes_double_bpps[pipe->index];
-
-		ret = max_ser_set_double_bpps(source->sd, pipe_double_bpps);
+		ret = max_ser_set_double_bpps(hw.source->sd, pipe_double_bpps);
 		if (ret)
 			return ret;
 	}
@@ -795,28 +810,22 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	}
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 
-		if (!link->enabled)
+		ret = max_des_link_index_to_hw(priv, i, &hw);
+		if (ret)
+			return ret;
+
+		if (!hw.link->enabled)
 			continue;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		if (!context->pipe_in_use[pipe->index])
+		if (!hw.source->sd)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
+		if (!context->pipe_in_use[hw.pipe->index])
 			continue;
 
-		ret = max_ser_set_mode(source->sd, context->mode);
+		ret = max_ser_set_mode(hw.source->sd, context->mode);
 		if (ret)
 			return ret;
 	}
@@ -840,35 +849,29 @@ static int max_des_set_vc_remaps(struct max_des_priv *priv,
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_vc_remap vc_remaps[MAX_SERDES_VC_ID_NUM];
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 		unsigned int num_vc_remaps;
 
-		if (!link->enabled)
+		ret = max_des_link_index_to_hw(priv, i, &hw);
+		if (ret)
+			return ret;
+
+		if (!hw.link->enabled)
 			continue;
 
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
+		if (!hw.source->sd)
 			continue;
 
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		if (!max_ser_supports_vc_remap(source->sd))
+		if (!max_ser_supports_vc_remap(hw.source->sd))
 			continue;
 
-		ret = max_des_get_pipe_vc_remaps(priv, context, pipe,
+		ret = max_des_get_pipe_vc_remaps(priv, context, hw.pipe,
 						 vc_remaps, &num_vc_remaps,
 						 state, streams_masks);
 		if (ret)
 			return ret;
 
-		ret = max_ser_set_vc_remaps(source->sd, vc_remaps, num_vc_remaps);
+		ret = max_ser_set_vc_remaps(hw.source->sd, vc_remaps, num_vc_remaps);
 		if (ret)
 			return ret;
 	}
@@ -886,42 +889,36 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_des_link *link = &des->links[i];
-		struct max_des_pipe *pipe;
-		struct max_source *source;
+		struct max_des_link_hw hw;
 		unsigned int stream_id;
 
-		if (!link->enabled)
-			continue;
-
-		source = max_des_find_link_source(priv, link);
-		if (!source)
-			return -ENOENT;
-
-		if (!source->sd)
-			continue;
-
-		pipe = max_des_find_link_pipe(des, link);
-		if (!pipe)
-			return -ENOENT;
-
-		stream_id = pipe->stream_id;
-
-		ret = max_ser_set_stream_id(source->sd, stream_id);
+		ret = max_des_link_index_to_hw(priv, i, &hw);
 		if (ret)
 			return ret;
 
-		ret = max_ser_get_stream_id(source->sd, &stream_id);
+		if (!hw.link->enabled)
+			continue;
+
+		if (!hw.source->sd)
+			continue;
+
+		stream_id = hw.pipe->stream_id;
+
+		ret = max_ser_set_stream_id(hw.source->sd, stream_id);
+		if (ret)
+			return ret;
+
+		ret = max_ser_get_stream_id(hw.source->sd, &stream_id);
 		if (ret)
 			return ret;
 
 		if (des->ops->set_pipe_stream_id) {
-			ret = des->ops->set_pipe_stream_id(des, pipe, stream_id);
+			ret = des->ops->set_pipe_stream_id(des, hw.pipe, stream_id);
 			if (ret)
 				return ret;
 		}
 
-		pipe->stream_id = stream_id;
+		hw.pipe->stream_id = stream_id;
 	}
 
 	return 0;
