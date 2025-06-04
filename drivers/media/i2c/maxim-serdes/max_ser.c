@@ -864,8 +864,8 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	int ret;
 
 	ret = max_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
-				    num_pads, 0, ser->ops->num_phys,
-				    priv->streams_masks, &streams_masks, enable);
+				    num_pads, priv->streams_masks, &streams_masks,
+				    enable);
 	if (ret)
 		return ret;
 
