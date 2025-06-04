@@ -78,8 +78,7 @@ struct max_des_route_hw {
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
-	struct v4l2_mbus_frame_desc fd;
-	struct v4l2_mbus_frame_desc_entry *entry;
+	struct v4l2_mbus_frame_desc_entry entry;
 	bool is_tpg;
 };
 
@@ -220,10 +219,10 @@ max_des_find_state_tpg_entry(struct max_des *des, struct v4l2_subdev_state *stat
 				      in->numerator, in->denominator);
 }
 
-static int max_des_get_tpg_frame_desc_state(struct max_des *des,
-					    struct v4l2_subdev_state *state,
-					    struct v4l2_mbus_frame_desc *fd,
-					    unsigned int pad)
+static int max_des_get_tpg_fd_entry_state(struct max_des *des,
+					  struct v4l2_subdev_state *state,
+					  struct v4l2_mbus_frame_desc_entry *fd_entry,
+					  unsigned int pad)
 {
 	const struct max_tpg_entry *entry;
 
@@ -231,16 +230,12 @@ static int max_des_get_tpg_frame_desc_state(struct max_des *des,
 	if (!entry)
 		return -EINVAL;
 
-	memset(fd, 0, sizeof(*fd));
-
-	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_CSI2;
-	fd->entry[0].stream = MAX_DES_TPG_STREAM;
-	fd->entry[0].flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
-	fd->entry[0].length = entry->width * entry->height * entry->bpp / 8;
-	fd->entry[0].pixelcode = entry->code;
-	fd->entry[0].bus.csi2.vc = 0;
-	fd->entry[0].bus.csi2.dt = entry->dt;
-	fd->num_entries = 1;
+	fd_entry->stream = MAX_DES_TPG_STREAM;
+	fd_entry->flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
+	fd_entry->length = entry->width * entry->height * entry->bpp / 8;
+	fd_entry->pixelcode = entry->code;
+	fd_entry->bus.csi2.vc = 0;
+	fd_entry->bus.csi2.dt = entry->dt;
 
 	return 0;
 }
@@ -264,11 +259,10 @@ static int max_des_tpg_route_to_hw(struct max_des_priv *priv,
 	if (!hw->pipe)
 		return -ENOENT;
 
-	ret = max_des_get_tpg_frame_desc_state(des, state, &hw->fd, route->sink_pad);
+	ret = max_des_get_tpg_fd_entry_state(des, state, &hw->entry,
+					     route->sink_pad);
 	if (ret)
 		return ret;
-
-	hw->entry = &hw->fd.entry[0];
 
 	return 0;
 }
@@ -279,6 +273,7 @@ static int max_des_route_to_hw(struct max_des_priv *priv,
 			       struct max_des_route_hw *hw)
 {
 	struct max_des *des = priv->des;
+	struct v4l2_mbus_frame_desc fd;
 	unsigned int i;
 	int ret;
 
@@ -305,18 +300,18 @@ static int max_des_route_to_hw(struct max_des_priv *priv,
 		return 0;
 
 	ret = v4l2_subdev_call(hw->source->sd, pad, get_frame_desc,
-			       hw->source->pad, &hw->fd);
+			       hw->source->pad, &fd);
 	if (ret)
 		return ret;
 
-	for (i = 0; i < hw->fd.num_entries; i++)
-		if (hw->fd.entry[i].stream == route->sink_stream)
+	for (i = 0; i < fd.num_entries; i++)
+		if (fd.entry[i].stream == route->sink_stream)
 			break;
 
-	if (i == hw->fd.num_entries)
+	if (i == fd.num_entries)
 		return -ENOENT;
 
-	hw->entry = &hw->fd.entry[i];
+	hw->entry = fd.entry[i];
 
 	return 0;
 }
@@ -608,7 +603,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 		keep_vc = max_des_should_keep_vc(priv, &hw, modes);
 
 		ret = max_des_map_src_dst_vc_id(context, hw.pipe->index, hw.phy->index,
-						hw.entry->bus.csi2.vc, keep_vc);
+						hw.entry.bus.csi2.vc, keep_vc);
 		if (ret)
 			return ret;
 	}
@@ -668,7 +663,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		ret = max_get_fd_bpp(hw.entry, &bpp);
+		ret = max_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
 			return ret;
 
@@ -684,7 +679,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		ret = max_get_fd_bpp(hw.entry, &bpp);
+		ret = max_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
 			return ret;
 
@@ -799,7 +794,7 @@ static int max_des_get_pipe_vc_remaps(struct max_des_priv *priv,
 		if (hw.pipe != pipe)
 			continue;
 
-		src_vc_id = hw.entry->bus.csi2.vc;
+		src_vc_id = hw.entry.bus.csi2.vc;
 
 		ret = max_des_get_src_dst_vc_id(context, pipe->index, hw.phy->index,
 						src_vc_id, &dst_vc_id);
@@ -1181,7 +1176,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		if (hw.pipe != pipe)
 			continue;
 
-		src_vc_id = hw.entry->bus.csi2.vc;
+		src_vc_id = hw.entry.bus.csi2.vc;
 
 		ret = max_des_get_src_dst_vc_id(context, pipe->index, hw.phy->index,
 						src_vc_id, &dst_vc_id);
@@ -1190,7 +1185,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 		ret = max_des_add_remaps(des, remaps, num_remaps, hw.phy->index,
 					 src_vc_id, dst_vc_id,
-					 hw.entry->bus.csi2.dt);
+					 hw.entry.bus.csi2.dt);
 		if (ret)
 			return ret;
 	}
@@ -2045,14 +2040,14 @@ static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 			return ret;
 
 		ret = max_des_get_src_dst_vc_id(&context, hw.pipe->index, hw.phy->index,
-						hw.entry->bus.csi2.vc, &dst_vc_id);
+						hw.entry.bus.csi2.vc, &dst_vc_id);
 		if (ret)
 			return ret;
 
-		hw.entry->bus.csi2.vc = dst_vc_id;
-		hw.entry->stream = route->source_stream;
+		hw.entry.bus.csi2.vc = dst_vc_id;
+		hw.entry.stream = route->source_stream;
 
-		fd->entry[fd->num_entries++] = *hw.entry;
+		fd->entry[fd->num_entries++] = hw.entry;
 	}
 
 	return 0;
