@@ -50,6 +50,7 @@
 
 #define MAX9296A_VIDEO_PIPE_SEL			0x161
 #define MAX9296A_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << ((p) * 3))
+#define MAX9296A_VIDEO_PIPE_SEL_LINK(p)		(BIT(2) << ((p) * 3))
 
 #define MAX9296A_VPRBS(p)			(0x1dc + (p) * 0x20)
 #define MAX9296A_VPRBS_VIDEO_LOCK		BIT(0)
@@ -187,6 +188,8 @@ struct max9296a_chip_info {
 				  unsigned int stream_id);
 	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
 			       bool enable);
+	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
+			    struct max_des_link *link);
 	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
 			    struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
@@ -686,6 +689,18 @@ static int max96714_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 					     stream_id));
 }
 
+static int max96716a_set_pipe_link(struct max_des *des, struct max_des_pipe *pipe,
+				   struct max_des_link *link)
+{
+	struct max9296a_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+
+	return regmap_update_bits(priv->regmap, MAX9296A_VIDEO_PIPE_SEL,
+				  MAX9296A_VIDEO_PIPE_SEL_LINK(index),
+				  field_prep(MAX9296A_VIDEO_PIPE_SEL_LINK(index),
+					     link->index));
+}
+
 static int max96716a_set_pipe_phy(struct max_des *des,
 				  struct max_des_pipe *pipe,
 				  struct max_des_phy *phy)
@@ -1070,6 +1085,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) |
 		    BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
+	.set_pipe_link = max96716a_set_pipe_link,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_phy = max96716a_set_pipe_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,

@@ -32,6 +32,7 @@
 
 #define MAX96724_VIDEO_PIPE_SEL(p)		(0xf0 + (p) / 2)
 #define MAX96724_VIDEO_PIPE_SEL_STREAM(p)	(GENMASK(1, 0) << (4 * ((p) % 2)))
+#define MAX96724_VIDEO_PIPE_SEL_LINK(p)		(GENMASK(3, 2) << (4 * ((p) % 2)))
 
 #define MAX96724_VIDEO_PIPE_EN			0xf4
 #define MAX96724_VIDEO_PIPE_EN_MASK(p)		BIT(p)
@@ -723,6 +724,18 @@ static int max96724_set_pipe_stream_id(struct max_des *des, struct max_des_pipe 
 					     stream_id));
 }
 
+static int max96724_set_pipe_link(struct max_des *des, struct max_des_pipe *pipe,
+				  struct max_des_link *link)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int index = pipe->index;
+
+	return regmap_update_bits(priv->regmap, MAX96724_VIDEO_PIPE_SEL(index),
+				  MAX96724_VIDEO_PIPE_SEL_LINK(index),
+				  field_prep(MAX96724_VIDEO_PIPE_SEL_LINK(index),
+					     link->index));
+}
+
 static int max96724_set_pipe_mode(struct max_des *des,
 				  struct max_des_pipe *pipe,
 				  struct max_des_pipe_mode *mode)
@@ -843,6 +856,7 @@ static const struct max_des_ops max96724_ops = {
 	.set_phy_active = max96724_set_phy_active,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
+	.set_pipe_link = max96724_set_pipe_link,
 	.set_pipe_enable = max96724_set_pipe_enable,
 	.set_pipe_remap = max96724_set_pipe_remap,
 	.set_pipe_remaps_enable = max96724_set_pipe_remaps_enable,

@@ -951,6 +951,7 @@ static int max_des_init(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
 		struct max_des_pipe *pipe = &des->pipes[i];
+		struct max_des_link *link = &des->links[pipe->link_id];
 
 		ret = des->ops->set_pipe_enable(des, pipe, false);
 		if (ret)
@@ -965,6 +966,12 @@ static int max_des_init(struct max_des_priv *priv)
 		ret = des->ops->set_pipe_stream_id(des, pipe, pipe->stream_id);
 		if (ret)
 			return ret;
+
+		if (des->ops->set_pipe_link) {
+			ret = des->ops->set_pipe_link(des, pipe, link);
+			if (ret)
+				return ret;
+		}
 
 		ret = max_des_set_pipe_remaps(priv, pipe, pipe->remaps,
 					      pipe->num_remaps);
