@@ -2283,7 +2283,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		 * This is already the default for most chips, and some of them
 		 * don't even support receiving pipe data from a different link.
 		 */
-		pipe->link_id = i;
+		pipe->link_id = i % des->ops->num_links;
 	}
 
 	for (i = 0; i < des->ops->num_links; i++) {
