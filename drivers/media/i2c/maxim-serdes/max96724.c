@@ -260,6 +260,9 @@ static unsigned int max96724_phy_id(struct max_des *des, struct max_des_phy *phy
 	if (phy->index == 0 && num_hw_data_lanes == 4)
 		return 1;
 
+	if (phy->index == 1 && !des->phys[1].enabled)
+		return 0;
+
 	return phy->index;
 }
 
