@@ -849,6 +849,7 @@ static int max_ser_get_pipe_mode(struct max_ser_priv *priv,
 {
 	struct v4l2_subdev_route *route;
 	struct max_ser *ser = priv->ser;
+	bool force_set_bpp = false;
 	unsigned int doubled_bpp;
 	unsigned int min_bpp;
 	unsigned int max_bpp;
@@ -868,6 +869,9 @@ static int max_ser_get_pipe_mode(struct max_ser_priv *priv,
 
 		if (hw.pipe != pipe)
 			continue;
+
+		if (hw.is_tpg)
+			force_set_bpp = true;
 
 		ret = max_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
@@ -898,7 +902,7 @@ static int max_ser_get_pipe_mode(struct max_ser_priv *priv,
 	if (doubled_bpp)
 		mode->soft_bpp = min_bpp;
 
-	if (min_bpp != max_bpp)
+	if (min_bpp != max_bpp || force_set_bpp)
 		mode->bpp = max_bpp;
 
 	return 0;
