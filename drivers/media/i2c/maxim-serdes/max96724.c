@@ -158,7 +158,7 @@
 #define MAX96724_DPLL_0(x)			(0x1c00 + (x) * 0x100)
 #define MAX96724_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
 
-#define MAX96724_PHY1_ALT_CLOCK		5
+#define MAX96724_PHY1_ALT_CLOCK			5
 
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
