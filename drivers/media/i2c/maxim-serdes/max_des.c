@@ -73,7 +73,6 @@ struct max_des_mode_context {
 
 struct max_des_route_hw {
 	struct max_source *source;
-	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
 	struct v4l2_mbus_frame_desc_entry entry;
@@ -244,25 +243,16 @@ static int max_des_tpg_route_to_hw(struct max_des_priv *priv,
 				   struct max_des_route_hw *hw)
 {
 	struct max_des *des = priv->des;
-	int ret;
+
+	/* TPG injects its data into all pipes, but use pipe 0 for simplicity. */
+	hw->pipe = &des->pipes[0];
 
 	hw->phy = max_des_pad_to_phy(des, route->source_pad);
 	if (!hw->phy)
 		return -ENOENT;
 
-	/* TPG injects its data into link 0. */
-	hw->link = &des->links[0];
-
-	hw->pipe = max_des_find_link_pipe(des, hw->link);
-	if (!hw->pipe)
-		return -ENOENT;
-
-	ret = max_des_get_tpg_fd_entry_state(des, state, &hw->entry,
-					     route->sink_pad);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max_des_get_tpg_fd_entry_state(des, state, &hw->entry,
+					      route->sink_pad);
 }
 
 static int max_des_route_to_hw(struct max_des_priv *priv,
@@ -272,6 +262,7 @@ static int max_des_route_to_hw(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 	struct v4l2_mbus_frame_desc fd;
+	struct max_des_link *link;
 	unsigned int i;
 	int ret;
 
@@ -281,19 +272,19 @@ static int max_des_route_to_hw(struct max_des_priv *priv,
 	if (hw->is_tpg)
 		return max_des_tpg_route_to_hw(priv, state, route, hw);
 
+	link = max_des_pad_to_link(des, route->sink_pad);
+	if (!link)
+		return -ENOENT;
+
 	hw->phy = max_des_pad_to_phy(des, route->source_pad);
 	if (!hw->phy)
 		return -ENOENT;
 
-	hw->link = max_des_pad_to_link(des, route->sink_pad);
-	if (!hw->link)
-		return -ENOENT;
-
-	hw->pipe = max_des_find_link_pipe(des, hw->link);
+	hw->pipe = max_des_find_link_pipe(des, link);
 	if (!hw->pipe)
 		return -ENOENT;
 
-	hw->source = max_des_get_link_source(priv, hw->link);
+	hw->source = max_des_get_link_source(priv, link);
 	if (!hw->source->sd)
 		return 0;
 
