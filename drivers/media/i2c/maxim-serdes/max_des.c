@@ -26,8 +26,6 @@
 #define MAX_DES_PHYS_NUM		4
 #define MAX_DES_PIPES_NUM		8
 
-#define MAX_DES_TPG_STREAM		0
-
 struct max_des_priv {
 	struct max_des *des;
 
@@ -207,11 +205,11 @@ max_des_find_state_tpg_entry(struct max_des *des, struct v4l2_subdev_state *stat
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
-	fmt = v4l2_subdev_state_get_format(state, pad, MAX_DES_TPG_STREAM);
+	fmt = v4l2_subdev_state_get_format(state, pad, MAX_SERDES_TPG_STREAM);
 	if (!fmt)
 		return NULL;
 
-	in = v4l2_subdev_state_get_interval(state, pad, MAX_DES_TPG_STREAM);
+	in = v4l2_subdev_state_get_interval(state, pad, MAX_SERDES_TPG_STREAM);
 	if (!in)
 		return NULL;
 
@@ -230,7 +228,7 @@ static int max_des_get_tpg_fd_entry_state(struct max_des *des,
 	if (!entry)
 		return -EINVAL;
 
-	fd_entry->stream = MAX_DES_TPG_STREAM;
+	fd_entry->stream = MAX_SERDES_TPG_STREAM;
 	fd_entry->flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
 	fd_entry->length = entry->width * entry->height * entry->bpp / 8;
 	fd_entry->pixelcode = entry->code;
@@ -1772,7 +1770,7 @@ static int max_des_set_tpg_fmt(struct v4l2_subdev *sd,
 	const struct max_tpg_entry *entry;
 	struct v4l2_fract *in;
 
-	if (format->stream != MAX_DES_TPG_STREAM)
+	if (format->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 	entry = max_des_find_tpg_entry(des, 0, fmt->width, fmt->height,
@@ -1836,7 +1834,8 @@ static int max_des_enum_frame_interval(struct v4l2_subdev *sd,
 	struct max_des *des = priv->des;
 	const struct max_tpg_entry *entry;
 
-	if (!max_des_pad_is_tpg(des, fie->pad) || fie->stream != MAX_DES_TPG_STREAM)
+	if (!max_des_pad_is_tpg(des, fie->pad) ||
+	    fie->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 
@@ -1862,7 +1861,8 @@ static int max_des_set_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
-	if (!max_des_pad_is_tpg(des, fi->pad) || fi->stream != MAX_DES_TPG_STREAM)
+	if (!max_des_pad_is_tpg(des, fi->pad) ||
+	    fi->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 	if (fi->which == V4L2_SUBDEV_FORMAT_ACTIVE && des->active)
@@ -2087,6 +2087,29 @@ static int max_des_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 	return 0;
 }
 
+static int max_des_set_tpg_routing(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
+				   struct v4l2_subdev_krouting *routing)
+{
+	struct max_des_priv *priv = sd_to_priv(sd);
+	struct max_des *des = priv->des;
+	const struct max_tpg_entry *entry;
+	struct v4l2_mbus_framefmt fmt = { 0 };
+	int ret;
+
+	ret = max_validate_tpg_routing(routing);
+	if (ret)
+		return ret;
+
+	entry = &des->ops->tpg_entries.entries[0];
+
+	fmt.width = entry->width;
+	fmt.height = entry->height;
+	fmt.code = entry->code;
+
+	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &fmt);
+}
+
 static int max_des_set_routing(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
 			       enum v4l2_subdev_format_whence which,
@@ -2094,6 +2117,8 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 {
 	struct max_des_priv *priv = sd_to_priv(sd);
 	struct max_des *des = priv->des;
+	struct v4l2_subdev_route *route;
+	bool is_tpg = false;
 	int ret;
 
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && des->active)
@@ -2112,6 +2137,16 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 					   V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX);
 	if (ret)
 		return ret;
+
+	for_each_active_route(routing, route) {
+		if (max_des_pad_is_tpg(des, route->sink_pad)) {
+			is_tpg = true;
+			break;
+		}
+	}
+
+	if (is_tpg)
+		return max_des_set_tpg_routing(sd, state, routing);
 
 	return v4l2_subdev_set_routing(sd, state, routing);
 }

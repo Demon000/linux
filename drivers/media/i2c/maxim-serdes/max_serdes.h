@@ -16,6 +16,7 @@
 #define MAX_SERDES_PHYS_MAX		4
 #define MAX_SERDES_STREAMS_NUM		4
 #define MAX_SERDES_VC_ID_NUM		4
+#define MAX_SERDES_TPG_STREAM		0
 
 enum max_gmsl_version {
 	MAX_GMSL_MIN,
@@ -147,5 +148,7 @@ void max_get_tpg_timings(const struct videomode *vm,
 			 struct max_tpg_timings *timings);
 const struct videomode *
 max_find_tpg_videomode(const struct max_tpg_entry *entry);
+
+int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing);
 
 #endif // MAX_SERDES_H

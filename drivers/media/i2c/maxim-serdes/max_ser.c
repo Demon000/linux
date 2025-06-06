@@ -19,8 +19,6 @@
 
 #define MAX_SER_NUM_LINKS	1
 
-#define MAX_SER_TPG_STREAM	0
-
 struct max_ser_priv {
 	struct max_ser *ser;
 	struct device *dev;
@@ -151,11 +149,11 @@ max_ser_find_state_tpg_entry(struct max_ser *ser, struct v4l2_subdev_state *stat
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
-	fmt = v4l2_subdev_state_get_format(state, pad, MAX_SER_TPG_STREAM);
+	fmt = v4l2_subdev_state_get_format(state, pad, MAX_SERDES_TPG_STREAM);
 	if (!fmt)
 		return NULL;
 
-	in = v4l2_subdev_state_get_interval(state, pad, MAX_SER_TPG_STREAM);
+	in = v4l2_subdev_state_get_interval(state, pad, MAX_SERDES_TPG_STREAM);
 	if (!in)
 		return NULL;
 
@@ -174,7 +172,7 @@ static int max_ser_get_tpg_fd_entry_state(struct max_ser *ser,
 	if (!entry)
 		return -EINVAL;
 
-	fd_entry->stream = MAX_SER_TPG_STREAM;
+	fd_entry->stream = MAX_SERDES_TPG_STREAM;
 	fd_entry->flags = V4L2_MBUS_FRAME_DESC_FL_LEN_MAX;
 	fd_entry->length = entry->width * entry->height * entry->bpp / 8;
 	fd_entry->pixelcode = entry->code;
@@ -444,7 +442,7 @@ static int max_ser_set_tpg_fmt(struct v4l2_subdev *sd,
 	const struct max_tpg_entry *entry;
 	struct v4l2_fract *in;
 
-	if (format->stream != MAX_SER_TPG_STREAM)
+	if (format->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 	entry = max_ser_find_tpg_entry(ser, 0, fmt->width, fmt->height,
@@ -615,7 +613,8 @@ static int max_ser_enum_frame_interval(struct v4l2_subdev *sd,
 	struct max_ser *ser = priv->ser;
 	const struct max_tpg_entry *entry;
 
-	if (!max_ser_pad_is_tpg(ser, fie->pad) || fie->stream != MAX_SER_TPG_STREAM)
+	if (!max_ser_pad_is_tpg(ser, fie->pad) ||
+	    fie->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 
@@ -641,7 +640,8 @@ static int max_ser_set_frame_interval(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
-	if (!max_ser_pad_is_tpg(ser, fi->pad) || fi->stream != MAX_SER_TPG_STREAM)
+	if (!max_ser_pad_is_tpg(ser, fi->pad) ||
+	    fi->stream != MAX_SERDES_TPG_STREAM)
 		return -EINVAL;
 
 	if (fi->which == V4L2_SUBDEV_FORMAT_ACTIVE && ser->active)
@@ -716,6 +716,29 @@ static int max_ser_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	return ret;
 }
 
+static int max_ser_set_tpg_routing(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *state,
+				   struct v4l2_subdev_krouting *routing)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+	const struct max_tpg_entry *entry;
+	struct v4l2_mbus_framefmt fmt = { 0 };
+	int ret;
+
+	ret = max_validate_tpg_routing(routing);
+	if (ret)
+		return ret;
+
+	entry = &ser->ops->tpg_entries.entries[0];
+
+	fmt.width = entry->width;
+	fmt.height = entry->height;
+	fmt.code = entry->code;
+
+	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &fmt);
+}
+
 static int max_ser_set_routing(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *state,
 			       enum v4l2_subdev_format_whence which,
@@ -723,6 +746,8 @@ static int max_ser_set_routing(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
+	struct v4l2_subdev_route *route;
+	bool is_tpg = false;
 	int ret;
 
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ser->active)
@@ -739,6 +764,20 @@ static int max_ser_set_routing(struct v4l2_subdev *sd,
 	ret = v4l2_subdev_routing_validate(sd, routing,
 					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
 					   V4L2_SUBDEV_ROUTING_NO_SINK_STREAM_MIX);
+	if (ret)
+		return ret;
+
+	for_each_active_route(routing, route) {
+		if (max_ser_pad_is_tpg(ser, route->sink_pad)) {
+			is_tpg = true;
+			break;
+		}
+	}
+
+	if (is_tpg)
+		return max_ser_set_tpg_routing(sd, state, routing);
+
+	ret = max_validate_tpg_routing(routing);
 	if (ret)
 		return ret;
 

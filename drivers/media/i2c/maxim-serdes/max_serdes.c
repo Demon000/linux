@@ -391,6 +391,25 @@ max_find_tpg_videomode(const struct max_tpg_entry *entry)
 }
 EXPORT_SYMBOL(max_find_tpg_videomode);
 
+int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
+{
+	const struct v4l2_subdev_route *route;
+
+	if (routing->num_routes != 1)
+		return -EINVAL;
+
+	route = &routing->routes[0];
+
+	if (!(route->flags & V4L2_SUBDEV_ROUTE_FL_ACTIVE))
+		return -EINVAL;
+
+	if (route->sink_stream != MAX_SERDES_TPG_STREAM)
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL(max_validate_tpg_routing);
+
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
