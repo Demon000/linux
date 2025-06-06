@@ -187,6 +187,8 @@ struct max96724_chip_info {
 	bool supports_pipe_stream_autoselect;
 	unsigned int num_pipes;
 
+	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
+			    struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      bool enable);
 };
@@ -854,7 +856,6 @@ static const struct max_des_ops max96724_ops = {
 	.init_phy = max96724_init_phy,
 	.set_phy_mode = max96724_set_phy_mode,
 	.set_phy_active = max96724_set_phy_active,
-	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_link = max96724_set_pipe_link,
 	.set_pipe_enable = max96724_set_pipe_enable,
@@ -868,6 +869,7 @@ static const struct max_des_ops max96724_ops = {
 static const struct max96724_chip_info max96724_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps) | BIT(MAX_GMSL_2_6Gbps),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
+	.set_pipe_phy = max96724_set_pipe_phy,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
@@ -875,6 +877,7 @@ static const struct max96724_chip_info max96724_info = {
 static const struct max96724_chip_info max96724f_info = {
 	.versions = BIT(MAX_GMSL_2_3Gbps),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
+	.set_pipe_phy = max96724_set_pipe_phy,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
@@ -940,6 +943,7 @@ static int max96724_probe(struct i2c_client *client)
 	ops->versions = priv->info->versions;
 	ops->num_pipes = priv->info->num_pipes;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
+	ops->set_pipe_phy = priv->info->set_pipe_phy;
 	priv->des.ops = ops;
 
 	ret = max96724_reset(priv);
