@@ -1151,8 +1151,10 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 				   struct v4l2_subdev_state *state,
 				   u64 *streams_masks)
 {
+	struct v4l2_mbus_frame_desc_entry tpg_entry;
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
+	bool is_tpg_pipe = true;
 	int ret;
 
 	*num_remaps = 0;
@@ -1171,6 +1173,11 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
+		if (hw.is_tpg && hw.pipe != pipe) {
+			is_tpg_pipe = false;
+			tpg_entry = hw.entry;
+		}
+
 		if (hw.pipe != pipe)
 			continue;
 
@@ -1184,6 +1191,26 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 		ret = max_des_add_remaps(des, remaps, num_remaps, hw.phy->index,
 					 src_vc_id, dst_vc_id,
 					 hw.entry.bus.csi2.dt);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * TPG mode is only handled on pipe 0, but the TPG pollutes other pipes
+	 * with the same data.
+	 * For devices that do not support setting the default PHY of a pipe,
+	 * we want to filter out this data so it does not end up on the wrong
+	 * PHY.
+	 * Devices that support setting the default PHY of a pipe already use it
+	 * to route unused pipes to an unused PHY.
+	 */
+	if (context->tpg && !is_tpg_pipe && !des->ops->set_pipe_phy &&
+	    priv->unused_phy) {
+		ret = max_des_add_remaps(des, remaps, num_remaps,
+					 priv->unused_phy->index,
+					 tpg_entry.bus.csi2.vc,
+					 tpg_entry.bus.csi2.vc,
+					 tpg_entry.bus.csi2.dt);
 		if (ret)
 			return ret;
 	}
