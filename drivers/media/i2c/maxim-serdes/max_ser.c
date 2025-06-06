@@ -39,7 +39,6 @@ struct max_ser_priv {
 struct max_ser_route_hw {
 	struct max_source *source;
 	struct max_ser_pipe *pipe;
-	struct max_ser_phy *phy;
 	struct v4l2_mbus_frame_desc_entry entry;
 	bool is_tpg;
 };
@@ -188,21 +187,11 @@ static int max_ser_tpg_route_to_hw(struct max_ser_priv *priv,
 				   struct max_ser_route_hw *hw)
 {
 	struct max_ser *ser = priv->ser;
-	int ret;
 
-	/* TPG injects its data into PHY 0. */
-	hw->phy = &ser->phys[0];
+	hw->pipe = &ser->pipes[0];
 
-	hw->pipe = max_ser_find_phy_pipe(ser, hw->phy);
-	if (!hw->pipe)
-		return -ENOENT;
-
-	ret = max_ser_get_tpg_fd_entry_state(ser, state, &hw->entry,
-					     route->sink_pad);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max_ser_get_tpg_fd_entry_state(ser, state, &hw->entry,
+					      route->sink_pad);
 }
 
 static int max_ser_route_to_hw(struct max_ser_priv *priv,
@@ -212,6 +201,7 @@ static int max_ser_route_to_hw(struct max_ser_priv *priv,
 {
 	struct max_ser *ser = priv->ser;
 	struct v4l2_mbus_frame_desc fd;
+	struct max_ser_phy *phy;
 	unsigned int i;
 	int ret;
 
@@ -221,15 +211,15 @@ static int max_ser_route_to_hw(struct max_ser_priv *priv,
 	if (hw->is_tpg)
 		return max_ser_tpg_route_to_hw(priv, state, route, hw);
 
-	hw->phy = max_ser_pad_to_phy(ser, route->sink_pad);
-	if (!hw->phy)
+	phy = max_ser_pad_to_phy(ser, route->sink_pad);
+	if (!phy)
 		return -ENOENT;
 
-	hw->pipe = max_ser_find_phy_pipe(ser, hw->phy);
+	hw->pipe = max_ser_find_phy_pipe(ser, phy);
 	if (!hw->pipe)
 		return -ENOENT;
 
-	hw->source = max_ser_get_phy_source(priv, hw->phy);
+	hw->source = max_ser_get_phy_source(priv, phy);
 	if (!hw->source->sd)
 		return 0;
 
