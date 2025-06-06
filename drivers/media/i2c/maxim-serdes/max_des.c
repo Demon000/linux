@@ -1958,7 +1958,8 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 
 		v4l2_info(sd, "pipe: %u\n", pipe->index);
 		v4l2_info(sd, "\tenabled: %u\n", pipe->enabled);
-		if (pipe->phy_id == des->ops->num_phys)
+		if (pipe->phy_id == des->ops->num_phys ||
+		    (priv->unused_phy && pipe->phy_id == priv->unused_phy->index))
 			v4l2_info(sd, "\tphy_id: invalid\n");
 		else
 			v4l2_info(sd, "\tphy_id: %u\n", pipe->phy_id);
