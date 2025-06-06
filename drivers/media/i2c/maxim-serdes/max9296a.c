@@ -244,8 +244,8 @@ struct max9296a_chip_info {
 			       bool enable);
 	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
 			    struct max_des_link *link);
-	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
-			    struct max_des_phy *phy);
+	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
+				   struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      bool enable);
 };
@@ -755,9 +755,9 @@ static int max96716a_set_pipe_link(struct max_des *des, struct max_des_pipe *pip
 					     link->index));
 }
 
-static int max96716a_set_pipe_phy(struct max_des *des,
-				  struct max_des_pipe *pipe,
-				  struct max_des_phy *phy)
+static int max96716a_set_pipe_tunnel_phy(struct max_des *des,
+					 struct max_des_pipe *pipe,
+					 struct max_des_phy *phy)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
@@ -1172,7 +1172,7 @@ static int max9296a_probe(struct i2c_client *client)
 	ops->phys_configs = priv->info->phys_configs;
 	ops->set_pipe_enable = priv->info->set_pipe_enable;
 	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
-	ops->set_pipe_phy = priv->info->set_pipe_phy;
+	ops->set_pipe_tunnel_phy = priv->info->set_pipe_tunnel_phy;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	ops->use_atr = priv->info->use_atr;
 	ops->tpg_mode = priv->info->tpg_mode;
@@ -1278,7 +1278,7 @@ static const struct max9296a_chip_info max96716a_info = {
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_link = max96716a_set_pipe_link,
 	.set_pipe_enable = max96714_set_pipe_enable,
-	.set_pipe_phy = max96716a_set_pipe_phy,
+	.set_pipe_tunnel_phy = max96716a_set_pipe_tunnel_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.use_atr = true,
 	.phys_configs = {
@@ -1305,7 +1305,7 @@ static const struct max9296a_chip_info max96792a_info = {
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
-	.set_pipe_phy = max96716a_set_pipe_phy,
+	.set_pipe_tunnel_phy = max96716a_set_pipe_tunnel_phy,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
 	.use_atr = true,
 	.phys_configs = {

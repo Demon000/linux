@@ -238,6 +238,8 @@ struct max96724_chip_info {
 
 	int (*set_pipe_phy)(struct max_des *des, struct max_des_pipe *pipe,
 			    struct max_des_phy *phy);
+	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
+				   struct max_des_phy *phy);
 	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      bool enable);
 };
@@ -735,26 +737,28 @@ static int max96724_set_pipe_remaps_enable(struct max_des *des,
 	return regmap_write(priv->regmap, MAX96724_MIPI_TX12(index), mask >> 8);
 }
 
+static int max96724_set_pipe_tunnel_phy(struct max_des *des,
+					struct max_des_pipe *pipe,
+					struct max_des_phy *phy)
+{
+	struct max96724_priv *priv = des_to_priv(des);
+	unsigned int phy_index = max96724_phy_id(des, phy);
+
+	return regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(pipe->index),
+				  MAX96724_MIPI_TX57_TUN_DEST,
+				  FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
+					     phy_index));
+}
+
 static int max96724_set_pipe_phy(struct max_des *des, struct max_des_pipe *pipe,
 				 struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int phy_index = max96724_phy_id(des, phy);
-	unsigned int index = pipe->index;
-	int ret;
-
-	if (priv->info->set_pipe_tunnel_enable) {
-		ret = regmap_update_bits(priv->regmap, MAX96724_MIPI_TX57(index),
-					MAX96724_MIPI_TX57_TUN_DEST,
-					FIELD_PREP(MAX96724_MIPI_TX57_TUN_DEST,
-						   phy_index));
-		if (ret)
-			return ret;
-	}
 
 	return regmap_update_bits(priv->regmap, MAX96724_MIPI_CTRL_SEL,
-				  MAX96724_MIPI_CTRL_SEL_MASK(index),
-				  field_prep(MAX96724_MIPI_CTRL_SEL_MASK(index),
+				  MAX96724_MIPI_CTRL_SEL_MASK(pipe->index),
+				  field_prep(MAX96724_MIPI_CTRL_SEL_MASK(pipe->index),
 					     phy_index));
 }
 
@@ -1051,6 +1055,7 @@ static const struct max96724_chip_info max96724_info = {
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
+	.set_pipe_tunnel_phy = max96724_set_pipe_tunnel_phy,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };
@@ -1060,6 +1065,7 @@ static const struct max96724_chip_info max96724f_info = {
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
+	.set_pipe_tunnel_phy = max96724_set_pipe_tunnel_phy,
 	.supports_pipe_stream_autoselect = true,
 	.num_pipes = 4,
 };

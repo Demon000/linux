@@ -1047,7 +1047,7 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
-	if (!des->ops->set_pipe_phy)
+	if (!des->ops->set_pipe_phy && !des->ops->set_pipe_tunnel_phy)
 		return 0;
 
 	for (i = 0; i < des->ops->num_pipes; i++) {
@@ -1066,7 +1066,13 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 		if (phy_id != des->ops->num_phys) {
 			phy = &des->phys[phy_id];
 
-			ret = des->ops->set_pipe_phy(des, pipe, phy);
+			if (des->ops->set_pipe_phy)
+				ret = des->ops->set_pipe_phy(des, pipe, phy);
+			else if (des->ops->set_pipe_tunnel_phy)
+				ret = des->ops->set_pipe_tunnel_phy(des, pipe, phy);
+			else
+				ret = -EINVAL;
+
 			if (ret)
 				return ret;
 		}
