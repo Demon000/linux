@@ -44,25 +44,25 @@
 #define MAX96724_BACKTOP12			0x40b
 #define MAX96724_BACKTOP12_CSI_OUT_EN		BIT(1)
 
-#define MAX96724_BACKTOP21			0x414
-#define MAX96724_BACKTOP21_BPP8DBL(p)		BIT(4 + (p))
+#define MAX96724_BACKTOP21(p)			(0x414 + (p) / 4 * 0x20)
+#define MAX96724_BACKTOP21_BPP8DBL(p)		BIT(4 + (p) % 4)
 
 #define MAX96724_BACKTOP22(x)			(0x415 + (x) * 0x3)
 #define MAX96724_BACKTOP22_PHY_CSI_TX_DPLL	GENMASK(4, 0)
 #define MAX96724_BACKTOP22_PHY_CSI_TX_DPLL_EN	BIT(5)
 
-#define MAX96724_BACKTOP24			0x417
-#define MAX96724_BACKTOP24_BPP8DBL_MODE(p)	BIT(4 + (p))
+#define MAX96724_BACKTOP24(p)			(0x417 + (p) / 4 * 0x20)
+#define MAX96724_BACKTOP24_BPP8DBL_MODE(p)	BIT(4 + (p) % 4)
 
-#define MAX96724_BACKTOP30			0x41d
+#define MAX96724_BACKTOP30(p)			(0x41d + (p) / 4 * 0x20)
 #define MAX96724_BACKTOP30_BPP10DBL3		BIT(4)
 #define MAX96724_BACKTOP30_BPP10DBL3_MODE	BIT(5)
 
-#define MAX96724_BACKTOP31			0x41e
+#define MAX96724_BACKTOP31(p)			(0x41e + (p) / 4 * 0x20)
 #define MAX96724_BACKTOP31_BPP10DBL2		BIT(6)
 #define MAX96724_BACKTOP31_BPP10DBL2_MODE	BIT(7)
 
-#define MAX96724_BACKTOP32			0x41f
+#define MAX96724_BACKTOP32(p)			(0x41f + (p) / 4 * 0x20)
 #define MAX96724_BACKTOP32_BPP12(p)		BIT(p)
 #define MAX96724_BACKTOP32_BPP10DBL0		BIT(4)
 #define MAX96724_BACKTOP32_BPP10DBL0_MODE	BIT(5)
@@ -748,32 +748,32 @@ static int max96724_set_pipe_mode(struct max_des *des,
 	int ret;
 
 	/* Set 8bit double mode. */
-	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP21,
+	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP21(index),
 				 MAX96724_BACKTOP21_BPP8DBL(index), mode->dbl8);
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP24,
+	ret = regmap_assign_bits(priv->regmap, MAX96724_BACKTOP24(index),
 				 MAX96724_BACKTOP24_BPP8DBL_MODE(index),
 				 mode->dbl8mode);
 	if (ret)
 		return ret;
 
 	/* Set 10bit double mode. */
-	if (index == 3) {
-		reg = MAX96724_BACKTOP30;
+	if (index % 4 == 3) {
+		reg = MAX96724_BACKTOP30(index);
 		mask = MAX96724_BACKTOP30_BPP10DBL3;
 		mode_mask = MAX96724_BACKTOP30_BPP10DBL3_MODE;
-	} else if (index == 2) {
-		reg = MAX96724_BACKTOP31;
+	} else if (index % 4 == 2) {
+		reg = MAX96724_BACKTOP31(index);
 		mask = MAX96724_BACKTOP31_BPP10DBL2;
 		mode_mask = MAX96724_BACKTOP31_BPP10DBL2_MODE;
-	} else if (index == 1) {
-		reg = MAX96724_BACKTOP32;
+	} else if (index % 4 == 1) {
+		reg = MAX96724_BACKTOP32(index);
 		mask = MAX96724_BACKTOP32_BPP10DBL1;
 		mode_mask = MAX96724_BACKTOP32_BPP10DBL1_MODE;
 	} else {
-		reg = MAX96724_BACKTOP32;
+		reg = MAX96724_BACKTOP32(index);
 		mask = MAX96724_BACKTOP32_BPP10DBL0;
 		mode_mask = MAX96724_BACKTOP32_BPP10DBL0_MODE;
 	}
@@ -787,7 +787,7 @@ static int max96724_set_pipe_mode(struct max_des *des,
 		return ret;
 
 	/* Set 12bit double mode. */
-	return regmap_assign_bits(priv->regmap, MAX96724_BACKTOP32,
+	return regmap_assign_bits(priv->regmap, MAX96724_BACKTOP32(index),
 				  MAX96724_BACKTOP32_BPP12(index), mode->dbl12);
 }
 
