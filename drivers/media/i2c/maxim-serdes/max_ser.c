@@ -2030,14 +2030,7 @@ EXPORT_SYMBOL_GPL(max_ser_fix_tx_ids);
 
 int max_ser_change_address(struct i2c_adapter *adapter, u8 addr, u8 new_addr)
 {
-	int ret;
-	u8 val;
-
-	ret = max_ser_read_reg(adapter, addr, MAX_SER_REG0, &val);
-	if (ret)
-		return ret;
-
-	val |= FIELD_PREP(MAX_SER_REG0_DEV_ADDR, new_addr);
+	u8 val = FIELD_PREP(MAX_SER_REG0_DEV_ADDR, new_addr);
 
 	return max_ser_write_reg(adapter, addr, MAX_SER_REG0, val);
 }
