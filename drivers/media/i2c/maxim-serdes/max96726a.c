@@ -603,7 +603,7 @@ MODULE_DEVICE_TABLE(of, max96726a_of_table);
 static struct i2c_driver max96726a_i2c_driver = {
 	.driver	= {
 		.name = "max96726a",
-		.of_match_table	= of_match_ptr(max96726a_of_table),
+		.of_match_table	= max96726a_of_table,
 	},
 	.probe = max96726a_probe,
 	.remove = max96726a_remove,
