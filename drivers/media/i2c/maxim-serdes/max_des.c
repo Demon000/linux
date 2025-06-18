@@ -19,12 +19,12 @@
 #include "max_ser.h"
 #include "max_serdes.h"
 
-#define MAX_DES_LINK_FREQUENCY_MIN 100000000ull
-#define MAX_DES_LINK_FREQUENCY_DEFAULT 750000000ull
-#define MAX_DES_LINK_FREQUENCY_MAX 1250000000ull
+#define MAX_DES_LINK_FREQUENCY_MIN		100000000ull
+#define MAX_DES_LINK_FREQUENCY_DEFAULT		750000000ull
+#define MAX_DES_LINK_FREQUENCY_MAX		1250000000ull
 
-#define MAX_DES_PHYS_NUM		4
-#define MAX_DES_PIPES_NUM		8
+#define MAX_DES_PHYS_NUM			4
+#define MAX_DES_PIPES_NUM			8
 
 struct max_des_priv {
 	struct max_des *des;
