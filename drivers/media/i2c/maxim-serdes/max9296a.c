@@ -79,6 +79,7 @@
 #define MAX9296A_PATGEN_1			0x241
 #define MAX9296A_PATGEN_1_PATGEN_MODE		GENMASK(5, 4)
 #define MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED	0b00
+#define MAX9296A_PATGEN_1_PATGEN_MODE_CHECKER	0b11
 #define MAX9296A_PATGEN_1_PATGEN_MODE_GRADIENT	0b10
 
 #define MAX9296A_VS_DLY_2			0x242
@@ -1038,6 +1039,28 @@ static int max9296a_set_tpg_clk(struct max9296a_priv *priv, const struct videomo
 					     pin_drv_en));
 }
 
+static int max9296a_set_tpg_mode(struct max9296a_priv *priv, bool enable)
+{
+	unsigned int patgen_mode;
+
+	switch (priv->des.tpg_pattern) {
+	case MAX_TPG_PATTERN_GRADIENT:
+		patgen_mode = MAX9296A_PATGEN_1_PATGEN_MODE_GRADIENT;
+		break;
+	case MAX_TPG_PATTERN_CHECKERBOARD:
+		patgen_mode = MAX9296A_PATGEN_1_PATGEN_MODE_CHECKER;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(priv->regmap, MAX9296A_PATGEN_1,
+				  MAX9296A_PATGEN_1_PATGEN_MODE,
+				  FIELD_PREP(MAX9296A_PATGEN_1_PATGEN_MODE,
+					     enable ? patgen_mode
+						    : MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED));
+}
+
 static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
@@ -1061,11 +1084,7 @@ static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *ent
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX9296A_PATGEN_1,
-				 MAX9296A_PATGEN_1_PATGEN_MODE,
-				 FIELD_PREP(MAX9296A_PATGEN_1_PATGEN_MODE,
-					    entry ? MAX9296A_PATGEN_1_PATGEN_MODE_GRADIENT
-						  : MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED));
+	ret = max9296a_set_tpg_mode(priv, entry);
 	if (ret)
 		return ret;
 
@@ -1085,6 +1104,8 @@ static const struct max_des_ops max9296a_ops = {
 		.num_entries = ARRAY_SIZE(max9296a_tpg_entries),
 		.entries = max9296a_tpg_entries,
 	},
+	.tpg_patterns = BIT(MAX_TPG_PATTERN_CHECKERBOARD) |
+			BIT(MAX_TPG_PATTERN_GRADIENT),
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
 	.log_pipe_status = max9626a_log_pipe_status,

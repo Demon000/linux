@@ -30,6 +30,8 @@
 #define MAX_SERDES_VC_ID_NUM		4
 #define MAX_SERDES_TPG_STREAM		0
 
+extern const char * const max_tpg_patterns[];
+
 enum max_gmsl_version {
 	MAX_GMSL_MIN,
 	MAX_GMSL_2_3GBPS = MAX_GMSL_MIN,
@@ -41,6 +43,13 @@ enum max_gmsl_version {
 enum max_gmsl_mode {
 	MAX_GMSL_PIXEL_MODE,
 	MAX_GMSL_TUNNEL_MODE,
+};
+
+enum max_tpg_pattern {
+	MAX_TPG_PATTERN_MIN,
+	MAX_TPG_PATTERN_CHECKERBOARD = MAX_TPG_PATTERN_MIN,
+	MAX_TPG_PATTERN_GRADIENT,
+	MAX_TPG_PATTERN_MAX = MAX_TPG_PATTERN_GRADIENT,
 };
 
 struct max_phys_config {

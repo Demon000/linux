@@ -173,6 +173,7 @@
 #define MAX96724_PATGEN_1			0x1051
 #define MAX96724_PATGEN_1_PATGEN_MODE		GENMASK(5, 4)
 #define MAX96724_PATGEN_1_PATGEN_MODE_DISABLED	0b00
+#define MAX96724_PATGEN_1_PATGEN_MODE_CHECKER	0b01
 #define MAX96724_PATGEN_1_PATGEN_MODE_GRADIENT	0b10
 
 #define MAX96724_VS_DLY_2			0x1052
@@ -961,6 +962,28 @@ static int max96724_set_tpg_clk(struct max96724_priv *priv, const struct videomo
 					     pclk_src));
 }
 
+static int max96724_set_tpg_mode(struct max96724_priv *priv, bool enable)
+{
+	unsigned int patgen_mode;
+
+	switch (priv->des.tpg_pattern) {
+	case MAX_TPG_PATTERN_GRADIENT:
+		patgen_mode = MAX96724_PATGEN_1_PATGEN_MODE_GRADIENT;
+		break;
+	case MAX_TPG_PATTERN_CHECKERBOARD:
+		patgen_mode = MAX96724_PATGEN_1_PATGEN_MODE_CHECKER;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(priv->regmap, MAX96724_PATGEN_1,
+				  MAX96724_PATGEN_1_PATGEN_MODE,
+				  FIELD_PREP(MAX96724_PATGEN_1_PATGEN_MODE,
+					     enable ? patgen_mode
+						    : MAX96724_PATGEN_1_PATGEN_MODE_DISABLED));
+}
+
 static int max96724_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -984,11 +1007,7 @@ static int max96724_set_tpg(struct max_des *des, const struct max_tpg_entry *ent
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96724_PATGEN_1,
-				 MAX96724_PATGEN_1_PATGEN_MODE,
-				 FIELD_PREP(MAX96724_PATGEN_1_PATGEN_MODE,
-					    entry ? MAX96724_PATGEN_1_PATGEN_MODE_GRADIENT
-						  : MAX96724_PATGEN_1_PATGEN_MODE_DISABLED));
+	ret = max96724_set_tpg_mode(priv, entry);
 	if (ret)
 		return ret;
 
@@ -1015,6 +1034,8 @@ static const struct max_des_ops max96724_ops = {
 		.entries = max96724_tpg_entries,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_patterns = BIT(MAX_TPG_PATTERN_CHECKERBOARD) |
+			BIT(MAX_TPG_PATTERN_GRADIENT),
 	.use_atr = true,
 	.reg_read = max96724_reg_read,
 	.reg_write = max96724_reg_write,

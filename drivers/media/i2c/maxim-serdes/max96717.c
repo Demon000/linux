@@ -78,6 +78,7 @@
 #define MAX96717_VTX29(p)			(0x1e5 + (p) * 0x43)
 #define MAX96717_VTX29_PATGEN_MODE		GENMASK(1, 0)
 #define MAX96717_VTX29_PATGEN_MODE_DISABLED	0b00
+#define MAX96717_VTX29_PATGEN_MODE_CHECKER	0b01
 #define MAX96717_VTX29_PATGEN_MODE_GRADIENT	0b10
 #define MAX96717_VTX30_GRAD_INCR(p)		(0x1e6 + (p) * 0x43)
 
@@ -1218,6 +1219,29 @@ static int max96717_set_tpg_clk(struct max96717_priv *priv,
 					     pclk_src));
 }
 
+static int max96717_set_tpg_mode(struct max96717_priv *priv, bool enable,
+				 unsigned int index)
+{
+	unsigned int patgen_mode;
+
+	switch (priv->ser.tpg_pattern) {
+	case MAX_TPG_PATTERN_GRADIENT:
+		patgen_mode = MAX96717_VTX29_PATGEN_MODE_GRADIENT;
+		break;
+	case MAX_TPG_PATTERN_CHECKERBOARD:
+		patgen_mode = MAX96717_VTX29_PATGEN_MODE_CHECKER;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(priv->regmap, MAX96717_VTX29(index),
+				  MAX96717_VTX29_PATGEN_MODE,
+				  FIELD_PREP(MAX96717_VTX29_PATGEN_MODE,
+					     enable ? patgen_mode
+						    : MAX96717_VTX29_PATGEN_MODE_DISABLED));
+}
+
 static int max96717_set_tpg(struct max_ser *ser, const struct max_tpg_entry *entry)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1246,11 +1270,7 @@ static int max96717_set_tpg(struct max_ser *ser, const struct max_tpg_entry *ent
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(priv->regmap, MAX96717_VTX29(index),
-				  MAX96717_VTX29_PATGEN_MODE,
-				  FIELD_PREP(MAX96717_VTX29_PATGEN_MODE,
-					     entry ? MAX96717_VTX29_PATGEN_MODE_GRADIENT
-						   : MAX96717_VTX29_PATGEN_MODE_DISABLED));
+	return max96717_set_tpg_mode(priv, entry, index);
 }
 
 static const struct max_phys_config max96717_phys_configs[] = {
@@ -1320,6 +1340,8 @@ static const struct max_ser_ops max96717_ops = {
 		.entries = max96717_tpg_entries,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_patterns = BIT(MAX_TPG_PATTERN_CHECKERBOARD) |
+			BIT(MAX_TPG_PATTERN_GRADIENT),
 	.reg_read = max96717_reg_read,
 	.reg_write = max96717_reg_write,
 	.log_status = max96717_log_status,

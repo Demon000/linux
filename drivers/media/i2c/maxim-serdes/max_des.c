@@ -12,6 +12,7 @@
 #include <linux/regulator/consumer.h>
 
 #include <media/mipi-csi2.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -42,6 +43,7 @@ struct max_des_priv {
 	struct notifier_block i2c_nb;
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
+	struct v4l2_ctrl_handler ctrl_handler;
 
 	struct max_des_phy *unused_phy;
 };
@@ -93,6 +95,11 @@ static inline struct max_des_priv *sd_to_priv(struct v4l2_subdev *sd)
 static inline struct max_des_priv *nf_to_priv(struct v4l2_async_notifier *nf)
 {
 	return container_of(nf, struct max_des_priv, nf);
+}
+
+static inline struct max_des_priv *ctrl_to_priv(struct v4l2_ctrl_handler *handler)
+{
+	return container_of(handler, struct max_des_priv, ctrl_handler);
 }
 
 static inline bool max_des_pad_is_sink(struct max_des *des, u32 pad)
@@ -2036,6 +2043,20 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	return 0;
 }
 
+static int max_des_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max_des_priv *priv = ctrl_to_priv(ctrl->handler);
+	struct max_des *des = priv->des;
+
+	switch (ctrl->id) {
+	case V4L2_CID_TEST_PATTERN:
+		des->tpg_pattern = ctrl->val;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static int max_des_get_frame_desc_state(struct v4l2_subdev *sd,
 					struct v4l2_subdev_state *state,
 					struct v4l2_mbus_frame_desc *fd,
@@ -2493,6 +2514,10 @@ static const struct v4l2_subdev_core_ops max_des_core_ops = {
 #endif
 };
 
+static const struct v4l2_ctrl_ops max_des_ctrl_ops = {
+	.s_ctrl = max_des_s_ctrl,
+};
+
 static const struct v4l2_subdev_pad_ops max_des_pad_ops = {
 	.enable_streams = max_des_enable_streams,
 	.disable_streams = max_des_disable_streams,
@@ -2653,9 +2678,26 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 
 	v4l2_set_subdevdata(sd, priv);
 
+	if (des->ops->tpg_patterns) {
+		v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
+		priv->sd.ctrl_handler = &priv->ctrl_handler;
+
+		v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler,
+					     &max_des_ctrl_ops,
+					     V4L2_CID_TEST_PATTERN,
+					     MAX_TPG_PATTERN_MAX,
+					     ~des->ops->tpg_patterns,
+					     __ffs(des->ops->tpg_patterns),
+					     max_tpg_patterns);
+		if (priv->ctrl_handler.error) {
+			ret = priv->ctrl_handler.error;
+			goto err_free_ctrl;
+		}
+	}
+
 	ret = media_entity_pads_init(&sd->entity, num_pads, priv->pads);
 	if (ret)
-		return ret;
+		goto err_free_ctrl;
 
 	ret = max_des_v4l2_notifier_register(priv);
 	if (ret)
@@ -2677,6 +2719,8 @@ err_nf_cleanup:
 	max_des_v4l2_notifier_unregister(priv);
 err_media_entity_cleanup:
 	media_entity_cleanup(&sd->entity);
+err_free_ctrl:
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
@@ -2689,6 +2733,7 @@ static void max_des_v4l2_unregister(struct max_des_priv *priv)
 	v4l2_subdev_cleanup(sd);
 	max_des_v4l2_notifier_unregister(priv);
 	media_entity_cleanup(&sd->entity);
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 }
 
 static int max_des_update_pocs(struct max_des_priv *priv, bool enable)

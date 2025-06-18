@@ -82,6 +82,7 @@ struct max_des_ops {
 	struct max_phys_configs phys_configs;
 	struct max_tpg_entries tpg_entries;
 	enum max_gmsl_mode tpg_mode;
+	unsigned int tpg_patterns;
 
 	int (*reg_read)(struct max_des *des, unsigned int reg, unsigned int *val);
 	int (*reg_write)(struct max_des *des, unsigned int reg, unsigned int val);
@@ -137,6 +138,7 @@ struct max_des {
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
 	const struct max_tpg_entry *tpg_entry;
+	enum max_tpg_pattern tpg_pattern;
 
 	unsigned int phys_config;
 	enum max_gmsl_mode mode;

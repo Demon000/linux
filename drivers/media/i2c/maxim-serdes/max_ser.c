@@ -11,6 +11,7 @@
 #include <linux/module.h>
 
 #include <media/mipi-csi2.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
@@ -34,6 +35,7 @@ struct max_ser_priv {
 
 	struct v4l2_subdev sd;
 	struct v4l2_async_notifier nf;
+	struct v4l2_ctrl_handler ctrl_handler;
 };
 
 struct max_ser_route_hw {
@@ -51,6 +53,11 @@ static inline struct max_ser_priv *sd_to_priv(struct v4l2_subdev *sd)
 static inline struct max_ser_priv *nf_to_priv(struct v4l2_async_notifier *nf)
 {
 	return container_of(nf, struct max_ser_priv, nf);
+}
+
+static inline struct max_ser_priv *ctrl_to_priv(struct v4l2_ctrl_handler *handler)
+{
+	return container_of(handler, struct max_ser_priv, ctrl_handler);
 }
 
 static inline bool max_ser_pad_is_sink(struct max_ser *ser, u32 pad)
@@ -593,6 +600,20 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	}
 
 	return 0;
+}
+
+static int max_ser_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct max_ser_priv *priv = ctrl_to_priv(ctrl->handler);
+	struct max_ser *ser = priv->ser;
+
+	switch (ctrl->id) {
+	case V4L2_CID_TEST_PATTERN:
+		ser->tpg_pattern = ctrl->val;
+		return 0;
+	}
+
+	return -EINVAL;
 }
 
 static int max_ser_enum_frame_interval(struct v4l2_subdev *sd,
@@ -1300,6 +1321,10 @@ static const struct v4l2_subdev_core_ops max_ser_core_ops = {
 #endif
 };
 
+static const struct v4l2_ctrl_ops max_ser_ctrl_ops = {
+	.s_ctrl = max_ser_s_ctrl,
+};
+
 static const struct v4l2_subdev_pad_ops max_ser_pad_ops = {
 	.enable_streams = max_ser_enable_streams,
 	.disable_streams = max_ser_disable_streams,
@@ -1531,9 +1556,26 @@ static int max_ser_v4l2_register(struct max_ser_priv *priv)
 
 	v4l2_set_subdevdata(sd, priv);
 
+	if (ser->ops->tpg_patterns) {
+		v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
+		priv->sd.ctrl_handler = &priv->ctrl_handler;
+
+		v4l2_ctrl_new_std_menu_items(&priv->ctrl_handler,
+					     &max_ser_ctrl_ops,
+					     V4L2_CID_TEST_PATTERN,
+					     MAX_TPG_PATTERN_MAX,
+					     ~ser->ops->tpg_patterns,
+					     __ffs(ser->ops->tpg_patterns),
+					     max_tpg_patterns);
+		if (priv->ctrl_handler.error) {
+			ret = priv->ctrl_handler.error;
+			goto err_free_ctrl;
+		}
+	}
+
 	ret = media_entity_pads_init(&sd->entity, num_pads, priv->pads);
 	if (ret)
-		return ret;
+		goto err_free_ctrl;
 
 	ret = max_ser_v4l2_notifier_register(priv);
 	if (ret)
@@ -1555,6 +1597,8 @@ err_nf_cleanup:
 	max_ser_v4l2_notifier_unregister(priv);
 err_media_entity_cleanup:
 	media_entity_cleanup(&sd->entity);
+err_free_ctrl:
+	v4l2_ctrl_handler_free(&priv->ctrl_handler);
 
 	return ret;
 }
