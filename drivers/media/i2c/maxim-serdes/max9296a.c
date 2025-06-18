@@ -1075,6 +1075,7 @@ static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *ent
 
 static const struct max_tpg_entry max9296a_tpg_entries[] = {
 	MAX_TPG_ENTRY_640X480P60_RGB888,
+	MAX_TPG_ENTRY_1920X1080P30_RGB888,
 	MAX_TPG_ENTRY_1920X1080P60_RGB888,
 };
 
