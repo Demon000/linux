@@ -2898,7 +2898,7 @@ int max_des_phy_hw_data_lanes(struct max_des *des, struct max_des_phy *phy)
 
 	return config->lanes[phy->index];
 }
-EXPORT_SYMBOL(max_des_phy_hw_data_lanes);
+EXPORT_SYMBOL_GPL(max_des_phy_hw_data_lanes);
 
 static int max_des_find_phys_config(struct max_des_priv *priv)
 {

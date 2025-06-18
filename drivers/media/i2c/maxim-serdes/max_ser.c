@@ -1878,7 +1878,7 @@ unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 
 	return modes;
 }
-EXPORT_SYMBOL(max_ser_get_supported_modes);
+EXPORT_SYMBOL_GPL(max_ser_get_supported_modes);
 
 bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 {
@@ -1887,7 +1887,7 @@ bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 
 	return !!ser->ops->set_pipe_vc_remap;
 }
-EXPORT_SYMBOL(max_ser_supports_vc_remap);
+EXPORT_SYMBOL_GPL(max_ser_supports_vc_remap);
 
 int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 {
@@ -1913,7 +1913,7 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 
 	return 0;
 }
-EXPORT_SYMBOL(max_ser_set_mode);
+EXPORT_SYMBOL_GPL(max_ser_set_mode);
 
 int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps,
 			  int num_vc_remaps)

@@ -32,7 +32,7 @@ const char *max_gmsl_version_str(enum max_gmsl_version version)
 
 	return max_gmsl_versions[version];
 }
-EXPORT_SYMBOL(max_gmsl_version_str);
+EXPORT_SYMBOL_GPL(max_gmsl_version_str);
 
 static const char * const max_gmsl_mode[] = {
 	[MAX_GMSL_PIXEL_MODE] = "pixel",
@@ -46,7 +46,7 @@ const char *max_gmsl_mode_str(enum max_gmsl_mode mode)
 
 	return max_gmsl_mode[mode];
 }
-EXPORT_SYMBOL(max_gmsl_mode_str);
+EXPORT_SYMBOL_GPL(max_gmsl_mode_str);
 
 static const struct max_mipi_format max_mipi_formats[] = {
 	{ MIPI_CSI2_DT_EMBEDDED_8B, 8 },
@@ -97,7 +97,7 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 
 	return -ENOENT;
 }
-EXPORT_SYMBOL(max_get_fd_stream_entry);
+EXPORT_SYMBOL_GPL(max_get_fd_stream_entry);
 
 int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp)
 {
@@ -180,7 +180,7 @@ int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
 
 	return 0;
 }
-EXPORT_SYMBOL(max_process_bpps);
+EXPORT_SYMBOL_GPL(max_process_bpps);
 
 int max_xlate_enable_disable_streams(struct max_source *sources,
 				     u32 source_sink_pad_offset,
@@ -248,7 +248,7 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL(max_xlate_enable_disable_streams);
+EXPORT_SYMBOL_GPL(max_xlate_enable_disable_streams);
 
 int max_get_streams_masks(struct device *dev,
 			  const struct v4l2_subdev_state *state,
@@ -289,7 +289,7 @@ int max_get_streams_masks(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL(max_get_streams_masks);
+EXPORT_SYMBOL_GPL(max_get_streams_masks);
 
 static const struct videomode max_tpg_pixel_videomodes[] = {
 	{
@@ -361,7 +361,7 @@ void max_get_tpg_timings(const struct videomode *vm,
 		.fps = DIV_ROUND_CLOSEST(vm->pixelclock, vtot * htot),
 	};
 }
-EXPORT_SYMBOL(max_get_tpg_timings);
+EXPORT_SYMBOL_GPL(max_get_tpg_timings);
 
 const struct videomode *
 max_find_tpg_videomode(const struct max_tpg_entry *entry)
@@ -388,7 +388,7 @@ max_find_tpg_videomode(const struct max_tpg_entry *entry)
 
 	return NULL;
 }
-EXPORT_SYMBOL(max_find_tpg_videomode);
+EXPORT_SYMBOL_GPL(max_find_tpg_videomode);
 
 int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 {
@@ -407,7 +407,7 @@ int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 
 	return 0;
 }
-EXPORT_SYMBOL(max_validate_tpg_routing);
+EXPORT_SYMBOL_GPL(max_validate_tpg_routing);
 
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
