@@ -14,12 +14,6 @@
 
 #include "max_serdes.h"
 
-#define MAX_MIPI_FMT(_dt, _bpp)	\
-{				\
-	.dt = (_dt),		\
-	.bpp = (_bpp),		\
-}
-
 static const char * const max_gmsl_versions[] = {
 	[MAX_GMSL_2_3GBPS] = "GMSL2 3Gbps",
 	[MAX_GMSL_2_6GBPS] = "GMSL2 6Gbps",
@@ -50,17 +44,17 @@ const char *max_gmsl_mode_str(enum max_gmsl_mode mode)
 EXPORT_SYMBOL(max_gmsl_mode_str);
 
 static const struct max_mipi_format max_mipi_formats[] = {
-	MAX_MIPI_FMT(MIPI_CSI2_DT_EMBEDDED_8B, 8),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_8B, 16),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_YUV422_10B, 20),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB565, 16),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB666, 18),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RGB888, 24),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW8, 8),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW10, 10),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW12, 12),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW14, 14),
-	MAX_MIPI_FMT(MIPI_CSI2_DT_RAW16, 16),
+	{ MIPI_CSI2_DT_EMBEDDED_8B, 8 },
+	{ MIPI_CSI2_DT_YUV422_8B, 16 },
+	{ MIPI_CSI2_DT_YUV422_10B, 20 },
+	{ MIPI_CSI2_DT_RGB565, 16 },
+	{ MIPI_CSI2_DT_RGB666, 18 },
+	{ MIPI_CSI2_DT_RGB888, 24 },
+	{ MIPI_CSI2_DT_RAW8, 8 },
+	{ MIPI_CSI2_DT_RAW10, 10 },
+	{ MIPI_CSI2_DT_RAW12, 12 },
+	{ MIPI_CSI2_DT_RAW14, 14 },
+	{ MIPI_CSI2_DT_RAW16, 16 },
 };
 
 const struct max_mipi_format *max_mipi_format_by_dt(u8 dt)
