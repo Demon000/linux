@@ -1148,7 +1148,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 				   struct v4l2_subdev_state *state,
 				   u64 *streams_masks)
 {
-	struct v4l2_mbus_frame_desc_entry tpg_entry;
+	struct v4l2_mbus_frame_desc_entry tpg_entry = { 0 };
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	bool is_tpg_pipe = true;
@@ -1547,7 +1547,7 @@ static int max_des_ser_attach_addr(struct max_des_priv *priv, u32 chan_id,
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[chan_id];
 	int i, min, max;
-	int ret;
+	int ret = 0;
 
 	max_des_ser_find_version_range(des, &min, &max);
 
