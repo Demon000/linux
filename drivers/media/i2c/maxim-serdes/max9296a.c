@@ -184,8 +184,8 @@
 #define MAX9296A_DPLL_0(x)			(0x1c00 + (x) * 0x100)
 #define MAX9296A_DPLL_0_CONFIG_SOFT_RST_N	BIT(0)
 
-#define MAX9296A_PIPES_NUM		4
-#define MAX9296A_PHYS_NUM		2
+#define MAX9296A_PIPES_NUM			4
+#define MAX9296A_PHYS_NUM			2
 
 static const struct regmap_config max9296a_i2c_regmap = {
 	.reg_bits = 16,
