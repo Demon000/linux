@@ -2265,6 +2265,9 @@ static int max_des_update_tpg(struct max_des_priv *priv,
 		break;
 	}
 
+	if (entry == des->tpg_entry)
+		return 0;
+
 	ret = des->ops->set_tpg(des, entry);
 	if (ret)
 		return ret;

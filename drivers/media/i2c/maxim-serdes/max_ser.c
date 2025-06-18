@@ -1202,6 +1202,9 @@ static int max_ser_update_tpg(struct max_ser_priv *priv,
 		break;
 	}
 
+	if (entry == ser->tpg_entry)
+		return 0;
+
 	ret = ser->ops->set_tpg(ser, entry);
 	if (ret)
 		return ret;
