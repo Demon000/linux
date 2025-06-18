@@ -188,6 +188,11 @@
 #define MAX96724_DE_LOW_1			0x1069
 #define MAX96724_DE_CNT_1			0x106b
 #define MAX96724_GRAD_INCR			0x106d
+#define MAX96724_CHKR_COLOR_A_L			0x106e
+#define MAX96724_CHKR_COLOR_B_L			0x1071
+#define MAX96724_CHKR_RPT_A			0x1074
+#define MAX96724_CHKR_RPT_B			0x1075
+#define MAX96724_CHKR_ALT			0x1076
 
 #define MAX96724_DE_DET				0x11f0
 #define MAX96724_HS_DET				0x11f1
@@ -422,6 +427,23 @@ static const struct max_phys_config max96724_phys_configs[] = {
 	{ { 4, 0, 4, 0 } },
 };
 
+static int max96724_init_tpg(struct max_des *des)
+{
+	const struct reg_sequence regs[] = {
+		{ MAX96724_GRAD_INCR, MAX_SERDES_GRAD_INCR },
+		REG_SEQUENCE_3_LE(MAX96724_CHKR_COLOR_A_L,
+				  MAX_SERDES_CHECKER_COLOR_A),
+		REG_SEQUENCE_3_LE(MAX96724_CHKR_COLOR_B_L,
+				  MAX_SERDES_CHECKER_COLOR_B),
+		{ MAX96724_CHKR_RPT_A, MAX_SERDES_CHECKER_SIZE },
+		{ MAX96724_CHKR_RPT_B, MAX_SERDES_CHECKER_SIZE },
+		{ MAX96724_CHKR_ALT, MAX_SERDES_CHECKER_SIZE },
+	};
+	struct max96724_priv *priv = des_to_priv(des);
+
+	return regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
+}
+
 static int max96724_init(struct max_des *des)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -452,12 +474,7 @@ static int max96724_init(struct max_des *des)
 	if (ret)
 		return ret;
 
-	/* Set TPG gradient increase. */
-	ret = regmap_write(priv->regmap, MAX96724_GRAD_INCR, 0x4);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max96724_init_tpg(des);
 }
 
 static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)

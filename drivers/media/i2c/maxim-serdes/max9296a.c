@@ -94,6 +94,11 @@
 #define MAX9296A_DE_LOW_1			0x259
 #define MAX9296A_DE_CNT_1			0x25b
 #define MAX9296A_GRAD_INCR			0x25d
+#define MAX9296A_CHKR_COLOR_A_L			0x25e
+#define MAX9296A_CHKR_COLOR_B_L			0x261
+#define MAX9296A_CHKR_RPT_A			0x264
+#define MAX9296A_CHKR_RPT_B			0x265
+#define MAX9296A_CHKR_ALT			0x266
 
 #define MAX9296A_BACKTOP12			0x313
 #define MAX9296A_BACKTOP12_CSI_OUT_EN		BIT(1)
@@ -363,6 +368,28 @@ static int max9296a_set_enable(struct max_des *des, bool enable)
 
 	return regmap_assign_bits(priv->regmap, MAX9296A_BACKTOP12,
 				  MAX9296A_BACKTOP12_CSI_OUT_EN, enable);
+}
+
+static int max9296a_init_tpg(struct max_des *des)
+{
+	const struct reg_sequence regs[] = {
+		{ MAX9296A_GRAD_INCR, MAX_SERDES_GRAD_INCR },
+		REG_SEQUENCE_3_LE(MAX9296A_CHKR_COLOR_A_L,
+				  MAX_SERDES_CHECKER_COLOR_A),
+		REG_SEQUENCE_3_LE(MAX9296A_CHKR_COLOR_B_L,
+				  MAX_SERDES_CHECKER_COLOR_B),
+		{ MAX9296A_CHKR_RPT_A, MAX_SERDES_CHECKER_SIZE },
+		{ MAX9296A_CHKR_RPT_B, MAX_SERDES_CHECKER_SIZE },
+		{ MAX9296A_CHKR_ALT, MAX_SERDES_CHECKER_SIZE },
+	};
+	struct max9296a_priv *priv = des_to_priv(des);
+
+	return regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
+}
+
+static int max9296a_init(struct max_des *des)
+{
+	return max9296a_init_tpg(des);
 }
 
 static int max9296a_init_phy(struct max_des *des, struct max_des_phy *phy)
@@ -865,11 +892,6 @@ static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
 			return ret;
 	}
 
-	/* Set TPG gradient increase. */
-	ret = regmap_write(priv->regmap, MAX9296A_GRAD_INCR, 0x4);
-	if (ret)
-		return ret;
-
 	return 0;
 }
 
@@ -1111,6 +1133,7 @@ static const struct max_des_ops max9296a_ops = {
 	.log_pipe_status = max9626a_log_pipe_status,
 	.log_phy_status = max9296a_log_phy_status,
 	.set_enable = max9296a_set_enable,
+	.init = max9296a_init,
 	.init_phy = max9296a_init_phy,
 	.set_phy_mode = max9296a_set_phy_mode,
 	.set_phy_active = max9296a_set_phy_active,

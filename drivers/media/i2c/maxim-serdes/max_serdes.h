@@ -22,6 +22,11 @@
 	{ (reg) + 1, ((val) >> 8)  & 0xff }, \
 	{ (reg) + 2, ((val) >> 0)  & 0xff }
 
+#define REG_SEQUENCE_3_LE(reg, val) \
+	{ (reg),     ((val) >> 0) & 0xff }, \
+	{ (reg) + 1, ((val) >> 8)  & 0xff }, \
+	{ (reg) + 2, ((val) >> 16)  & 0xff }
+
 #define field_get(mask, val) (((val) & (mask)) >> __ffs(mask))
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
@@ -29,6 +34,11 @@
 #define MAX_SERDES_STREAMS_NUM		4
 #define MAX_SERDES_VC_ID_NUM		4
 #define MAX_SERDES_TPG_STREAM		0
+
+#define MAX_SERDES_GRAD_INCR		4
+#define MAX_SERDES_CHECKER_COLOR_A	0x00ccfe
+#define MAX_SERDES_CHECKER_COLOR_B	0xa76a00
+#define MAX_SERDES_CHECKER_SIZE		60
 
 extern const char * const max_tpg_patterns[];
 

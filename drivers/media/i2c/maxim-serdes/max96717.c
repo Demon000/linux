@@ -76,11 +76,18 @@
 #define MAX96717_VTX25_DE_LOW_1(p)		(0x1e1 + (p) * 0x43)
 #define MAX96717_VTX27_DE_CNT_1(p)		(0x1e3 + (p) * 0x43)
 #define MAX96717_VTX29(p)			(0x1e5 + (p) * 0x43)
+
 #define MAX96717_VTX29_PATGEN_MODE		GENMASK(1, 0)
 #define MAX96717_VTX29_PATGEN_MODE_DISABLED	0b00
 #define MAX96717_VTX29_PATGEN_MODE_CHECKER	0b01
 #define MAX96717_VTX29_PATGEN_MODE_GRADIENT	0b10
+
 #define MAX96717_VTX30_GRAD_INCR(p)		(0x1e6 + (p) * 0x43)
+#define MAX96717_VTX31_CHKR_A_L(p)		(0x1e7 + (p) * 0x43)
+#define MAX96717_VTX34_CHKR_B_L(p)		(0x1ea + (p) * 0x43)
+#define MAX96717_VTX37_CHKR_RPT_A(p)		(0x1ed + (p) * 0x43)
+#define MAX96717_VTX38_CHKR_RPT_B(p)		(0x1ee + (p) * 0x43)
+#define MAX96717_VTX39_CHKR_ALT(p)		(0x1ef + (p) * 0x43)
 
 #define MAX96717_GPIO_A(x)			(0x2be + (x) * 0x3)
 #define MAX96717_GPIO_A_GPIO_OUT_DIS		BIT(0)
@@ -1277,6 +1284,29 @@ static const struct max_phys_config max96717_phys_configs[] = {
 	{ { 4 } },
 };
 
+static int max96717_init_tpg(struct max_ser *ser)
+{
+	struct max96717_priv *priv = ser_to_priv(ser);
+	/*
+	 * MAX9295A supports multiple pipes, each with a pattern generator,
+	 * use only the first pipe for simplicity.
+	 */
+	unsigned int index = max96717_pipe_id(priv, &ser->pipes[0]);
+
+	const struct reg_sequence regs[] = {
+		{ MAX96717_VTX30_GRAD_INCR(index), MAX_SERDES_GRAD_INCR },
+		REG_SEQUENCE_3_LE(MAX96717_VTX31_CHKR_A_L(index),
+				  MAX_SERDES_CHECKER_COLOR_A),
+		REG_SEQUENCE_3_LE(MAX96717_VTX34_CHKR_B_L(index),
+				  MAX_SERDES_CHECKER_COLOR_B),
+		{ MAX96717_VTX37_CHKR_RPT_A(index), MAX_SERDES_CHECKER_SIZE },
+		{ MAX96717_VTX38_CHKR_RPT_B(index), MAX_SERDES_CHECKER_SIZE },
+		{ MAX96717_VTX39_CHKR_ALT(index), MAX_SERDES_CHECKER_SIZE },
+	};
+
+	return regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
+}
+
 static int max96717_init(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
@@ -1299,7 +1329,7 @@ static int max96717_init(struct max_ser *ser)
 			return ret;
 	}
 
-	return 0;
+	return max96717_init_tpg(ser);
 }
 
 static const struct pinctrl_ops max96717_ctrl_ops = {
