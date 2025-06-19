@@ -617,9 +617,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	u32 bpps_pipes[MAX_DES_PIPES_NUM] = { 0 };
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
-	unsigned int doubled_bpp;
 	unsigned int i;
-	u32 sink_bpps;
 	int ret;
 
 	if (mode != MAX_GMSL_PIXEL_MODE)
@@ -667,9 +665,10 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	}
 
 	for_each_active_route(&state->routing, route) {
-		unsigned int bpp, min_bpp, max_bpp;
+		unsigned int bpp, min_bpp, max_bpp, doubled_bpp;
 		unsigned int pipe_id, phy_id;
 		struct max_des_route_hw hw;
+		u32 sink_bpps;
 
 		ret = max_des_route_to_hw(priv, state, route, &hw);
 		if (ret)
