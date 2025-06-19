@@ -47,8 +47,6 @@ struct max_ser_pipe {
 	unsigned int *dts;
 	unsigned int num_dts;
 	unsigned int vcs;
-	struct max_vc_remap vc_remaps[MAX_SERDES_VC_ID_NUM];
-	unsigned int num_vc_remaps;
 	struct max_ser_pipe_mode mode;
 	bool enabled;
 };
@@ -61,6 +59,7 @@ struct max_ser_ops {
 	unsigned int num_dts_per_pipe;
 	unsigned int num_phys;
 	unsigned int num_i2c_xlates;
+	unsigned int num_vc_remaps;
 
 	struct max_phys_configs phys_configs;
 	struct max_tpg_entries tpg_entries;
@@ -92,10 +91,9 @@ struct max_ser_ops {
 			    unsigned int vcs);
 	int (*set_pipe_mode)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			     struct max_ser_pipe_mode *mode);
-	int (*set_pipe_vc_remap)(struct max_ser *ser, struct max_ser_pipe *pipe,
-				 unsigned int i, struct max_vc_remap *vc_remap);
-	int (*set_pipe_vc_remaps_enable)(struct max_ser *ser, struct max_ser_pipe *pipe,
-					 unsigned int mask);
+	int (*set_vc_remap)(struct max_ser *ser, unsigned int i,
+			    struct max_vc_remap *vc_remap);
+	int (*set_vc_remaps_enable)(struct max_ser *ser, unsigned int mask);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
 	unsigned int (*get_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe);
@@ -116,6 +114,9 @@ struct max_ser {
 	struct max_ser_pipe *pipes;
 	const struct max_tpg_entry *tpg_entry;
 	enum max_tpg_pattern tpg_pattern;
+
+	struct max_vc_remap *vc_remaps;
+	unsigned int num_vc_remaps;
 
 	unsigned int phys_config;
 	unsigned int active;

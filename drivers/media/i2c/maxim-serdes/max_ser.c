@@ -530,6 +530,14 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 			break;
 	}
 	v4l2_info(sd, "\n");
+	if (ser->ops->set_vc_remap) {
+		v4l2_info(sd, "vc_remaps: %u\n", ser->num_vc_remaps);
+		for (j = 0; j < ser->num_vc_remaps; j++) {
+			v4l2_info(sd, "\tvc_remap: src: %u, dst: %u\n",
+				  ser->vc_remaps[j].src, ser->vc_remaps[j].dst);
+		}
+	}
+	v4l2_info(sd, "\n");
 
 	for (i = 0; i < ser->ops->num_pipes; i++) {
 		struct max_ser_pipe *pipe = &ser->pipes[i];
@@ -559,13 +567,6 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 			v4l2_info(sd, "\tdbl12: %u\n", pipe->mode.dbl12);
 			v4l2_info(sd, "\tsoft_bpp: %u\n", pipe->mode.soft_bpp);
 			v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
-		}
-		if (ser->ops->set_pipe_vc_remap) {
-			v4l2_info(sd, "\tvc_remaps: %u\n", pipe->num_vc_remaps);
-			for (j = 0; j < pipe->num_vc_remaps; j++) {
-				v4l2_info(sd, "\t\tvc_remap: src: %u, dst: %u\n",
-					  pipe->vc_remaps[j].src, pipe->vc_remaps[j].dst);
-			}
 		}
 		if (ser->ops->log_pipe_status) {
 			ret = ser->ops->log_pipe_status(ser, pipe, sd->name);
@@ -1740,6 +1741,11 @@ static int max_ser_allocate(struct max_ser_priv *priv)
 	if (!ser->pipes)
 		return -ENOMEM;
 
+	ser->vc_remaps = devm_kcalloc(priv->dev, ser->ops->num_vc_remaps,
+				      sizeof(*ser->vc_remaps), GFP_KERNEL);
+	if (!ser->vc_remaps)
+		return -ENOMEM;
+
 	ser->i2c_xlates = devm_kcalloc(priv->dev, ser->ops->num_i2c_xlates,
 				       sizeof(*ser->i2c_xlates), GFP_KERNEL);
 	if (!ser->i2c_xlates)
@@ -1881,7 +1887,7 @@ bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 
-	return !!ser->ops->set_pipe_vc_remap;
+	return !!ser->ops->set_vc_remap;
 }
 EXPORT_SYMBOL_GPL(max_ser_supports_vc_remap);
 
@@ -1916,30 +1922,32 @@ int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
-	struct max_ser_pipe *pipe = &ser->pipes[0];
 	unsigned int mask = 0;
 	unsigned int i;
 	int ret;
 
-	if (!ser->ops->set_pipe_vc_remap)
+	if (!ser->ops->set_vc_remap)
 		return -EOPNOTSUPP;
 
+	if (num_vc_remaps > ser->ops->num_vc_remaps)
+		return -E2BIG;
+
 	for (i = 0; i < num_vc_remaps; i++) {
-		ret = ser->ops->set_pipe_vc_remap(ser, pipe, i, &vc_remaps[i]);
+		ret = ser->ops->set_vc_remap(ser, i, &vc_remaps[i]);
 		if (ret)
 			return ret;
 
 		mask |= BIT(i);
 	}
 
-	ret = ser->ops->set_pipe_vc_remaps_enable(ser, pipe, mask);
+	ret = ser->ops->set_vc_remaps_enable(ser, mask);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < num_vc_remaps; i++)
-		pipe->vc_remaps[i] = vc_remaps[i];
+		ser->vc_remaps[i] = vc_remaps[i];
 
-	pipe->num_vc_remaps = num_vc_remaps;
+	ser->num_vc_remaps = num_vc_remaps;
 
 	return 0;
 }
