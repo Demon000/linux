@@ -787,10 +787,6 @@ static int max_ser_set_routing(struct v4l2_subdev *sd,
 	if (is_tpg)
 		return max_ser_set_tpg_routing(sd, state, routing);
 
-	ret = max_validate_tpg_routing(routing);
-	if (ret)
-		return ret;
-
 	return v4l2_subdev_set_routing(sd, state, routing);
 }
 
