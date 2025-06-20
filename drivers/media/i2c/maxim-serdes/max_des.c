@@ -382,20 +382,6 @@ static int max_des_set_pipe_vc_remaps(struct max_des_priv *priv,
 	return des->ops->set_pipe_vc_remaps_enable(des, pipe, mask);
 }
 
-static int max_des_set_phy_active(struct max_des *des, struct max_des_phy *phy,
-				  bool active)
-{
-	int ret;
-
-	ret = des->ops->set_phy_active(des, phy, active);
-	if (ret)
-		return ret;
-
-	phy->active = active;
-
-	return 0;
-}
-
 static int max_des_map_src_dst_vc_id(struct max_des_remap_context *context,
 				     unsigned int pipe_id, unsigned int phy_id,
 				     unsigned int src_vc_id, bool keep_vc)
@@ -1470,7 +1456,7 @@ static int max_des_init(struct max_des_priv *priv)
 				return ret;
 		}
 
-		ret = des->ops->set_phy_active(des, phy, false);
+		ret = des->ops->set_phy_enable(des, phy, phy->enabled);
 		if (ret)
 			return ret;
 	}
@@ -2023,7 +2009,6 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			continue;
 		}
 
-		v4l2_info(sd, "\tactive: %u\n", phy->active);
 		v4l2_info(sd, "\tlink_frequency: %llu\n", phy->link_frequency);
 		v4l2_info(sd, "\tnum_data_lanes: %u\n", phy->mipi.num_data_lanes);
 		v4l2_info(sd, "\tclock_lane: %u\n", phy->mipi.clock_lane);
@@ -2218,28 +2203,6 @@ static int max_des_update_link(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_update_phy(struct max_des_priv *priv,
-			      u32 pad, u64 *streams_masks)
-{
-	bool enable_changed = !streams_masks[pad] != !priv->streams_masks[pad];
-	bool enable = !!streams_masks[pad];
-	struct max_des *des = priv->des;
-	struct max_des_phy *phy;
-	int ret;
-
-	phy = max_des_pad_to_phy(des, pad);
-	if (!phy)
-		return -EINVAL;
-
-	if (enable_changed) {
-		ret = max_des_set_phy_active(des, phy, enable);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int max_des_update_tpg(struct max_des_priv *priv,
 			      struct v4l2_subdev_state *state,
 			      u64 *streams_masks)
@@ -2417,13 +2380,9 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		goto err_revert_active_disable;
 
-	ret = max_des_update_phy(priv, pad, streams_masks);
-	if (ret)
-		goto err_revert_links_update;
-
 	ret = max_des_update_tpg(priv, state, streams_masks);
 	if (ret)
-		goto err_revert_phy_update;
+		goto err_revert_links_update;
 
 	ret = max_des_update_active(priv, streams_masks, true);
 	if (ret)
@@ -2446,9 +2405,6 @@ err_revert_active_enable:
 
 err_revert_tpg_update:
 	max_des_update_tpg(priv, state, priv->streams_masks);
-
-err_revert_phy_update:
-	max_des_update_phy(priv, pad, priv->streams_masks);
 
 err_revert_links_update:
 	max_des_update_links(priv, &context, state, priv->streams_masks);

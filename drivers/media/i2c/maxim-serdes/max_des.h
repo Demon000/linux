@@ -62,7 +62,6 @@ struct max_des_phy {
 	enum v4l2_mbus_type bus_type;
 	struct max_des_phy_mode mode;
 	bool enabled;
-	bool active;
 };
 
 struct max_des;
@@ -97,7 +96,7 @@ struct max_des_ops {
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_phy_mode)(struct max_des *des, struct max_des_phy *phy,
 			    struct max_des_phy_mode *mode);
-	int (*set_phy_active)(struct max_des *des, struct max_des_phy *phy,
+	int (*set_phy_enable)(struct max_des *des, struct max_des_phy *phy,
 			      bool active);
 	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
 				  unsigned int stream_id);

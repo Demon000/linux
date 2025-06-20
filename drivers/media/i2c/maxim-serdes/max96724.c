@@ -669,7 +669,7 @@ static int max96724_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
 	return 0;
 }
 
-static int max96724_set_phy_active(struct max_des *des, struct max_des_phy *phy,
+static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
 				   bool enable)
 {
 	struct max96724_priv *priv = des_to_priv(des);
@@ -1062,7 +1062,7 @@ static const struct max_des_ops max96724_ops = {
 	.init = max96724_init,
 	.init_phy = max96724_init_phy,
 	.set_phy_mode = max96724_set_phy_mode,
-	.set_phy_active = max96724_set_phy_active,
+	.set_phy_enable = max96724_set_phy_enable,
 	.set_pipe_stream_id = max96724_set_pipe_stream_id,
 	.set_pipe_link = max96724_set_pipe_link,
 	.set_pipe_enable = max96724_set_pipe_enable,
