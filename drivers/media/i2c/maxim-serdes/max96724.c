@@ -1150,6 +1150,7 @@ static int max96724_probe(struct i2c_client *client)
 	ops->num_pipes = priv->info->num_pipes;
 	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
 	ops->set_pipe_phy = priv->info->set_pipe_phy;
+	ops->set_pipe_tunnel_phy = priv->info->set_pipe_tunnel_phy;
 	priv->des.ops = ops;
 
 	ret = max96724_reset(priv);
