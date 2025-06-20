@@ -1072,12 +1072,14 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 		if (phy_id != des->ops->num_phys) {
 			phy = &des->phys[phy_id];
 
-			if (des->ops->set_pipe_phy)
+			if (context->mode == MAX_GMSL_PIXEL_MODE &&
+			    des->ops->set_pipe_phy)
 				ret = des->ops->set_pipe_phy(des, pipe, phy);
-			else if (des->ops->set_pipe_tunnel_phy)
+			else if (context->mode == MAX_GMSL_TUNNEL_MODE &&
+				 des->ops->set_pipe_tunnel_phy)
 				ret = des->ops->set_pipe_tunnel_phy(des, pipe, phy);
 			else
-				ret = -EINVAL;
+				ret = 0;
 
 			if (ret)
 				return ret;
