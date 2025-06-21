@@ -1935,12 +1935,34 @@ unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 	return modes;
 }
 
+static bool max_ser_supports_sources_vc_remap(struct max_ser_priv *priv)
+{
+	struct max_ser *ser = priv->ser;
+	struct max_serdes_source *source;
+	unsigned int i;
+
+	for (i = 0; i < ser->ops->num_phys; i++) {
+		source = max_ser_get_phy_source(priv, &ser->phys[i]);
+
+		if (!source->sd)
+			continue;
+
+		if (!v4l2_subdev_has_op(source->sd, pad, set_frame_desc))
+		    return false;
+	}
+
+	return true;
+}
+
 bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 
-	return !!ser->ops->set_vc_remap;
+	if (ser->ops->set_vc_remap)
+		return true;
+
+	return max_ser_supports_sources_vc_remap(priv);
 }
 
 int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode)
@@ -1968,6 +1990,52 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode)
 	return 0;
 }
 
+static int max_ser_set_source_vc_remaps(struct max_ser_priv *priv,
+					struct max_serdes_source *source,
+					struct max_serdes_vc_remap *vc_remaps,
+					int num_vc_remaps)
+{
+	struct v4l2_mbus_frame_desc fd;
+	unsigned int i, j;
+	int ret;
+
+	ret = v4l2_subdev_call(source->sd, pad, get_frame_desc,
+			       source->pad, &fd);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < fd.num_entries; i++) {
+		for (j = 0; j < num_vc_remaps; j++) {
+			if (fd.entry[i].bus.csi2.vc == vc_remaps[j].src)
+				fd.entry[i].bus.csi2.vc = vc_remaps[j].dst;
+		}
+	}
+
+	return v4l2_subdev_call(source->sd, pad, set_frame_desc,
+			        source->pad, &fd);
+}
+
+static int max_ser_set_sources_vc_remaps(struct max_ser_priv *priv,
+					 struct max_serdes_vc_remap *vc_remaps,
+					 int num_vc_remaps)
+{
+	struct max_ser *ser = priv->ser;
+	struct max_serdes_source *source;
+	unsigned int i;
+	int ret;
+
+	for (i = 0; i < ser->ops->num_phys; i++) {
+		source = max_ser_get_phy_source(priv, &ser->phys[i]);
+
+		ret = max_ser_set_source_vc_remaps(priv, source, vc_remaps,
+						   num_vc_remaps);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 int max_ser_set_vc_remaps(struct v4l2_subdev *sd,
 			  struct max_serdes_vc_remap *vc_remaps,
 			  int num_vc_remaps)
@@ -1978,8 +2046,11 @@ int max_ser_set_vc_remaps(struct v4l2_subdev *sd,
 	unsigned int i;
 	int ret;
 
-	if (!ser->ops->set_vc_remap)
+	if (!max_ser_supports_vc_remap(sd))
 		return -EOPNOTSUPP;
+
+	if (!ser->ops->set_vc_remap)
+		return max_ser_set_sources_vc_remaps(priv, vc_remaps, num_vc_remaps);
 
 	if (num_vc_remaps > ser->ops->num_vc_remaps)
 		return -E2BIG;
