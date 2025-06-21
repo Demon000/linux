@@ -989,12 +989,10 @@ static int max_des_set_vc_remaps(struct max_des_priv *priv,
 
 static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 {
+	bool stream_id_usage[MAX_SERDES_STREAMS_NUM] = { 0 };
 	struct max_des *des = priv->des;
 	unsigned int i;
 	int ret;
-
-	if (!des->ops->needs_unique_stream_id)
-		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link_hw hw;
@@ -1013,19 +1011,27 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		stream_id = hw.pipe->stream_id;
 
 		ret = max_ser_set_stream_id(hw.source->sd, stream_id);
-		if (ret)
-			return ret;
-
-		ret = max_ser_get_stream_id(hw.source->sd, &stream_id);
-		if (ret)
-			return ret;
-
-		if (des->ops->set_pipe_stream_id) {
-			ret = des->ops->set_pipe_stream_id(des, hw.pipe, stream_id);
-			if (ret)
-				return ret;
+		if (ret == -EOPNOTSUPP) {
+			/*
+			 * Serializer does not support setting the stream id, retrieve
+			 * its hardcoded stream id.
+			 */
+			ret = max_ser_get_stream_id(hw.source->sd, &stream_id);
 		}
 
+		if (ret)
+			return ret;
+
+		if (stream_id_usage[stream_id] && des->ops->needs_unique_stream_id) {
+			dev_err(priv->dev, "Duplicate stream id %u\n", stream_id);
+			return -EINVAL;
+		}
+
+		ret = des->ops->set_pipe_stream_id(des, hw.pipe, stream_id);
+		if (ret)
+			return ret;
+
+		stream_id_usage[stream_id] = true;
 		hw.pipe->stream_id = stream_id;
 	}
 
