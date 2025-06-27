@@ -24,6 +24,7 @@
 #define MAX96717_REG3				0x3
 #define MAX96717_REG3_RCLKSEL			GENMASK(1, 0)
 #define MAX96717_REG3_RCLKSEL_REFERENCE_PLL	0b11
+#define MAX96717_REG3_RCLK_ALT			BIT(2)
 
 #define MAX96717_REG6				0x6
 #define MAX96717_REG6_RCLKEN			BIT(5)
@@ -173,12 +174,6 @@
 #define MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ_ALT\
 						BIT(3)
 #define MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ	GENMASK(5, 4)
-#define MAX96717_REF_VTG0_REFGEN_PREDEF_EN	BIT(6)
-
-#define MAX96717_REF_VTG1			0x3f1
-#define MAX96717_REF_VTG1_PCLKEN		BIT(0)
-#define MAX96717_REF_VTG1_PCLK_GPIO		GENMASK(5, 1)
-#define MAX96717_REF_VTG1_RCLKEN_Y		BIT(7)
 
 #define MAX96717_PIO_SLEW_0			0x56f
 #define MAX96717_PIO_SLEW_0_PIO00_SLEW		GENMASK(1, 0)
@@ -204,6 +199,8 @@
 #define MAX96717_PINCTRL_NAME			MAX96717_NAME "-pinctrl"
 #define MAX96717_GPIOCHIP_NAME			MAX96717_NAME "-gpiochip"
 #define MAX96717_GPIO_NUM			11
+#define MAX96717_RCLK_ALT_MFP			2
+#define MAX96717_RCLK_MFP			4
 #define MAX96717_PIPES_NUM			4
 #define MAX96717_PHYS_NUM			2
 
@@ -322,8 +319,7 @@ static const struct pingroup max96717_ctrl_groups[] = {
 
 MAX96717_FUNC_GROUPS(gpio, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4", "mfp5",
 		     "mfp6", "mfp7", "mfp8", "mfp9", "mfp10");
-MAX96717_FUNC_GROUPS(rclkout, "mfp0", "mfp1", "mfp2", "mfp3", "mfp4",
-		     "mfp7", "mfp8");
+MAX96717_FUNC_GROUPS(rclkout, "mfp2", "mfp4");
 
 enum max96717_func {
 	max96717_func_gpio,
@@ -688,28 +684,18 @@ static int max96717_mux_get_groups(struct pinctrl_dev *pctldev,
 
 static int max96717_mux_set_rclkout(struct max96717_priv *priv, unsigned int group)
 {
+	unsigned long config;
 	int ret;
 
-	/* Enable PCLK output. */
-	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG1,
-			      MAX96717_REF_VTG1_PCLKEN);
+	config = pinconf_to_config_packed(PIN_CONFIG_SLEW_RATE,
+					  MAX96717_PIO_SLEW_FASTEST);
+	ret = max96717_conf_pin_config_set_one(priv, group, config);
 	if (ret)
 		return ret;
 
-	/* Set PCLK output to the RCLK pin. */
-	ret = regmap_update_bits(priv->regmap, MAX96717_REF_VTG1,
-				 MAX96717_REF_VTG1_PCLK_GPIO,
-				 FIELD_PREP(MAX96717_REF_VTG1_PCLK_GPIO, group));
-	if (ret)
-		return ret;
-
-	/* Enable RCLK output on PCLK. */
-	ret = regmap_set_bits(priv->regmap, MAX96717_REF_VTG1,
-			      MAX96717_REF_VTG1_RCLKEN_Y);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_assign_bits(priv->regmap, MAX96717_REG3,
+				  MAX96717_REG3_RCLK_ALT,
+				  group == MAX96717_RCLK_ALT_MFP);
 }
 
 static int max96717_mux_set(struct pinctrl_dev *pctldev, unsigned int selector,
@@ -1511,9 +1497,7 @@ static int max96717_register_clkout(struct max96717_priv *priv)
 	if (ret)
 		return ret;
 
-	config = pinconf_to_config_packed(PIN_CONFIG_SLEW_RATE,
-					  MAX96717_PIO_SLEW_FASTEST);
-	ret = max96717_conf_pin_config_set_one(priv, 4, config);
+	ret = max96717_mux_set_rclkout(priv, MAX96717_RCLK_MFP);
 	if (ret)
 		return ret;
 
