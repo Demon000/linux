@@ -297,7 +297,7 @@ static int max9296a_reg_write(struct max_des *des, unsigned int reg,
 }
 
 static int max9626a_log_pipe_status(struct max_des *des,
-				    struct max_des_pipe *pipe, const char *name)
+				    struct max_des_pipe *pipe)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = max9296a_pipe_id(priv, pipe);
@@ -308,14 +308,14 @@ static int max9626a_log_pipe_status(struct max_des *des,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tvideo_lock: %u\n", name,
+	dev_info(priv->dev, "\tvideo_lock: %u\n",
 		!!(val & MAX9296A_VPRBS_VIDEO_LOCK));
 
 	return 0;
 }
 
 static int max9296a_log_phy_status(struct max_des *des,
-				   struct max_des_phy *phy, const char *name)
+				   struct max_des_phy *phy)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = phy->index;
@@ -329,14 +329,14 @@ static int max9296a_log_phy_status(struct max_des *des,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tcsi2_pkt_cnt: %lu\n", name,
+	dev_info(priv->dev, "\tcsi2_pkt_cnt: %lu\n",
 		field_get(MAX9296A_MIPI_PHY18_CSI2_TX_PKT_CNT(index), val));
 
 	ret = regmap_read(priv->regmap, MAX9296A_MIPI_PHY20(index), &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tphy_pkt_cnt: %u\n", val);
 
 	return 0;
 }
