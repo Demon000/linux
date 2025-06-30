@@ -23,7 +23,6 @@
 
 #define MAX96717_REG3				0x3
 #define MAX96717_REG3_RCLKSEL			GENMASK(1, 0)
-#define MAX96717_REG3_RCLKSEL_REFERENCE_PLL	0b11
 #define MAX96717_REG3_RCLK_ALT			BIT(2)
 
 #define MAX96717_REG6				0x6
@@ -343,8 +342,7 @@ static const struct pinfunction max96717_functions[] = {
 #define MAX96717_PINCTRL_GMSL_RX_EN		MAX96717_PINCTRL_X(4)
 #define MAX96717_PINCTRL_GMSL_TX_ID		MAX96717_PINCTRL_X(5)
 #define MAX96717_PINCTRL_GMSL_RX_ID		MAX96717_PINCTRL_X(6)
-#define MAX96717_PINCTRL_RCLKOUT_CLK		MAX96717_PINCTRL_X(7)
-#define MAX96717_PINCTRL_INPUT_VALUE		MAX96717_PINCTRL_X(8)
+#define MAX96717_PINCTRL_INPUT_VALUE		MAX96717_PINCTRL_X(7)
 
 static const struct pinconf_generic_params max96717_cfg_params[] = {
 	{ "maxim,jitter-compensation", MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
@@ -352,7 +350,6 @@ static const struct pinconf_generic_params max96717_cfg_params[] = {
 	{ "maxim,gmsl-rx", MAX96717_PINCTRL_GMSL_RX_EN, 0 },
 	{ "maxim,gmsl-tx-id", MAX96717_PINCTRL_GMSL_TX_ID, 0 },
 	{ "maxim,gmsl-rx-id", MAX96717_PINCTRL_GMSL_RX_ID, 0 },
-	{ "maxim,rclkout-clock", MAX96717_PINCTRL_RCLKOUT_CLK, 0 },
 };
 
 static int max96717_ctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -478,13 +475,6 @@ static int max96717_get_pin_config_reg(unsigned int offset, u32 param,
 		*reg = MAX96717_GPIO_C(offset);
 		*mask = MAX96717_GPIO_C_GPIO_RX_ID;
 		return 0;
-	case MAX96717_PINCTRL_RCLKOUT_CLK:
-		if (offset != 2 && offset != 4)
-			return -EINVAL;
-
-		*reg = MAX96717_REG3;
-		*mask = MAX96717_REG3_RCLKSEL;
-		return 0;
 	default:
 		return -ENOTSUPP;
 	}
@@ -534,7 +524,6 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
-	case MAX96717_PINCTRL_RCLKOUT_CLK:
 	case PIN_CONFIG_SLEW_RATE:
 		ret = regmap_read(priv->regmap, reg, &val);
 		if (ret)
@@ -607,7 +596,6 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		break;
 	case MAX96717_PINCTRL_GMSL_TX_ID:
 	case MAX96717_PINCTRL_GMSL_RX_ID:
-	case MAX96717_PINCTRL_RCLKOUT_CLK:
 	case PIN_CONFIG_SLEW_RATE:
 		val = field_prep(mask, arg);
 
@@ -1381,12 +1369,16 @@ struct max96717_pll_predef_freq {
 	unsigned long freq;
 	bool is_alt;
 	u8 val;
+	u8 rclksel;
 };
 
 static const struct max96717_pll_predef_freq max96717_predef_freqs[] = {
-	{ 13500000, true,  0 }, { 19200000, false, 0 },
-	{ 24000000, true,  1 }, { 27000000, false, 1 },
-	{ 37125000, false, 2 }, { 74250000, false, 3 },
+	{ 13500000, true,  0, 3 },
+	{ 19200000, false, 0, 3 },
+	{ 24000000, true,  1, 3 },
+	{ 27000000, false, 1, 3 },
+	{ 37125000, false, 2, 3 },
+	{ 74250000, false, 3, 3 },
 };
 
 static unsigned long
@@ -1442,6 +1434,13 @@ static int max96717_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	idx = max96717_clk_find_best_index(priv, rate);
 	predef_freq = &max96717_predef_freqs[idx];
 
+	ret = regmap_update_bits(priv->regmap, MAX96717_REG3,
+				 MAX96717_REG3_RCLKSEL,
+				 FIELD_PREP(MAX96717_REG3_RCLKSEL,
+					    predef_freq->rclksel));
+	if (ret)
+		return ret;
+
 	val = FIELD_PREP(MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ,
 			 predef_freq->val);
 
@@ -1490,14 +1489,7 @@ static int max96717_register_clkout(struct max96717_priv *priv)
 {
 	struct device *dev = &priv->client->dev;
 	struct clk_init_data init = { .ops = &max96717_clk_ops };
-	unsigned long config;
 	int ret;
-
-	config = pinconf_to_config_packed(MAX96717_PINCTRL_RCLKOUT_CLK,
-					  MAX96717_REG3_RCLKSEL_REFERENCE_PLL);
-	ret = max96717_conf_pin_config_set_one(priv, 4, config);
-	if (ret)
-		return ret;
 
 	ret = max96717_mux_set_rclkout(priv, MAX96717_RCLK_MFP);
 	if (ret)
