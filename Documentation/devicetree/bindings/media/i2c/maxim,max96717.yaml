@@ -199,17 +199,6 @@ patternProperties:
         minimum: 0
         maximum: 31
 
-      maxim,rclkout-clock:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: |
-          Clock value.
-          0 - XTAL / 1 = 25MHz
-          1 - XTAL / 2 = 12.5MHz
-          2 - XTAL / 4 = 6.25MHz
-          3 - Reference PLL output
-        minimum: 0
-        maximum: 3
-
     required:
       - pins
       - function
