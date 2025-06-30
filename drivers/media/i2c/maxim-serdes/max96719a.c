@@ -648,17 +648,15 @@ static int max96719a_set_i2c_xlate(struct max_ser *ser, unsigned int i,
 
 	ret = regmap_update_bits(priv->regmap, MAX96719A_SRC_ADDR_0(i),
 				 MAX96719A_SRC_ADDR_0_SRC_ADDR,
-				 FIELD_PREP(MAX96719A_SRC_ADDR_0_SRC_ADDR, xlate->src));
+				 FIELD_PREP(MAX96719A_SRC_ADDR_0_SRC_ADDR,
+					    xlate->src));
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96719A_DST_ADDR_0(i),
-				 MAX96719A_DST_ADDR_0_DST_ADDR,
-				 FIELD_PREP(MAX96719A_DST_ADDR_0_DST_ADDR, xlate->dst));
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_update_bits(priv->regmap, MAX96719A_DST_ADDR_0(i),
+				  MAX96719A_DST_ADDR_0_DST_ADDR,
+				  FIELD_PREP(MAX96719A_DST_ADDR_0_DST_ADDR,
+					     xlate->dst));
 }
 
 static const struct pinctrl_ops max96719a_ctrl_ops = {
