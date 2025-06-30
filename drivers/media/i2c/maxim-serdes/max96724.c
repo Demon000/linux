@@ -314,7 +314,7 @@ static unsigned int max96724_phy_id(struct max_des *des, struct max_des_phy *phy
 }
 
 static int max96724_log_pipe_status(struct max_des *des,
-				    struct max_des_pipe *pipe, const char *name)
+				    struct max_des_pipe *pipe)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = pipe->index;
@@ -325,7 +325,7 @@ static int max96724_log_pipe_status(struct max_des *des,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tvideo_lock: %u\n", name,
+	dev_info(priv->dev, "\tvideo_lock: %u\n",
 		!!(val & MAX96724_VPRBS_VIDEO_LOCK));
 
 	mask = MAX96724_DET(index);
@@ -334,37 +334,37 @@ static int max96724_log_pipe_status(struct max_des *des,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tde_det: %u\n", name, !!(val & mask));
+	dev_info(priv->dev, "\tde_det: %u\n", !!(val & mask));
 
 	ret = regmap_read(priv->regmap, MAX96724_HS_DET, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \ths_det: %u\n", name, !!(val & mask));
+	dev_info(priv->dev, "\ths_det: %u\n", !!(val & mask));
 
 	ret = regmap_read(priv->regmap, MAX96724_VS_DET, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tvs_det: %u\n", name, !!(val & mask));
+	dev_info(priv->dev, "\tvs_det: %u\n", !!(val & mask));
 
 	ret = regmap_read(priv->regmap, MAX96724_HS_POL, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \ths_pol: %u\n", name, !!(val & mask));
+	dev_info(priv->dev, "\ths_pol: %u\n", !!(val & mask));
 
 	ret = regmap_read(priv->regmap, MAX96724_VS_POL, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tvs_pol: %u\n", name, !!(val & mask));
+	dev_info(priv->dev, "\tvs_pol: %u\n", !!(val & mask));
 
 	return 0;
 }
 
 static int max96724_log_phy_status(struct max_des *des,
-				   struct max_des_phy *phy, const char *name)
+				   struct max_des_phy *phy)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = max96724_phy_id(des, phy);
@@ -375,14 +375,14 @@ static int max96724_log_phy_status(struct max_des *des,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tcsi2_pkt_cnt: %lu\n", name,
+	dev_info(priv->dev, "\tcsi2_pkt_cnt: %lu\n",
 		field_get(MAX96724_MIPI_PHY25_CSI2_TX_PKT_CNT(index), val));
 
 	ret = regmap_read(priv->regmap, MAX96724_MIPI_PHY27(index), &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_pkt_cnt: %lu\n", name,
+	dev_info(priv->dev, "\tphy_pkt_cnt: %lu\n",
 		field_get(MAX96724_MIPI_PHY27_PHY_PKT_CNT(index), val));
 
 	return 0;
