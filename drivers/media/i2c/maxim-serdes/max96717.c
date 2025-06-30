@@ -1040,13 +1040,9 @@ static int max96717_set_pipe_phy(struct max_ser *ser, struct max_ser_pipe *pipe,
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_9,
-				 MAX96717_FRONTTOP_9_START_PORT(index, 1),
-				 phy_id == 1);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_assign_bits(priv->regmap, MAX96717_FRONTTOP_9,
+				  MAX96717_FRONTTOP_9_START_PORT(index, 1),
+				  phy_id == 1);
 }
 
 static int max96717_set_pipe_mode(struct max_ser *ser,
@@ -1091,17 +1087,13 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
-				 MAX96717_FRONTTOP_20_SOFT_BPP |
-				 MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
-					    mode->soft_bpp) |
-				 FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
-					    !!mode->soft_bpp));
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_update_bits(priv->regmap, MAX96717_FRONTTOP_20(index),
+				  MAX96717_FRONTTOP_20_SOFT_BPP |
+				  MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+				  FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP,
+					     mode->soft_bpp) |
+				  FIELD_PREP(MAX96717_FRONTTOP_20_SOFT_BPP_EN,
+					     !!mode->soft_bpp));
 }
 
 static int max96717_set_i2c_xlate(struct max_ser *ser, unsigned int i,
@@ -1116,13 +1108,9 @@ static int max96717_set_i2c_xlate(struct max_ser *ser, unsigned int i,
 	if (ret)
 		return ret;
 
-	ret = regmap_update_bits(priv->regmap, MAX96717_I2C_3(i),
-				 MAX96717_I2C_3_DST,
-				 FIELD_PREP(MAX96717_I2C_3_DST, xlate->dst));
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_update_bits(priv->regmap, MAX96717_I2C_3(i),
+				  MAX96717_I2C_3_DST,
+				  FIELD_PREP(MAX96717_I2C_3_DST, xlate->dst));
 }
 
 static int max96717_set_tunnel_enable(struct max_ser *ser, bool enable)
