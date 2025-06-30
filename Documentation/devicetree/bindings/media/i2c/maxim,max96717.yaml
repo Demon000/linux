@@ -237,7 +237,7 @@ patternProperties:
           properties:
             pins:
               items:
-                enum: [mfp0, mfp1, mfp2, mfp3, mfp4, mfp7, mfp8]
+                enum: [mfp2, mfp4]
 
 additionalProperties: false
 
