@@ -530,8 +530,7 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Configure lane polarity. */
-	val = 0;
-	for (i = 0; i < num_data_lanes; i++)
+	for (i = 0, val = 0; i < num_data_lanes; i++)
 		if (phy->mipi.lane_polarities[i + 1])
 			val |= BIT(i);
 
