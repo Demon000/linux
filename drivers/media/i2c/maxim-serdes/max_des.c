@@ -1934,7 +1934,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 		}
 	}
 	if (des->ops->log_status) {
-		ret = des->ops->log_status(des, sd->name);
+		ret = des->ops->log_status(des);
 		if (ret)
 			return ret;
 	}
@@ -1997,7 +1997,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			}
 		}
 		if (des->ops->log_pipe_status) {
-			ret = des->ops->log_pipe_status(des, pipe, sd->name);
+			ret = des->ops->log_pipe_status(des, pipe);
 			if (ret)
 				return ret;
 		}
@@ -2025,7 +2025,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			v4l2_info(sd, "\talt_mem_map12: %u\n", phy->mode.alt_mem_map12);
 		}
 		if (des->ops->log_phy_status) {
-			ret = des->ops->log_phy_status(des, phy, sd->name);
+			ret = des->ops->log_phy_status(des, phy);
 			if (ret)
 				return ret;
 		}
