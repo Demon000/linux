@@ -574,7 +574,7 @@ static int max96719a_reg_write(struct max_ser *ser, unsigned int reg,
 	return regmap_write(priv->regmap, reg, val);
 }
 
-static int max96719a_log_status(struct max_ser *ser, const char *name)
+static int max96719a_log_status(struct max_ser *ser)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 	unsigned int val;
@@ -584,25 +584,26 @@ static int max96719a_log_status(struct max_ser *ser, const char *name)
 	if (ret)
 		return ret;
 
-	pr_info("%s: tun_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "tun_pkt_cnt: %u\n", val);
 
 	ret = regmap_read(priv->regmap, MAX96719A_MIPI_RX13, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tphy_pkt_cnt: %u\n", val);
 
 	ret = regmap_read(priv->regmap, MAX96719A_MIPI_RX14, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_clk_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tphy_clk_cnt: %u\n", val);
 
 	ret = regmap_read(priv->regmap, MAX96719A_VIDEO_TX2, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tpclkdet: %u\n", name, !!(val & MAX96719A_VIDEO_TX2_PCLKDET));
+	dev_info(priv->dev, "\tpclkdet: %u\n",
+		 !!(val & MAX96719A_VIDEO_TX2_PCLKDET));
 
 	return 0;
 }
