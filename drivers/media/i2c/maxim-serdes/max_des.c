@@ -2815,7 +2815,6 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 		return -EINVAL;
 	}
 
-	ret = 0;
 	if (v4l2_ep.nr_of_link_frequencies == 0)
 		link_frequency = MAX_DES_LINK_FREQUENCY_DEFAULT;
 	else if (v4l2_ep.nr_of_link_frequencies == 1)
