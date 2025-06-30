@@ -29,7 +29,7 @@ struct max_ser_priv {
 	struct i2c_mux_core *mux;
 
 	struct media_pad *pads;
-	struct max_source *sources;
+	struct max_serdes_source *sources;
 	u64 *streams_masks;
 	u32 double_bpps;
 
@@ -39,7 +39,7 @@ struct max_ser_priv {
 };
 
 struct max_ser_route_hw {
-	struct max_source *source;
+	struct max_serdes_source *source;
 	struct max_ser_pipe *pipe;
 	struct v4l2_mbus_frame_desc_entry entry;
 	bool is_tpg;
@@ -111,18 +111,18 @@ max_ser_find_phy_pipe(struct max_ser *ser, struct max_ser_phy *phy)
 	return NULL;
 }
 
-static struct max_source *
+static struct max_serdes_source *
 max_ser_get_phy_source(struct max_ser_priv *priv, struct max_ser_phy *phy)
 {
 	return &priv->sources[phy->index];
 }
 
-static const struct max_tpg_entry *
+static const struct max_serdes_tpg_entry *
 max_ser_find_tpg_entry(struct max_ser *ser, u32 target_index,
 		       u32 width, u32 height, u32 code,
 		       u32 numerator, u32 denominator)
 {
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	unsigned int index = 0;
 	unsigned int i;
 
@@ -148,7 +148,7 @@ max_ser_find_tpg_entry(struct max_ser *ser, u32 target_index,
 	return &ser->ops->tpg_entries.entries[i];
 }
 
-static const struct max_tpg_entry *
+static const struct max_serdes_tpg_entry *
 max_ser_find_state_tpg_entry(struct max_ser *ser, struct v4l2_subdev_state *state,
 			     unsigned int pad)
 {
@@ -172,7 +172,7 @@ static int max_ser_get_tpg_fd_entry_state(struct max_ser *ser,
 					  struct v4l2_mbus_frame_desc_entry *fd_entry,
 					  unsigned int pad)
 {
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 
 	entry = max_ser_find_state_tpg_entry(ser, state, pad);
 	if (!entry)
@@ -316,7 +316,11 @@ static int max_ser_set_pipe_mode(struct max_ser_priv *priv, struct max_ser_pipe 
 static int max_ser_i2c_atr_attach_addr(struct i2c_atr *atr, u32 chan_id,
 				       u16 addr, u16 alias)
 {
-	struct max_i2c_xlate xlate = { .src = alias, .dst = addr, .en = true };
+	struct max_serdes_i2c_xlate xlate = {
+		.src = alias,
+		.dst = addr,
+		.en = true,
+	};
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
 	unsigned int i;
@@ -345,7 +349,7 @@ static void max_ser_i2c_atr_detach_addr(struct i2c_atr *atr, u32 chan_id, u16 ad
 {
 	struct max_ser_priv *priv = i2c_atr_get_driver_data(atr);
 	struct max_ser *ser = priv->ser;
-	struct max_i2c_xlate xlate = { 0 };
+	struct max_serdes_i2c_xlate xlate = { 0 };
 	unsigned int i;
 
 	/* Find index of matching I2C translation. */
@@ -436,7 +440,7 @@ static int max_ser_set_tpg_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_fract *in;
 
 	if (format->stream != MAX_SERDES_TPG_STREAM)
@@ -502,9 +506,9 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 	unsigned int i, j;
 	int ret;
 
-	v4l2_info(sd, "mode: %s\n", max_gmsl_mode_str(ser->mode));
+	v4l2_info(sd, "mode: %s\n", max_serdes_gmsl_mode_str(ser->mode));
 	if (ser->ops->set_tpg) {
-		const struct max_tpg_entry *entry = ser->tpg_entry;
+		const struct max_serdes_tpg_entry *entry = ser->tpg_entry;
 
 		if (entry) {
 			v4l2_info(sd, "tpg: %ux%u@%u/%u, code: %u, dt: %u, bpp: %u\n",
@@ -623,7 +627,7 @@ static int max_ser_enum_frame_interval(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 
 	if (!max_ser_pad_is_tpg(ser, fie->pad) ||
 	    fie->stream != MAX_SERDES_TPG_STREAM)
@@ -647,7 +651,7 @@ static int max_ser_set_frame_interval(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_ser *ser = priv->ser;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
@@ -733,11 +737,11 @@ static int max_ser_set_tpg_routing(struct v4l2_subdev *sd,
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_mbus_framefmt fmt = { 0 };
 	int ret;
 
-	ret = max_validate_tpg_routing(routing);
+	ret = max_serdes_validate_tpg_routing(routing);
 	if (ret)
 		return ret;
 
@@ -806,7 +810,7 @@ static int max_ser_get_pipe_vcs_dts(struct max_ser_priv *priv,
 	*vcs = 0;
 	*num_dts = 0;
 
-	if (ser->mode != MAX_GMSL_PIXEL_MODE)
+	if (ser->mode != MAX_SERDES_GMSL_PIXEL_MODE)
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
@@ -902,7 +906,7 @@ static int max_ser_get_pipe_mode(struct max_ser_priv *priv,
 	u32 bpps = 0;
 	int ret;
 
-	if (ser->mode != MAX_GMSL_PIXEL_MODE)
+	if (ser->mode != MAX_SERDES_GMSL_PIXEL_MODE)
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
@@ -919,14 +923,14 @@ static int max_ser_get_pipe_mode(struct max_ser_priv *priv,
 		if (hw.is_tpg)
 			force_set_bpp = true;
 
-		ret = max_get_fd_bpp(&hw.entry, &bpp);
+		ret = max_serdes_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
 			return ret;
 
 		bpps |= BIT(bpp);
 	}
 
-	ret = max_process_bpps(priv->dev, bpps, priv->double_bpps, &doubled_bpp);
+	ret = max_serdes_process_bpps(priv->dev, bpps, priv->double_bpps, &doubled_bpp);
 	if (ret)
 		return ret;
 
@@ -1148,9 +1152,9 @@ static int max_ser_enable_disable_streams(struct max_ser_priv *priv,
 {
 	struct max_ser *ser = priv->ser;
 
-	return max_xlate_enable_disable_streams(priv->sources, 0, state,
-						pad, updated_streams_mask, 0,
-						ser->ops->num_phys, enable);
+	return max_serdes_xlate_enable_disable_streams(priv->sources, 0, state,
+						       pad, updated_streams_mask, 0,
+						       ser->ops->num_phys, enable);
 }
 
 static bool max_ser_is_tpg_routed(struct max_ser_priv *priv,
@@ -1177,7 +1181,7 @@ static int max_ser_update_tpg(struct max_ser_priv *priv,
 			      struct v4l2_subdev_state *state,
 			      u64 *streams_masks)
 {
-	const struct max_tpg_entry *entry = NULL;
+	const struct max_serdes_tpg_entry *entry = NULL;
 	struct max_ser *ser = priv->ser;
 	struct v4l2_subdev_route *route;
 	int ret;
@@ -1221,9 +1225,9 @@ static int max_ser_update_streams(struct v4l2_subdev *sd,
 	u64 *streams_masks;
 	int ret;
 
-	ret = max_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
-				    num_pads, priv->streams_masks, &streams_masks,
-				    enable);
+	ret = max_serdes_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
+					   num_pads, priv->streams_masks, &streams_masks,
+					   enable);
 	if (ret)
 		return ret;
 
@@ -1429,8 +1433,8 @@ static int max_ser_notify_bound(struct v4l2_async_notifier *nf,
 				struct v4l2_async_connection *base_asc)
 {
 	struct max_ser_priv *priv = nf_to_priv(nf);
-	struct max_asc *asc = asc_to_max(base_asc);
-	struct max_source *source = asc->source;
+	struct max_serdes_asc *asc = asc_to_max(base_asc);
+	struct max_serdes_source *source = asc->source;
 	u32 pad = source->index;
 	int ret;
 
@@ -1462,8 +1466,8 @@ static void max_ser_notify_unbind(struct v4l2_async_notifier *nf,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *base_asc)
 {
-	struct max_asc *asc = asc_to_max(base_asc);
-	struct max_source *source = asc->source;
+	struct max_serdes_asc *asc = asc_to_max(base_asc);
+	struct max_serdes_source *source = asc->source;
 
 	source->sd = NULL;
 }
@@ -1483,15 +1487,15 @@ static int max_ser_v4l2_notifier_register(struct max_ser_priv *priv)
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
-		struct max_source *source;
-		struct max_asc *asc;
+		struct max_serdes_source *source;
+		struct max_serdes_asc *asc;
 
 		source = max_ser_get_phy_source(priv, phy);
 		if (!source->ep_fwnode)
 			continue;
 
 		asc = v4l2_async_nf_add_fwnode(&priv->nf, source->ep_fwnode,
-					       struct max_asc);
+					       struct max_serdes_asc);
 		if (IS_ERR(asc)) {
 			dev_err(priv->dev,
 				"Failed to add subdev for source %u: %pe", i,
@@ -1615,7 +1619,7 @@ static void max_ser_v4l2_unregister(struct max_ser_priv *priv)
 
 static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 					  struct max_ser_phy *phy,
-					  struct max_source *source,
+					  struct max_serdes_source *source,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_ser *ser = priv->ser;
@@ -1651,7 +1655,7 @@ static int max_ser_parse_sink_dt_endpoint(struct max_ser_priv *priv,
 static int max_ser_find_phys_config(struct max_ser_priv *priv)
 {
 	struct max_ser *ser = priv->ser;
-	const struct max_phys_configs *configs = &ser->ops->phys_configs;
+	const struct max_serdes_phys_configs *configs = &ser->ops->phys_configs;
 	struct max_ser_phy *phy;
 	unsigned int i, j;
 
@@ -1659,7 +1663,7 @@ static int max_ser_find_phys_config(struct max_ser_priv *priv)
 		return 0;
 
 	for (i = 0; i < configs->num_configs; i++) {
-		const struct max_phys_config *config = &configs->configs[i];
+		const struct max_serdes_phys_config *config = &configs->configs[i];
 		bool matching = true;
 
 		for (j = 0; j < ser->ops->num_phys; j++) {
@@ -1713,7 +1717,7 @@ static int max_ser_parse_dt(struct max_ser_priv *priv)
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
 		struct max_ser_phy *phy = &ser->phys[i];
-		struct max_source *source;
+		struct max_serdes_source *source;
 
 		source = max_ser_get_phy_source(priv, phy);
 		source->index = i;
@@ -1880,7 +1884,7 @@ EXPORT_SYMBOL_GPL(max_ser_get_supported_modes);
 static bool max_ser_supports_sources_vc_remap(struct max_ser_priv *priv)
 {
 	struct max_ser *ser = priv->ser;
-	struct max_source *source;
+	struct max_serdes_source *source;
 	unsigned int i;
 
 	for (i = 0; i < ser->ops->num_phys; i++) {
@@ -1908,7 +1912,7 @@ bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 }
 EXPORT_SYMBOL_GPL(max_ser_supports_vc_remap);
 
-int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
+int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
@@ -1921,7 +1925,7 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 		return 0;
 
 	if (ser->ops->set_tunnel_enable) {
-		bool tunnel_enable = mode == MAX_GMSL_TUNNEL_MODE;
+		bool tunnel_enable = mode == MAX_SERDES_GMSL_TUNNEL_MODE;
 
 		ret = ser->ops->set_tunnel_enable(ser, tunnel_enable);
 		if (ret)
@@ -1935,8 +1939,8 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode)
 EXPORT_SYMBOL_GPL(max_ser_set_mode);
 
 static int max_ser_set_source_vc_remaps(struct max_ser_priv *priv,
-					struct max_source *source,
-					struct max_vc_remap *vc_remaps,
+					struct max_serdes_source *source,
+					struct max_serdes_vc_remap *vc_remaps,
 					int num_vc_remaps)
 {
 	struct v4l2_mbus_frame_desc fd;
@@ -1960,11 +1964,11 @@ static int max_ser_set_source_vc_remaps(struct max_ser_priv *priv,
 }
 
 static int max_ser_set_sources_vc_remaps(struct max_ser_priv *priv,
-					 struct max_vc_remap *vc_remaps,
+					 struct max_serdes_vc_remap *vc_remaps,
 					 int num_vc_remaps)
 {
 	struct max_ser *ser = priv->ser;
-	struct max_source *source;
+	struct max_serdes_source *source;
 	unsigned int i;
 	int ret;
 
@@ -1980,7 +1984,7 @@ static int max_ser_set_sources_vc_remaps(struct max_ser_priv *priv,
 	return 0;
 }
 
-int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps,
+int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_serdes_vc_remap *vc_remaps,
 			  int num_vc_remaps)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);

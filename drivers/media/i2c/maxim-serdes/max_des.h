@@ -23,8 +23,8 @@ struct max_des_remap {
 struct max_des_link {
 	unsigned int index;
 	bool enabled;
-	enum max_gmsl_version version;
-	struct max_i2c_xlate ser_xlate;
+	enum max_serdes_gmsl_version version;
+	struct max_serdes_i2c_xlate ser_xlate;
 };
 
 struct max_des_pipe_mode {
@@ -42,7 +42,7 @@ struct max_des_pipe {
 	unsigned int phy_id;
 	struct max_des_remap *remaps;
 	unsigned int num_remaps;
-	struct max_vc_remap *vc_remaps;
+	struct max_serdes_vc_remap *vc_remaps;
 	unsigned int num_vc_remaps;
 	struct max_des_pipe_mode mode;
 	bool enabled;
@@ -78,9 +78,9 @@ struct max_des_ops {
 	bool needs_single_link_version;
 	bool needs_unique_stream_id;
 
-	struct max_phys_configs phys_configs;
-	struct max_tpg_entries tpg_entries;
-	enum max_gmsl_mode tpg_mode;
+	struct max_serdes_phys_configs phys_configs;
+	struct max_serdes_tpg_entries tpg_entries;
+	enum max_serdes_gmsl_mode tpg_mode;
 	unsigned int tpg_patterns;
 
 	int (*reg_read)(struct max_des *des, unsigned int reg, unsigned int *val);
@@ -89,7 +89,7 @@ struct max_des_ops {
 	int (*log_pipe_status)(struct max_des *des, struct max_des_pipe *pipe);
 	int (*log_phy_status)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_enable)(struct max_des *des, bool enable);
-	int (*set_tpg)(struct max_des *des, const struct max_tpg_entry *entry);
+	int (*set_tpg)(struct max_des *des,const struct max_serdes_tpg_entry *entry);
 	int (*init)(struct max_des *des);
 	int (*init_phy)(struct max_des *des, struct max_des_phy *phy);
 	int (*set_phy_mode)(struct max_des *des, struct max_des_phy *phy,
@@ -111,7 +111,7 @@ struct max_des_ops {
 	int (*set_pipe_remaps_enable)(struct max_des *des, struct max_des_pipe *pipe,
 				      unsigned int mask);
 	int (*set_pipe_vc_remap)(struct max_des *des, struct max_des_pipe *pipe,
-				 unsigned int i, struct max_vc_remap *vc_remap);
+				 unsigned int i, struct max_serdes_vc_remap *vc_remap);
 	int (*set_pipe_vc_remaps_enable)(struct max_des *des, struct max_des_pipe *pipe,
 					 unsigned int mask);
 	int (*set_pipe_mode)(struct max_des *des, struct max_des_pipe *pipe,
@@ -121,7 +121,7 @@ struct max_des_ops {
 	int (*init_link)(struct max_des *des, struct max_des_link *link);
 	int (*select_links)(struct max_des *des, unsigned int mask);
 	int (*set_link_version)(struct max_des *des, struct max_des_link *link,
-				enum max_gmsl_version version);
+				enum max_serdes_gmsl_version version);
 };
 
 struct max_des_priv;
@@ -134,11 +134,11 @@ struct max_des {
 	struct max_des_phy *phys;
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
-	const struct max_tpg_entry *tpg_entry;
-	enum max_tpg_pattern tpg_pattern;
+	const struct max_serdes_tpg_entry *tpg_entry;
+	enum max_serdes_tpg_pattern tpg_pattern;
 
 	unsigned int phys_config;
-	enum max_gmsl_mode mode;
+	enum max_serdes_gmsl_mode mode;
 	bool active;
 };
 

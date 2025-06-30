@@ -20,35 +20,35 @@ const char * const max_tpg_patterns[] = {
 };
 
 static const char * const max_gmsl_versions[] = {
-	[MAX_GMSL_2_3GBPS] = "GMSL2 3Gbps",
-	[MAX_GMSL_2_6GBPS] = "GMSL2 6Gbps",
-	[MAX_GMSL_3] = "GMSL3",
+	[MAX_SERDES_GMSL_2_3GBPS] = "GMSL2 3Gbps",
+	[MAX_SERDES_GMSL_2_6GBPS] = "GMSL2 6Gbps",
+	[MAX_SERDES_GMSL_3] = "GMSL3",
 };
 
-const char *max_gmsl_version_str(enum max_gmsl_version version)
+const char *max_serdes_gmsl_version_str(enum max_serdes_gmsl_version version)
 {
-	if (version > MAX_GMSL_3)
+	if (version > MAX_SERDES_GMSL_3)
 		return NULL;
 
 	return max_gmsl_versions[version];
 }
-EXPORT_SYMBOL_GPL(max_gmsl_version_str);
+EXPORT_SYMBOL_GPL(max_serdes_gmsl_version_str);
 
 static const char * const max_gmsl_mode[] = {
-	[MAX_GMSL_PIXEL_MODE] = "pixel",
-	[MAX_GMSL_TUNNEL_MODE] = "tunnel",
+	[MAX_SERDES_GMSL_PIXEL_MODE] = "pixel",
+	[MAX_SERDES_GMSL_TUNNEL_MODE] = "tunnel",
 };
 
-const char *max_gmsl_mode_str(enum max_gmsl_mode mode)
+const char *max_serdes_gmsl_mode_str(enum max_serdes_gmsl_mode mode)
 {
-	if (mode > MAX_GMSL_TUNNEL_MODE)
+	if (mode > MAX_SERDES_GMSL_TUNNEL_MODE)
 		return NULL;
 
 	return max_gmsl_mode[mode];
 }
-EXPORT_SYMBOL_GPL(max_gmsl_mode_str);
+EXPORT_SYMBOL_GPL(max_serdes_gmsl_mode_str);
 
-static const struct max_mipi_format max_mipi_formats[] = {
+static const struct max_serdes_mipi_format max_mipi_formats[] = {
 	{ MIPI_CSI2_DT_EMBEDDED_8B, 8 },
 	{ MIPI_CSI2_DT_YUV422_8B, 16 },
 	{ MIPI_CSI2_DT_YUV422_10B, 20 },
@@ -62,7 +62,7 @@ static const struct max_mipi_format max_mipi_formats[] = {
 	{ MIPI_CSI2_DT_RAW16, 16 },
 };
 
-const struct max_mipi_format *max_mipi_format_by_dt(u8 dt)
+const struct max_serdes_mipi_format *max_serdes_mipi_format_by_dt(u8 dt)
 {
 	unsigned int i;
 
@@ -72,10 +72,10 @@ const struct max_mipi_format *max_mipi_format_by_dt(u8 dt)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(max_mipi_format_by_dt);
+EXPORT_SYMBOL_GPL(max_serdes_mipi_format_by_dt);
 
-int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
-			    struct v4l2_mbus_frame_desc_entry *entry)
+int max_serdes_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
+				   struct v4l2_mbus_frame_desc_entry *entry)
 {
 	struct v4l2_mbus_frame_desc fd;
 	unsigned int i;
@@ -97,13 +97,14 @@ int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 
 	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(max_get_fd_stream_entry);
+EXPORT_SYMBOL_GPL(max_serdes_get_fd_stream_entry);
 
-int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp)
+int max_serdes_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry,
+			  unsigned int *bpp)
 {
-	const struct max_mipi_format *format;
+	const struct max_serdes_mipi_format *format;
 
-	format = max_mipi_format_by_dt(entry->bus.csi2.dt);
+	format = max_serdes_mipi_format_by_dt(entry->bus.csi2.dt);
 	if (!format)
 		return -ENOENT;
 
@@ -112,8 +113,8 @@ int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp)
 	return 0;
 }
 
-int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
-		     unsigned int *doubled_bpp)
+int max_serdes_process_bpps(struct device *dev, u32 bpps,
+			    u32 allowed_double_bpps, unsigned int *doubled_bpp)
 {
 	unsigned int min_bpp;
 	unsigned int max_bpp;
@@ -180,14 +181,14 @@ int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_process_bpps);
+EXPORT_SYMBOL_GPL(max_serdes_process_bpps);
 
-int max_xlate_enable_disable_streams(struct max_source *sources,
-				     u32 source_sink_pad_offset,
-				     const struct v4l2_subdev_state *state,
-				     u32 pad, u64 updated_streams_mask,
-				     u32 sink_pad_start, u32 num_sink_pads,
-				     bool enable)
+int max_serdes_xlate_enable_disable_streams(struct max_serdes_source *sources,
+					    u32 source_sink_pad_offset,
+					    const struct v4l2_subdev_state *state,
+					    u32 pad, u64 updated_streams_mask,
+					    u32 sink_pad_start, u32 num_sink_pads,
+					    bool enable)
 {
 	u32 failed_sink_pad;
 	int ret;
@@ -196,7 +197,7 @@ int max_xlate_enable_disable_streams(struct max_source *sources,
 	for (i = sink_pad_start; i < sink_pad_start + num_sink_pads; i++) {
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
-		struct max_source *source;
+		struct max_serdes_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, i,
@@ -226,7 +227,7 @@ err:
 	for (i = sink_pad_start; i < failed_sink_pad; i++) {
 		u64 matched_streams_mask = updated_streams_mask;
 		u64 updated_sink_streams_mask;
-		struct max_source *source;
+		struct max_serdes_source *source;
 
 		updated_sink_streams_mask =
 			v4l2_subdev_state_xlate_streams(state, pad, i,
@@ -248,13 +249,13 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(max_xlate_enable_disable_streams);
+EXPORT_SYMBOL_GPL(max_serdes_xlate_enable_disable_streams);
 
-int max_get_streams_masks(struct device *dev,
-			  const struct v4l2_subdev_state *state,
-			  u32 pad, u64 updated_streams_mask,
-			  u32 num_pads, u64 *old_streams_masks,
-			  u64 **new_streams_masks, bool enable)
+int max_serdes_get_streams_masks(struct device *dev,
+				 const struct v4l2_subdev_state *state,
+				 u32 pad, u64 updated_streams_mask,
+				 u32 num_pads, u64 *old_streams_masks,
+				 u64 **new_streams_masks, bool enable)
 {
 	u64 *streams_masks;
 	unsigned int i;
@@ -289,7 +290,7 @@ int max_get_streams_masks(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_get_streams_masks);
+EXPORT_SYMBOL_GPL(max_serdes_get_streams_masks);
 
 static const struct videomode max_tpg_pixel_videomodes[] = {
 	{
@@ -327,8 +328,8 @@ static const struct videomode max_tpg_pixel_videomodes[] = {
 	},
 };
 
-void max_get_tpg_timings(const struct videomode *vm,
-			 struct max_tpg_timings *timings)
+void max_serdes_get_tpg_timings(const struct videomode *vm,
+				struct max_serdes_tpg_timings *timings)
 {
 	u32 hact = vm->hactive;
 	u32 hfp = vm->hfront_porch;
@@ -342,7 +343,7 @@ void max_get_tpg_timings(const struct videomode *vm,
 	u32 vbp = vm->vback_porch;
 	u32 vtot = vact + vfp + vbp + vsync;
 
-	*timings = (struct max_tpg_timings) {
+	*timings = (struct max_serdes_tpg_timings) {
 		.gen_vs = true,
 		.gen_hs = true,
 		.gen_de = true,
@@ -361,10 +362,10 @@ void max_get_tpg_timings(const struct videomode *vm,
 		.fps = DIV_ROUND_CLOSEST(vm->pixelclock, vtot * htot),
 	};
 }
-EXPORT_SYMBOL_GPL(max_get_tpg_timings);
+EXPORT_SYMBOL_GPL(max_serdes_get_tpg_timings);
 
 const struct videomode *
-max_find_tpg_videomode(const struct max_tpg_entry *entry)
+max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry)
 {
 	u32 fps;
 
@@ -376,9 +377,9 @@ max_find_tpg_videomode(const struct max_tpg_entry *entry)
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(max_tpg_pixel_videomodes); i++) {
 		const struct videomode *vm = &max_tpg_pixel_videomodes[i];
-		struct max_tpg_timings timings;
+		struct max_serdes_tpg_timings timings;
 
-		max_get_tpg_timings(vm, &timings);
+		max_serdes_get_tpg_timings(vm, &timings);
 
 		if (vm->hactive == entry->width &&
 		    vm->vactive == entry->height &&
@@ -388,9 +389,9 @@ max_find_tpg_videomode(const struct max_tpg_entry *entry)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(max_find_tpg_videomode);
+EXPORT_SYMBOL_GPL(max_serdes_find_tpg_videomode);
 
-int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
+int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 {
 	const struct v4l2_subdev_route *route;
 
@@ -407,7 +408,7 @@ int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_validate_tpg_routing);
+EXPORT_SYMBOL_GPL(max_serdes_validate_tpg_routing);
 
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");

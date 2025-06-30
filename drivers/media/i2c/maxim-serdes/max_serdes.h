@@ -42,53 +42,53 @@
 
 extern const char * const max_tpg_patterns[];
 
-enum max_gmsl_version {
-	MAX_GMSL_MIN,
-	MAX_GMSL_2_3GBPS = MAX_GMSL_MIN,
-	MAX_GMSL_2_6GBPS,
-	MAX_GMSL_3,
-	MAX_GMSL_MAX = MAX_GMSL_3,
+enum max_serdes_gmsl_version {
+	MAX_SERDES_GMSL_MIN,
+	MAX_SERDES_GMSL_2_3GBPS = MAX_SERDES_GMSL_MIN,
+	MAX_SERDES_GMSL_2_6GBPS,
+	MAX_SERDES_GMSL_3,
+	MAX_SERDES_GMSL_MAX = MAX_SERDES_GMSL_3,
 };
 
-enum max_gmsl_mode {
-	MAX_GMSL_PIXEL_MODE,
-	MAX_GMSL_TUNNEL_MODE,
+enum max_serdes_gmsl_mode {
+	MAX_SERDES_GMSL_PIXEL_MODE,
+	MAX_SERDES_GMSL_TUNNEL_MODE,
 };
 
-enum max_tpg_pattern {
+enum max_serdes_tpg_pattern {
 	MAX_TPG_PATTERN_MIN,
 	MAX_TPG_PATTERN_CHECKERBOARD = MAX_TPG_PATTERN_MIN,
 	MAX_TPG_PATTERN_GRADIENT,
 	MAX_TPG_PATTERN_MAX = MAX_TPG_PATTERN_GRADIENT,
 };
 
-struct max_phys_config {
+struct max_serdes_phys_config {
 	unsigned int lanes[MAX_SERDES_PHYS_MAX];
 	unsigned int clock_lane[MAX_SERDES_PHYS_MAX];
 };
 
-struct max_phys_configs {
-	const struct max_phys_config *configs;
+struct max_serdes_phys_configs {
+	const struct max_serdes_phys_config *configs;
 	unsigned int num_configs;
 };
 
-struct max_i2c_xlate {
+struct max_serdes_i2c_xlate {
 	u8 src;
 	u8 dst;
 	bool en;
 };
 
-struct max_mipi_format {
+struct max_serdes_mipi_format {
 	u8 dt;
 	u8 bpp;
 };
 
-struct max_vc_remap {
+struct max_serdes_vc_remap {
 	u8 src;
 	u8 dst;
 };
 
-struct max_source {
+struct max_serdes_source {
 	struct v4l2_subdev *sd;
 	u16 pad;
 	struct fwnode_handle *ep_fwnode;
@@ -96,12 +96,12 @@ struct max_source {
 	unsigned int index;
 };
 
-struct max_asc {
+struct max_serdes_asc {
 	struct v4l2_async_connection base;
-	struct max_source *source;
+	struct max_serdes_source *source;
 };
 
-struct max_tpg_entry {
+struct max_serdes_tpg_entry {
 	u32 width;
 	u32 height;
 	struct v4l2_fract interval;
@@ -119,12 +119,12 @@ struct max_tpg_entry {
 #define MAX_TPG_ENTRY_1920X1080P60_RGB888 \
 	{ 1920, 1080, { 1, 60 }, MEDIA_BUS_FMT_RGB888_1X24, MIPI_CSI2_DT_RGB888, 24 }
 
-struct max_tpg_entries {
-	const struct max_tpg_entry *entries;
+struct max_serdes_tpg_entries {
+	const struct max_serdes_tpg_entry *entries;
 	unsigned int num_entries;
 };
 
-struct max_tpg_timings {
+struct max_serdes_tpg_timings {
 	bool gen_vs;
 	bool gen_hs;
 	bool gen_de;
@@ -145,41 +145,42 @@ struct max_tpg_timings {
 	u32 fps;
 };
 
-static inline struct max_asc *asc_to_max(struct v4l2_async_connection *asc)
+static inline struct max_serdes_asc *asc_to_max(struct v4l2_async_connection *asc)
 {
-	return container_of(asc, struct max_asc, base);
+	return container_of(asc, struct max_serdes_asc, base);
 }
 
-const char *max_gmsl_version_str(enum max_gmsl_version version);
-const char *max_gmsl_mode_str(enum max_gmsl_mode mode);
+const char *max_serdes_gmsl_version_str(enum max_serdes_gmsl_version version);
+const char *max_serdes_gmsl_mode_str(enum max_serdes_gmsl_mode mode);
 
-const struct max_mipi_format *max_mipi_format_by_dt(u8 dt);
+const struct max_serdes_mipi_format *max_serdes_mipi_format_by_dt(u8 dt);
 
-int max_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
-			    struct v4l2_mbus_frame_desc_entry *entry);
+int max_serdes_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
+				   struct v4l2_mbus_frame_desc_entry *entry);
 
-int max_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry, unsigned int *bpp);
-int max_process_bpps(struct device *dev, u32 bpps, u32 allowed_double_bpps,
-		     unsigned int *doubled_bpp);
+int max_serdes_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry,
+			  unsigned int *bpp);
+int max_serdes_process_bpps(struct device *dev, u32 bpps,
+			    u32 allowed_double_bpps, unsigned int *doubled_bpp);
 
-int max_xlate_enable_disable_streams(struct max_source *sources,
-				     u32 source_sink_pad_offset,
-				     const struct v4l2_subdev_state *state,
-				     u32 pad, u64 updated_streams_mask,
-				     u32 sink_pad_start, u32 num_sink_pads,
-				     bool enable);
+int max_serdes_xlate_enable_disable_streams(struct max_serdes_source *sources,
+					    u32 source_sink_pad_offset,
+					    const struct v4l2_subdev_state *state,
+					    u32 pad, u64 updated_streams_mask,
+					    u32 sink_pad_start, u32 num_sink_pads,
+					    bool enable);
 
-int max_get_streams_masks(struct device *dev,
-			  const struct v4l2_subdev_state *state,
-			  u32 pad, u64 updated_streams_mask,
-			  u32 num_pads, u64 *old_streams_masks,
-			  u64 **new_streams_masks, bool enable);
+int max_serdes_get_streams_masks(struct device *dev,
+				 const struct v4l2_subdev_state *state,
+				 u32 pad, u64 updated_streams_mask,
+				 u32 num_pads, u64 *old_streams_masks,
+				 u64 **new_streams_masks, bool enable);
 
-void max_get_tpg_timings(const struct videomode *vm,
-			 struct max_tpg_timings *timings);
+void max_serdes_get_tpg_timings(const struct videomode *vm,
+				struct max_serdes_tpg_timings *timings);
 const struct videomode *
-max_find_tpg_videomode(const struct max_tpg_entry *entry);
+max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry);
 
-int max_validate_tpg_routing(struct v4l2_subdev_krouting *routing);
+int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing);
 
 #endif // MAX_SERDES_H

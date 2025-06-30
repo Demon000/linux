@@ -402,7 +402,7 @@ static const unsigned int max96724_phys_configs_reg_val[] = {
 	MAX96724_MIPI_PHY0_PHY_2X4,
 };
 
-static const struct max_phys_config max96724_phys_configs[] = {
+static const struct max_serdes_phys_config max96724_phys_configs[] = {
 	/*
 	 * PHY 1 can be in 4-lane mode (combining lanes of PHY 0 and PHY 1)
 	 * but only use the data lanes of PHY0, while continuing to use the
@@ -872,13 +872,13 @@ static int max96724_select_links(struct max_des *des, unsigned int mask)
 
 static int max96724_set_link_version(struct max_des *des,
 				     struct max_des_link *link,
-				     enum max_gmsl_version version)
+				     enum max_serdes_gmsl_version version)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
 	unsigned int val;
 
-	if (version == MAX_GMSL_2_6GBPS)
+	if (version == MAX_SERDES_GMSL_2_6GBPS)
 		val = MAX96724_REG26_RX_RATE_6GBPS;
 	else
 		val = MAX96724_REG26_RX_RATE_3GBPS;
@@ -889,7 +889,7 @@ static int max96724_set_link_version(struct max_des *des,
 }
 
 static int max96724_set_tpg_timings(struct max96724_priv *priv,
-				    const struct max_tpg_timings *tm)
+				    const struct max_serdes_tpg_timings *tm)
 {
 	const struct reg_sequence regs[] = {
 		REG_SEQUENCE_3(MAX96724_VS_DLY_2, tm->vs_dly),
@@ -921,7 +921,8 @@ static int max96724_set_tpg_timings(struct max96724_priv *priv,
 			    FIELD_PREP(MAX96724_PATGEN_0_GEN_VS, tm->gen_vs));
 }
 
-static int max96724_set_tpg_clk(struct max96724_priv *priv, const struct videomode *vm)
+static int max96724_set_tpg_clk(struct max96724_priv *priv,
+				const struct videomode *vm)
 {
 	bool patgen_clk_src = 0;
 	u8 pclk_src;
@@ -988,19 +989,20 @@ static int max96724_set_tpg_mode(struct max96724_priv *priv, bool enable)
 						    : MAX96724_PATGEN_1_PATGEN_MODE_DISABLED));
 }
 
-static int max96724_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
+static int max96724_set_tpg(struct max_des *des,
+			    const struct max_serdes_tpg_entry *entry)
 {
 	struct max96724_priv *priv = des_to_priv(des);
-	struct max_tpg_timings timings = { 0 };
+	struct max_serdes_tpg_timings timings = { 0 };
 	const struct videomode *vm = NULL;
 	int ret;
 
 	if (entry) {
-		vm = max_find_tpg_videomode(entry);
+		vm = max_serdes_find_tpg_videomode(entry);
 		if (!vm)
 			return -EINVAL;
 
-		max_get_tpg_timings(vm, &timings);
+		max_serdes_get_tpg_timings(vm, &timings);
 	}
 
 	ret = max96724_set_tpg_timings(priv, &timings);
@@ -1019,7 +1021,7 @@ static int max96724_set_tpg(struct max_des *des, const struct max_tpg_entry *ent
 				  MAX96724_MIPI_PHY0_FORCE_CSI_OUT_EN, !!entry);
 }
 
-static const struct max_tpg_entry max96724_tpg_entries[] = {
+static const struct max_serdes_tpg_entry max96724_tpg_entries[] = {
 	MAX_TPG_ENTRY_640X480P60_RGB888,
 	MAX_TPG_ENTRY_1920X1080P30_RGB888,
 	MAX_TPG_ENTRY_1920X1080P60_RGB888,
@@ -1037,7 +1039,7 @@ static const struct max_des_ops max96724_ops = {
 		.num_entries = ARRAY_SIZE(max96724_tpg_entries),
 		.entries = max96724_tpg_entries,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.tpg_patterns = BIT(MAX_TPG_PATTERN_CHECKERBOARD) |
 			BIT(MAX_TPG_PATTERN_GRADIENT),
 	.use_atr = true,
@@ -1062,8 +1064,10 @@ static const struct max_des_ops max96724_ops = {
 };
 
 static const struct max96724_chip_info max96724_info = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_tunnel_phy = max96724_set_pipe_tunnel_phy,
@@ -1072,8 +1076,9 @@ static const struct max96724_chip_info max96724_info = {
 };
 
 static const struct max96724_chip_info max96724f_info = {
-	.versions = BIT(MAX_GMSL_2_3GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_tunnel_enable = max96724_set_pipe_tunnel_enable,
 	.set_pipe_phy = max96724_set_pipe_phy,
 	.set_pipe_tunnel_phy = max96724_set_pipe_tunnel_phy,
@@ -1082,8 +1087,9 @@ static const struct max96724_chip_info max96724f_info = {
 };
 
 static const struct max96724_chip_info max96712_info = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE),
 	.num_pipes = 8,
 };
 

@@ -888,11 +888,11 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 
 static int max9296a_set_link_version(struct max_des *des,
 				     struct max_des_link *link,
-				     enum max_gmsl_version version)
+				     enum max_serdes_gmsl_version version)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	bool gmsl3_en = version == MAX_GMSL_3;
+	bool gmsl3_en = version == MAX_SERDES_GMSL_3;
 	unsigned int reg, mask, val;
 	int ret;
 
@@ -907,9 +907,9 @@ static int max9296a_set_link_version(struct max_des *des,
 		mask = MAX9296A_REG4_RX_RATE_B;
 	}
 
-	if (version == MAX_GMSL_3)
+	if (version == MAX_SERDES_GMSL_3)
 		val = MAX9296A_REG1_RX_RATE_12GBPS;
-	else if (version == MAX_GMSL_2_6GBPS)
+	else if (version == MAX_SERDES_GMSL_2_6GBPS)
 		val = MAX9296A_REG1_RX_RATE_6GBPS;
 	else
 		val = MAX9296A_REG1_RX_RATE_3GBPS;
@@ -918,7 +918,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	if (ret)
 		return ret;
 
-	if (!(des->ops->versions & BIT(MAX_GMSL_3)))
+	if (!(des->ops->versions & BIT(MAX_SERDES_GMSL_3)))
 		return 0;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
@@ -936,7 +936,7 @@ static int max9296a_set_link_version(struct max_des *des,
 }
 
 static int max9296a_set_tpg_timings(struct max9296a_priv *priv,
-				    const struct max_tpg_timings *tm)
+				    const struct max_serdes_tpg_timings *tm)
 {
 	const struct reg_sequence regs[] = {
 		REG_SEQUENCE_3(MAX9296A_VS_DLY_2, tm->vs_dly),
@@ -968,7 +968,8 @@ static int max9296a_set_tpg_timings(struct max9296a_priv *priv,
 			    FIELD_PREP(MAX9296A_PATGEN_0_GEN_VS, tm->gen_vs));
 }
 
-static int max9296a_set_tpg_clk(struct max9296a_priv *priv, const struct videomode *vm)
+static int max9296a_set_tpg_clk(struct max9296a_priv *priv,
+				const struct videomode *vm)
 {
 	bool patgen_clk_src = 0;
 	u8 pin_drv_en;
@@ -1035,19 +1036,20 @@ static int max9296a_set_tpg_mode(struct max9296a_priv *priv, bool enable)
 						    : MAX9296A_PATGEN_1_PATGEN_MODE_DISABLED));
 }
 
-static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
+static int max9296a_set_tpg(struct max_des *des,
+			    const struct max_serdes_tpg_entry *entry)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
-	struct max_tpg_timings timings = { 0 };
+	struct max_serdes_tpg_timings timings = { 0 };
 	const struct videomode *vm = NULL;
 	int ret;
 
 	if (entry) {
-		vm = max_find_tpg_videomode(entry);
+		vm = max_serdes_find_tpg_videomode(entry);
 		if (!vm)
 			return -EINVAL;
 
-		max_get_tpg_timings(vm, &timings);
+		max_serdes_get_tpg_timings(vm, &timings);
 	}
 
 	ret = max9296a_set_tpg_timings(priv, &timings);
@@ -1066,7 +1068,7 @@ static int max9296a_set_tpg(struct max_des *des, const struct max_tpg_entry *ent
 				  MAX9296A_MIPI_PHY0_FORCE_CSI_OUT_EN, !!entry);
 }
 
-static const struct max_tpg_entry max9296a_tpg_entries[] = {
+static const struct max_serdes_tpg_entry max9296a_tpg_entries[] = {
 	MAX_TPG_ENTRY_640X480P60_RGB888,
 	MAX_TPG_ENTRY_1920X1080P30_RGB888,
 	MAX_TPG_ENTRY_1920X1080P60_RGB888,
@@ -1178,17 +1180,18 @@ static void max9296a_remove(struct i2c_client *client)
 	gpiod_set_value_cansleep(priv->gpiod_pwdn, 1);
 }
 
-static const struct max_phys_config max9296a_phys_configs[] = {
+static const struct max_serdes_phys_config max9296a_phys_configs[] = {
 	{ { 4, 4 } },
 };
 
-static const struct max_phys_config max96714_phys_configs[] = {
+static const struct max_serdes_phys_config max96714_phys_configs[] = {
 	{ { 4 } },
 };
 
 static const struct max_des_ops max9296a_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.needs_single_link_version = true,
@@ -1213,8 +1216,10 @@ static const struct max9296a_chip_info max9296a_info = {
 };
 
 static const struct max_des_ops max96714_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1222,7 +1227,7 @@ static const struct max_des_ops max96714_ops = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.num_pipes = 1,
 	.num_phys = 1,
 	.num_links = 1,
@@ -1239,8 +1244,9 @@ static const struct max9296a_chip_info max96714_info = {
 };
 
 static const struct max_des_ops max96714f_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_enable = max96714_set_pipe_tunnel_enable,
@@ -1248,7 +1254,7 @@ static const struct max_des_ops max96714f_ops = {
 		.num_configs = ARRAY_SIZE(max96714_phys_configs),
 		.configs = max96714_phys_configs,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.num_pipes = 1,
 	.num_phys = 1,
 	.num_links = 1,
@@ -1265,8 +1271,10 @@ static const struct max9296a_chip_info max96714f_info = {
 };
 
 static const struct max_des_ops max96716a_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_link = max96716a_set_pipe_link,
 	.set_pipe_enable = max96714_set_pipe_enable,
@@ -1277,7 +1285,7 @@ static const struct max_des_ops max96716a_ops = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.num_pipes = 2,
 	.num_phys = 2,
 	.num_links = 2,
@@ -1295,9 +1303,11 @@ static const struct max9296a_chip_info max96716a_info = {
 };
 
 static const struct max_des_ops max96792a_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS) |
-		    BIT(MAX_GMSL_3),
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
+		    BIT(MAX_SERDES_GMSL_3),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
 	.set_pipe_tunnel_phy = max96716a_set_pipe_tunnel_phy,
@@ -1307,7 +1317,7 @@ static const struct max_des_ops max96792a_ops = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.num_pipes = 2,
 	.num_phys = 2,
 	.num_links = 2,

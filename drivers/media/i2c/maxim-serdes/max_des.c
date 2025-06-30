@@ -37,7 +37,7 @@ struct max_des_priv {
 
 	struct media_pad *pads;
 	struct regulator **pocs;
-	struct max_source *sources;
+	struct max_serdes_source *sources;
 	u64 *streams_masks;
 
 	struct notifier_block i2c_nb;
@@ -49,7 +49,7 @@ struct max_des_priv {
 };
 
 struct max_des_remap_context {
-	enum max_gmsl_mode mode;
+	enum max_serdes_gmsl_mode mode;
 	/* Mark whether TPG is enabled */
 	bool tpg;
 	/* Mark the PHYs to which each pipe is mapped. */
@@ -74,7 +74,7 @@ struct max_des_mode_context {
 };
 
 struct max_des_route_hw {
-	struct max_source *source;
+	struct max_serdes_source *source;
 	struct max_des_pipe *pipe;
 	struct max_des_phy *phy;
 	struct v4l2_mbus_frame_desc_entry entry;
@@ -82,7 +82,7 @@ struct max_des_route_hw {
 };
 
 struct max_des_link_hw {
-	struct max_source *source;
+	struct max_serdes_source *source;
 	struct max_des_link *link;
 	struct max_des_pipe *pipe;
 };
@@ -167,18 +167,18 @@ max_des_find_link_pipe(struct max_des *des, struct max_des_link *link)
 	return NULL;
 }
 
-static struct max_source *
+static struct max_serdes_source *
 max_des_get_link_source(struct max_des_priv *priv, struct max_des_link *link)
 {
 	return &priv->sources[link->index];
 }
 
-static const struct max_tpg_entry *
+static const struct max_serdes_tpg_entry *
 max_des_find_tpg_entry(struct max_des *des, u32 target_index,
 		       u32 width, u32 height, u32 code,
 		       u32 numerator, u32 denominator)
 {
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	unsigned int index = 0;
 	unsigned int i;
 
@@ -204,7 +204,7 @@ max_des_find_tpg_entry(struct max_des *des, u32 target_index,
 	return &des->ops->tpg_entries.entries[i];
 }
 
-static const struct max_tpg_entry *
+static const struct max_serdes_tpg_entry *
 max_des_find_state_tpg_entry(struct max_des *des, struct v4l2_subdev_state *state,
 			     unsigned int pad)
 {
@@ -228,7 +228,7 @@ static int max_des_get_tpg_fd_entry_state(struct max_des *des,
 					  struct v4l2_mbus_frame_desc_entry *fd_entry,
 					  unsigned int pad)
 {
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 
 	entry = max_des_find_state_tpg_entry(des, state, pad);
 	if (!entry)
@@ -363,7 +363,7 @@ static int max_des_set_pipe_remaps(struct max_des_priv *priv,
 
 static int max_des_set_pipe_vc_remaps(struct max_des_priv *priv,
 				      struct max_des_pipe *pipe,
-				      struct max_vc_remap *vc_remaps,
+				      struct max_serdes_vc_remap *vc_remaps,
 				      unsigned int num_vc_remaps)
 {
 	struct max_des *des = priv->des;
@@ -499,13 +499,13 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
-	context->mode = MAX_GMSL_PIXEL_MODE;
+	context->mode = MAX_SERDES_GMSL_PIXEL_MODE;
 
 	/*
 	 * If pixel mode is the only supported mode, do not try to see if
 	 * tunnel mode can be used.
 	 */
-	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
+	if (modes == BIT(MAX_SERDES_GMSL_PIXEL_MODE))
 		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
@@ -533,7 +533,7 @@ static int max_des_populate_remap_context_mode(struct max_des_priv *priv,
 		return 0;
 	}
 
-	context->mode = MAX_GMSL_TUNNEL_MODE;
+	context->mode = MAX_SERDES_GMSL_TUNNEL_MODE;
 
 	return 0;
 }
@@ -545,7 +545,7 @@ static int max_des_should_keep_vc(struct max_des_priv *priv,
 	struct max_des *des = priv->des;
 
 	/* Pixel mode deserializers always have the ability to remap VCs. */
-	if (modes == BIT(MAX_GMSL_PIXEL_MODE))
+	if (modes == BIT(MAX_SERDES_GMSL_PIXEL_MODE))
 		return false;
 
 	if (des->ops->set_pipe_vc_remap)
@@ -596,7 +596,7 @@ static int max_des_populate_remap_context(struct max_des_priv *priv,
 static int max_des_populate_mode_context(struct max_des_priv *priv,
 					 struct max_des_mode_context *context,
 					 struct v4l2_subdev_state *state,
-					 enum max_gmsl_mode mode)
+					 enum max_serdes_gmsl_mode mode)
 {
 	bool bpp8_not_shared_with_16_phys[MAX_DES_PHYS_NUM] = { 0 };
 	u32 undoubled_bpps_phys[MAX_DES_PHYS_NUM] = { 0 };
@@ -606,7 +606,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	unsigned int i;
 	int ret;
 
-	if (mode != MAX_GMSL_PIXEL_MODE)
+	if (mode != MAX_SERDES_GMSL_PIXEL_MODE)
 		return 0;
 
 	/*
@@ -643,7 +643,7 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		ret = max_get_fd_bpp(&hw.entry, &bpp);
+		ret = max_serdes_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
 			return ret;
 
@@ -660,13 +660,13 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 		if (ret)
 			return ret;
 
-		ret = max_get_fd_bpp(&hw.entry, &bpp);
+		ret = max_serdes_get_fd_bpp(&hw.entry, &bpp);
 		if (ret)
 			return ret;
 
 		sink_bpps = bpps_pipes[hw.pipe->index];
 
-		ret = max_process_bpps(priv->dev, sink_bpps, ~0U, &doubled_bpp);
+		ret = max_serdes_process_bpps(priv->dev, sink_bpps, ~0U, &doubled_bpp);
 		if (ret)
 			return ret;
 
@@ -716,11 +716,11 @@ static int max_des_populate_mode_context(struct max_des_priv *priv,
 	return 0;
 }
 
-static int max_des_add_vc_remap(struct max_des *des, struct max_vc_remap *vc_remaps,
+static int max_des_add_vc_remap(struct max_des *des, struct max_serdes_vc_remap *vc_remaps,
 				unsigned int *num_vc_remaps, unsigned int src_vc_id,
 				unsigned int dst_vc_id)
 {
-	struct max_vc_remap *vc_remap;
+	struct max_serdes_vc_remap *vc_remap;
 	unsigned int i;
 
 	for (i = 0; i < *num_vc_remaps; i++) {
@@ -744,7 +744,7 @@ static int max_des_add_vc_remap(struct max_des *des, struct max_vc_remap *vc_rem
 static int max_des_get_pipe_vc_remaps(struct max_des_priv *priv,
 				      struct max_des_remap_context *context,
 				      struct max_des_pipe *pipe,
-				      struct max_vc_remap *vc_remaps,
+				      struct max_serdes_vc_remap *vc_remaps,
 				      unsigned int *num_vc_remaps,
 				      struct v4l2_subdev_state *state,
 				      u64 *streams_masks, bool with_tpg)
@@ -755,7 +755,7 @@ static int max_des_get_pipe_vc_remaps(struct max_des_priv *priv,
 
 	*num_vc_remaps = 0;
 
-	if (context->mode != MAX_GMSL_TUNNEL_MODE)
+	if (context->mode != MAX_SERDES_GMSL_TUNNEL_MODE)
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
@@ -909,7 +909,7 @@ static int max_des_set_tunnel(struct max_des_priv *priv,
 	if (des->ops->set_pipe_tunnel_enable) {
 		for (i = 0; i < des->ops->num_pipes; i++) {
 			struct max_des_pipe *pipe = &des->pipes[i];
-			bool tunnel_mode = context->mode == MAX_GMSL_TUNNEL_MODE;
+			bool tunnel_mode = context->mode == MAX_SERDES_GMSL_TUNNEL_MODE;
 
 			ret = des->ops->set_pipe_tunnel_enable(des, pipe, tunnel_mode);
 			if (ret)
@@ -956,7 +956,7 @@ static int max_des_set_vc_remaps(struct max_des_priv *priv,
 		return 0;
 
 	for (i = 0; i < des->ops->num_links; i++) {
-		struct max_vc_remap vc_remaps[MAX_SERDES_VC_ID_NUM];
+		struct max_serdes_vc_remap vc_remaps[MAX_SERDES_VC_ID_NUM];
 		struct max_des_link_hw hw;
 		unsigned int num_vc_remaps;
 
@@ -1057,17 +1057,17 @@ static int max_des_set_pipes_phy(struct max_des_priv *priv,
 					des->ops->num_phys);
 
 		if (priv->unused_phy &&
-		    (context->mode != MAX_GMSL_TUNNEL_MODE ||
+		    (context->mode != MAX_SERDES_GMSL_TUNNEL_MODE ||
 		     phy_id == des->ops->num_phys))
 			phy_id = priv->unused_phy->index;
 
 		if (phy_id != des->ops->num_phys) {
 			phy = &des->phys[phy_id];
 
-			if (context->mode == MAX_GMSL_PIXEL_MODE &&
+			if (context->mode == MAX_SERDES_GMSL_PIXEL_MODE &&
 			    des->ops->set_pipe_phy)
 				ret = des->ops->set_pipe_phy(des, pipe, phy);
-			else if (context->mode == MAX_GMSL_TUNNEL_MODE &&
+			else if (context->mode == MAX_SERDES_GMSL_TUNNEL_MODE &&
 				 des->ops->set_pipe_tunnel_phy)
 				ret = des->ops->set_pipe_tunnel_phy(des, pipe, phy);
 			else
@@ -1156,7 +1156,7 @@ static int max_des_get_pipe_remaps(struct max_des_priv *priv,
 
 	*num_remaps = 0;
 
-	if (context->mode != MAX_GMSL_PIXEL_MODE)
+	if (context->mode != MAX_SERDES_GMSL_PIXEL_MODE)
 		return 0;
 
 	for_each_active_route(&state->routing, route) {
@@ -1222,7 +1222,7 @@ static int max_des_update_pipe_vc_remaps(struct max_des_priv *priv,
 					 u64 *streams_masks)
 {
 	struct max_des *des = priv->des;
-	struct max_vc_remap *vc_remaps;
+	struct max_serdes_vc_remap *vc_remaps;
 	unsigned int num_vc_remaps;
 	int ret;
 
@@ -1520,8 +1520,8 @@ static void max_des_ser_find_version_range(struct max_des *des, int *min, int *m
 {
 	unsigned int i;
 
-	*min = MAX_GMSL_MIN;
-	*max = MAX_GMSL_MAX;
+	*min = MAX_SERDES_GMSL_MIN;
+	*max = MAX_SERDES_GMSL_MAX;
 
 	if (!des->ops->needs_single_link_version)
 		return;
@@ -1791,7 +1791,7 @@ static int max_des_set_tpg_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *fmt = &format->format;
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des *des = priv->des;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_fract *in;
 
 	if (format->stream != MAX_SERDES_TPG_STREAM)
@@ -1856,7 +1856,7 @@ static int max_des_enum_frame_interval(struct v4l2_subdev *sd,
 {
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des *des = priv->des;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 
 	if (!max_des_pad_is_tpg(des, fie->pad) ||
 	    fie->stream != MAX_SERDES_TPG_STREAM)
@@ -1880,7 +1880,7 @@ static int max_des_set_frame_interval(struct v4l2_subdev *sd,
 {
 	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
 	struct max_des *des = priv->des;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_mbus_framefmt *fmt;
 	struct v4l2_fract *in;
 
@@ -1919,9 +1919,9 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 	int ret;
 
 	v4l2_info(sd, "active: %u\n", des->active);
-	v4l2_info(sd, "mode: %s", max_gmsl_mode_str(des->mode));
+	v4l2_info(sd, "mode: %s", max_serdes_gmsl_mode_str(des->mode));
 	if (des->ops->set_tpg) {
-		const struct max_tpg_entry *entry = des->tpg_entry;
+		const struct max_serdes_tpg_entry *entry = des->tpg_entry;
 
 		if (entry) {
 			v4l2_info(sd, "tpg: %ux%u@%u/%u, code: %u, dt: %u, bpp: %u\n",
@@ -1951,7 +1951,7 @@ static int max_des_log_status(struct v4l2_subdev *sd)
 			continue;
 		}
 
-		v4l2_info(sd, "\tversion: %s\n", max_gmsl_version_str(link->version));
+		v4l2_info(sd, "\tversion: %s\n", max_serdes_gmsl_version_str(link->version));
 		v4l2_info(sd, "\tser_xlate: en: %u, src: 0x%02x dst: 0x%02x\n",
 			  link->ser_xlate.en, link->ser_xlate.src,
 			  link->ser_xlate.dst);
@@ -2130,11 +2130,11 @@ static int max_des_set_tpg_routing(struct v4l2_subdev *sd,
 {
 	struct max_des_priv *priv = sd_to_priv(sd);
 	struct max_des *des = priv->des;
-	const struct max_tpg_entry *entry;
+	const struct max_serdes_tpg_entry *entry;
 	struct v4l2_mbus_framefmt fmt = { 0 };
 	int ret;
 
-	ret = max_validate_tpg_routing(routing);
+	ret = max_serdes_validate_tpg_routing(routing);
 	if (ret)
 		return ret;
 
@@ -2213,7 +2213,7 @@ static int max_des_update_tpg(struct max_des_priv *priv,
 			      struct v4l2_subdev_state *state,
 			      u64 *streams_masks)
 {
-	const struct max_tpg_entry *entry = NULL;
+	const struct max_serdes_tpg_entry *entry = NULL;
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	int ret;
@@ -2320,9 +2320,9 @@ static int max_des_enable_disable_streams(struct max_des_priv *priv,
 {
 	struct max_des *des = priv->des;
 
-	return max_xlate_enable_disable_streams(priv->sources, 0, state,
-						pad, updated_streams_mask, 0,
-						des->ops->num_links, enable);
+	return max_serdes_xlate_enable_disable_streams(priv->sources, 0, state,
+						       pad, updated_streams_mask, 0,
+						       des->ops->num_links, enable);
 }
 
 static int max_des_update_streams(struct v4l2_subdev *sd,
@@ -2345,9 +2345,9 @@ static int max_des_update_streams(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	ret = max_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
-				    num_pads, priv->streams_masks, &streams_masks,
-				    enable);
+	ret = max_serdes_get_streams_masks(priv->dev, state, pad, updated_streams_mask,
+					   num_pads, priv->streams_masks, &streams_masks,
+					   enable);
 	if (ret)
 		return ret;
 
@@ -2516,8 +2516,8 @@ static int max_des_notify_bound(struct v4l2_async_notifier *nf,
 				struct v4l2_async_connection *base_asc)
 {
 	struct max_des_priv *priv = nf_to_priv(nf);
-	struct max_asc *asc = asc_to_max(base_asc);
-	struct max_source *source = asc->source;
+	struct max_serdes_asc *asc = asc_to_max(base_asc);
+	struct max_serdes_source *source = asc->source;
 	struct max_des *des = priv->des;
 	struct max_des_link *link = &des->links[source->index];
 	u32 pad = max_des_link_to_pad(des, link);
@@ -2551,8 +2551,8 @@ static void max_des_notify_unbind(struct v4l2_async_notifier *nf,
 				  struct v4l2_subdev *subdev,
 				  struct v4l2_async_connection *base_asc)
 {
-	struct max_asc *asc = asc_to_max(base_asc);
-	struct max_source *source = asc->source;
+	struct max_serdes_asc *asc = asc_to_max(base_asc);
+	struct max_serdes_source *source = asc->source;
 
 	source->sd = NULL;
 }
@@ -2572,8 +2572,8 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		struct max_source *source;
-		struct max_asc *asc;
+		struct max_serdes_source *source;
+		struct max_serdes_asc *asc;
 
 		if (!link->enabled)
 			continue;
@@ -2583,7 +2583,7 @@ static int max_des_v4l2_notifier_register(struct max_des_priv *priv)
 			continue;
 
 		asc = v4l2_async_nf_add_fwnode(&priv->nf, source->ep_fwnode,
-					       struct max_asc);
+					       struct max_serdes_asc);
 		if (IS_ERR(asc)) {
 			dev_err(priv->dev,
 				"Failed to add subdev for source %u: %pe", i,
@@ -2735,7 +2735,7 @@ static int max_des_update_pocs(struct max_des_priv *priv, bool enable)
 
 static int max_des_parse_sink_dt_endpoint(struct max_des_priv *priv,
 					  struct max_des_link *link,
-					  struct max_source *source,
+					  struct max_serdes_source *source,
 					  struct fwnode_handle *fwnode)
 {
 	struct max_des *des = priv->des;
@@ -2855,8 +2855,9 @@ static int max_des_parse_src_dt_endpoint(struct max_des_priv *priv,
 
 int max_des_phy_hw_data_lanes(struct max_des *des, struct max_des_phy *phy)
 {
-	const struct max_phys_configs *configs = &des->ops->phys_configs;
-	const struct max_phys_config *config = &configs->configs[des->phys_config];
+	const struct max_serdes_phys_configs *configs = &des->ops->phys_configs;
+	const struct max_serdes_phys_config *config =
+		&configs->configs[des->phys_config];
 
 	return config->lanes[phy->index];
 }
@@ -2865,7 +2866,7 @@ EXPORT_SYMBOL_GPL(max_des_phy_hw_data_lanes);
 static int max_des_find_phys_config(struct max_des_priv *priv)
 {
 	struct max_des *des = priv->des;
-	const struct max_phys_configs *configs = &des->ops->phys_configs;
+	const struct max_serdes_phys_configs *configs = &des->ops->phys_configs;
 	struct max_des_phy *phy;
 	unsigned int i, j;
 
@@ -2873,7 +2874,7 @@ static int max_des_find_phys_config(struct max_des_priv *priv)
 		return 0;
 
 	for (i = 0; i < configs->num_configs; i++) {
-		const struct max_phys_config *config = &configs->configs[i];
+		const struct max_serdes_phys_config *config = &configs->configs[i];
 		bool matching = true;
 
 		for (j = 0; j < des->ops->num_phys; j++) {
@@ -2971,7 +2972,7 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 
 	for (i = 0; i < des->ops->num_links; i++) {
 		struct max_des_link *link = &des->links[i];
-		struct max_source *source;
+		struct max_serdes_source *source;
 
 		source = max_des_get_link_source(priv, link);
 		source->index = i;

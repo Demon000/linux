@@ -847,7 +847,7 @@ static int max96717_log_status(struct max_ser *ser)
 	unsigned int val;
 	int ret;
 
-	if (!(priv->info->modes & BIT(MAX_GMSL_TUNNEL_MODE)))
+	if (!(priv->info->modes & BIT(MAX_SERDES_GMSL_TUNNEL_MODE)))
 		return 0;
 
 	ret = regmap_read(priv->regmap, MAX96717_EXT23, &val);
@@ -1097,7 +1097,7 @@ static int max96717_set_pipe_mode(struct max_ser *ser,
 }
 
 static int max96717_set_i2c_xlate(struct max_ser *ser, unsigned int i,
-				  struct max_i2c_xlate *xlate)
+				  struct max_serdes_i2c_xlate *xlate)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	int ret;
@@ -1122,7 +1122,7 @@ static int max96717_set_tunnel_enable(struct max_ser *ser, bool enable)
 }
 
 static int max96717_set_tpg_timings(struct max96717_priv *priv,
-				    const struct max_tpg_timings *tm,
+				    const struct max_serdes_tpg_timings *tm,
 				    unsigned int index)
 {
 	const struct reg_sequence regs[] = {
@@ -1209,7 +1209,8 @@ static int max96717_set_tpg_mode(struct max96717_priv *priv, bool enable,
 						    : MAX96717_VTX29_PATGEN_MODE_DISABLED));
 }
 
-static int max96717_set_tpg(struct max_ser *ser, const struct max_tpg_entry *entry)
+static int max96717_set_tpg(struct max_ser *ser,
+			    const struct max_serdes_tpg_entry *entry)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	/*
@@ -1217,16 +1218,16 @@ static int max96717_set_tpg(struct max_ser *ser, const struct max_tpg_entry *ent
 	 * use only the first pipe for simplicity.
 	 */
 	unsigned int index = max96717_pipe_id(priv, &ser->pipes[0]);
-	struct max_tpg_timings timings = { 0 };
+	struct max_serdes_tpg_timings timings = { 0 };
 	const struct videomode *vm = NULL;
 	int ret;
 
 	if (entry) {
-		vm = max_find_tpg_videomode(entry);
+		vm = max_serdes_find_tpg_videomode(entry);
 		if (!vm)
 			return -EINVAL;
 
-		max_get_tpg_timings(vm, &timings);
+		max_serdes_get_tpg_timings(vm, &timings);
 	}
 
 	ret = max96717_set_tpg_timings(priv, &timings, index);
@@ -1240,7 +1241,7 @@ static int max96717_set_tpg(struct max_ser *ser, const struct max_tpg_entry *ent
 	return max96717_set_tpg_mode(priv, entry, index);
 }
 
-static const struct max_phys_config max96717_phys_configs[] = {
+static const struct max_serdes_phys_config max96717_phys_configs[] = {
 	{ { 4 } },
 };
 
@@ -1313,7 +1314,7 @@ static const struct pinmux_ops max96717_mux_ops = {
 	.set_mux = max96717_mux_set,
 };
 
-static const struct max_tpg_entry max96717_tpg_entries[] = {
+static const struct max_serdes_tpg_entry max96717_tpg_entries[] = {
 	MAX_TPG_ENTRY_640X480P60_RGB888,
 	MAX_TPG_ENTRY_1920X1080P30_RGB888,
 	MAX_TPG_ENTRY_1920X1080P60_RGB888,
@@ -1329,7 +1330,7 @@ static const struct max_ser_ops max96717_ops = {
 		.num_entries = ARRAY_SIZE(max96717_tpg_entries),
 		.entries = max96717_tpg_entries,
 	},
-	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.tpg_patterns = BIT(MAX_TPG_PATTERN_CHECKERBOARD) |
 			BIT(MAX_TPG_PATTERN_GRADIENT),
 	.reg_read = max96717_reg_read,
@@ -1592,7 +1593,7 @@ static int max96717_probe(struct i2c_client *client)
 
 	*ops = max96717_ops;
 
-	if (priv->info->modes & BIT(MAX_GMSL_TUNNEL_MODE))
+	if (priv->info->modes & BIT(MAX_SERDES_GMSL_TUNNEL_MODE))
 		ops->set_tunnel_enable = max96717_set_tunnel_enable;
 
 	ops->modes = priv->info->modes;
@@ -1624,7 +1625,7 @@ static void max96717_remove(struct i2c_client *client)
 }
 
 static const struct max96717_chip_info max9295a_info = {
-	.modes = BIT(MAX_GMSL_PIXEL_MODE),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE),
 	.num_pipes = 4,
 	.num_dts_per_pipe = 2,
 	.pipe_hw_ids = { 0, 1, 2, 3 },
@@ -1633,7 +1634,8 @@ static const struct max96717_chip_info max9295a_info = {
 };
 
 static const struct max96717_chip_info max96717_info = {
-	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
+	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
+		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.supports_3_data_lanes = true,
 	.supports_pkt_cnt = true,
 	.supports_noncontinuous_clock = true,

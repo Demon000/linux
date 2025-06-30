@@ -61,9 +61,9 @@ struct max_ser_ops {
 	unsigned int num_i2c_xlates;
 	unsigned int num_vc_remaps;
 
-	struct max_phys_configs phys_configs;
-	struct max_tpg_entries tpg_entries;
-	enum max_gmsl_mode tpg_mode;
+	struct max_serdes_phys_configs phys_configs;
+	struct max_serdes_tpg_entries tpg_entries;
+	enum max_serdes_gmsl_mode tpg_mode;
 	unsigned int tpg_patterns;
 
 	int (*reg_read)(struct max_ser *ser, unsigned int reg, unsigned int *val);
@@ -73,9 +73,9 @@ struct max_ser_ops {
 	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*init)(struct max_ser *ser);
 	int (*set_i2c_xlate)(struct max_ser *ser, unsigned int i,
-			     struct max_i2c_xlate *i2c_xlate);
+			     struct max_serdes_i2c_xlate *i2c_xlate);
 	int (*set_tunnel_enable)(struct max_ser *ser, bool enable);
-	int (*set_tpg)(struct max_ser *ser, const struct max_tpg_entry *entry);
+	int (*set_tpg)(struct max_ser *ser, const struct max_serdes_tpg_entry *entry);
 	int (*init_phy)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*set_phy_active)(struct max_ser *ser, struct max_ser_phy *phy,
 			      bool enable);
@@ -90,7 +90,7 @@ struct max_ser_ops {
 	int (*set_pipe_mode)(struct max_ser *ser, struct max_ser_pipe *pipe,
 			     struct max_ser_pipe_mode *mode);
 	int (*set_vc_remap)(struct max_ser *ser, unsigned int i,
-			    struct max_vc_remap *vc_remap);
+			    struct max_serdes_vc_remap *vc_remap);
 	int (*set_vc_remaps_enable)(struct max_ser *ser, unsigned int mask);
 	int (*set_pipe_stream_id)(struct max_ser *ser, struct max_ser_pipe *pipe,
 				  unsigned int stream_id);
@@ -106,19 +106,19 @@ struct max_ser {
 
 	const struct max_ser_ops *ops;
 
-	struct max_i2c_xlate *i2c_xlates;
+	struct max_serdes_i2c_xlate *i2c_xlates;
 
 	struct max_ser_phy *phys;
 	struct max_ser_pipe *pipes;
-	const struct max_tpg_entry *tpg_entry;
-	enum max_tpg_pattern tpg_pattern;
+	const struct max_serdes_tpg_entry *tpg_entry;
+	enum max_serdes_tpg_pattern tpg_pattern;
 
-	struct max_vc_remap *vc_remaps;
+	struct max_serdes_vc_remap *vc_remaps;
 	unsigned int num_vc_remaps;
 
 	unsigned int phys_config;
 	unsigned int active;
-	enum max_gmsl_mode mode;
+	enum max_serdes_gmsl_mode mode;
 };
 
 int max_ser_probe(struct i2c_client *client, struct max_ser *ser);
@@ -127,11 +127,11 @@ int max_ser_remove(struct max_ser *ser);
 
 int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps);
 unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd);
-int max_ser_set_mode(struct v4l2_subdev *sd, enum max_gmsl_mode mode);
+int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode);
 bool max_ser_supports_vc_remap(struct v4l2_subdev *sd);
 int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id);
 int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id);
-int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_vc_remap *vc_remaps,
+int max_ser_set_vc_remaps(struct v4l2_subdev *sd, struct max_serdes_vc_remap *vc_remaps,
 			  int num_vc_remaps);
 
 int max_ser_reset(struct i2c_adapter *adapter, u8 addr);
