@@ -210,38 +210,17 @@ struct max9296a_priv {
 };
 
 struct max9296a_chip_info {
+	const struct max_des_ops *ops;
 	unsigned int max_register;
-	unsigned int versions;
-	unsigned int modes;
-	unsigned int num_pipes;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int phy_hw_ids[MAX9296A_PHYS_NUM];
-	unsigned int num_phys;
-	unsigned int num_links;
-	struct max_phys_configs phys_configs;
 	bool use_atr;
 	bool has_per_link_reset;
 	bool phy0_lanes_0_1_on_second_phy;
 	bool polarity_on_physical_lanes;
-	bool needs_single_link_version;
-	bool needs_unique_stream_id;
 	bool supports_cphy;
 	bool supports_phy_log;
 	bool adjust_rlms;
-	bool fix_tx_ids;
-
-	enum max_gmsl_mode tpg_mode;
-
-	int (*set_pipe_stream_id)(struct max_des *des, struct max_des_pipe *pipe,
-				  unsigned int stream_id);
-	int (*set_pipe_enable)(struct max_des *des, struct max_des_pipe *pipe,
-			       bool enable);
-	int (*set_pipe_link)(struct max_des *des, struct max_des_pipe *pipe,
-			     struct max_des_link *link);
-	int (*set_pipe_tunnel_phy)(struct max_des *des, struct max_des_pipe *pipe,
-				   struct max_des_phy *phy);
-	int (*set_pipe_tunnel_enable)(struct max_des *des, struct max_des_pipe *pipe,
-				      bool enable);
 };
 
 #define des_to_priv(_des) \
@@ -900,7 +879,7 @@ static int max9296a_select_links(struct max_des *des, unsigned int mask)
 	struct max9296a_priv *priv = des_to_priv(des);
 	int ret;
 
-	if (priv->info->num_links == 1)
+	if (des->ops->num_links == 1)
 		return 0;
 
 	if (!mask) {
@@ -944,7 +923,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	unsigned int reg, mask, val;
 	int ret;
 
-	if (priv->info->needs_single_link_version)
+	if (des->ops->needs_single_link_version)
 		index = 0;
 
 	if (index == 0) {
@@ -966,7 +945,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	if (ret)
 		return ret;
 
-	if (!(priv->info->versions & BIT(MAX_GMSL_3)))
+	if (!(des->ops->versions & BIT(MAX_GMSL_3)))
 		return 0;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
@@ -1120,7 +1099,7 @@ static const struct max_tpg_entry max9296a_tpg_entries[] = {
 	MAX_TPG_ENTRY_1920X1080P60_RGB888,
 };
 
-static const struct max_des_ops max9296a_ops = {
+static const struct max_des_ops max9296a_common_ops = {
 	.num_remaps_per_pipe = 16,
 	.tpg_entries = {
 		.num_entries = ARRAY_SIZE(max9296a_tpg_entries),
@@ -1191,23 +1170,23 @@ static int max9296a_probe(struct i2c_client *client)
 		usleep_range(4000, 5000);
 	}
 
-	*ops = max9296a_ops;
+	*ops = max9296a_common_ops;
 
-	ops->versions = priv->info->versions;
-	ops->modes = priv->info->modes;
-	ops->needs_single_link_version = priv->info->needs_single_link_version;
-	ops->needs_unique_stream_id = priv->info->needs_unique_stream_id;
-	ops->fix_tx_ids = priv->info->fix_tx_ids;
-	ops->num_phys = priv->info->num_phys;
-	ops->num_pipes = priv->info->num_pipes;
-	ops->num_links = priv->info->num_links;
-	ops->phys_configs = priv->info->phys_configs;
-	ops->set_pipe_enable = priv->info->set_pipe_enable;
-	ops->set_pipe_stream_id = priv->info->set_pipe_stream_id;
-	ops->set_pipe_tunnel_phy = priv->info->set_pipe_tunnel_phy;
-	ops->set_pipe_tunnel_enable = priv->info->set_pipe_tunnel_enable;
-	ops->use_atr = priv->info->use_atr;
-	ops->tpg_mode = priv->info->tpg_mode;
+	ops->versions = priv->info->ops->versions;
+	ops->modes = priv->info->ops->modes;
+	ops->needs_single_link_version = priv->info->ops->needs_single_link_version;
+	ops->needs_unique_stream_id = priv->info->ops->needs_unique_stream_id;
+	ops->fix_tx_ids = priv->info->ops->fix_tx_ids;
+	ops->num_phys = priv->info->ops->num_phys;
+	ops->num_pipes = priv->info->ops->num_pipes;
+	ops->num_links = priv->info->ops->num_links;
+	ops->phys_configs = priv->info->ops->phys_configs;
+	ops->set_pipe_enable = priv->info->ops->set_pipe_enable;
+	ops->set_pipe_stream_id = priv->info->ops->set_pipe_stream_id;
+	ops->set_pipe_tunnel_phy = priv->info->ops->set_pipe_tunnel_phy;
+	ops->set_pipe_tunnel_enable = priv->info->ops->set_pipe_tunnel_enable;
+	ops->use_atr = priv->info->ops->use_atr;
+	ops->tpg_mode = priv->info->ops->tpg_mode;
 	priv->des.ops = ops;
 
 	ret = max9296a_reset(priv);
@@ -1234,33 +1213,34 @@ static const struct max_phys_config max96714_phys_configs[] = {
 	{ { 4 } },
 };
 
-static const struct max9296a_chip_info max9296a_info = {
-	.max_register = 0x1f00,
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS),
+static const struct max_des_ops max9296a_ops = {
+	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
 	.modes = BIT(MAX_GMSL_PIXEL_MODE),
 	.set_pipe_stream_id = max9296a_set_pipe_stream_id,
 	.set_pipe_enable = max9296a_set_pipe_enable,
 	.needs_single_link_version = true,
 	.needs_unique_stream_id = true,
-	.use_atr = true,
 	.phys_configs = {
 		.num_configs = ARRAY_SIZE(max9296a_phys_configs),
 		.configs = max9296a_phys_configs,
 	},
-	.phy0_lanes_0_1_on_second_phy = true,
 	.fix_tx_ids = true,
 	.num_pipes = 4,
-	.pipe_hw_ids = { 0, 1, 2, 3 },
 	.num_phys = 2,
-	.phy_hw_ids = { 1, 2 },
 	.num_links = 2,
 };
 
-static const struct max9296a_chip_info max96714_info = {
-	.max_register = 0x5011,
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS),
+static const struct max9296a_chip_info max9296a_info = {
+	.ops = &max9296a_ops,
+	.max_register = 0x1f00,
+	.use_atr = true,
+	.phy0_lanes_0_1_on_second_phy = true,
+	.pipe_hw_ids = { 0, 1, 2, 3 },
+	.phy_hw_ids = { 1, 2 },
+};
+
+static const struct max_des_ops max96714_ops = {
+	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_enable = max96714_set_pipe_enable,
@@ -1270,18 +1250,22 @@ static const struct max9296a_chip_info max96714_info = {
 		.configs = max96714_phys_configs,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
-	.polarity_on_physical_lanes = true,
-	.supports_phy_log = true,
-	.adjust_rlms = true,
 	.num_pipes = 1,
-	.pipe_hw_ids = { 1 },
 	.num_phys = 1,
-	.phy_hw_ids = { 1 },
 	.num_links = 1,
 };
 
-static const struct max9296a_chip_info max96714f_info = {
+static const struct max9296a_chip_info max96714_info = {
+	.ops = &max96714_ops,
 	.max_register = 0x5011,
+	.polarity_on_physical_lanes = true,
+	.supports_phy_log = true,
+	.adjust_rlms = true,
+	.pipe_hw_ids = { 1 },
+	.phy_hw_ids = { 1 },
+};
+
+static const struct max_des_ops max96714f_ops = {
 	.versions = BIT(MAX_GMSL_2_3GBPS),
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
@@ -1292,20 +1276,23 @@ static const struct max9296a_chip_info max96714f_info = {
 		.configs = max96714_phys_configs,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
-	.polarity_on_physical_lanes = true,
-	.supports_phy_log = true,
-	.adjust_rlms = true,
 	.num_pipes = 1,
-	.pipe_hw_ids = { 1 },
 	.num_phys = 1,
-	.phy_hw_ids = { 1 },
 	.num_links = 1,
 };
 
-static const struct max9296a_chip_info max96716a_info = {
-	.max_register = 0x52d6,
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS),
+static const struct max9296a_chip_info max96714f_info = {
+	.ops = &max96714f_ops,
+	.max_register = 0x5011,
+	.polarity_on_physical_lanes = true,
+	.supports_phy_log = true,
+	.adjust_rlms = true,
+	.pipe_hw_ids = { 1 },
+	.phy_hw_ids = { 1 },
+};
+
+static const struct max_des_ops max96716a_ops = {
+	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS),
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
 	.set_pipe_link = max96716a_set_pipe_link,
@@ -1318,21 +1305,24 @@ static const struct max9296a_chip_info max96716a_info = {
 		.configs = max9296a_phys_configs,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.num_pipes = 2,
+	.num_phys = 2,
+	.num_links = 2,
+};
+
+static const struct max9296a_chip_info max96716a_info = {
+	.ops = &max96716a_ops,
+	.max_register = 0x52d6,
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_cphy = true,
 	.supports_phy_log = true,
-	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
-	.num_phys = 2,
 	.phy_hw_ids = { 1, 2 },
-	.num_links = 2,
 };
 
-static const struct max9296a_chip_info max96792a_info = {
-	.max_register = 0x52d6,
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS) |
+static const struct max_des_ops max96792a_ops = {
+	.versions = BIT(MAX_GMSL_2_3GBPS) | BIT(MAX_GMSL_2_6GBPS) |
 		    BIT(MAX_GMSL_3),
 	.modes = BIT(MAX_GMSL_PIXEL_MODE) | BIT(MAX_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
@@ -1345,15 +1335,20 @@ static const struct max9296a_chip_info max96792a_info = {
 		.configs = max9296a_phys_configs,
 	},
 	.tpg_mode = MAX_GMSL_PIXEL_MODE,
+	.num_pipes = 2,
+	.num_phys = 2,
+	.num_links = 2,
+};
+
+static const struct max9296a_chip_info max96792a_info = {
+	.ops = &max96792a_ops,
+	.max_register = 0x52d6,
 	.has_per_link_reset = true,
 	.phy0_lanes_0_1_on_second_phy = true,
 	.supports_cphy = true,
 	.supports_phy_log = true,
-	.num_pipes = 2,
 	.pipe_hw_ids = { 1, 2 },
-	.num_phys = 2,
 	.phy_hw_ids = { 1, 2 },
-	.num_links = 2,
 };
 
 static const struct of_device_id max9296a_of_table[] = {
