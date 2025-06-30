@@ -276,11 +276,7 @@ static int max96724_reset(struct max96724_priv *priv)
 
 	fsleep(10000);
 
-	ret = max96724_wait_for_device(priv);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max96724_wait_for_device(priv);
 }
 
 static int max96724_reg_read(struct max_des *des, unsigned int reg,
@@ -625,12 +621,8 @@ static int max96724_init_phy(struct max_des *des, struct max_des_phy *phy)
 		return ret;
 
 	/* Pull DPLL block out of reset. */
-	ret = regmap_set_bits(priv->regmap, MAX96724_DPLL_0(index),
-			      MAX96724_DPLL_0_CONFIG_SOFT_RST_N);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_set_bits(priv->regmap, MAX96724_DPLL_0(index),
+			       MAX96724_DPLL_0_CONFIG_SOFT_RST_N);
 }
 
 static int max96724_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
@@ -659,13 +651,9 @@ static int max96724_set_phy_mode(struct max_des *des, struct max_des_phy *phy,
 	if (ret)
 		return ret;
 
-	ret = regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
-				 MAX96724_MIPI_TX51_ALT2_MEM_MAP_8,
-				 mode->alt2_mem_map8);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_assign_bits(priv->regmap, MAX96724_MIPI_TX51(index),
+				  MAX96724_MIPI_TX51_ALT2_MEM_MAP_8,
+				  mode->alt2_mem_map8);
 }
 
 static int max96724_set_phy_enable(struct max_des *des, struct max_des_phy *phy,
