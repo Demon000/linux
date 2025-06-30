@@ -1434,16 +1434,18 @@ static long max96717_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 static int max96717_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				 unsigned long parent_rate)
 {
+	const struct max96717_pll_predef_freq *predef_freq;
 	struct max96717_priv *priv = clk_hw_to_priv(hw);
 	unsigned int val, idx;
 	int ret = 0;
 
 	idx = max96717_clk_find_best_index(priv, rate);
+	predef_freq = &max96717_predef_freqs[idx];
 
 	val = FIELD_PREP(MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ,
-			 max96717_predef_freqs[idx].val);
+			 predef_freq->val);
 
-	if (max96717_predef_freqs[idx].is_alt)
+	if (predef_freq->is_alt)
 		val |= MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ_ALT;
 
 	val |= MAX96717_REF_VTG0_REFGEN_RST | MAX96717_REF_VTG0_REFGEN_EN;
