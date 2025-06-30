@@ -517,7 +517,7 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 		}
 	}
 	if (ser->ops->log_status) {
-		ret = ser->ops->log_status(ser, sd->name);
+		ret = ser->ops->log_status(ser);
 		if (ret)
 			return ret;
 	}
@@ -569,7 +569,7 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 			v4l2_info(sd, "\tbpp: %u\n", pipe->mode.bpp);
 		}
 		if (ser->ops->log_pipe_status) {
-			ret = ser->ops->log_pipe_status(ser, pipe, sd->name);
+			ret = ser->ops->log_pipe_status(ser, pipe);
 			if (ret)
 				return ret;
 		}
@@ -593,7 +593,7 @@ static int max_ser_log_status(struct v4l2_subdev *sd)
 		v4l2_info(sd, "\tnoncontinuous_clock: %u\n",
 			  !!(phy->mipi.flags & V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK));
 		if (ser->ops->log_phy_status) {
-			ret = ser->ops->log_phy_status(ser, phy, sd->name);
+			ret = ser->ops->log_phy_status(ser, phy);
 			if (ret)
 				return ret;
 		}

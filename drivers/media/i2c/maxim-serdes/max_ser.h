@@ -68,11 +68,9 @@ struct max_ser_ops {
 
 	int (*reg_read)(struct max_ser *ser, unsigned int reg, unsigned int *val);
 	int (*reg_write)(struct max_ser *ser, unsigned int reg, unsigned int val);
-	int (*log_status)(struct max_ser *ser, const char *name);
-	int (*log_pipe_status)(struct max_ser *ser, struct max_ser_pipe *pipe,
-			       const char *name);
-	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy,
-			      const char *name);
+	int (*log_status)(struct max_ser *ser);
+	int (*log_pipe_status)(struct max_ser *ser, struct max_ser_pipe *pipe);
+	int (*log_phy_status)(struct max_ser *ser, struct max_ser_phy *phy);
 	int (*init)(struct max_ser *ser);
 	int (*set_i2c_xlate)(struct max_ser *ser, unsigned int i,
 			     struct max_i2c_xlate *i2c_xlate);
