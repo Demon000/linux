@@ -841,7 +841,7 @@ static int max96717_set_pipe_vcs(struct max_ser *ser,
 			      (vcs >> 8) & 0xff);
 }
 
-static int max96717_log_status(struct max_ser *ser, const char *name)
+static int max96717_log_status(struct max_ser *ser)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int val;
@@ -854,14 +854,13 @@ static int max96717_log_status(struct max_ser *ser, const char *name)
 	if (ret)
 		return ret;
 
-	pr_info("%s: tun_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "tun_pkt_cnt: %u\n", val);
 
 	return 0;
 }
 
 static int max96717_log_pipe_status(struct max_ser *ser,
-				    struct max_ser_pipe *pipe,
-				    const char *name)
+				    struct max_ser_pipe *pipe)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int index = max96717_pipe_id(priv, pipe);
@@ -872,14 +871,14 @@ static int max96717_log_pipe_status(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tpclkdet: %u\n", name, !!(val & MAX96717_VIDEO_TX2_PCLKDET));
+	dev_info(priv->dev, "\tpclkdet: %u\n",
+		 !!(val & MAX96717_VIDEO_TX2_PCLKDET));
 
 	return 0;
 }
 
 static int max96717_log_phy_status(struct max_ser *ser,
-				   struct max_ser_phy *phy,
-				   const char *name)
+				   struct max_ser_phy *phy)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 	unsigned int val;
@@ -892,19 +891,19 @@ static int max96717_log_phy_status(struct max_ser *ser,
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tphy_pkt_cnt: %u\n", val);
 
 	ret = regmap_read(priv->regmap, MAX96717_EXT22, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tcsi_pkt_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tcsi_pkt_cnt: %u\n", val);
 
 	ret = regmap_read(priv->regmap, MAX96717_EXT24, &val);
 	if (ret)
 		return ret;
 
-	pr_info("%s: \tphy_clk_cnt: %u\n", name, val);
+	dev_info(priv->dev, "\tphy_clk_cnt: %u\n", val);
 
 	return 0;
 }
