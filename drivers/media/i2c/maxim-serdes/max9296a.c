@@ -809,42 +809,24 @@ static int max9296a_init_link_rlms(struct max9296a_priv *priv,
 				   struct max_des_link *link)
 {
 	unsigned int index = link->index;
+	/*
+	 * These register writes are described as required in MAX96714 datasheet
+	 * Page 53, Section Register Map, to optimize link performance in 6Gbps
+	 * and 3Gbps links for all cable lengths.
+	 */
+	const struct reg_sequence regs[] = {
+		{ MAX9296A_RLMS3E(index), 0xfd },
+		{ MAX9296A_RLMS3F(index), 0x3d },
+		{ MAX9296A_RLMS49(index), 0xf5 },
+		{ MAX9296A_RLMS7E(index), 0xa8 },
+		{ MAX9296A_RLMS7F(index), 0x68 },
+		{ MAX9296A_RLMSA3(index), 0x30 },
+		{ MAX9296A_RLMSA5(index), 0x70 },
+		{ MAX9296A_RLMSD8(index), 0x07 },
+	};
 	int ret;
 
-	/*
-	 * These settings are described as required on datasheet page 53
-	 * for MAX96714.
-	 */
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMS3E(index), 0xfd);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMS3F(index), 0x3d);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMS49(index), 0xf5);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMS7E(index), 0xa8);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMS7F(index), 0x68);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMSA3(index), 0x30);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMSA5(index), 0x70);
-	if (ret)
-		return ret;
-
-	ret = regmap_write(priv->regmap, MAX9296A_RLMSD8(index), 0x07);
+	ret = regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
 	if (ret)
 		return ret;
 
