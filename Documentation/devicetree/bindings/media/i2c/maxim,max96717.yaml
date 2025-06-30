@@ -203,7 +203,6 @@ patternProperties:
         description:
           Identifier used while transmitting value to GMSL link.
           Default value matches the pin number.
-        minimum: 0
         maximum: 31
 
       maxim,gmsl-rx-id:
@@ -211,7 +210,6 @@ patternProperties:
         description:
           Identifier used while receiving value from GMSL link.
           Default value matches the pin number.
-        minimum: 0
         maximum: 31
 
     required:
