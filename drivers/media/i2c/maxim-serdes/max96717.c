@@ -1367,18 +1367,22 @@ static const struct max_ser_ops max96717_ops = {
 
 struct max96717_pll_predef_freq {
 	unsigned long freq;
+	bool is_rclk;
 	bool is_alt;
 	u8 val;
 	u8 rclksel;
 };
 
 static const struct max96717_pll_predef_freq max96717_predef_freqs[] = {
-	{ 13500000, true,  0, 3 },
-	{ 19200000, false, 0, 3 },
-	{ 24000000, true,  1, 3 },
-	{ 27000000, false, 1, 3 },
-	{ 37125000, false, 2, 3 },
-	{ 74250000, false, 3, 3 },
+	{  6250000, true,  false, 0, 2 },
+	{ 12500000, true,  false, 0, 1 },
+	{ 13500000, false, true,  0, 3 },
+	{ 19200000, false, false, 0, 3 },
+	{ 24000000, false, true,  1, 3 },
+	{ 25000000, true,  false, 0, 0 },
+	{ 27000000, false, false, 1, 3 },
+	{ 37125000, false, false, 2, 3 },
+	{ 74250000, false, false, 3, 3 },
 };
 
 static unsigned long
@@ -1446,8 +1450,10 @@ static int max96717_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	if (predef_freq->is_alt)
 		val |= MAX96717_REF_VTG0_REFGEN_PREDEF_FREQ_ALT;
+	if (!predef_freq->is_rclk)
+		val |= MAX96717_REF_VTG0_REFGEN_EN;
 
-	val |= MAX96717_REF_VTG0_REFGEN_RST | MAX96717_REF_VTG0_REFGEN_EN;
+	val |= MAX96717_REF_VTG0_REFGEN_RST;
 
 	ret = regmap_write(priv->regmap, MAX96717_REF_VTG0, val);
 	if (ret)
