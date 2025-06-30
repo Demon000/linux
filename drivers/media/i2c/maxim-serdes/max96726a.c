@@ -151,11 +151,7 @@ static int max96726a_reset(struct max96726a_priv *priv)
 
 	msleep(100);
 
-	ret = max96726a_wait_for_device(priv);
-	if (ret)
-		return ret;
-
-	return 0;
+	return max96726a_wait_for_device(priv);
 }
 
 static int max96726a_reg_read(struct max_des *des, unsigned int reg,
@@ -218,15 +214,10 @@ static int max96726a_log_phy_status(struct max_des *des,
 static int max96726a_init(struct max_des *des)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
-	int ret;
 
 	/* Enable stream autoselect. */
-	ret = regmap_set_bits(priv->regmap, MAX96726A_STREAM_SEL_ALL,
-			      MAX96726A_STREAM_SEL_ALL_MASK);
-	if (ret)
-		return ret;
-
-	return 0;
+	return regmap_set_bits(priv->regmap, MAX96726A_STREAM_SEL_ALL,
+			       MAX96726A_STREAM_SEL_ALL_MASK);
 }
 
 static int max96726a_init_phy(struct max_des *des, struct max_des_phy *phy)
