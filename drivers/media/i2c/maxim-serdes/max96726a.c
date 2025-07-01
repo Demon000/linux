@@ -315,7 +315,7 @@ static int max96726a_set_phy_enable(struct max_des *des, struct max_des_phy *phy
 static int max96726a_set_pipe_vc_remap(struct max_des *des,
 				       struct max_des_pipe *pipe,
 				       unsigned int i,
-				       struct max_vc_remap *vc_remap)
+				       struct max_serdes_vc_remap *vc_remap)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 	int ret;
@@ -398,17 +398,17 @@ static int max96726a_select_links(struct max_des *des, unsigned int mask)
 
 static int max96726a_set_link_version(struct max_des *des,
 				      struct max_des_link *link,
-				      enum max_gmsl_version version)
+				      enum max_serdes_gmsl_version version)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	bool gmsl3_en = version == MAX_GMSL_3;
+	bool gmsl3_en = version == MAX_SERDES_GMSL_3;
 	unsigned int mask, val;
 	int ret;
 
-	if (version == MAX_GMSL_3)
+	if (version == MAX_SERDES_GMSL_3)
 		val = MAX96726A_REG16_RX_RATE_12GBPS;
-	else if (version == MAX_GMSL_2_6GBPS)
+	else if (version == MAX_SERDES_GMSL_2_6GBPS)
 		val = MAX96726A_REG16_RX_RATE_6GBPS;
 	else
 		val = MAX96726A_REG16_RX_RATE_3GBPS;
@@ -428,7 +428,7 @@ static int max96726a_set_link_version(struct max_des *des,
 				  MAX96726A_REG7_GMSL3_X(index), gmsl3_en);
 }
 
-static const struct max_tpg_entry max96726a_tpg_entries[] = {
+static const struct max_serdes_tpg_entry max96726a_tpg_entries[] = {
 	{ 852, 480, { 1, 30 }, MEDIA_BUS_FMT_SRGGB16_1X16, MIPI_CSI2_DT_RAW16, 16 },
 	{ 1280, 720, { 1, 30 }, MEDIA_BUS_FMT_SRGGB16_1X16, MIPI_CSI2_DT_RAW16, 16 },
 	{ 1920, 1080, { 1, 30 }, MEDIA_BUS_FMT_SRGGB16_1X16, MIPI_CSI2_DT_RAW16, 16 },
@@ -438,7 +438,8 @@ static const struct max_tpg_entry max96726a_tpg_entries[] = {
 	{ 1920, 1080, { 1, 60 }, MEDIA_BUS_FMT_SRGGB16_1X16, MIPI_CSI2_DT_RAW16, 16 },
 };
 
-static int max96726a_set_tpg(struct max_des *des, const struct max_tpg_entry *entry)
+static int max96726a_set_tpg(struct max_des *des,
+			     const struct max_serdes_tpg_entry *entry)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 	bool enable = entry != NULL;
@@ -469,15 +470,15 @@ static int max96726a_set_tpg(struct max_des *des, const struct max_tpg_entry *en
 				  MAX96726A_MIPI_PHY0_FORCE_CSI_OUT, enable);
 }
 
-static const struct max_phys_config max96726a_phys_configs[] = {
+static const struct max_serdes_phys_config max96726a_phys_configs[] = {
 	{ { 4, 4 } },
 };
 
 static const struct max_des_ops max96726a_ops = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS) |
-		    BIT(MAX_GMSL_3),
-	.modes = BIT(MAX_GMSL_TUNNEL_MODE),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
+		    BIT(MAX_SERDES_GMSL_3),
+	.modes = BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.use_atr = true,
 	.num_pipes = 8,
 	.num_phys = 2,
@@ -490,7 +491,7 @@ static const struct max_des_ops max96726a_ops = {
 		.num_entries = ARRAY_SIZE(max96726a_tpg_entries),
 		.entries = max96726a_tpg_entries,
 	},
-	.tpg_mode = MAX_GMSL_TUNNEL_MODE,
+	.tpg_mode = MAX_SERDES_GMSL_TUNNEL_MODE,
 	.reg_read = max96726a_reg_read,
 	.reg_write = max96726a_reg_write,
 	.log_pipe_status = max9626a_log_pipe_status,
@@ -574,14 +575,14 @@ static void max96726a_remove(struct i2c_client *client)
 }
 
 static const struct max96726a_chip_info max96726a_info = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS) |
-		    BIT(MAX_GMSL_3),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
+		    BIT(MAX_SERDES_GMSL_3),
 };
 
 static const struct max96726a_chip_info max96726b_info = {
-	.versions = BIT(MAX_GMSL_2_3GBPS) |
-		    BIT(MAX_GMSL_2_6GBPS),
+	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
+		    BIT(MAX_SERDES_GMSL_2_6GBPS),
 };
 
 static const struct of_device_id max96726a_of_table[] = {
