@@ -186,9 +186,10 @@ patternProperties:
         description: |
           Enables jitter compensation.
           Jitter compensation is used to minimize the jitter of the
-          transmitted signal by adding a fixed delay to every GPIO
-          transition on the receiver side. This is particularly useful
-          for pulse generation where timing is critical.
+          signals transmitted from the deserializer to the serializer
+          by adding a fixed delay to every transition on the serializer
+          side. This can be used for pulse generation where timing is
+          critical.
 
       maxim,gmsl-tx:
         type: boolean
