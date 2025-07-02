@@ -191,14 +191,6 @@ patternProperties:
           side. This can be used for pulse generation where timing is
           critical.
 
-      maxim,gmsl-tx:
-        type: boolean
-        description: Enable transmitting pin value to GMSL link.
-
-      maxim,gmsl-rx:
-        type: boolean
-        description: Enable receiving pin value from GMSL link.
-
       maxim,gmsl-tx-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
