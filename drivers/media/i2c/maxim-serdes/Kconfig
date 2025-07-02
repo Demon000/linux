@@ -33,7 +33,7 @@ config VIDEO_MAX96717
 
 config VIDEO_MAX96719A
 	tristate "Maxim MAX96719A GMSL3 Serializer support"
-	depends on OF && COMMON_CLK
+	depends on COMMON_CLK
 	select VIDEO_MAXIM_SERDES
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
