@@ -11,8 +11,6 @@
 #include <media/mipi-csi2.h>
 #include <media/v4l2-subdev.h>
 
-#include <video/videomode.h>
-
 #define REG_SEQUENCE_2(reg, val) \
 	{ (reg),     ((val) >> 8) & 0xff }, \
 	{ (reg) + 1, ((val) >> 0) & 0xff }
@@ -142,6 +140,7 @@ struct max_serdes_tpg_timings {
 	u32 de_high;
 	u32 de_low;
 	u32 de_cnt;
+	u32 clock;
 	u32 fps;
 };
 
@@ -176,10 +175,8 @@ int max_serdes_get_streams_masks(struct device *dev,
 				 u32 num_pads, u64 *old_streams_masks,
 				 u64 **new_streams_masks, bool enable);
 
-void max_serdes_get_tpg_timings(const struct videomode *vm,
-				struct max_serdes_tpg_timings *timings);
-const struct videomode *
-max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry);
+int max_serdes_get_tpg_timings(const struct max_serdes_tpg_entry *entry,
+			       struct max_serdes_tpg_timings *timings);
 
 int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing);
 

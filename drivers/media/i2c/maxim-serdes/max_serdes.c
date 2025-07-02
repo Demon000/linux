@@ -10,6 +10,8 @@
 
 #include <media/mipi-csi2.h>
 
+#include <video/videomode.h>
+
 #include <uapi/linux/media-bus-format.h>
 
 #include "max_serdes.h"
@@ -321,8 +323,8 @@ static const struct videomode max_serdes_tpg_pixel_videomodes[] = {
 	},
 };
 
-void max_serdes_get_tpg_timings(const struct videomode *vm,
-				struct max_serdes_tpg_timings *timings)
+static void max_serdes_get_vm_timings(const struct videomode *vm,
+				      struct max_serdes_tpg_timings *timings)
 {
 	u32 hact = vm->hactive;
 	u32 hfp = vm->hfront_porch;
@@ -352,35 +354,41 @@ void max_serdes_get_tpg_timings(const struct videomode *vm,
 		.de_high = hact,
 		.de_low = hfp + hsync + hbp,
 		.de_cnt = vact,
+		.clock = vm->pixelclock,
 		.fps = DIV_ROUND_CLOSEST(vm->pixelclock, vtot * htot),
 	};
 }
 
-const struct videomode *
-max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry)
+int max_serdes_get_tpg_timings(const struct max_serdes_tpg_entry *entry,
+			       struct max_serdes_tpg_timings *timings)
 {
 	u32 fps;
 
 	if (!entry)
-		return NULL;
+		return 0;
 
 	fps = DIV_ROUND_CLOSEST(1 * entry->interval.denominator,
 				entry->interval.numerator);
 
 	for (unsigned int i = 0; i < ARRAY_SIZE(max_serdes_tpg_pixel_videomodes); i++) {
-		const struct videomode *vm = &max_serdes_tpg_pixel_videomodes[i];
-		struct max_serdes_tpg_timings timings;
+		struct max_serdes_tpg_timings vm_timings;
+		const struct videomode *vm;
 
-		max_serdes_get_tpg_timings(vm, &timings);
+		vm = &max_serdes_tpg_pixel_videomodes[i];
+
+		max_serdes_get_vm_timings(vm, &vm_timings);
 
 		if (vm->hactive == entry->width &&
 		    vm->vactive == entry->height &&
-		    timings.fps == fps)
-			return &max_serdes_tpg_pixel_videomodes[i];
+		    vm_timings.fps == fps) {
+			*timings = vm_timings;
+			return 0;
+		}
 	}
 
-	return NULL;
+	return -EINVAL;
 }
+EXPORT_SYMBOL_GPL(max_serdes_get_tpg_timings);
 
 int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 {
