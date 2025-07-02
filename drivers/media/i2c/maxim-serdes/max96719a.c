@@ -192,15 +192,15 @@ static const struct pinfunction max96719a_functions[] = {
 };
 
 #define MAX96719A_PINCTRL_X(x)				(PIN_CONFIG_END + (x))
-#define MAX96719A_PINCTRL_GMSL_TX_ID			MAX96719A_PINCTRL_X(1)
-#define MAX96719A_PINCTRL_GMSL_RX_ID			MAX96719A_PINCTRL_X(2)
+#define MAX96719A_PINCTRL_TX_ID				MAX96719A_PINCTRL_X(1)
+#define MAX96719A_PINCTRL_RX_ID				MAX96719A_PINCTRL_X(2)
 #define MAX96719A_PINCTRL_INPUT_VALUE			MAX96719A_PINCTRL_X(3)
-#define MAX96719A_PINCTRL_GMSL_TX_EN			MAX96719A_PINCTRL_X(4)
-#define MAX96719A_PINCTRL_GMSL_RX_EN			MAX96719A_PINCTRL_X(5)
+#define MAX96719A_PINCTRL_TX_EN				MAX96719A_PINCTRL_X(4)
+#define MAX96719A_PINCTRL_RX_EN				MAX96719A_PINCTRL_X(5)
 
 static const struct pinconf_generic_params max96719a_cfg_params[] = {
-	{ "maxim,gmsl-tx-id", MAX96719A_PINCTRL_GMSL_TX_ID, 0 },
-	{ "maxim,gmsl-rx-id", MAX96719A_PINCTRL_GMSL_RX_ID, 0 },
+	{ "maxim,gmsl-tx-id", MAX96719A_PINCTRL_TX_ID, 0 },
+	{ "maxim,gmsl-rx-id", MAX96719A_PINCTRL_RX_ID, 0 },
 };
 
 static int max96719a_ctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -240,11 +240,11 @@ static int max96719a_get_pin_config_reg(unsigned int offset, u32 param,
 		*mask = MAX96719A_GPIO_CFG0_X_GPIO_OUT_DIS;
 		*val = 0b1;
 		return 0;
-	case MAX96719A_PINCTRL_GMSL_TX_EN:
+	case MAX96719A_PINCTRL_TX_EN:
 		*mask = MAX96719A_GPIO_CFG0_X_GPIO_TX_EN;
 		*val = 0b1;
 		return 0;
-	case MAX96719A_PINCTRL_GMSL_RX_EN:
+	case MAX96719A_PINCTRL_RX_EN:
 		*mask = MAX96719A_GPIO_CFG0_X_GPIO_RX_EN;
 		*val = 0b1;
 		return 0;
@@ -263,11 +263,11 @@ static int max96719a_get_pin_config_reg(unsigned int offset, u32 param,
 	}
 
 	switch (param) {
-	case MAX96719A_PINCTRL_GMSL_RX_ID:
+	case MAX96719A_PINCTRL_RX_ID:
 		*reg = MAX96719A_GPIO_RXID_X(offset);
 		*mask = MAX96719A_GPIO_RXID_X_GMSL_RX_ID;
 		return 0;
-	case MAX96719A_PINCTRL_GMSL_TX_ID:
+	case MAX96719A_PINCTRL_TX_ID:
 		*reg = MAX96719A_GPIO_TXID_X(offset);
 		*mask = MAX96719A_GPIO_TXID_X_GMSL_TX_ID;
 		return 0;
@@ -302,8 +302,8 @@ static int max96719a_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_PULL_UP:
-	case MAX96719A_PINCTRL_GMSL_TX_EN:
-	case MAX96719A_PINCTRL_GMSL_RX_EN:
+	case MAX96719A_PINCTRL_TX_EN:
+	case MAX96719A_PINCTRL_RX_EN:
 	case PIN_CONFIG_OUTPUT_ENABLE:
 	case PIN_CONFIG_INPUT_ENABLE:
 		ret = regmap_read(priv->regmap, reg, &val);
@@ -323,8 +323,8 @@ static int max96719a_conf_pin_config_get(struct pinctrl_dev *pctldev,
 
 		val = field_get(mask, val) == en_val;
 		break;
-	case MAX96719A_PINCTRL_GMSL_TX_ID:
-	case MAX96719A_PINCTRL_GMSL_RX_ID:
+	case MAX96719A_PINCTRL_TX_ID:
+	case MAX96719A_PINCTRL_RX_ID:
 	case PIN_CONFIG_SLEW_RATE:
 		ret = regmap_read(priv->regmap, reg, &val);
 		if (ret)
@@ -337,16 +337,16 @@ static int max96719a_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	}
 
 	switch (param) {
-	case MAX96719A_PINCTRL_GMSL_TX_ID:
-		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_TX_ID, 0);
+	case MAX96719A_PINCTRL_TX_ID:
+		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_TX_ID, 0);
 
 		ret = max96719a_conf_pin_config_get(pctldev, offset, config);
 		if (ret)
 			return ret;
 
 		break;
-	case MAX96719A_PINCTRL_GMSL_RX_ID:
-		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_ID, 0);
+	case MAX96719A_PINCTRL_RX_ID:
+		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_RX_ID, 0);
 
 		ret = max96719a_conf_pin_config_get(pctldev, offset, config);
 		if (ret)
@@ -384,8 +384,8 @@ static int max96719a_conf_pin_config_set_one(struct max96719a_priv *priv,
 
 		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
-	case MAX96719A_PINCTRL_GMSL_TX_EN:
-	case MAX96719A_PINCTRL_GMSL_RX_EN:
+	case MAX96719A_PINCTRL_TX_EN:
+	case MAX96719A_PINCTRL_RX_EN:
 	case PIN_CONFIG_OUTPUT_ENABLE:
 	case PIN_CONFIG_INPUT_ENABLE:
 	case PIN_CONFIG_OUTPUT:
@@ -393,8 +393,8 @@ static int max96719a_conf_pin_config_set_one(struct max96719a_priv *priv,
 
 		ret = regmap_update_bits(priv->regmap, reg, mask, val);
 		break;
-	case MAX96719A_PINCTRL_GMSL_TX_ID:
-	case MAX96719A_PINCTRL_GMSL_RX_ID:
+	case MAX96719A_PINCTRL_TX_ID:
+	case MAX96719A_PINCTRL_RX_ID:
 	case PIN_CONFIG_SLEW_RATE:
 		val = field_prep(mask, arg);
 
@@ -412,13 +412,13 @@ static int max96719a_conf_pin_config_set_one(struct max96719a_priv *priv,
 		config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT_ENABLE, 1);
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
 	case PIN_CONFIG_OUTPUT_ENABLE:
-		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_EN, 0);
+		config = pinconf_to_config_packed(MAX96719A_PINCTRL_RX_EN, 0);
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
-	case MAX96719A_PINCTRL_GMSL_TX_ID:
-		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_TX_EN, 1);
+	case MAX96719A_PINCTRL_TX_ID:
+		config = pinconf_to_config_packed(MAX96719A_PINCTRL_TX_EN, 1);
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
-	case MAX96719A_PINCTRL_GMSL_RX_ID:
-		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_EN, 1);
+	case MAX96719A_PINCTRL_RX_ID:
+		config = pinconf_to_config_packed(MAX96719A_PINCTRL_RX_EN, 1);
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
 	default:
 		break;
