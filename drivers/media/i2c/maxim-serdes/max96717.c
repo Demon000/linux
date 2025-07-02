@@ -1175,15 +1175,12 @@ static int max96717_set_tpg_timings(struct max96717_priv *priv,
 			    FIELD_PREP(MAX96717_VTX0_GEN_VS, tm->gen_vs));
 }
 
-static int max96717_set_tpg_clk(struct max96717_priv *priv,
-				const struct videomode *vm, unsigned int index)
+static int max96717_set_tpg_clk(struct max96717_priv *priv, u32 clock,
+				unsigned int index)
 {
 	u8 pclk_src;
 
-	if (!vm)
-		return 0;
-
-	switch (vm->pixelclock) {
+	switch (clock) {
 	case 25000000:
 		pclk_src = MAX96717_VTX1_PATGEN_CLK_SRC_25MHZ;
 		break;
@@ -1196,6 +1193,8 @@ static int max96717_set_tpg_clk(struct max96717_priv *priv,
 	case 375000000:
 		pclk_src = MAX96717_VTX1_PATGEN_CLK_SRC_375MHZ;
 		break;
+	case 0:
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1239,22 +1238,17 @@ static int max96717_set_tpg(struct max_ser *ser,
 	 */
 	unsigned int index = max96717_pipe_id(priv, &ser->pipes[0]);
 	struct max_serdes_tpg_timings timings = { 0 };
-	const struct videomode *vm = NULL;
 	int ret;
 
-	if (entry) {
-		vm = max_serdes_find_tpg_videomode(entry);
-		if (!vm)
-			return -EINVAL;
-
-		max_serdes_get_tpg_timings(vm, &timings);
-	}
+	ret = max_serdes_get_tpg_timings(entry, &timings);
+	if (ret)
+		return ret;
 
 	ret = max96717_set_tpg_timings(priv, &timings, index);
 	if (ret)
 		return ret;
 
-	ret = max96717_set_tpg_clk(priv, vm, index);
+	ret = max96717_set_tpg_clk(priv, timings.clock, index);
 	if (ret)
 		return ret;
 
