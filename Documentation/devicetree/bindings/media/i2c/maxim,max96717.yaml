@@ -191,14 +191,14 @@ patternProperties:
           side. This can be used for pulse generation where timing is
           critical.
 
-      maxim,gmsl-tx-id:
+      maxim,tx-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
           Enable transmission of the pin state from the serializer to
           the deserializer using the specified identifier.
         maximum: 31
 
-      maxim,gmsl-rx-id:
+      maxim,rx-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
           Enable transmission of the pin state from the deserializer to
