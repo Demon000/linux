@@ -194,15 +194,15 @@ patternProperties:
       maxim,gmsl-tx-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
-          Identifier used while transmitting value to GMSL link.
-          Default value matches the pin number.
+          Enable transmission of the pin state from the serializer to
+          the deserializer using the specified identifier.
         maximum: 31
 
       maxim,gmsl-rx-id:
         $ref: /schemas/types.yaml#/definitions/uint32
         description:
-          Identifier used while receiving value from GMSL link.
-          Default value matches the pin number.
+          Enable transmission of the pin state from the deserializer to
+          the serializer using the specified identifier.
         maximum: 31
 
     required:
