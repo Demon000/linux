@@ -17,7 +17,7 @@ config VIDEO_MAXIM_SERDES
 
 config VIDEO_MAX96717
 	tristate "Maxim MAX96717 Serializer support"
-	depends on OF && COMMON_CLK
+	depends on COMMON_CLK
 	select VIDEO_MAXIM_SERDES
 	select GENERIC_PINCONF
 	select GENERIC_PINCTRL_GROUPS
