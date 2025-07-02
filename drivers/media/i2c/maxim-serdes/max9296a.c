@@ -968,17 +968,13 @@ static int max9296a_set_tpg_timings(struct max9296a_priv *priv,
 			    FIELD_PREP(MAX9296A_PATGEN_0_GEN_VS, tm->gen_vs));
 }
 
-static int max9296a_set_tpg_clk(struct max9296a_priv *priv,
-				const struct videomode *vm)
+static int max9296a_set_tpg_clk(struct max9296a_priv *priv, u32 clock)
 {
 	bool patgen_clk_src = 0;
 	u8 pin_drv_en;
 	int ret;
 
-	if (!vm)
-		return 0;
-
-	switch (vm->pixelclock) {
+	switch (clock) {
 	case 25000000:
 		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_25MHZ;
 		break;
@@ -993,6 +989,8 @@ static int max9296a_set_tpg_clk(struct max9296a_priv *priv,
 		pin_drv_en = MAX9296A_IO_CHK0_PIN_DRV_EN_0_USE_PIPE;
 		patgen_clk_src = MAX9296A_VPRBS_PATGEN_CLK_SRC_600MHZ;
 		break;
+	case 0:
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1041,22 +1039,17 @@ static int max9296a_set_tpg(struct max_des *des,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	struct max_serdes_tpg_timings timings = { 0 };
-	const struct videomode *vm = NULL;
 	int ret;
 
-	if (entry) {
-		vm = max_serdes_find_tpg_videomode(entry);
-		if (!vm)
-			return -EINVAL;
-
-		max_serdes_get_tpg_timings(vm, &timings);
-	}
+	ret = max_serdes_get_tpg_timings(entry, &timings);
+	if (ret)
+		return ret;
 
 	ret = max9296a_set_tpg_timings(priv, &timings);
 	if (ret)
 		return ret;
 
-	ret = max9296a_set_tpg_clk(priv, vm);
+	ret = max9296a_set_tpg_clk(priv, timings.clock);
 	if (ret)
 		return ret;
 
