@@ -32,7 +32,6 @@ const char *max_serdes_gmsl_version_str(enum max_serdes_gmsl_version version)
 
 	return max_gmsl_versions[version];
 }
-EXPORT_SYMBOL_GPL(max_serdes_gmsl_version_str);
 
 static const char * const max_gmsl_mode[] = {
 	[MAX_SERDES_GMSL_PIXEL_MODE] = "pixel",
@@ -46,7 +45,6 @@ const char *max_serdes_gmsl_mode_str(enum max_serdes_gmsl_mode mode)
 
 	return max_gmsl_mode[mode];
 }
-EXPORT_SYMBOL_GPL(max_serdes_gmsl_mode_str);
 
 static const struct max_serdes_mipi_format max_serdes_mipi_formats[] = {
 	{ MIPI_CSI2_DT_EMBEDDED_8B, 8 },
@@ -72,7 +70,6 @@ const struct max_serdes_mipi_format *max_serdes_mipi_format_by_dt(u8 dt)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(max_serdes_mipi_format_by_dt);
 
 int max_serdes_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 				   struct v4l2_mbus_frame_desc_entry *entry)
@@ -97,7 +94,6 @@ int max_serdes_get_fd_stream_entry(struct v4l2_subdev *sd, u32 pad, u32 stream,
 
 	return -ENOENT;
 }
-EXPORT_SYMBOL_GPL(max_serdes_get_fd_stream_entry);
 
 int max_serdes_get_fd_bpp(struct v4l2_mbus_frame_desc_entry *entry,
 			  unsigned int *bpp)
@@ -181,7 +177,6 @@ int max_serdes_process_bpps(struct device *dev, u32 bpps,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_serdes_process_bpps);
 
 int max_serdes_xlate_enable_disable_streams(struct max_serdes_source *sources,
 					    u32 source_sink_pad_offset,
@@ -249,7 +244,6 @@ err:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(max_serdes_xlate_enable_disable_streams);
 
 int max_serdes_get_streams_masks(struct device *dev,
 				 const struct v4l2_subdev_state *state,
@@ -290,7 +284,6 @@ int max_serdes_get_streams_masks(struct device *dev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_serdes_get_streams_masks);
 
 static const struct videomode max_serdes_tpg_pixel_videomodes[] = {
 	{
@@ -362,7 +355,6 @@ void max_serdes_get_tpg_timings(const struct videomode *vm,
 		.fps = DIV_ROUND_CLOSEST(vm->pixelclock, vtot * htot),
 	};
 }
-EXPORT_SYMBOL_GPL(max_serdes_get_tpg_timings);
 
 const struct videomode *
 max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry)
@@ -389,7 +381,6 @@ max_serdes_find_tpg_videomode(const struct max_serdes_tpg_entry *entry)
 
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(max_serdes_find_tpg_videomode);
 
 int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 {
@@ -408,7 +399,6 @@ int max_serdes_validate_tpg_routing(struct v4l2_subdev_krouting *routing)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_serdes_validate_tpg_routing);
 
 MODULE_DESCRIPTION("Maxim GMSL2 Serializer/Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
