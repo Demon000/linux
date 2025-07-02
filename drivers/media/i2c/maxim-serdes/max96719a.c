@@ -199,8 +199,6 @@ static const struct pinfunction max96719a_functions[] = {
 #define MAX96719A_PINCTRL_INPUT_VALUE			MAX96719A_PINCTRL_X(4)
 
 static const struct pinconf_generic_params max96719a_cfg_params[] = {
-	{ "maxim,gmsl-tx", MAX96719A_PINCTRL_GMSL_TX_EN, 0 },
-	{ "maxim,gmsl-rx", MAX96719A_PINCTRL_GMSL_RX_EN, 0 },
 	{ "maxim,gmsl-tx-id", MAX96719A_PINCTRL_GMSL_TX_ID, 0 },
 	{ "maxim,gmsl-rx-id", MAX96719A_PINCTRL_GMSL_RX_ID, 0 },
 };
@@ -338,6 +336,27 @@ static int max96719a_conf_pin_config_get(struct pinctrl_dev *pctldev,
 		return -ENOTSUPP;
 	}
 
+	switch (param) {
+	case MAX96719A_PINCTRL_GMSL_TX_ID:
+		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_TX_ID, 0);
+
+		ret = max96719a_conf_pin_config_get(pctldev, offset, config);
+		if (ret)
+			return ret;
+
+		break;
+	case MAX96719A_PINCTRL_GMSL_RX_ID:
+		*config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_ID, 0);
+
+		ret = max96719a_conf_pin_config_get(pctldev, offset, config);
+		if (ret)
+			return ret;
+
+		break;
+	default:
+		break;
+	}
+
 	*config = pinconf_to_config_packed(param, val);
 
 	return 0;
@@ -394,6 +413,12 @@ static int max96719a_conf_pin_config_set_one(struct max96719a_priv *priv,
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_EN, 0);
+		return max96719a_conf_pin_config_set_one(priv, offset, config);
+	case MAX96719A_PINCTRL_GMSL_TX_ID:
+		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_TX_EN, 1);
+		return max96719a_conf_pin_config_set_one(priv, offset, config);
+	case MAX96719A_PINCTRL_GMSL_RX_ID:
+		config = pinconf_to_config_packed(MAX96719A_PINCTRL_GMSL_RX_EN, 1);
 		return max96719a_conf_pin_config_set_one(priv, offset, config);
 	default:
 		break;
