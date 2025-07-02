@@ -346,8 +346,6 @@ static const struct pinfunction max96717_functions[] = {
 
 static const struct pinconf_generic_params max96717_cfg_params[] = {
 	{ "maxim,jitter-compensation", MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
-	{ "maxim,gmsl-tx", MAX96717_PINCTRL_GMSL_TX_EN, 0 },
-	{ "maxim,gmsl-rx", MAX96717_PINCTRL_GMSL_RX_EN, 0 },
 	{ "maxim,gmsl-tx-id", MAX96717_PINCTRL_GMSL_TX_ID, 0 },
 	{ "maxim,gmsl-rx-id", MAX96717_PINCTRL_GMSL_RX_ID, 0 },
 };
@@ -551,6 +549,22 @@ static int max96717_conf_pin_config_get(struct pinctrl_dev *pctldev,
 			val = MAX96717_BIAS_PULL_STRENGTH_40000_OHM;
 
 		break;
+	case MAX96717_PINCTRL_GMSL_TX_ID:
+		*config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_TX_EN, 0);
+
+		ret = max96717_conf_pin_config_get(pctldev, offset, config);
+		if (ret)
+			return ret;
+
+		break;
+	case MAX96717_PINCTRL_GMSL_RX_ID:
+		*config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_RX_EN, 0);
+
+		ret = max96717_conf_pin_config_get(pctldev, offset, config);
+		if (ret)
+			return ret;
+
+		break;
 	default:
 		break;
 	}
@@ -619,6 +633,12 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		return max96717_conf_pin_config_set_one(priv, offset, config);
 	case PIN_CONFIG_OUTPUT_ENABLE:
 		config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_RX_EN, 0);
+		return max96717_conf_pin_config_set_one(priv, offset, config);
+	case MAX96717_PINCTRL_GMSL_TX_ID:
+		config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_TX_EN, 1);
+		return max96717_conf_pin_config_set_one(priv, offset, config);
+	case MAX96717_PINCTRL_GMSL_RX_ID:
+		config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_RX_EN, 1);
 		return max96717_conf_pin_config_set_one(priv, offset, config);
 	default:
 		break;
