@@ -276,16 +276,16 @@ static unsigned int max9296a_phy_id(struct max9296a_priv *priv,
 	return priv->info->phy_hw_ids[phy->index];
 }
 
-static int max9296a_reg_read(struct max_des *des, unsigned int reg,
-			     unsigned int *val)
+static int __maybe_unused max9296a_reg_read(struct max_des *des, unsigned int reg,
+					    unsigned int *val)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 
 	return regmap_read(priv->regmap, reg, val);
 }
 
-static int max9296a_reg_write(struct max_des *des, unsigned int reg,
-			      unsigned int val)
+static int __maybe_unused max9296a_reg_write(struct max_des *des, unsigned int reg,
+					     unsigned int val)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 
@@ -1075,8 +1075,10 @@ static const struct max_des_ops max9296a_common_ops = {
 	},
 	.tpg_patterns = BIT(MAX_SERDES_TPG_PATTERN_CHECKERBOARD) |
 			BIT(MAX_SERDES_TPG_PATTERN_GRADIENT),
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.reg_read = max9296a_reg_read,
 	.reg_write = max9296a_reg_write,
+#endif
 	.log_pipe_status = max9626a_log_pipe_status,
 	.log_phy_status = max9296a_log_phy_status,
 	.set_enable = max9296a_set_enable,
