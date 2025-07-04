@@ -706,13 +706,12 @@ static void dwc_csi_device_startup(struct dwc_csi_device *csidev)
 static int dwc_csi_get_dphy_configuration(struct dwc_csi_device *csidev,
 					  union phy_configure_opts *opts)
 {
+	struct media_pad *src_pad =
+		&csidev->source_sd->entity.pads[csidev->remote_pad];
 	struct phy_configure_opts_mipi_dphy *cfg = &opts->mipi_dphy;
-	struct v4l2_subdev *source = csidev->source_sd;
 	s64 link_freq;
 
-	link_freq = v4l2_get_link_freq(source->ctrl_handler,
-				       csidev->csi_fmt->width,
-				       csidev->bus.num_data_lanes * 2);
+	link_freq = v4l2_get_link_freq(src_pad, 0, 0);
 	if (link_freq < 0) {
 		dev_err(csidev->dev, "Unable to obtain link frequency: %d\n",
 			(int)link_freq);
