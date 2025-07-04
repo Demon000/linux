@@ -402,11 +402,11 @@ static int max96726a_set_link_version(struct max_des *des,
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	bool gmsl3_en = version == MAX_SERDES_GMSL_3;
+	bool gmsl3_en = version == MAX_SERDES_GMSL_3_12GBPS;
 	unsigned int mask, val;
 	int ret;
 
-	if (version == MAX_SERDES_GMSL_3)
+	if (version == MAX_SERDES_GMSL_3_12GBPS)
 		val = MAX96726A_REG16_RX_RATE_12GBPS;
 	else if (version == MAX_SERDES_GMSL_2_6GBPS)
 		val = MAX96726A_REG16_RX_RATE_6GBPS;
@@ -477,7 +477,7 @@ static const struct max_serdes_phys_config max96726a_phys_configs[] = {
 static const struct max_des_ops max96726a_ops = {
 	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
 		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
-		    BIT(MAX_SERDES_GMSL_3),
+		    BIT(MAX_SERDES_GMSL_3_12GBPS),
 	.modes = BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.use_atr = true,
 	.num_pipes = 8,
@@ -577,7 +577,7 @@ static void max96726a_remove(struct i2c_client *client)
 static const struct max96726a_chip_info max96726a_info = {
 	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
 		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
-		    BIT(MAX_SERDES_GMSL_3),
+		    BIT(MAX_SERDES_GMSL_3_12GBPS),
 };
 
 static const struct max96726a_chip_info max96726b_info = {
