@@ -793,16 +793,16 @@ static int max96717_set_pipe_enable(struct max_ser *ser,
 	return regmap_assign_bits(priv->regmap, MAX96717_REG2, mask, enable);
 }
 
-static int max96717_reg_read(struct max_ser *ser, unsigned int reg,
-			     unsigned int *val)
+static int __maybe_unused max96717_reg_read(struct max_ser *ser, unsigned int reg,
+					    unsigned int *val)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 
 	return regmap_read(priv->regmap, reg, val);
 }
 
-static int max96717_reg_write(struct max_ser *ser, unsigned int reg,
-			      unsigned int val)
+static int __maybe_unused max96717_reg_write(struct max_ser *ser, unsigned int reg,
+					     unsigned int val)
 {
 	struct max96717_priv *priv = ser_to_priv(ser);
 
@@ -1347,8 +1347,10 @@ static const struct max_ser_ops max96717_ops = {
 	.tpg_mode = MAX_SERDES_GMSL_PIXEL_MODE,
 	.tpg_patterns = BIT(MAX_SERDES_TPG_PATTERN_CHECKERBOARD) |
 			BIT(MAX_SERDES_TPG_PATTERN_GRADIENT),
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.reg_read = max96717_reg_read,
 	.reg_write = max96717_reg_write,
+#endif
 	.log_status = max96717_log_status,
 	.log_pipe_status = max96717_log_pipe_status,
 	.log_phy_status = max96717_log_phy_status,
