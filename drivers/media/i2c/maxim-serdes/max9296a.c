@@ -892,7 +892,7 @@ static int max9296a_set_link_version(struct max_des *des,
 {
 	struct max9296a_priv *priv = des_to_priv(des);
 	unsigned int index = link->index;
-	bool gmsl3_en = version == MAX_SERDES_GMSL_3;
+	bool gmsl3_en = version == MAX_SERDES_GMSL_3_12GBPS;
 	unsigned int reg, mask, val;
 	int ret;
 
@@ -907,7 +907,7 @@ static int max9296a_set_link_version(struct max_des *des,
 		mask = MAX9296A_REG4_RX_RATE_B;
 	}
 
-	if (version == MAX_SERDES_GMSL_3)
+	if (version == MAX_SERDES_GMSL_3_12GBPS)
 		val = MAX9296A_REG1_RX_RATE_12GBPS;
 	else if (version == MAX_SERDES_GMSL_2_6GBPS)
 		val = MAX9296A_REG1_RX_RATE_6GBPS;
@@ -918,7 +918,7 @@ static int max9296a_set_link_version(struct max_des *des,
 	if (ret)
 		return ret;
 
-	if (!(des->ops->versions & BIT(MAX_SERDES_GMSL_3)))
+	if (!(des->ops->versions & BIT(MAX_SERDES_GMSL_3_12GBPS)))
 		return 0;
 
 	ret = regmap_assign_bits(priv->regmap, MAX9296A_MIPI_TX0(index),
@@ -1298,7 +1298,7 @@ static const struct max9296a_chip_info max96716a_info = {
 static const struct max_des_ops max96792a_ops = {
 	.versions = BIT(MAX_SERDES_GMSL_2_3GBPS) |
 		    BIT(MAX_SERDES_GMSL_2_6GBPS) |
-		    BIT(MAX_SERDES_GMSL_3),
+		    BIT(MAX_SERDES_GMSL_3_12GBPS),
 	.modes = BIT(MAX_SERDES_GMSL_PIXEL_MODE) |
 		 BIT(MAX_SERDES_GMSL_TUNNEL_MODE),
 	.set_pipe_stream_id = max96714_set_pipe_stream_id,
