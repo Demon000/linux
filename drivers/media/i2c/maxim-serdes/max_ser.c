@@ -1830,6 +1830,7 @@ int max_ser_probe(struct i2c_client *client, struct max_ser *ser)
 	priv->dev = dev;
 	priv->ser = ser;
 	ser->priv = priv;
+	ser->mode = __ffs(ser->ops->modes);
 
 	ret = max_ser_allocate(priv);
 	if (ret)
