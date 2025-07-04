@@ -24,12 +24,12 @@ const char * const max_serdes_tpg_patterns[] = {
 static const char * const max_gmsl_versions[] = {
 	[MAX_SERDES_GMSL_2_3GBPS] = "GMSL2 3Gbps",
 	[MAX_SERDES_GMSL_2_6GBPS] = "GMSL2 6Gbps",
-	[MAX_SERDES_GMSL_3] = "GMSL3",
+	[MAX_SERDES_GMSL_3_12GBPS] = "GMSL3 12Gbps",
 };
 
 const char *max_serdes_gmsl_version_str(enum max_serdes_gmsl_version version)
 {
-	if (version > MAX_SERDES_GMSL_3)
+	if (version > MAX_SERDES_GMSL_3_12GBPS)
 		return NULL;
 
 	return max_gmsl_versions[version];
