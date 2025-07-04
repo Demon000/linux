@@ -72,6 +72,11 @@ static inline bool max_ser_pad_is_source(struct max_ser *ser, u32 pad)
 	       pad < ser->ops->num_phys + MAX_SER_NUM_LINKS;
 }
 
+static inline u32 max_ser_source_pad(struct max_ser *ser)
+{
+	return ser->ops->num_phys;
+}
+
 static inline bool max_ser_pad_is_tpg(struct max_ser *ser, u32 pad)
 {
 	return pad >= ser->ops->num_phys + MAX_SER_NUM_LINKS;
@@ -755,19 +760,15 @@ static int max_ser_set_tpg_routing(struct v4l2_subdev *sd,
 	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &fmt);
 }
 
-static int max_ser_set_routing(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *state,
-			       enum v4l2_subdev_format_whence which,
-			       struct v4l2_subdev_krouting *routing)
+static int __max_ser_set_routing(struct v4l2_subdev *sd,
+			         struct v4l2_subdev_state *state,
+			         struct v4l2_subdev_krouting *routing)
 {
 	struct max_ser_priv *priv = sd_to_priv(sd);
 	struct max_ser *ser = priv->ser;
 	struct v4l2_subdev_route *route;
 	bool is_tpg = false;
 	int ret;
-
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ser->active)
-		return -EBUSY;
 
 	ret = v4l2_subdev_routing_validate(sd, routing,
 					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
@@ -786,6 +787,20 @@ static int max_ser_set_routing(struct v4l2_subdev *sd,
 		return max_ser_set_tpg_routing(sd, state, routing);
 
 	return v4l2_subdev_set_routing(sd, state, routing);
+}
+
+static int max_ser_set_routing(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state,
+			       enum v4l2_subdev_format_whence which,
+			       struct v4l2_subdev_krouting *routing)
+{
+	struct max_ser_priv *priv = sd_to_priv(sd);
+	struct max_ser *ser = priv->ser;
+
+	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ser->active)
+		return -EBUSY;
+
+	return __max_ser_set_routing(sd, state, routing);
 }
 
 static int max_ser_get_pipe_vcs_dts(struct max_ser_priv *priv,
@@ -1283,6 +1298,37 @@ static int max_ser_disable_streams(struct v4l2_subdev *sd,
 	return max_ser_update_streams(sd, state, pad, streams_mask, false);
 }
 
+static int max_ser_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
+{
+	struct v4l2_subdev_route routes[MAX_SER_NUM_PHYS] = { 0 };
+	struct v4l2_subdev_krouting routing = {
+		.routes = routes,
+	};
+	struct max_ser_priv *priv = v4l2_get_subdevdata(sd);
+	struct max_ser *ser = priv->ser;
+	unsigned int stream = 0;
+	unsigned int i;
+
+	for (i = 0; i < ser->ops->num_phys; i++) {
+		struct max_ser_phy *phy = &ser->phys[i];
+
+		if (!phy->enabled)
+			continue;
+
+		routing.routes[routing.num_routes++] = (struct v4l2_subdev_route) {
+			.sink_pad = max_ser_phy_to_pad(ser, phy),
+			.sink_stream = 0,
+			.source_pad = max_ser_source_pad(ser),
+			.source_stream = stream,
+			.flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE,
+		};
+		stream++;
+	}
+
+	return __max_ser_set_routing(sd, state, &routing);
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_ser_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
 {
@@ -1340,6 +1386,10 @@ static const struct v4l2_subdev_pad_ops max_ser_pad_ops = {
 static const struct v4l2_subdev_ops max_ser_subdev_ops = {
 	.core = &max_ser_core_ops,
 	.pad = &max_ser_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops max_ser_internal_ops = {
+	.init_state = &max_ser_init_state,
 };
 
 static const struct media_entity_operations max_ser_media_ops = {
@@ -1531,6 +1581,7 @@ static int max_ser_v4l2_register(struct max_ser_priv *priv)
 
 	v4l2_i2c_subdev_init(sd, priv->client, &max_ser_subdev_ops);
 	i2c_set_clientdata(priv->client, data);
+	sd->internal_ops = &max_ser_internal_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &max_ser_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
