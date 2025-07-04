@@ -2148,19 +2148,15 @@ static int max_des_set_tpg_routing(struct v4l2_subdev *sd,
 	return v4l2_subdev_set_routing_with_fmt(sd, state, routing, &fmt);
 }
 
-static int max_des_set_routing(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *state,
-			       enum v4l2_subdev_format_whence which,
-			       struct v4l2_subdev_krouting *routing)
+static int __max_des_set_routing(struct v4l2_subdev *sd,
+			         struct v4l2_subdev_state *state,
+			         struct v4l2_subdev_krouting *routing)
 {
 	struct max_des_priv *priv = sd_to_priv(sd);
 	struct max_des *des = priv->des;
 	struct v4l2_subdev_route *route;
 	bool is_tpg = false;
 	int ret;
-
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && des->active)
-		return -EBUSY;
 
 	ret = v4l2_subdev_routing_validate(sd, routing,
 					   V4L2_SUBDEV_ROUTING_ONLY_1_TO_1 |
@@ -2179,6 +2175,20 @@ static int max_des_set_routing(struct v4l2_subdev *sd,
 		return max_des_set_tpg_routing(sd, state, routing);
 
 	return v4l2_subdev_set_routing(sd, state, routing);
+}
+
+static int max_des_set_routing(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *state,
+			       enum v4l2_subdev_format_whence which,
+			       struct v4l2_subdev_krouting *routing)
+{
+	struct max_des_priv *priv = sd_to_priv(sd);
+	struct max_des *des = priv->des;
+
+	if (which == V4L2_SUBDEV_FORMAT_ACTIVE && des->active)
+		return -EBUSY;
+
+	return __max_des_set_routing(sd, state, routing);
 }
 
 static int max_des_update_link(struct max_des_priv *priv,
@@ -2436,6 +2446,48 @@ static int max_des_disable_streams(struct v4l2_subdev *sd,
 	return max_des_update_streams(sd, state, pad, streams_mask, false);
 }
 
+static int max_des_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *state)
+{
+	struct v4l2_subdev_route routes[MAX_DES_NUM_LINKS] = { 0 };
+	struct v4l2_subdev_krouting routing = {
+		.routes = routes,
+	};
+	struct max_des_priv *priv = v4l2_get_subdevdata(sd);
+	struct max_des *des = priv->des;
+	struct max_des_phy *phy = NULL;
+	unsigned int stream = 0;
+	unsigned int i;
+
+	for (i = 0; i < des->ops->num_phys; i++) {
+		if (des->phys[i].enabled) {
+			phy = &des->phys[i];
+			break;
+		}
+	}
+
+	if (!phy)
+		return 0;
+
+	for (i = 0; i < des->ops->num_links; i++) {
+		struct max_des_link *link = &des->links[i];
+
+		if (!link->enabled)
+			continue;
+
+		routing.routes[routing.num_routes++] = (struct v4l2_subdev_route) {
+			.sink_pad = max_des_link_to_pad(des, link),
+			.sink_stream = 0,
+			.source_pad = max_des_phy_to_pad(des, phy),
+			.source_stream = stream,
+			.flags = V4L2_SUBDEV_ROUTE_FL_ACTIVE,
+		};
+		stream++;
+	}
+
+	return __max_des_set_routing(sd, state, &routing);
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int max_des_g_register(struct v4l2_subdev *sd,
 			      struct v4l2_dbg_register *reg)
@@ -2497,6 +2549,10 @@ static const struct v4l2_subdev_pad_ops max_des_pad_ops = {
 static const struct v4l2_subdev_ops max_des_subdev_ops = {
 	.core = &max_des_core_ops,
 	.pad = &max_des_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops max_des_internal_ops = {
+	.init_state = &max_des_init_state,
 };
 
 static const struct media_entity_operations max_des_media_ops = {
@@ -2619,6 +2675,7 @@ static int max_des_v4l2_register(struct max_des_priv *priv)
 
 	v4l2_i2c_subdev_init(sd, priv->client, &max_des_subdev_ops);
 	i2c_set_clientdata(priv->client, data);
+	sd->internal_ops = &max_des_internal_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->entity.ops = &max_des_media_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_STREAMS;
