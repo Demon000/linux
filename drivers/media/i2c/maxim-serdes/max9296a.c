@@ -211,6 +211,8 @@ struct max9296a_priv {
 
 struct max9296a_chip_info {
 	const struct max_des_ops *ops;
+	const struct reg_sequence *rlms_adjust_sequence;
+	unsigned int rlms_adjust_sequence_len;
 	unsigned int max_register;
 	unsigned int pipe_hw_ids[MAX9296A_PIPES_NUM];
 	unsigned int phy_hw_ids[MAX9296A_PHYS_NUM];
@@ -220,7 +222,6 @@ struct max9296a_chip_info {
 	bool polarity_on_physical_lanes;
 	bool supports_cphy;
 	bool supports_phy_log;
-	bool adjust_rlms;
 };
 
 #define des_to_priv(_des) \
@@ -364,6 +365,17 @@ static int max9296a_init_tpg(struct max_des *des)
 
 static int max9296a_init(struct max_des *des)
 {
+	struct max9296a_priv *priv = des_to_priv(des);
+	int ret;
+
+	if (priv->info->rlms_adjust_sequence) {
+		ret = regmap_multi_reg_write(priv->regmap,
+					     priv->info->rlms_adjust_sequence,
+					     priv->info->rlms_adjust_sequence_len);
+		if (ret)
+			return ret;
+	}
+
 	return max9296a_init_tpg(des);
 }
 
@@ -805,48 +817,6 @@ static int max9296a_reset_link(struct max9296a_priv *priv, unsigned int index)
 	return regmap_set_bits(priv->regmap, reg, mask);
 }
 
-static int max9296a_init_link_rlms(struct max9296a_priv *priv,
-				   struct max_des_link *link)
-{
-	unsigned int index = link->index;
-	/*
-	 * These register writes are described as required in MAX96714 datasheet
-	 * Page 53, Section Register Map, to optimize link performance in 6Gbps
-	 * and 3Gbps links for all cable lengths.
-	 */
-	const struct reg_sequence regs[] = {
-		{ MAX9296A_RLMS3E(index), 0xfd },
-		{ MAX9296A_RLMS3F(index), 0x3d },
-		{ MAX9296A_RLMS49(index), 0xf5 },
-		{ MAX9296A_RLMS7E(index), 0xa8 },
-		{ MAX9296A_RLMS7F(index), 0x68 },
-		{ MAX9296A_RLMSA3(index), 0x30 },
-		{ MAX9296A_RLMSA5(index), 0x70 },
-		{ MAX9296A_RLMSD8(index), 0x07 },
-	};
-	int ret;
-
-	ret = regmap_multi_reg_write(priv->regmap, regs, ARRAY_SIZE(regs));
-	if (ret)
-		return ret;
-
-	return max9296a_reset_link(priv, link->index);
-}
-
-static int max9296a_init_link(struct max_des *des, struct max_des_link *link)
-{
-	struct max9296a_priv *priv = des_to_priv(des);
-	int ret;
-
-	if (priv->info->adjust_rlms) {
-		ret = max9296a_init_link_rlms(priv, link);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int max9296a_select_links(struct max_des *des, unsigned int mask)
 {
 	struct max9296a_priv *priv = des_to_priv(des);
@@ -1090,7 +1060,6 @@ static const struct max_des_ops max9296a_common_ops = {
 	.set_pipe_remaps_enable = max9296a_set_pipe_remaps_enable,
 	.set_pipe_mode = max9296a_set_pipe_mode,
 	.set_tpg = max9296a_set_tpg,
-	.init_link = max9296a_init_link,
 	.select_links = max9296a_select_links,
 	.set_link_version = max9296a_set_link_version,
 };
@@ -1228,12 +1197,29 @@ static const struct max_des_ops max96714_ops = {
 	.num_links = 1,
 };
 
+/*
+ * These register writes are described as required in MAX96714 datasheet
+ * Page 53, Section Register Map, to optimize link performance in 6Gbps
+ * and 3Gbps links for all cable lengths.
+ */
+const struct reg_sequence max96714_rlms_reg_sequence[] = {
+	{ MAX9296A_RLMS3E(0), 0xfd },
+	{ MAX9296A_RLMS3F(0), 0x3d },
+	{ MAX9296A_RLMS49(0), 0xf5 },
+	{ MAX9296A_RLMS7E(0), 0xa8 },
+	{ MAX9296A_RLMS7F(0), 0x68 },
+	{ MAX9296A_RLMSA3(0), 0x30 },
+	{ MAX9296A_RLMSA5(0), 0x70 },
+	{ MAX9296A_RLMSD8(0), 0x07 },
+};
+
 static const struct max9296a_chip_info max96714_info = {
 	.ops = &max96714_ops,
 	.max_register = 0x5011,
 	.polarity_on_physical_lanes = true,
 	.supports_phy_log = true,
-	.adjust_rlms = true,
+	.rlms_adjust_sequence = max96714_rlms_reg_sequence,
+	.rlms_adjust_sequence_len = ARRAY_SIZE(max96714_rlms_reg_sequence),
 	.pipe_hw_ids = { 1 },
 	.phy_hw_ids = { 1 },
 };
@@ -1260,7 +1246,8 @@ static const struct max9296a_chip_info max96714f_info = {
 	.max_register = 0x5011,
 	.polarity_on_physical_lanes = true,
 	.supports_phy_log = true,
-	.adjust_rlms = true,
+	.rlms_adjust_sequence = max96714_rlms_reg_sequence,
+	.rlms_adjust_sequence_len = ARRAY_SIZE(max96714_rlms_reg_sequence),
 	.pipe_hw_ids = { 1 },
 	.phy_hw_ids = { 1 },
 };
