@@ -154,16 +154,16 @@ static int max96726a_reset(struct max96726a_priv *priv)
 	return max96726a_wait_for_device(priv);
 }
 
-static int max96726a_reg_read(struct max_des *des, unsigned int reg,
-			      unsigned int *val)
+static int __maybe_unused max96726a_reg_read(struct max_des *des, unsigned int reg,
+					     unsigned int *val)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 
 	return regmap_read(priv->regmap, reg, val);
 }
 
-static int max96726a_reg_write(struct max_des *des, unsigned int reg,
-			       unsigned int val)
+static int __maybe_unused max96726a_reg_write(struct max_des *des, unsigned int reg,
+					      unsigned int val)
 {
 	struct max96726a_priv *priv = des_to_priv(des);
 
@@ -492,8 +492,10 @@ static const struct max_des_ops max96726a_ops = {
 		.entries = max96726a_tpg_entries,
 	},
 	.tpg_mode = MAX_SERDES_GMSL_TUNNEL_MODE,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.reg_read = max96726a_reg_read,
 	.reg_write = max96726a_reg_write,
+#endif
 	.log_pipe_status = max9626a_log_pipe_status,
 	.log_phy_status = max96726a_log_phy_status,
 	.init = max96726a_init,
