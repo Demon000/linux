@@ -279,16 +279,16 @@ static int max96724_reset(struct max96724_priv *priv)
 	return max96724_wait_for_device(priv);
 }
 
-static int max96724_reg_read(struct max_des *des, unsigned int reg,
-			     unsigned int *val)
+static int __maybe_unused max96724_reg_read(struct max_des *des, unsigned int reg,
+					    unsigned int *val)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 
 	return regmap_read(priv->regmap, reg, val);
 }
 
-static int max96724_reg_write(struct max_des *des, unsigned int reg,
-			      unsigned int val)
+static int __maybe_unused max96724_reg_write(struct max_des *des, unsigned int reg,
+					     unsigned int val)
 {
 	struct max96724_priv *priv = des_to_priv(des);
 
@@ -1036,8 +1036,10 @@ static const struct max_des_ops max96724_ops = {
 	.tpg_patterns = BIT(MAX_SERDES_TPG_PATTERN_CHECKERBOARD) |
 			BIT(MAX_SERDES_TPG_PATTERN_GRADIENT),
 	.use_atr = true,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.reg_read = max96724_reg_read,
 	.reg_write = max96724_reg_write,
+#endif
 	.log_pipe_status = max96724_log_pipe_status,
 	.log_phy_status = max96724_log_phy_status,
 	.set_enable = max96724_set_enable,
