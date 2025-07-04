@@ -583,16 +583,16 @@ static int max96719a_set_vc_remaps_enable(struct max_ser *ser, unsigned int mask
 				  FIELD_PREP(MAX96719A_VC_REMAP_CTRL_CUST_EN, mask));
 }
 
-static int max96719a_reg_read(struct max_ser *ser, unsigned int reg,
-			      unsigned int *val)
+static int __maybe_unused max96719a_reg_read(struct max_ser *ser, unsigned int reg,
+					     unsigned int *val)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 
 	return regmap_read(priv->regmap, reg, val);
 }
 
-static int max96719a_reg_write(struct max_ser *ser, unsigned int reg,
-			       unsigned int val)
+static int __maybe_unused max96719a_reg_write(struct max_ser *ser, unsigned int reg,
+					      unsigned int val)
 {
 	struct max96719a_priv *priv = ser_to_priv(ser);
 
@@ -770,8 +770,10 @@ static const struct max_ser_ops max96719a_ops = {
 		.entries = max96719a_tpg_entries,
 	},
 	.tpg_mode = MAX_SERDES_GMSL_TUNNEL_MODE,
+#ifdef CONFIG_VIDEO_ADV_DEBUG
 	.reg_read = max96719a_reg_read,
 	.reg_write = max96719a_reg_write,
+#endif
 	.log_status = max96719a_log_status,
 	.set_i2c_xlate = max96719a_set_i2c_xlate,
 	.init_phy = max96719a_init_phy,
