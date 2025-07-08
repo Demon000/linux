@@ -956,6 +956,7 @@ static struct i2c_driver max96719a_i2c_driver = {
 
 module_i2c_driver(max96719a_i2c_driver);
 
+MODULE_IMPORT_NS("MAX_SERDES");
 MODULE_DESCRIPTION("MAX96719A GMSL2 Serializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
