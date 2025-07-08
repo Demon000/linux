@@ -1177,6 +1177,7 @@ static struct i2c_driver max96724_i2c_driver = {
 
 module_i2c_driver(max96724_i2c_driver);
 
+MODULE_IMPORT_NS("MAX_SERDES");
 MODULE_DESCRIPTION("Maxim MAX96724 Quad GMSL2 Deserializer Driver");
 MODULE_AUTHOR("Cosmin Tanislav <cosmin.tanislav@analog.com>");
 MODULE_LICENSE("GPL");
