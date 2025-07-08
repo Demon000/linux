@@ -2909,7 +2909,7 @@ int max_des_phy_hw_data_lanes(struct max_des *des, struct max_des_phy *phy)
 
 	return config->lanes[phy->index];
 }
-EXPORT_SYMBOL_GPL(max_des_phy_hw_data_lanes);
+EXPORT_SYMBOL_NS_GPL(max_des_phy_hw_data_lanes, "MAX_SERDES");
 
 static int max_des_find_phys_config(struct max_des_priv *priv)
 {
@@ -3150,7 +3150,7 @@ err_disable_pocs:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(max_des_probe);
+EXPORT_SYMBOL_NS_GPL(max_des_probe, "MAX_SERDES");
 
 int max_des_remove(struct max_des *des)
 {
@@ -3164,7 +3164,7 @@ int max_des_remove(struct max_des *des)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_des_remove);
+EXPORT_SYMBOL_NS_GPL(max_des_remove, "MAX_SERDES");
 
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("I2C_ATR");
