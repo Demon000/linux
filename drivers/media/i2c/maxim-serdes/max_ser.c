@@ -1881,7 +1881,6 @@ int max_ser_set_double_bpps(struct v4l2_subdev *sd, u32 double_bpps)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_ser_set_double_bpps);
 
 int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id)
 {
@@ -1894,7 +1893,6 @@ int max_ser_set_stream_id(struct v4l2_subdev *sd, unsigned int stream_id)
 
 	return ser->ops->set_pipe_stream_id(ser, pipe, stream_id);
 }
-EXPORT_SYMBOL_GPL(max_ser_set_stream_id);
 
 int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id)
 {
@@ -1909,7 +1907,6 @@ int max_ser_get_stream_id(struct v4l2_subdev *sd, unsigned int *stream_id)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_ser_get_stream_id);
 
 unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 {
@@ -1927,7 +1924,6 @@ unsigned int max_ser_get_supported_modes(struct v4l2_subdev *sd)
 
 	return modes;
 }
-EXPORT_SYMBOL_GPL(max_ser_get_supported_modes);
 
 static bool max_ser_supports_sources_vc_remap(struct max_ser_priv *priv)
 {
@@ -1958,7 +1954,6 @@ bool max_ser_supports_vc_remap(struct v4l2_subdev *sd)
 
 	return max_ser_supports_sources_vc_remap(priv);
 }
-EXPORT_SYMBOL_GPL(max_ser_supports_vc_remap);
 
 int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode)
 {
@@ -1984,7 +1979,6 @@ int max_ser_set_mode(struct v4l2_subdev *sd, enum max_serdes_gmsl_mode mode)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_ser_set_mode);
 
 static int max_ser_set_source_vc_remaps(struct max_ser_priv *priv,
 					struct max_serdes_source *source,
@@ -2141,7 +2135,6 @@ int max_ser_reset(struct i2c_adapter *adapter, u8 addr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_ser_reset);
 
 int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
 			      unsigned int num_addrs, u8 *current_addr)
@@ -2164,7 +2157,6 @@ int max_ser_wait_for_multiple(struct i2c_adapter *adapter, u8 *addrs,
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(max_ser_wait_for_multiple);
 
 int max_ser_wait(struct i2c_adapter *adapter, u8 addr)
 {
@@ -2172,7 +2164,6 @@ int max_ser_wait(struct i2c_adapter *adapter, u8 addr)
 
 	return max_ser_wait_for_multiple(adapter, &addr, 1, &current_addr);
 }
-EXPORT_SYMBOL_GPL(max_ser_wait);
 
 int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr)
 {
@@ -2195,7 +2186,6 @@ int max_ser_fix_tx_ids(struct i2c_adapter *adapter, u8 addr)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(max_ser_fix_tx_ids);
 
 int max_ser_change_address(struct i2c_adapter *adapter, u8 addr, u8 new_addr)
 {
@@ -2203,7 +2193,6 @@ int max_ser_change_address(struct i2c_adapter *adapter, u8 addr, u8 new_addr)
 
 	return max_ser_write_reg(adapter, addr, MAX_SER_REG0, val);
 }
-EXPORT_SYMBOL_GPL(max_ser_change_address);
 
 MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS("I2C_ATR");
