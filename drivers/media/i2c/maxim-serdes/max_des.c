@@ -1014,8 +1014,8 @@ static int max_des_set_pipes_stream_id(struct max_des_priv *priv)
 		ret = max_ser_set_stream_id(hw.source->sd, stream_id);
 		if (ret == -EOPNOTSUPP) {
 			/*
-			 * Serializer does not support setting the stream id, retrieve
-			 * its hardcoded stream id.
+			 * Serializer does not support setting the stream id,
+			 * retrieve its hardcoded stream id.
 			 */
 			ret = max_ser_get_stream_id(hw.source->sd, &stream_id);
 		}
