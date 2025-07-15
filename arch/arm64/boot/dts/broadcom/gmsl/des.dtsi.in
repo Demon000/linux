@@ -1,6 +1,6 @@
 {% set address = des_cfg.address | d(default_address) %}
 {% set compatible = des_cfg.compatible | d(default_compatible) | str_quote %}
-{% set pool_addrs = des_cfg.pool_addrs | d(['0x40', '0x41', '0x42', '0x43']) | join(' ') %}
+{% set pool_addrs = des_cfg.pool_addrs | d(['0x41', '0x42', '0x43', '0x44']) | join(' ') %}
 {% set vpoc_cfg = des_cfg.vpoc_cfg %}
 {% set platform_cfg = des_cfg.platform_cfg %}
 {% set des_label = 'max_des_' ~ des_idx %}
