@@ -175,7 +175,7 @@ examples:
                     reg = <0>;
 
                     serializer@40 {
-                        compatible = "maxim,max96717";
+                        compatible = "maxim,max96717", "maxim,max96717f";
                         reg = <0x40>;
                         gpio-controller;
                         #gpio-cells = <2>;
@@ -209,7 +209,7 @@ examples:
                     reg = <1>;
 
                     serializer@40 {
-                        compatible = "maxim,max96717";
+                        compatible = "maxim,max96717", "maxim,max96717f";
                         reg = <0x40>;
                         gpio-controller;
                         #gpio-cells = <2>;
