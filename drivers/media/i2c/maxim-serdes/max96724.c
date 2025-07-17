@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
