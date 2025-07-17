@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
