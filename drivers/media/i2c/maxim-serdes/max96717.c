@@ -5,6 +5,7 @@
  * Copyright (C) 2025 Analog Devices Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/gpio/driver.h>
