@@ -54,6 +54,7 @@ config VIDEO_MAX96719A
 
 config VIDEO_MAX96724
 	tristate "Maxim MAX96724 Quad Deserializer support"
+	depends on I2C
 	select VIDEO_MAXIM_SERDES
 	help
 	  This driver supports the Maxim MAX96712, MAX96724, MAX96724F,
