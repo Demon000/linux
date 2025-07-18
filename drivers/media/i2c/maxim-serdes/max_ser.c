@@ -1403,8 +1403,8 @@ static const struct v4l2_subdev_internal_ops max_ser_internal_ops = {
 };
 
 static const struct media_entity_operations max_ser_media_ops = {
-	.link_validate = v4l2_subdev_link_validate,
 	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 static int max_ser_init(struct max_ser_priv *priv)
