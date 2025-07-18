@@ -1203,7 +1203,7 @@ static const struct max_des_ops max96714_ops = {
  * Page 53, Section Register Map, to optimize link performance in 6Gbps
  * and 3Gbps links for all cable lengths.
  */
-const struct reg_sequence max96714_rlms_reg_sequence[] = {
+static const struct reg_sequence max96714_rlms_reg_sequence[] = {
 	{ MAX9296A_RLMS3E(0), 0xfd },
 	{ MAX9296A_RLMS3F(0), 0x3d },
 	{ MAX9296A_RLMS49(0), 0xf5 },
