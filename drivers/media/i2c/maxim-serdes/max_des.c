@@ -2564,8 +2564,8 @@ static const struct v4l2_subdev_internal_ops max_des_internal_ops = {
 };
 
 static const struct media_entity_operations max_des_media_ops = {
-	.link_validate = v4l2_subdev_link_validate,
 	.get_fwnode_pad = v4l2_subdev_get_fwnode_pad_1_to_1,
+	.link_validate = v4l2_subdev_link_validate,
 };
 
 static int max_des_notify_bound(struct v4l2_async_notifier *nf,
