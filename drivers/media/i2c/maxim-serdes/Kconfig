@@ -66,6 +66,7 @@ config VIDEO_MAX96724
 
 config VIDEO_MAX9296A
 	tristate "Maxim MAX9296A Dual Deserializer support"
+	depends on I2C
 	select VIDEO_MAXIM_SERDES
 	help
 	  This driver supports the Maxim MAX9296A, MAX96716A, MAX96792A
