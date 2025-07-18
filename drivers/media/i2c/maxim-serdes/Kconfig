@@ -79,6 +79,7 @@ config VIDEO_MAX9296A
 
 config VIDEO_MAX96726A
 	tristate "Maxim MAX9296A Quad GMSL3 Deserializer support"
+	depends on I2C
 	select VIDEO_MAXIM_SERDES
 	help
 	  This driver supports the Maxim MAX9296A Dual GMSL3 Deserializer,
