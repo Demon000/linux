@@ -15,4 +15,6 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np);
 
 void miic_destroy(struct phylink_pcs *pcs);
 
+void miic_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed);
+
 #endif /* __LINUX_PCS_MIIC_H */
