@@ -11,6 +11,7 @@
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/device/devres.h>
+#include <linux/ethtool.h>
 #include <linux/mdio.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -54,7 +55,12 @@
 #define MIIC_CONVRST_PHYIF_RST_MASK	GENMASK(4, 0)
 
 #define MIIC_SWCTRL			0x304
+#define MIIC_SWCTRL_SET_SPEED_10(x)	(BIT(0) << (x))
+#define MIIC_SWCTRL_SET_SPEED_1000(x)	(BIT(4) << (x))
+#define MIIC_SWCTRL_SET_SPEED_MASK(x)	((BIT(0) | BIT(4)) << (x))
+
 #define MIIC_SWDUPC			0x308
+#define MIIC_SWDUPC_DUPLEX_MASK(x)	BIT(x)
 
 #define MIIC_MODCTRL_CONF_CONV_MAX	6
 #define MIIC_MODCTRL_CONF_NONE		-1
@@ -521,6 +527,36 @@ void miic_destroy(struct phylink_pcs *pcs)
 	kfree(miic_port);
 }
 EXPORT_SYMBOL(miic_destroy);
+
+void miic_switchcore_adjust(struct phylink_pcs *pcs, int duplex, int speed)
+{
+	struct miic_port *miic_port = phylink_pcs_to_miic_port(pcs);
+	struct miic *miic = miic_port->miic;
+	int port = miic_port->port;
+	u32 val;
+
+	/* We only handle speed/duplex changes on the switch ports */
+	if (port > miic->of_data->max_switch_ports)
+		return;
+
+	/* Configure SET10/1000 bits */
+	if (speed == SPEED_1000)
+		val = MIIC_SWCTRL_SET_SPEED_1000(port);
+	else if (speed == SPEED_10)
+		val = MIIC_SWCTRL_SET_SPEED_10(port);
+	else
+		val = 0;
+
+	miic_reg_rmw(miic, MIIC_SWCTRL, MIIC_SWCTRL_SET_SPEED_MASK(port), val);
+
+	/* Configure PHY DUPLEX */
+	val = 0;
+	if (duplex == DUPLEX_FULL)
+		val = MIIC_SWDUPC_DUPLEX_MASK(port);
+
+	miic_reg_rmw(miic, MIIC_SWDUPC, MIIC_SWDUPC_DUPLEX_MASK(port), val);
+}
+EXPORT_SYMBOL(miic_switchcore_adjust);
 
 static int miic_init_hw(struct miic *miic, u32 cfg_mode)
 {
