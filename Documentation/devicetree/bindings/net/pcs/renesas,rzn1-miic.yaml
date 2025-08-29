@@ -86,6 +86,11 @@ patternProperties:
           and include/dt-bindings/net/renesas,r9a09g077-pcs-miic.h for RZ/N2H, RZ/T2H SoCs.
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      renesas,miic-phylink-active-low:
+        type: boolean
+        description: Indicates that the phylink signal from the Ethernet switch is active low.
+          If this property is omitted, the signal is assumed to be active high.
+
     required:
       - reg
       - renesas,miic-input
