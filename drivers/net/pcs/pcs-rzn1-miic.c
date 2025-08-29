@@ -210,6 +210,7 @@ struct miic {
  * @init_unlock_lock_regs: Flag to indicate if registers need to be unlocked
  *  before access.
  * @miic_write: Function pointer to write a value to a MIIC register
+ * @pcs_ops: PCS operations for the MII converter
  */
 struct miic_of_data {
 	struct modctrl_match *match_table;
@@ -226,6 +227,7 @@ struct miic_of_data {
 	u8 reset_count;
 	bool init_unlock_lock_regs;
 	void (*miic_write)(struct miic *miic, int offset, u32 value);
+	const struct phylink_pcs_ops *pcs_ops;
 };
 
 /**
@@ -306,6 +308,17 @@ static void miic_converter_enable(struct miic *miic, int port, int enable)
 		val = MIIC_CONVRST_PHYIF_RST(port);
 
 	miic_reg_rmw(miic, MIIC_CONVRST, MIIC_CONVRST_PHYIF_RST(port), val);
+}
+
+static int rzt2h_miic_validate(struct phylink_pcs *pcs, unsigned long *supported,
+			       const struct phylink_link_state *state)
+{
+	if (phy_interface_mode_is_rgmii(state->interface) ||
+	    state->interface == PHY_INTERFACE_MODE_RMII ||
+	    state->interface == PHY_INTERFACE_MODE_MII)
+		return 0;
+
+	return -EINVAL;
 }
 
 static int miic_config(struct phylink_pcs *pcs, unsigned int neg_mode,
@@ -426,6 +439,13 @@ static const struct phylink_pcs_ops miic_phylink_ops = {
 	.pcs_pre_init = miic_pre_init,
 };
 
+static const struct phylink_pcs_ops rzt2h_miic_phylink_ops = {
+	.pcs_validate = rzt2h_miic_validate,
+	.pcs_config = miic_config,
+	.pcs_link_up = miic_link_up,
+	.pcs_pre_init = miic_pre_init,
+};
+
 struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 {
 	const struct miic_of_data *of_data;
@@ -477,7 +497,7 @@ struct phylink_pcs *miic_create(struct device *dev, struct device_node *np)
 
 	miic_port->miic = miic;
 	miic_port->port = port - of_data->miic_port_start;
-	miic_port->pcs.ops = &miic_phylink_ops;
+	miic_port->pcs.ops = miic->of_data->pcs_ops;
 
 	phy_interface_set_rgmii(miic_port->pcs.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_RMII, miic_port->pcs.supported_interfaces);
@@ -729,6 +749,7 @@ static struct miic_of_data rzn1_miic_of_data = {
 	.sw_mode_mask = GENMASK(4, 0),
 	.init_unlock_lock_regs = true,
 	.miic_write = miic_reg_writel_unlocked,
+	.pcs_ops = &miic_phylink_ops,
 };
 
 static struct miic_of_data rzt2h_miic_of_data = {
@@ -745,6 +766,7 @@ static struct miic_of_data rzt2h_miic_of_data = {
 	.reset_ids = rzt2h_reset_ids,
 	.reset_count = ARRAY_SIZE(rzt2h_reset_ids),
 	.miic_write = miic_reg_writel_locked,
+	.pcs_ops = &rzt2h_miic_phylink_ops,
 };
 
 static const struct of_device_id miic_of_mtable[] = {
