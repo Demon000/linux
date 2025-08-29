@@ -45,6 +45,10 @@
 #define MIIC_CONVCTRL_RGMII_DUPLEX	BIT(13)
 #define MIIC_CONVCTRL_RGMII_SPEED	GENMASK(15, 14)
 
+#define MIIC_PHYLINK			0x14
+#define MIIC_PHYLINK_SWLINK		GENMASK(3, 0)
+#define MIIC_PHYLINK_SWLINK_LOW(port)	BIT(port)
+
 #define MIIC_CONVRST			0x114
 #define MIIC_CONVRST_PHYIF_RST(port)	BIT(port)
 #define MIIC_CONVRST_PHYIF_RST_MASK	GENMASK(4, 0)
@@ -211,6 +215,7 @@ struct miic {
  *  before access.
  * @miic_write: Function pointer to write a value to a MIIC register
  * @pcs_ops: PCS operations for the MII converter
+ * @max_switch_ports: Maximum number of switch ports
  */
 struct miic_of_data {
 	struct modctrl_match *match_table;
@@ -228,6 +233,7 @@ struct miic_of_data {
 	bool init_unlock_lock_regs;
 	void (*miic_write)(struct miic *miic, int offset, u32 value);
 	const struct phylink_pcs_ops *pcs_ops;
+	u8 max_switch_ports;
 };
 
 /**
@@ -635,6 +641,28 @@ static int miic_parse_dt(struct miic *miic, u32 *mode_cfg)
 	return ret;
 }
 
+static void miic_parse_phylink(struct miic *miic)
+{
+	struct device_node *np = miic->dev->of_node;
+	struct device_node *conv;
+	bool phylink;
+	u32 port;
+	u32 val;
+
+	for_each_available_child_of_node(np, conv) {
+		if (of_property_read_u32(conv, "reg", &port))
+			continue;
+
+		if (port > miic->of_data->max_switch_ports)
+			continue;
+
+		phylink = of_property_read_bool(conv, "renesas,miic-phylink-active-low");
+		val = phylink ? BIT(port) : 0;
+
+		miic_reg_rmw(miic, MIIC_PHYLINK, BIT(port), val);
+	}
+}
+
 static void miic_reset_control_bulk_assert(void *data)
 {
 	struct miic *miic = data;
@@ -716,6 +744,8 @@ static int miic_probe(struct platform_device *pdev)
 	if (ret)
 		goto disable_runtime_pm;
 
+	miic_parse_phylink(miic);
+
 	/* miic_create() relies on that fact that data are attached to the
 	 * platform device to determine if the driver is ready so this needs to
 	 * be the last thing to be done after everything is initialized
@@ -750,6 +780,7 @@ static struct miic_of_data rzn1_miic_of_data = {
 	.init_unlock_lock_regs = true,
 	.miic_write = miic_reg_writel_unlocked,
 	.pcs_ops = &miic_phylink_ops,
+	.max_switch_ports = 4,
 };
 
 static struct miic_of_data rzt2h_miic_of_data = {
@@ -767,6 +798,7 @@ static struct miic_of_data rzt2h_miic_of_data = {
 	.reset_count = ARRAY_SIZE(rzt2h_reset_ids),
 	.miic_write = miic_reg_writel_locked,
 	.pcs_ops = &rzt2h_miic_phylink_ops,
+	.max_switch_ports = 3,
 };
 
 static const struct of_device_id miic_of_mtable[] = {
