@@ -68,10 +68,20 @@ definitions:
           alternate function configuration number using the RZT2H_PORT_PINMUX()
           helper macro from <dt-bindings/pinctrl/renesas,r9a09g077-pinctrl.h>.
       pins: true
+      drive-strength:
+        enum: [ 2, 4, 8, 12 ]
+      slew-rate:
+        description: Slew rate control. 0 - slow, 1 - fast.
+        enum: [ 0, 1 ]
       phandle: true
       input: true
       input-enable: true
       output-enable: true
+      bias-disable: true
+      bias-pull-down: true
+      bias-pull-up: true
+      input-schmitt-enable: true
+      input-schmitt-disable: true
     oneOf:
       - required: [pinmux]
       - required: [pins]
