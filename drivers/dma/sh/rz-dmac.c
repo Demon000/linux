@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
+#include <linux/irqchip/irq-renesas-rzt2h.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -1072,10 +1073,15 @@ static const struct rz_dmac_info rz_dmac_v2h_info = {
 	.register_dma_req = rzv2h_icu_register_dma_req,
 };
 
+static const struct rz_dmac_info rz_dmac_t2h_info = {
+	.register_dma_req = rzt2h_icu_register_dma_req,
+};
+
 static const struct rz_dmac_info rz_dmac_common_info = {};
 
 static const struct of_device_id of_rz_dmac_match[] = {
 	{ .compatible = "renesas,r9a09g057-dmac", .data = &rz_dmac_v2h_info },
+	{ .compatible = "renesas,r9a09g077-dmac", .data = &rz_dmac_t2h_info },
 	{ .compatible = "renesas,rz-dmac", .data = &rz_dmac_common_info },
 	{ /* Sentinel */ }
 };
