@@ -253,21 +253,14 @@ static void cpg_rzt2h_mstp_write(struct cpg_mssr_priv *priv, u16 offset, u32 val
 	writel(value, base + RZT2H_MSTPCR_OFFSET(offset));
 }
 
-static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
+static int cpg_mstp_write_control_reg(struct cpg_mssr_priv *priv, unsigned int reg,
+				      u32 bitmask, bool enable, bool lock)
 {
-	struct mstp_clock *clock = to_mstp_clock(hw);
-	struct cpg_mssr_priv *priv = clock->priv;
-	unsigned int reg = clock->index / 32;
-	unsigned int bit = clock->index % 32;
-	struct device *dev = priv->dev;
-	u32 bitmask = BIT(bit);
 	unsigned long flags;
 	u32 value;
-	int error;
 
-	dev_dbg(dev, "MSTP %u%02u/%pC %s\n", reg, bit, hw->clk,
-		str_on_off(enable));
-	spin_lock_irqsave(&priv->pub.rmw_lock, flags);
+	if (lock)
+		spin_lock_irqsave(&priv->pub.rmw_lock, flags);
 
 	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 		value = readb(priv->pub.base0 + priv->control_regs[reg]);
@@ -299,7 +292,8 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		writel(value, priv->pub.base0 + priv->control_regs[reg]);
 	}
 
-	spin_unlock_irqrestore(&priv->pub.rmw_lock, flags);
+	if (lock)
+		spin_unlock_irqrestore(&priv->pub.rmw_lock, flags);
 
 	if (!enable || priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
 		return 0;
@@ -316,8 +310,24 @@ static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
 		return 0;
 	}
 
-	error = readl_poll_timeout_atomic(priv->pub.base0 + priv->status_regs[reg],
-					  value, !(value & bitmask), 0, 10);
+	return readl_poll_timeout_atomic(priv->pub.base0 + priv->status_regs[reg],
+					 value, !(value & bitmask), 0, 10);
+}
+
+static int cpg_mstp_clock_endisable(struct clk_hw *hw, bool enable)
+{
+	struct mstp_clock *clock = to_mstp_clock(hw);
+	struct cpg_mssr_priv *priv = clock->priv;
+	unsigned int reg = clock->index / 32;
+	unsigned int bit = clock->index % 32;
+	struct device *dev = priv->dev;
+	u32 bitmask = BIT(bit);
+	int error;
+
+	dev_dbg(dev, "MSTP %u%02u/%pC %s\n", reg, bit, hw->clk,
+		str_on_off(enable));
+
+	error = cpg_mstp_write_control_reg(priv, reg, bitmask, enable, true);
 	if (error)
 		dev_err(dev, "Failed to enable SMSTP %p[%d]\n",
 			priv->pub.base0 + priv->control_regs[reg], bit);
@@ -335,19 +345,22 @@ static void cpg_mstp_clock_disable(struct clk_hw *hw)
 	cpg_mstp_clock_endisable(hw, false);
 }
 
+static u32 cpg_mstp_read_status_reg(struct cpg_mssr_priv *priv, unsigned int reg)
+{
+	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
+		return readb(priv->pub.base0 + priv->control_regs[reg]);
+	else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
+		return cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
+	else
+		return readl(priv->pub.base0 + priv->status_regs[reg]);
+}
+
 static int cpg_mstp_clock_is_enabled(struct clk_hw *hw)
 {
 	struct mstp_clock *clock = to_mstp_clock(hw);
 	struct cpg_mssr_priv *priv = clock->priv;
 	unsigned int reg = clock->index / 32;
-	u32 value;
-
-	if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
-		value = readb(priv->pub.base0 + priv->control_regs[reg]);
-	else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_T2H)
-		value = cpg_rzt2h_mstp_read(priv, priv->control_regs[reg]);
-	else
-		value = readl(priv->pub.base0 + priv->status_regs[reg]);
+	u32 value = cpg_mstp_read_status_reg(priv, reg);
 
 	return !(value & BIT(clock->index % 32));
 }
