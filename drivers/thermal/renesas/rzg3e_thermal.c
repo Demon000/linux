@@ -441,7 +441,7 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 		return irq;
 
 	/* Enable runtime PM */
-	pm_runtime_set_autosuspend_delay(dev, 100);
+	pm_runtime_set_autosuspend_delay(dev, 5000);
 	pm_runtime_use_autosuspend(dev);
 	devm_pm_runtime_enable(dev);
 
