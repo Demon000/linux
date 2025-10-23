@@ -2700,7 +2700,7 @@ int match_devname_and_update_preferred_console(const char *devname,
 }
 EXPORT_SYMBOL_GPL(match_devname_and_update_preferred_console);
 
-bool console_suspend_enabled = true;
+bool console_suspend_enabled = false;
 EXPORT_SYMBOL(console_suspend_enabled);
 
 static int __init console_suspend_disable(char *str)
