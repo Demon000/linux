@@ -210,13 +210,7 @@ static void rsci_init_pins(struct uart_port *port, unsigned int cflag)
 
 static int rsci_scif_set_rtrg(struct uart_port *port, int rx_trig)
 {
-	struct sci_port *s = to_sci_port(port);
 	unsigned int bits;
-
-	if (s->type != RSCI_PORT_SCIF) {
-		WARN(1, "unknown FIFO configuration");
-		return 1;
-	}
 
 	if (rx_trig >= port->fifosize)
 		rx_trig = port->fifosize - 1;
