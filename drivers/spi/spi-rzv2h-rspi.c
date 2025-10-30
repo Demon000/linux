@@ -595,7 +595,7 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	const struct spi_device *spi = message->spi;
 	struct spi_transfer *xfer;
 	u32 speed_hz = U32_MAX;
-	u8 bits_per_word;
+	u8 bits_per_word = 0;
 	u32 conf32;
 	u16 conf16;
 	u8 conf8;
@@ -604,6 +604,12 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	rzv2h_rspi_spe_disable(rspi);
 
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
+		if (bits_per_word != 0 && xfer->bits_per_word != bits_per_word) {
+			dev_err(&spi->dev,
+				"Cannot have differing bits_per_word\n");
+			return -EINVAL;
+		}
+
 		speed_hz = min(xfer->speed_hz, speed_hz);
 		bits_per_word = xfer->bits_per_word;
 	}
