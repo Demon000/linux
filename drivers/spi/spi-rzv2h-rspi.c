@@ -593,8 +593,8 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 {
 	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(ctlr);
 	const struct spi_device *spi = message->spi;
+	u32 speed_hz = spi->max_speed_hz;
 	struct spi_transfer *xfer;
-	u32 speed_hz = U32_MAX;
 	u8 bits_per_word = 0;
 	u32 conf32;
 	u16 conf16;
@@ -613,9 +613,6 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 		speed_hz = min(xfer->speed_hz, speed_hz);
 		bits_per_word = xfer->bits_per_word;
 	}
-
-	if (speed_hz == U32_MAX)
-		return -EINVAL;
 
 	rspi->bytes_per_word = spi_bpw_to_bytes(bits_per_word);
 
