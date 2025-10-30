@@ -611,7 +611,7 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	if (speed_hz == U32_MAX)
 		return -EINVAL;
 
-	rspi->bytes_per_word = roundup_pow_of_two(BITS_TO_BYTES(bits_per_word));
+	rspi->bytes_per_word = spi_bpw_to_bytes(bits_per_word);
 
 	if (speed_hz != rspi->last_speed_hz) {
 		rspi->freq = rzv2h_rspi_setup_clock(rspi, speed_hz);
