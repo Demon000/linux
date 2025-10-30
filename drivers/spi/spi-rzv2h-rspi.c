@@ -610,6 +610,11 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 			return -EINVAL;
 		}
 
+		if (xfer->cs_change) {
+			dev_err(&spi->dev, "Cannot change CS behavior\n");
+			return -EINVAL;
+		}
+
 		speed_hz = min(xfer->speed_hz, speed_hz);
 		bits_per_word = xfer->bits_per_word;
 	}
