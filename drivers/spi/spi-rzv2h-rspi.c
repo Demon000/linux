@@ -593,9 +593,11 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 {
 	struct rzv2h_rspi_priv *rspi = spi_controller_get_devdata(ctlr);
 	const struct spi_device *spi = message->spi;
+	bool is_gpio_cs = spi_get_csgpiod(spi, 0);
 	u32 speed_hz = spi->max_speed_hz;
 	struct spi_transfer *xfer;
 	u8 bits_per_word = 0;
+	s8 native_cs;
 	u32 conf32;
 	u16 conf16;
 	u8 conf8;
@@ -610,7 +612,7 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 			return -EINVAL;
 		}
 
-		if (xfer->cs_change) {
+		if (!is_gpio_cs && xfer->cs_change) {
 			dev_err(&spi->dev, "Cannot change CS behavior\n");
 			return -EINVAL;
 		}
@@ -628,6 +630,11 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 
 		rspi->last_speed_hz = speed_hz;
 	}
+
+	if (is_gpio_cs)
+		native_cs = rspi->controller->unused_native_cs;
+	else
+		native_cs = spi_get_chipselect(spi, 0);
 
 	writeb(rspi->spr, rspi->base + RSPI_SPBR);
 
@@ -662,10 +669,11 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	conf32 |= FIELD_PREP(RSPI_SPCMD_SPB, bits_per_word - 1);
 	conf32 |= FIELD_PREP(RSPI_SPCMD_BRDV, rspi->brdv);
 	conf32 |= FIELD_PREP(RSPI_SPCMD_SSLKP, 1);
-	conf32 |= FIELD_PREP(RSPI_SPCMD_SSLA, spi_get_chipselect(spi, 0));
+	conf32 |= FIELD_PREP(RSPI_SPCMD_SSLA, native_cs);
 	writel(conf32, rspi->base + RSPI_SPCMD);
+
 	if (spi->mode & SPI_CS_HIGH)
-		writeb(BIT(spi_get_chipselect(spi, 0)), rspi->base + RSPI_SSLP);
+		writeb(BIT(native_cs), rspi->base + RSPI_SSLP);
 	else
 		writeb(0, rspi->base + RSPI_SSLP);
 
@@ -765,6 +773,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	controller->prepare_message = rzv2h_rspi_prepare_message;
 	controller->unprepare_message = rzv2h_rspi_unprepare_message;
 	controller->num_chipselect = 4;
+	controller->use_gpio_descriptors = true;
 	controller->transfer_one = rzv2h_rspi_transfer_one;
 	controller->can_dma = rzv2h_rspi_can_dma;
 
