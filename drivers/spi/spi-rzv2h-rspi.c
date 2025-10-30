@@ -604,9 +604,6 @@ static int rzv2h_rspi_prepare_message(struct spi_controller *ctlr,
 	rzv2h_rspi_spe_disable(rspi);
 
 	list_for_each_entry(xfer, &message->transfers, transfer_list) {
-		if (!xfer->speed_hz)
-			continue;
-
 		speed_hz = min(xfer->speed_hz, speed_hz);
 		bits_per_word = xfer->bits_per_word;
 	}
