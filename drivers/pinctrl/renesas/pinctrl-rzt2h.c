@@ -42,7 +42,6 @@
 #define PMC(m)		(0x400 + (m))
 #define PFC(m)		(0x600 + 8 * (m))
 #define PIN(m)		(0x800 + (m))
-#define DRCTL(m)	(0xa00 + 8 * (m))
 #define RSELP(m)	(0xc00 + (m))
 
 #define PM_MASK			GENMASK(1, 0)
@@ -52,25 +51,6 @@
 
 #define PFC_MASK		GENMASK_ULL(5, 0)
 #define PFC_PIN_MASK(pin)	(PFC_MASK << ((pin) * 8))
-
-#define DRCTL_DRV_MASK		GENMASK(1, 0)
-#define DRCTL_PUD_MASK		GENMASK(3, 2)
-#define DRCTL_SMT_MASK		BIT(4)
-#define DRCTL_SR_MASK		BIT(5)
-
-#define DRCTL_DRV_PIN_MASK(pin)	(DRCTL_DRV_MASK << ((pin) * 8))
-#define DRCTL_PUD_PIN_MASK(pin)	(DRCTL_PUD_MASK << ((pin) * 8))
-#define DRCTL_SMT_PIN_MASK(pin)	(DRCTL_SMT_MASK << ((pin) * 8))
-#define DRCTL_SR_PIN_MASK(pin)	(DRCTL_SR_MASK << ((pin) * 8))
-
-#define DRCTL_DRV_VDD33_2MA	0b00
-#define DRCTL_DRV_VDD33_4MA	0b01
-#define DRCTL_DRV_VDD33_8MA	0b10
-#define DRCTL_DRV_VDD33_12MA	0b11
-
-#define DRCTL_PUD_NONE		0b00
-#define DRCTL_PUD_UP		0b01
-#define DRCTL_PUD_DOWN		0b10
 
 /*
  * Use 16 lower bits [15:0] for pin identifier
@@ -117,24 +97,6 @@ static inline type rzt2h_pinctrl_read##size(struct rzt2h_pinctrl *pctrl, u8 port
 					    unsigned int offset)			\
 {											\
 	return read##size(RZT2H_GET_BASE(pctrl, port) + offset);			\
-}											\
-static inline type rzt2h_pinctrl_read##size##_field(struct rzt2h_pinctrl *pctrl,	\
-						    u8 port, unsigned int offset,	\
-						    type mask)				\
-{											\
-	unsigned int shift = __ffs(mask);						\
-	type tmp = rzt2h_pinctrl_read##size(pctrl, port, offset);			\
-	return (tmp >> shift) & (mask >> shift);					\
-}											\
-static inline void rzt2h_pinctrl_rmw##size(struct rzt2h_pinctrl *pctrl, u8 port,	\
-					   unsigned int offset, type mask, type val)	\
-{											\
-	type tmp;									\
-	val <<= __ffs(mask);								\
-	guard(spinlock_irqsave)(&pctrl->lock);						\
-	tmp = rzt2h_pinctrl_read##size(pctrl, port, offset);				\
-	tmp = (tmp & ~mask) | val;							\
-	rzt2h_pinctrl_write##size(pctrl, port, tmp, offset);				\
 }
 
 RZT2H_PINCTRL_REG_ACCESS(b, u8)
@@ -463,213 +425,6 @@ done:
 	return ret;
 }
 
-static int rzt2h_pinctrl_pinconf_get(struct pinctrl_dev *pctldev,
-				     unsigned int pin,
-				     unsigned long *config)
-{
-	struct rzt2h_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	u32 param = pinconf_to_config_param(*config);
-	u32 port;
-	u32 arg;
-	int ret;
-
-	port = RZT2H_PIN_ID_TO_PORT(pin);
-	pin = RZT2H_PIN_ID_TO_PIN(pin);
-
-	switch (param) {
-	case PIN_CONFIG_SLEW_RATE:
-		arg = rzt2h_pinctrl_readq_field(pctrl, port, DRCTL(port),
-						DRCTL_SR_PIN_MASK(pin));
-		break;
-	case PIN_CONFIG_BIAS_DISABLE:
-	case PIN_CONFIG_BIAS_PULL_UP:
-	case PIN_CONFIG_BIAS_PULL_DOWN:
-		arg = rzt2h_pinctrl_readq_field(pctrl, port, DRCTL(port),
-						DRCTL_PUD_PIN_MASK(pin));
-		switch (arg) {
-		case DRCTL_PUD_NONE:
-			ret = PIN_CONFIG_BIAS_DISABLE;
-			break;
-		case DRCTL_PUD_UP:
-			ret = PIN_CONFIG_BIAS_PULL_UP;
-			break;
-		case DRCTL_PUD_DOWN:
-			ret = PIN_CONFIG_BIAS_PULL_DOWN;
-			break;
-		default:
-			return -EINVAL;
-		}
-
-		if (ret != param)
-			return -EINVAL;
-
-		arg = 1;
-		break;
-	case PIN_CONFIG_DRIVE_STRENGTH:
-		arg = rzt2h_pinctrl_readq_field(pctrl, port, DRCTL(port),
-						DRCTL_DRV_PIN_MASK(pin));
-
-		switch (arg) {
-		case DRCTL_DRV_VDD33_2MA:
-			arg = 2;
-			break;
-		case DRCTL_DRV_VDD33_4MA:
-			arg = 4;
-			break;
-		case DRCTL_DRV_VDD33_8MA:
-			arg = 8;
-			break;
-		case DRCTL_DRV_VDD33_12MA:
-			arg = 12;
-			break;
-		}
-
-		break;
-	case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-		arg = rzt2h_pinctrl_readq_field(pctrl, port, DRCTL(port),
-						DRCTL_SMT_PIN_MASK(pin));
-		if (!arg)
-			return -EINVAL;
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	*config = pinconf_to_config_packed(param, arg);
-
-	return 0;
-};
-
-static int rzt2h_pinctrl_pinconf_set(struct pinctrl_dev *pctldev,
-				     unsigned int pin,
-				     unsigned long *configs,
-				     unsigned int num_configs)
-{
-	struct rzt2h_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	unsigned int i;
-	u32 param;
-	u32 port;
-	u32 arg;
-
-	port = RZT2H_PIN_ID_TO_PORT(pin);
-	pin = RZT2H_PIN_ID_TO_PIN(pin);
-
-	for (i = 0; i < num_configs; i++) {
-		param = pinconf_to_config_param(configs[i]);
-		arg = pinconf_to_config_argument(configs[i]);
-
-		switch (param) {
-		case PIN_CONFIG_SLEW_RATE:
-			if (arg > 1)
-				return -EINVAL;
-
-			rzt2h_pinctrl_rmwq(pctrl, port, DRCTL(port),
-					   DRCTL_SR_PIN_MASK(pin), arg);
-			break;
-		case PIN_CONFIG_BIAS_DISABLE:
-		case PIN_CONFIG_BIAS_PULL_UP:
-		case PIN_CONFIG_BIAS_PULL_DOWN:
-			switch (param) {
-			case PIN_CONFIG_BIAS_DISABLE:
-				arg = DRCTL_PUD_NONE;
-				break;
-			case PIN_CONFIG_BIAS_PULL_UP:
-				arg = DRCTL_PUD_UP;
-				break;
-			case PIN_CONFIG_BIAS_PULL_DOWN:
-				arg = DRCTL_PUD_DOWN;
-				break;
-			}
-
-			rzt2h_pinctrl_rmwq(pctrl, port, DRCTL(port),
-					   DRCTL_PUD_PIN_MASK(pin), arg);
-			break;
-		case PIN_CONFIG_DRIVE_STRENGTH:
-			switch (arg) {
-			case 2:
-				arg = DRCTL_DRV_VDD33_2MA;
-				break;
-			case 4:
-				arg = DRCTL_DRV_VDD33_4MA;
-				break;
-			case 8:
-				arg = DRCTL_DRV_VDD33_8MA;
-				break;
-			case 12:
-				arg = DRCTL_DRV_VDD33_12MA;
-				break;
-			default:
-				return -EINVAL;
-			}
-
-			rzt2h_pinctrl_rmwq(pctrl, port, DRCTL(port),
-					   DRCTL_DRV_PIN_MASK(pin), arg);
-			break;
-		case PIN_CONFIG_INPUT_SCHMITT_ENABLE:
-			if (arg > 1)
-				return -EINVAL;
-
-			rzt2h_pinctrl_rmwq(pctrl, port, DRCTL(port),
-					   DRCTL_SMT_PIN_MASK(pin), arg);
-			break;
-		default:
-			return -EOPNOTSUPP;
-		}
-	}
-
-	return 0;
-}
-
-static int rzt2h_pinctrl_pinconf_group_set(struct pinctrl_dev *pctldev,
-					   unsigned int group,
-					   unsigned long *configs,
-					   unsigned int num_configs)
-{
-	const unsigned int *pins;
-	unsigned int i, npins;
-	int ret;
-
-	ret = pinctrl_generic_get_group_pins(pctldev, group, &pins, &npins);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < npins; i++) {
-		ret = rzt2h_pinctrl_pinconf_set(pctldev, pins[i], configs,
-						num_configs);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-static int rzt2h_pinctrl_pinconf_group_get(struct pinctrl_dev *pctldev,
-					   unsigned int group,
-					   unsigned long *config)
-{
-	const unsigned int *pins;
-	unsigned int i, npins, prev_config = 0;
-	int ret;
-
-	ret = pinctrl_generic_get_group_pins(pctldev, group, &pins, &npins);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < npins; i++) {
-		ret = rzt2h_pinctrl_pinconf_get(pctldev, pins[i], config);
-		if (ret)
-			return ret;
-
-		/* Check config matching between to pin  */
-		if (i && prev_config != *config)
-			return -EOPNOTSUPP;
-
-		prev_config = *config;
-	}
-
-	return 0;
-}
-
 static const struct pinctrl_ops rzt2h_pinctrl_pctlops = {
 	.get_groups_count = pinctrl_generic_get_group_count,
 	.get_group_name = pinctrl_generic_get_group_name,
@@ -684,15 +439,6 @@ static const struct pinmux_ops rzt2h_pinctrl_pmxops = {
 	.get_function_groups = pinmux_generic_get_function_groups,
 	.set_mux = rzt2h_pinctrl_set_mux,
 	.strict = true,
-};
-
-static const struct pinconf_ops rzt2h_pinctrl_confops = {
-	.is_generic = true,
-	.pin_config_get = rzt2h_pinctrl_pinconf_get,
-	.pin_config_set = rzt2h_pinctrl_pinconf_set,
-	.pin_config_group_set = rzt2h_pinctrl_pinconf_group_set,
-	.pin_config_group_get = rzt2h_pinctrl_pinconf_group_get,
-	.pin_config_config_dbg_show = pinconf_generic_dump_config,
 };
 
 static int rzt2h_gpio_request(struct gpio_chip *chip, unsigned int offset)
@@ -928,7 +674,6 @@ static int rzt2h_pinctrl_register(struct rzt2h_pinctrl *pctrl)
 	desc->npins = pctrl->data->n_port_pins;
 	desc->pctlops = &rzt2h_pinctrl_pctlops;
 	desc->pmxops = &rzt2h_pinctrl_pmxops;
-	desc->confops = &rzt2h_pinctrl_confops;
 	desc->owner = THIS_MODULE;
 
 	pins = devm_kcalloc(dev, desc->npins, sizeof(*pins), GFP_KERNEL);
