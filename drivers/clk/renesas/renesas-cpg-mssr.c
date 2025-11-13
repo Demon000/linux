@@ -1092,7 +1092,9 @@ static int cpg_mssr_suspend_noirq(struct device *dev)
 	for (reg = 0; reg < ARRAY_SIZE(priv->smstpcr_saved); reg++) {
 		if (priv->smstpcr_saved[reg].mask)
 			priv->smstpcr_saved[reg].val =
-				cpg_mstp_read_status_reg(priv, reg);
+				priv->reg_layout == CLK_REG_LAYOUT_RZ_A ?
+				readb(priv->pub.base0 + priv->control_regs[reg]) :
+				readl(priv->pub.base0 + priv->control_regs[reg]);
 	}
 
 	/* Save core clocks */
@@ -1105,8 +1107,8 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 {
 	struct cpg_mssr_priv *priv = dev_get_drvdata(dev);
 	unsigned int reg;
+	u32 mask, oldval, newval;
 	int error;
-	u32 mask;
 
 	/* This is the best we can do to check for the presence of PSCI */
 	if (!psci_ops.cpu_suspend)
@@ -1121,9 +1123,34 @@ static int cpg_mssr_resume_noirq(struct device *dev)
 		if (!mask)
 			continue;
 
-		error = cpg_mstp_write_control_reg(priv, reg, mask, true, false);
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A)
+			oldval = readb(priv->pub.base0 + priv->control_regs[reg]);
+		else
+			oldval = readl(priv->pub.base0 + priv->control_regs[reg]);
+		newval = oldval & ~mask;
+		newval |= priv->smstpcr_saved[reg].val & mask;
+		if (newval == oldval)
+			continue;
+
+		if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
+			writeb(newval, priv->pub.base0 + priv->control_regs[reg]);
+			/* dummy read to ensure write has completed */
+			readb(priv->pub.base0 + priv->control_regs[reg]);
+			barrier_data(priv->pub.base0 + priv->control_regs[reg]);
+			continue;
+		} else
+			writel(newval, priv->pub.base0 + priv->control_regs[reg]);
+
+		/* Wait until enabled clocks are really enabled */
+		mask &= ~priv->smstpcr_saved[reg].val;
+		if (!mask)
+			continue;
+
+		error = readl_poll_timeout_atomic(priv->pub.base0 + priv->status_regs[reg],
+						oldval, !(oldval & mask), 0, 10);
 		if (error)
-			dev_warn(dev, "Failed to enable SMSTP%u[0x%x]\n", reg, mask);
+			dev_warn(dev, "Failed to enable SMSTP%u[0x%x]\n", reg,
+				 oldval & mask);
 	}
 
 	return 0;
