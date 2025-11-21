@@ -336,12 +336,13 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV;
 
-	if (dmac->has_icu)
+	if (dmac->has_icu) {
 		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
 					   channel->index,
 					   RZV2H_ICU_DMAC_REQ_NO_DEFAULT);
-	else
+	} else {
 		rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	}
 
 	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG | CHCTRL_SETEN;
@@ -392,11 +393,12 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 
 	channel->lmdesc.tail = lmdesc;
 
-	if (dmac->has_icu)
+	if (dmac->has_icu) {
 		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
 					   channel->index, channel->mid_rid);
-	else
+	} else {
 		rz_dmac_set_dmars_register(dmac, channel->index, channel->mid_rid);
+	}
 
 	channel->chctrl = CHCTRL_SETEN;
 }
@@ -669,12 +671,13 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
 
-	if (dmac->has_icu)
+	if (dmac->has_icu) {
 		rzv2h_icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
 					   channel->index,
 					   RZV2H_ICU_DMAC_REQ_NO_DEFAULT);
-	else
+	} else {
 		rz_dmac_set_dmars_register(dmac, channel->index, 0);
+	}
 }
 
 /*
