@@ -27,6 +27,11 @@ properties:
               - renesas,r9a09g087-icu # RZ/N2H
           - const: renesas,r9a09g077-icu
 
+  reg:
+    items:
+      - description: Non-safety registers (INTCPU0-13, IRQ0-13)
+      - description: Safety registers (INTCPU14-15, IRQ14-15, SEI)
+
   '#interrupt-cells':
     description: The first cell is the SPI number of the interrupt, as per user
       manual. The second cell is used to specify the flag.
@@ -36,11 +41,6 @@ properties:
     const: 0
 
   interrupt-controller: true
-
-  reg:
-    items:
-      - description: Non-safety registers (INTCPU0-13, IRQ0-13)
-      - description: Safety registers (INTCPU14-15, IRQ14-15, SEI)
 
   interrupts:
     items:
