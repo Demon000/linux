@@ -60,8 +60,8 @@ struct rzt2h_icu_priv {
 	raw_spinlock_t			lock;
 };
 
-void rzt2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index,
-				u8 dmac_channel, u16 req_no)
+void rzt2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
+				u16 req_no)
 {
 	struct rzt2h_icu_priv *priv = platform_get_drvdata(icu_dev);
 	u8 y, upper;
@@ -90,11 +90,14 @@ static inline int rzt2h_icu_irq_to_offset(struct irq_data *d, void __iomem **bas
 	struct rzt2h_icu_priv *priv = irq_data_to_priv(d);
 	unsigned int hwirq = irqd_to_hwirq(d);
 
+	/*
+	 * Safety IRQs and SEI use a separate register space from the non-safety IRQs.
+	 * SEI interrupt number follows immediately after the safety IRQs.
+	 */
 	if (RZT2H_ICU_IRQ_IN_RANGE(hwirq, IRQ_NS)) {
 		*offset = hwirq - RZT2H_ICU_IRQ_NS_START;
 		*base = priv->base_ns;
 	} else if (RZT2H_ICU_IRQ_IN_RANGE(hwirq, IRQ_S) ||
-		   /* SEI follows safety IRQs in registers and in IRQ numbers. */
 		   RZT2H_ICU_IRQ_IN_RANGE(hwirq, SEI)) {
 		*offset = hwirq - RZT2H_ICU_IRQ_S_START;
 		*base = priv->base_s;
@@ -108,8 +111,7 @@ static inline int rzt2h_icu_irq_to_offset(struct irq_data *d, void __iomem **bas
 static int rzt2h_icu_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct rzt2h_icu_priv *priv = irq_data_to_priv(d);
-	unsigned int parent_type;
-	unsigned int offset;
+	unsigned int offset, parent_type;
 	void __iomem *base;
 	u32 val, md;
 	int ret;
@@ -139,11 +141,12 @@ static int rzt2h_icu_irq_set_type(struct irq_data *d, unsigned int type)
 		return -EINVAL;
 	}
 
-	guard(raw_spinlock)(&priv->lock);
-	val = readl_relaxed(base + RZT2H_ICU_PORTNF_MD);
-	val &= ~RZT2H_ICU_PORTNF_MDi_MASK(offset);
-	val |= RZT2H_ICU_PORTNF_MDi_PREP(offset, md);
-	writel_relaxed(val, base + RZT2H_ICU_PORTNF_MD);
+	scoped_guard(raw_spinlock, &priv->lock) {
+		val = readl_relaxed(base + RZT2H_ICU_PORTNF_MD);
+		val &= ~RZT2H_ICU_PORTNF_MDi_MASK(offset);
+		val |= RZT2H_ICU_PORTNF_MDi_PREP(offset, md);
+		writel_relaxed(val, base + RZT2H_ICU_PORTNF_MD);
+	}
 
 	return irq_chip_set_type_parent(d, parent_type);
 }
@@ -165,22 +168,23 @@ static int rzt2h_icu_set_type(struct irq_data *d, unsigned int type)
 }
 
 static const struct irq_chip rzt2h_icu_chip = {
-	.name = "rzt2h-icu",
-	.irq_mask = irq_chip_mask_parent,
-	.irq_unmask = irq_chip_unmask_parent,
-	.irq_eoi = irq_chip_eoi_parent,
-	.irq_set_type = rzt2h_icu_set_type,
-	.irq_set_wake = irq_chip_set_wake_parent,
-	.irq_set_affinity = irq_chip_set_affinity_parent,
-	.irq_retrigger = irq_chip_retrigger_hierarchy,
-	.irq_get_irqchip_state = irq_chip_get_parent_state,
-	.irq_set_irqchip_state = irq_chip_set_parent_state,
-	.flags = IRQCHIP_MASK_ON_SUSPEND | IRQCHIP_SET_TYPE_MASKED |
-		 IRQCHIP_SKIP_SET_WAKE,
+	.name			= "rzt2h-icu",
+	.irq_mask		= irq_chip_mask_parent,
+	.irq_unmask		= irq_chip_unmask_parent,
+	.irq_eoi		= irq_chip_eoi_parent,
+	.irq_set_type		= rzt2h_icu_set_type,
+	.irq_set_wake		= irq_chip_set_wake_parent,
+	.irq_set_affinity	= irq_chip_set_affinity_parent,
+	.irq_retrigger		= irq_chip_retrigger_hierarchy,
+	.irq_get_irqchip_state	= irq_chip_get_parent_state,
+	.irq_set_irqchip_state	= irq_chip_set_parent_state,
+	.flags			= IRQCHIP_MASK_ON_SUSPEND |
+				  IRQCHIP_SET_TYPE_MASKED |
+				  IRQCHIP_SKIP_SET_WAKE,
 };
 
-static int rzt2h_icu_alloc(struct irq_domain *domain, unsigned int virq,
-			   unsigned int nr_irqs, void *arg)
+static int rzt2h_icu_alloc(struct irq_domain *domain, unsigned int virq, unsigned int nr_irqs,
+			   void *arg)
 {
 	struct rzt2h_icu_priv *priv = domain->host_data;
 	irq_hw_number_t hwirq;
@@ -191,13 +195,11 @@ static int rzt2h_icu_alloc(struct irq_domain *domain, unsigned int virq,
 	if (ret)
 		return ret;
 
-	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &rzt2h_icu_chip,
-					    NULL);
+	ret = irq_domain_set_hwirq_and_chip(domain, virq, hwirq, &rzt2h_icu_chip, NULL);
 	if (ret)
 		return ret;
 
-	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
-					    &priv->fwspec[hwirq]);
+	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs, &priv->fwspec[hwirq]);
 }
 
 static const struct irq_domain_ops rzt2h_icu_domain_ops = {
@@ -206,8 +208,7 @@ static const struct irq_domain_ops rzt2h_icu_domain_ops = {
 	.translate	= irq_domain_translate_twocell,
 };
 
-static int rzt2h_icu_parse_interrupts(struct rzt2h_icu_priv *priv,
-				      struct device_node *np)
+static int rzt2h_icu_parse_interrupts(struct rzt2h_icu_priv *priv, struct device_node *np)
 {
 	struct of_phandle_args map;
 	unsigned int i;
@@ -218,15 +219,13 @@ static int rzt2h_icu_parse_interrupts(struct rzt2h_icu_priv *priv,
 		if (ret)
 			return ret;
 
-		of_phandle_args_to_fwspec(np, map.args, map.args_count,
-					  &priv->fwspec[i]);
+		of_phandle_args_to_fwspec(np, map.args, map.args_count, &priv->fwspec[i]);
 	}
 
 	return 0;
 }
 
-static int rzt2h_icu_init(struct platform_device *pdev,
-			  struct device_node *parent)
+static int rzt2h_icu_init(struct platform_device *pdev, struct device_node *parent)
 {
 	struct irq_domain *irq_domain, *parent_domain;
 	struct device_node *node = pdev->dev.of_node;
@@ -254,24 +253,20 @@ static int rzt2h_icu_init(struct platform_device *pdev,
 
 	ret = rzt2h_icu_parse_interrupts(priv, node);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "cannot parse interrupts: %d\n", ret);
+		return dev_err_probe(dev, ret, "cannot parse interrupts: %d\n", ret);
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "devm_pm_runtime_enable failed: %d\n", ret);
+		return dev_err_probe(dev, ret, "devm_pm_runtime_enable failed: %d\n", ret);
 
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "pm_runtime_resume_and_get failed: %d\n", ret);
+		return dev_err_probe(dev, ret, "pm_runtime_resume_and_get failed: %d\n", ret);
 
 	raw_spin_lock_init(&priv->lock);
 
 	irq_domain = irq_domain_create_hierarchy(parent_domain, 0, RZT2H_ICU_NUM_IRQ,
-						 dev_fwnode(dev),
-						 &rzt2h_icu_domain_ops, priv);
+						 dev_fwnode(dev), &rzt2h_icu_domain_ops, priv);
 	if (!irq_domain) {
 		pm_runtime_put(dev);
 		return -ENOMEM;
