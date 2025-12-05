@@ -316,3 +316,53 @@
 		reg = <0x5>;
 	};
 };
+
+&pinctrl {
+	mtu3_pins: mtu3-pins {
+		pinmux = <RZT2H_PORT_PINMUX(10, 5, 0x7)>, /* MTIOC0A on CN25-24 */
+			 /* MTIOC0B not exposed unmuxed */
+			 <RZT2H_PORT_PINMUX(4, 5, 0x7)>, /* MTIOC0C on CN25-9 */
+			 <RZT2H_PORT_PINMUX(4, 6, 0x7)>, /* MTIOC0D on CN25-10 */
+
+			 <RZT2H_PORT_PINMUX(3, 2, 0x7)>, /* MTIOC1A on CN24-32 */
+			 <RZT2H_PORT_PINMUX(3, 1, 0x7)>, /* MTIOC1B on CN24-31 */
+
+			 <RZT2H_PORT_PINMUX(10, 2, 0x7)>, /* MTIOC2A on CN24-21 */
+			 <RZT2H_PORT_PINMUX(10, 3, 0x7)>, /* MTIOC2B on CN24-22 */
+
+			 <RZT2H_PORT_PINMUX(3, 5, 0x6)>, /* MTIOC3A on CN24-35 */
+			 /* MTIOC3B not exposed unmuxed */
+			 <RZT2H_PORT_PINMUX(3, 6, 0x6)>, /* MTIOC3C on CN24-36 */
+			 /* MTIOC3D not exposed unmuxed */
+
+			 <RZT2H_PORT_PINMUX(2, 7, 0x6)>, /* MTIOC4A on CN24-29 */
+			 <RZT2H_PORT_PINMUX(3, 1, 0x6)>, /* MTIOC4B on CN24-31 */
+			 <RZT2H_PORT_PINMUX(3, 0, 0x6)>, /* MTIOC4C on CN24-30 */
+			 <RZT2H_PORT_PINMUX(3, 2, 0x6)>, /* MTIOC4D on CN24-32 */
+
+			 /* MTIC5U not exposed unmuxed, can replace MTIOC4A */
+			 /* MTIC5V not exposed unmuxed, can replace MTIOC4C */
+			 /* MTIC5W not exposed unmuxed, can replace MTIOC3A */
+
+			 /* MTIOC6A not exposed unmuxed, can replace MTIOC0A */
+			 <RZT2H_PORT_PINMUX(3, 7, 0x6)>, /* MTIOC6B on CN25-3 */
+			 /* MTIOC6C not exposed unmuxed */
+			 <RZT2H_PORT_PINMUX(4, 0, 0x6)>, /* MTIOC6D on CN25-4 */
+
+			 <RZT2H_PORT_PINMUX(4, 1, 0x6)>, /* MTIOC7A on CN25-5 */
+			 /* MTIOC7B not exposed unmuxed */
+			 <RZT2H_PORT_PINMUX(4, 2, 0x6)>, /* MTIOC7C on CN25-6 */
+			 /* MTIOC7D not exposed unmuxed */
+
+			 /* MTIOC8A not exposed unmuxed */
+			 /* MTIOC8B not exposed unmuxed */
+			 <RZT2H_PORT_PINMUX(0, 5, 0x7)>, /* MTIOC8C on CN24-8 */
+			 <RZT2H_PORT_PINMUX(0, 6, 0x7)>; /* MTIOC8D on CN24-9 */
+	};
+};
+
+&mtu3 {
+	pinctrl-0 = <&mtu3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
