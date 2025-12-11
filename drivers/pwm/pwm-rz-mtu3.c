@@ -270,7 +270,7 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			dc = rz_mtu3_16bit_ch_read(priv->mtu, RZ_MTU3_TGRD);
 
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR);
-		prescale = FIELD_GET(RZ_MTU3_TCR_TPCS, val);
+		prescale = FIELD_GET(RZ_MTU3_TCR_TPSC, val);
 
 		state->period = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, pv, prescale);
 		state->duty_cycle = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, dc, prescale);
