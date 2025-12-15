@@ -131,7 +131,6 @@ enum rz_mtu3_channels {
  * @is_busy: channel state
  */
 struct rz_mtu3_channel {
-	struct device *dev;
 	unsigned int channel_number;
 	struct mutex lock;
 	bool is_busy;
