@@ -469,7 +469,6 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 			continue;
 
 		rz_mtu3_pwm->channel_data[j].mtu = &parent_ddata->channels[i];
-		rz_mtu3_pwm->channel_data[j].mtu->dev = dev;
 		rz_mtu3_pwm->channel_data[j].map = &channel_map[j];
 		rz_mtu3_pwm->prescale[j] = U8_MAX;
 		j++;
