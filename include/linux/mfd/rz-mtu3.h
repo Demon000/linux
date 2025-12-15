@@ -139,13 +139,11 @@ enum rz_mtu3_channels {
 /**
  * struct rz_mtu3_channel - MTU3 channel private data
  *
- * @dev: device handle
  * @channel_number: channel number
  * @lock: Lock to protect channel state
  * @is_busy: channel state
  */
 struct rz_mtu3_channel {
-	struct device *dev;
 	unsigned int channel_number;
 	struct mutex lock;
 	bool is_busy;
