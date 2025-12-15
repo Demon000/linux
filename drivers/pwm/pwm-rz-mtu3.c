@@ -94,8 +94,7 @@ static inline struct rz_mtu3_pwm_chip *to_rz_mtu3_pwm_chip(struct pwm_chip *chip
 	return pwmchip_get_drvdata(chip);
 }
 
-static u8 rz_mtu3_pwm_calculate_prescale(struct rz_mtu3_pwm_chip *rz_mtu3,
-					 u64 period_cycles)
+static u8 rz_mtu3_pwm_calculate_prescale(u64 period_cycles)
 {
 	u32 prescaled_period_cycles;
 	u8 prescale;
@@ -317,7 +316,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	period_cycles = mul_u64_u32_div(state->period, rz_mtu3_pwm->rate,
 					NSEC_PER_SEC);
-	prescale = rz_mtu3_pwm_calculate_prescale(rz_mtu3_pwm, period_cycles);
+	prescale = rz_mtu3_pwm_calculate_prescale(period_cycles);
 
 	/*
 	 * The counter is shared by all IOs of a HW channel, and we cannot clear
