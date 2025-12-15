@@ -118,8 +118,7 @@ static void rz_mtu3_pwm_write_tgr_registers(struct rz_mtu3_pwm_channel *priv,
 	rz_mtu3_16bit_ch_write(priv->mtu, reg_dc_offset, dc_val);
 }
 
-static u8 rz_mtu3_pwm_calculate_prescale(struct rz_mtu3_pwm_chip *rz_mtu3,
-					 u64 period_cycles)
+static u8 rz_mtu3_pwm_calculate_prescale(u64 period_cycles)
 {
 	u32 prescaled_period_cycles;
 	u8 prescale;
@@ -421,7 +420,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		period_cycles = rz_mtu3_pwm->period_cycles[ch];
 	}
 
-	prescale = rz_mtu3_pwm_calculate_prescale(rz_mtu3_pwm, period_cycles);
+	prescale = rz_mtu3_pwm_calculate_prescale(period_cycles);
 	pv = rz_mtu3_pwm_calculate_pv_or_dc(period_cycles, prescale);
 
 	duty_cycles = mul_u64_u32_div(state->duty_cycle, rz_mtu3_pwm->rate,
