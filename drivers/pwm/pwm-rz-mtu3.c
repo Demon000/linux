@@ -46,9 +46,17 @@
  * struct rz_mtu3_pwm_channel - MTU3 pwm channel data
  *
  * @mtu: MTU3 channel data
+ * @period_cycles: MTU3 period cycles
+ * @user_count: MTU3 usage count
+ * @enable_count: MTU3 enable count
+ * @prescale: MTU3 prescale
  */
 struct rz_mtu3_pwm_channel {
 	struct rz_mtu3_channel *mtu;
+	u64 period_cycles;
+	u32 user_count;
+	u32 enable_count;
+	u8 prescale;
 };
 
 /**
@@ -56,20 +64,12 @@ struct rz_mtu3_pwm_channel {
  *
  * @lock: Lock to prevent concurrent access for usage count
  * @rate: MTU3 clock rate
- * @period_cycles: MTU3 period cycles
- * @user_count: MTU3 usage count
- * @enable_count: MTU3 enable count
- * @prescale: MTU3 prescale
  * @channel_data: MTU3 pwm channel data
  */
 
 struct rz_mtu3_pwm_chip {
 	struct mutex lock;
 	unsigned long rate;
-	u64 period_cycles[RZ_MTU3_MAX_HW_CHANNELS];
-	u32 user_count[RZ_MTU3_MAX_HW_CHANNELS];
-	u32 enable_count[RZ_MTU3_MAX_HW_CHANNELS];
-	u8 prescale[RZ_MTU3_MAX_HW_CHANNELS];
 	struct rz_mtu3_pwm_channel channel_data[RZ_MTU3_MAX_HW_CHANNELS];
 };
 
@@ -180,10 +180,8 @@ static int rz_mtu3_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
 	bool is_mtu3_channel_available;
-	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-	ch = priv - rz_mtu3_pwm->channel_data;
 
 	mutex_lock(&rz_mtu3_pwm->lock);
 	/*
@@ -191,7 +189,7 @@ static int rz_mtu3_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	 * serves two PWMs and the other is already requested, skip over
 	 * rz_mtu3_request_channel()
 	 */
-	if (!rz_mtu3_pwm->user_count[ch]) {
+	if (!priv->user_count) {
 		is_mtu3_channel_available = rz_mtu3_request_channel(priv->mtu);
 		if (!is_mtu3_channel_available) {
 			mutex_unlock(&rz_mtu3_pwm->lock);
@@ -199,7 +197,7 @@ static int rz_mtu3_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		}
 	}
 
-	rz_mtu3_pwm->user_count[ch]++;
+	priv->user_count++;
 	mutex_unlock(&rz_mtu3_pwm->lock);
 
 	return 0;
@@ -209,14 +207,12 @@ static void rz_mtu3_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
-	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-	ch = priv - rz_mtu3_pwm->channel_data;
 
 	mutex_lock(&rz_mtu3_pwm->lock);
-	rz_mtu3_pwm->user_count[ch]--;
-	if (!rz_mtu3_pwm->user_count[ch])
+	priv->user_count--;
+	if (!priv->user_count)
 		rz_mtu3_release_channel(priv->mtu);
 
 	mutex_unlock(&rz_mtu3_pwm->lock);
@@ -286,7 +282,6 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
-	u32 ch;
 	int rc;
 
 	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
@@ -294,15 +289,14 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		return rc;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-	ch = priv - rz_mtu3_pwm->channel_data;
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
-	if (!rz_mtu3_pwm->enable_count[ch])
+	if (!priv->enable_count)
 		rz_mtu3_enable(priv->mtu);
 
-	rz_mtu3_pwm->enable_count[ch]++;
+	priv->enable_count++;
 	mutex_unlock(&rz_mtu3_pwm->lock);
 
 	return 0;
@@ -312,10 +306,8 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
-	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-	ch = priv - rz_mtu3_pwm->channel_data;
 
 	/* Disable output pins of MTU3 channel */
 	if (rz_mtu3_hwpwm_is_primary(pwm->hwpwm))
@@ -326,8 +318,8 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, false);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
-	rz_mtu3_pwm->enable_count[ch]--;
-	if (!rz_mtu3_pwm->enable_count[ch])
+	priv->enable_count--;
+	if (!priv->enable_count)
 		rz_mtu3_disable(priv->mtu);
 
 	mutex_unlock(&rz_mtu3_pwm->lock);
@@ -400,10 +392,8 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u8 prescale;
 	u16 pv, dc;
 	u16 dc_reg;
-	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-	ch = priv - rz_mtu3_pwm->channel_data;
 
 	period_cycles = mul_u64_u32_div(state->period, rz_mtu3_pwm->rate,
 					NSEC_PER_SEC);
@@ -418,11 +408,11 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * pwm->state.enabled indicates whether this PWM is already enabled.
 	 * Compare them to determine whether the other IO is enabled.
 	 */
-	if (rz_mtu3_pwm->enable_count[ch] > pwm->state.enabled) {
-		if (rz_mtu3_pwm->period_cycles[ch] > period_cycles)
+	if (priv->enable_count > pwm->state.enabled) {
+		if (priv->period_cycles > period_cycles)
 			return -EBUSY;
 
-		period_cycles = rz_mtu3_pwm->period_cycles[ch];
+		period_cycles = priv->period_cycles;
 	}
 
 	prescale = rz_mtu3_pwm_calculate_prescale(period_cycles);
@@ -447,7 +437,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Counter must be stopped while updating TCR register */
-	if (rz_mtu3_pwm->prescale[ch] != prescale && rz_mtu3_pwm->enable_count[ch])
+	if (priv->prescale != prescale && priv->enable_count)
 		rz_mtu3_disable(priv->mtu);
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA |
@@ -477,7 +467,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * enabling, otherwise counting will start mid-cycle and it will
 	 * generate a malformed first cycle.
 	 */
-	if (!rz_mtu3_pwm->enable_count[ch])
+	if (!priv->enable_count)
 		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TCNT, 0);
 
 	/*
@@ -487,19 +477,19 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, true);
 	rz_mtu3_pwm_set_tior(priv, pwm->hwpwm, pv, dc);
 
-	if (rz_mtu3_pwm->prescale[ch] != prescale) {
+	if (priv->prescale != prescale) {
 		/*
 		 * Prescalar is shared by multiple channels, we cache the
 		 * prescalar value from first enabled channel and use the same
 		 * value for both channels.
 		 */
-		rz_mtu3_pwm->prescale[ch] = prescale;
+		priv->prescale = prescale;
 
-		if (rz_mtu3_pwm->enable_count[ch])
+		if (priv->enable_count)
 			rz_mtu3_enable(priv->mtu);
 	}
 
-	rz_mtu3_pwm->period_cycles[ch] = period_cycles;
+	priv->period_cycles = period_cycles;
 
 	/* If the PWM is not enabled, turn the clock off again to save power. */
 	if (!pwm->state.enabled)
