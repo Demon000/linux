@@ -142,6 +142,19 @@ rz_mtu3_get_channel(struct rz_mtu3_pwm_chip *rz_mtu3_pwm, u32 hwpwm)
 	return priv;
 }
 
+static u32 rz_mtu3_sibling_hwpwm(struct rz_mtu3_pwm_chip *rz_mtu3_pwm, u32 hwpwm)
+{
+	struct rz_mtu3_pwm_channel *priv = rz_mtu3_get_channel(rz_mtu3_pwm, hwpwm);
+	u8 base_pwm_number = priv->map->base_pwm_number;
+
+	WARN_ON(priv->map->num_channel_ios < 2);
+
+	if (base_pwm_number == hwpwm)
+		return base_pwm_number + 1;
+	else
+		return base_pwm_number;
+}
+
 static bool rz_mtu3_pwm_is_ch_enabled(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
 				      u32 hwpwm)
 {
@@ -340,11 +353,15 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * different settings. Modify prescalar if other PWM is off or handle
 	 * it, if current prescale value is less than the one we want to set.
 	 */
-	if (rz_mtu3_pwm->enable_count[ch] > 1) {
-		if (rz_mtu3_pwm->prescale[ch] > prescale)
-			return -EBUSY;
+	if (rz_mtu3_pwm->user_count[ch] > 1) {
+		u32 sibling_hwpwm = rz_mtu3_sibling_hwpwm(rz_mtu3_pwm, pwm->hwpwm);
 
-		prescale = rz_mtu3_pwm->prescale[ch];
+		if (rz_mtu3_pwm_is_ch_enabled(rz_mtu3_pwm, sibling_hwpwm)) {
+			if (rz_mtu3_pwm->prescale[ch] > prescale)
+				return -EBUSY;
+
+			prescale = rz_mtu3_pwm->prescale[ch];
+		}
 	}
 
 	pv = rz_mtu3_pwm_calculate_pv_or_dc(period_cycles, prescale);
