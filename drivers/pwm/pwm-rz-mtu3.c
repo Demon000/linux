@@ -310,6 +310,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u8 prescale;
 	u16 pv, dc;
 	u32 ch;
+	int rc;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 	ch = priv - rz_mtu3_pwm->channel_data;
@@ -334,17 +335,9 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 				      NSEC_PER_SEC);
 	dc = rz_mtu3_pwm_calculate_pv_or_dc(duty_cycles, prescale);
 
-	/*
-	 * If the PWM channel is disabled, make sure to turn on the clock
-	 * before writing the register.
-	 */
-	if (!pwm->state.enabled) {
-		int rc;
-
-		rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
-		if (rc)
-			return rc;
-	}
+	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
+	if (rc)
+		return rc;
 
 	/* Counter must be stopped while updating TCR register */
 	if (rz_mtu3_pwm->prescale[ch] != prescale) {
@@ -381,9 +374,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	rz_mtu3_pwm->period_cycles[ch] = period_cycles;
 
-	/* If the PWM is not enabled, turn the clock off again to save power. */
-	if (!pwm->state.enabled)
-		pm_runtime_put(pwmchip_parent(chip));
+	pm_runtime_put(pwmchip_parent(chip));
 
 	return 0;
 }
