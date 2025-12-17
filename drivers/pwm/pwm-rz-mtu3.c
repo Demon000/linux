@@ -237,6 +237,13 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_sync(pwmchip_parent(chip));
 }
 
+static u64 rz_mtu3_pwm_calculate_ns(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
+				    u16 value, u8 prescale)
+{
+	return mul_u64_u32_div((u64)value << (2 * prescale), NSEC_PER_SEC,
+			       rz_mtu3_pwm->rate);
+}
+
 static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 				 struct pwm_state *state)
 {
@@ -253,7 +260,6 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		u8 prescale, val;
 		bool is_primary;
 		u16 dc, pv;
-		u64 tmp;
 
 		priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm, &is_primary);
 		pv = rz_mtu3_16bit_ch_read(priv->mtu, RZ_MTU3_TGRA);
@@ -266,11 +272,8 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR);
 		prescale = FIELD_GET(RZ_MTU3_TCR_TPCS, val);
 
-		/* With prescale <= 7 and pv <= 0xffff this doesn't overflow. */
-		tmp = NSEC_PER_SEC * (u64)pv << (2 * prescale);
-		state->period = DIV_ROUND_UP_ULL(tmp, rz_mtu3_pwm->rate);
-		tmp = NSEC_PER_SEC * (u64)dc << (2 * prescale);
-		state->duty_cycle = DIV_ROUND_UP_ULL(tmp, rz_mtu3_pwm->rate);
+		state->period = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, pv, prescale);
+		state->duty_cycle = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, dc, prescale);
 
 		if (state->duty_cycle > state->period)
 			state->duty_cycle = state->period;
