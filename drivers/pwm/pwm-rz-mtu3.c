@@ -43,6 +43,13 @@
 
 #define RZ_MTU3_MAX_HW_CHANNELS		7
 
+struct rz_mtu3_pwm_waveform {
+	u16 pv;
+	u16 dc;
+	u8 prescale;
+	bool enabled;
+};
+
 /**
  * struct rz_mtu3_pwm_channel - MTU3 pwm channel data
  *
@@ -431,10 +438,51 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	pm_runtime_put_noidle(pwmchip_parent(chip));
 }
 
-static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
-				 struct pwm_state *state)
+static u64 rz_mtu3_pwm_calculate_ns(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
+				    u16 value, u8 prescale)
+{
+	/* With prescale <= 10 and value <= 0xffff this doesn't overflow. */
+	u64 tmp = NSEC_PER_SEC * (u64)value << prescale;
+
+	return DIV_ROUND_UP_ULL(tmp, rz_mtu3_pwm->rate);
+}
+
+static int rz_mtu3_pwm_round_waveform_fromhw(struct pwm_chip *chip,
+					     struct pwm_device *pwm,
+					     const void *_wfhw,
+					     struct pwm_waveform *wf)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	const struct rz_mtu3_pwm_waveform *wfhw = _wfhw;
+
+	if (!wfhw->enabled) {
+		*wf = (typeof(*wf)){
+			.period_length_ns = 0,
+			.duty_length_ns = 0,
+		};
+
+		return 0;
+	}
+
+	*wf = (typeof(*wf)){
+		.period_length_ns = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm,
+							     wfhw->pv,
+							     wfhw->prescale),
+		.duty_length_ns = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm,
+							   wfhw->dc,
+							   wfhw->prescale),
+	};
+
+	return 0;
+}
+
+static int rz_mtu3_pwm_read_waveform(struct pwm_chip *chip,
+				     struct pwm_device *pwm,
+				     void *_wfhw)
+{
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	struct rz_mtu3_pwm_waveform *wfhw = _wfhw;
+	bool enabled;
 	int rc;
 
 	PM_RUNTIME_ACQUIRE_IF_ENABLED(pwmchip_parent(chip), pm);
@@ -442,26 +490,34 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (rc)
 		return rc;
 
-	state->enabled = rz_mtu3_pwm_is_ch_enabled(rz_mtu3_pwm, pwm->hwpwm);
-	if (state->enabled) {
+	enabled = rz_mtu3_pwm_is_ch_enabled(rz_mtu3_pwm, pwm->hwpwm);
+
+	*wfhw = (typeof(*wfhw)){
+		.enabled = enabled,
+	};
+
+	if (enabled) {
 		struct rz_mtu3_pwm_channel *priv;
-		u8 prescale, tpsc, tpsc2, val;
-		u16 dc, pv;
-		u64 tmp;
+		u8 tpsc, tpsc2, val;
 
 		priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 		if (rz_mtu3_hwpwm_is_primary(pwm->hwpwm)) {
-			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRA, &pv,
-						       RZ_MTU3_TGRB, &dc);
+			rz_mtu3_pwm_read_tgr_registers(priv,
+						       RZ_MTU3_TGRA, &wfhw->pv,
+						       RZ_MTU3_TGRB, &wfhw->dc);
 			val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORH);
 		} else {
-			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRC, &pv,
-						       RZ_MTU3_TGRD, &dc);
+			rz_mtu3_pwm_read_tgr_registers(priv,
+						       RZ_MTU3_TGRC, &wfhw->pv,
+						       RZ_MTU3_TGRD, &wfhw->dc);
 			val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORL);
 		}
 
 		if (val == RZ_MTU3_TIOR_CONST_HIGH)
-			dc = pv;
+			wfhw->dc = wfhw->pv;
+
+		if (wfhw->dc > wfhw->pv)
+			wfhw->dc = wfhw->pv;
 
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR);
 		tpsc = FIELD_GET(RZ_MTU3_TCR_TPCS, val);
@@ -469,23 +525,11 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR2);
 		tpsc2 = FIELD_GET(RZ_MTU3_TCR2_TPSC2, val);
 
-		rc = rz_mtu3_pwm_tpsc_to_prescale(priv, tpsc, tpsc2, &prescale);
-		if (rc)
-			return rc;
-
-		/* With prescale <= 10 and pv <= 0xffff this doesn't overflow. */
-		tmp = NSEC_PER_SEC * (u64)pv << prescale;
-		state->period = DIV_ROUND_UP_ULL(tmp, rz_mtu3_pwm->rate);
-		tmp = NSEC_PER_SEC * (u64)dc << prescale;
-		state->duty_cycle = DIV_ROUND_UP_ULL(tmp, rz_mtu3_pwm->rate);
-
-		if (state->duty_cycle > state->period)
-			state->duty_cycle = state->period;
+		rc = rz_mtu3_pwm_tpsc_to_prescale(priv, tpsc, tpsc2,
+						  &wfhw->prescale);
 	}
 
-	state->polarity = PWM_POLARITY_NORMAL;
-
-	return 0;
+	return rc;
 }
 
 static u16 rz_mtu3_pwm_calculate_pv_or_dc(u64 period_or_duty_cycle, u8 prescale)
@@ -493,22 +537,37 @@ static u16 rz_mtu3_pwm_calculate_pv_or_dc(u64 period_or_duty_cycle, u8 prescale)
 	return min(period_or_duty_cycle >> prescale, (u64)U16_MAX);
 }
 
-static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			      const struct pwm_state *state)
+static u64 rz_mtu3_pwm_calculate_cycles(u16 value, u8 prescale)
+{
+	return (u64)value << prescale;
+}
+
+static int rz_mtu3_pwm_round_waveform_tohw(struct pwm_chip *chip,
+					   struct pwm_device *pwm,
+					   const struct pwm_waveform *wf,
+					   void *_wfhw)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	struct rz_mtu3_pwm_waveform *wfhw = _wfhw;
 	struct rz_mtu3_pwm_channel *priv;
 	u64 period_cycles;
 	u64 duty_cycles;
-	u8 tpsc, tpsc2;
-	u8 prescale;
-	u16 pv, dc;
-	u16 dc_reg;
-	int rc;
+	int ret = 0;
+
+	if (wf->duty_offset_ns)
+		return -EINVAL;
+
+	if (!wf->period_length_ns) {
+		*wfhw = (typeof(*wfhw)){
+			.enabled = false,
+		};
+
+		return 0;
+	}
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 
-	period_cycles = mul_u64_u32_div(state->period, rz_mtu3_pwm->rate,
+	period_cycles = mul_u64_u32_div(wf->period_length_ns, rz_mtu3_pwm->rate,
 					NSEC_PER_SEC);
 
 	/*
@@ -519,26 +578,41 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (priv->enable_mask & ~BIT(rz_mtu3_hwpwm_io(pwm->hwpwm))) {
 		if (priv->period_cycles > period_cycles)
-			return -EBUSY;
+			ret = 1;
 
 		period_cycles = priv->period_cycles;
 	}
 
-	prescale = rz_mtu3_pwm_calculate_prescale(period_cycles);
-	pv = rz_mtu3_pwm_calculate_pv_or_dc(period_cycles, prescale);
+	wfhw->enabled = true;
+	wfhw->prescale = rz_mtu3_pwm_calculate_prescale(period_cycles);
+	wfhw->pv = rz_mtu3_pwm_calculate_pv_or_dc(period_cycles, wfhw->prescale);
 
-	duty_cycles = mul_u64_u32_div(state->duty_cycle, rz_mtu3_pwm->rate,
+	duty_cycles = mul_u64_u32_div(wf->duty_length_ns, rz_mtu3_pwm->rate,
 				      NSEC_PER_SEC);
 	if (duty_cycles > period_cycles)
 		duty_cycles = period_cycles;
-	dc = rz_mtu3_pwm_calculate_pv_or_dc(duty_cycles, prescale);
+	wfhw->dc = rz_mtu3_pwm_calculate_pv_or_dc(duty_cycles, wfhw->prescale);
 
-	rc = rz_mtu3_pwm_prescale_to_tpsc(priv, prescale, &tpsc, &tpsc2);
+	return ret;
+}
+
+static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+			      const struct rz_mtu3_pwm_waveform *wfhw)
+{
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	struct rz_mtu3_pwm_channel *priv;
+	u8 tpsc, tpsc2;
+	u16 dc_reg;
+	int rc;
+
+	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
+
+	rc = rz_mtu3_pwm_prescale_to_tpsc(priv, wfhw->prescale, &tpsc, &tpsc2);
 	if (rc)
 		return rc;
 
 	/* Counter must be stopped while updating TCR register */
-	if (priv->prescale != prescale && priv->enable_mask)
+	if (priv->prescale != wfhw->prescale && priv->enable_mask)
 		rz_mtu3_disable(priv->mtu);
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR,
@@ -553,17 +627,17 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * time, in which case they are ignored. Limit duty to be one less than
 	 * period to avoid it.
 	 */
-	dc_reg = dc;
-	if (dc_reg >= pv && pv != 0)
-		dc_reg = pv - 1;
+	dc_reg = wfhw->dc;
+	if (dc_reg >= wfhw->pv && wfhw->pv != 0)
+		dc_reg = wfhw->pv - 1;
 
 	if (rz_mtu3_hwpwm_is_primary(pwm->hwpwm)) {
-		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRA, pv,
+		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRA, wfhw->pv,
 						RZ_MTU3_TGRB, dc_reg);
 	} else {
 		/* TGRA is used to reset the counter for both IOs. */
-		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
-		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRC, pv,
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, wfhw->pv);
+		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRC, wfhw->pv,
 						RZ_MTU3_TGRD, dc_reg);
 	}
 
@@ -580,33 +654,33 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * 18.3.23.
 	 */
 	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, true);
-	rz_mtu3_pwm_set_tior(priv, pwm->hwpwm, pv, dc);
+	rz_mtu3_pwm_set_tior(priv, pwm->hwpwm, wfhw->pv, wfhw->dc);
 
-	if (priv->prescale != prescale) {
+	if (priv->prescale != wfhw->prescale) {
 		/*
 		 * Prescalar is shared by multiple channels, we cache the
 		 * prescalar value from first enabled channel and use the same
 		 * value for both channels.
 		 */
-		priv->prescale = prescale;
+		priv->prescale = wfhw->prescale;
 
 		if (priv->enable_mask)
 			rz_mtu3_enable(priv->mtu);
 	}
 
-	priv->period_cycles = period_cycles;
+	priv->period_cycles = rz_mtu3_pwm_calculate_cycles(wfhw->pv,
+							   wfhw->prescale);
 
 	return 0;
 }
 
-static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			     const struct pwm_state *state)
+static int rz_mtu3_pwm_write_waveform(struct pwm_chip *chip,
+				      struct pwm_device *pwm,
+				      const void *_wfhw)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	const struct rz_mtu3_pwm_waveform *wfhw = _wfhw;
 	int ret;
-
-	if (state->polarity != PWM_POLARITY_NORMAL)
-		return -EINVAL;
 
 	PM_RUNTIME_ACQUIRE_IF_ENABLED(pwmchip_parent(chip), pm);
 	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
@@ -615,12 +689,12 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	guard(mutex)(&rz_mtu3_pwm->lock);
 
-	if (!state->enabled) {
+	if (!wfhw->enabled) {
 		rz_mtu3_pwm_disable(chip, pwm);
 		return 0;
 	}
 
-	ret = rz_mtu3_pwm_config(chip, pwm, state);
+	ret = rz_mtu3_pwm_config(chip, pwm, wfhw);
 	if (ret)
 		return ret;
 
@@ -630,10 +704,13 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static const struct pwm_ops rz_mtu3_pwm_ops = {
+	.sizeof_wfhw = sizeof(struct rz_mtu3_pwm_waveform),
 	.request = rz_mtu3_pwm_request,
 	.free = rz_mtu3_pwm_free,
-	.get_state = rz_mtu3_pwm_get_state,
-	.apply = rz_mtu3_pwm_apply,
+	.round_waveform_tohw = rz_mtu3_pwm_round_waveform_tohw,
+	.round_waveform_fromhw = rz_mtu3_pwm_round_waveform_fromhw,
+	.read_waveform = rz_mtu3_pwm_read_waveform,
+	.write_waveform = rz_mtu3_pwm_write_waveform,
 };
 
 static int rz_mtu3_pwm_probe(struct platform_device *pdev)
