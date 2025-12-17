@@ -74,6 +74,7 @@ struct rz_mtu3_pwm_chip {
 	struct clk *clk;
 	struct mutex lock;
 	unsigned long rate;
+	u64 period_cycles[RZ_MTU3_MAX_HW_CHANNELS];
 	u32 user_count[RZ_MTU3_MAX_HW_CHANNELS];
 	u32 enable_count[RZ_MTU3_MAX_HW_CHANNELS];
 	u8 prescale[RZ_MTU3_MAX_HW_CHANNELS];
@@ -91,22 +92,6 @@ static const struct rz_mtu3_channel_io_map channel_map[] = {
 static inline struct rz_mtu3_pwm_chip *to_rz_mtu3_pwm_chip(struct pwm_chip *chip)
 {
 	return pwmchip_get_drvdata(chip);
-}
-
-static void rz_mtu3_pwm_read_tgr_registers(struct rz_mtu3_pwm_channel *priv,
-					   u16 reg_pv_offset, u16 *pv_val,
-					   u16 reg_dc_offset, u16 *dc_val)
-{
-	*pv_val = rz_mtu3_16bit_ch_read(priv->mtu, reg_pv_offset);
-	*dc_val = rz_mtu3_16bit_ch_read(priv->mtu, reg_dc_offset);
-}
-
-static void rz_mtu3_pwm_write_tgr_registers(struct rz_mtu3_pwm_channel *priv,
-					    u16 reg_pv_offset, u16 pv_val,
-					    u16 reg_dc_offset, u16 dc_val)
-{
-	rz_mtu3_16bit_ch_write(priv->mtu, reg_pv_offset, pv_val);
-	rz_mtu3_16bit_ch_write(priv->mtu, reg_dc_offset, dc_val);
 }
 
 static u8 rz_mtu3_pwm_calculate_prescale(struct rz_mtu3_pwm_chip *rz_mtu3,
@@ -297,12 +282,12 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		u64 tmp;
 
 		priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
+		pv = rz_mtu3_16bit_ch_read(priv->mtu, RZ_MTU3_TGRA);
+
 		if (priv->map->base_pwm_number == pwm->hwpwm)
-			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRA, &pv,
-						       RZ_MTU3_TGRB, &dc);
+			dc = rz_mtu3_16bit_ch_read(priv->mtu, RZ_MTU3_TGRB);
 		else
-			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRC, &pv,
-						       RZ_MTU3_TGRD, &dc);
+			dc = rz_mtu3_16bit_ch_read(priv->mtu, RZ_MTU3_TGRD);
 
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR);
 		prescale = FIELD_GET(RZ_MTU3_TCR_TPCS, val);
@@ -337,7 +322,6 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 duty_cycles;
 	u8 prescale;
 	u16 pv, dc;
-	u8 val;
 	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
@@ -345,29 +329,31 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	period_cycles = mul_u64_u32_div(state->period, rz_mtu3_pwm->rate,
 					NSEC_PER_SEC);
-	prescale = rz_mtu3_pwm_calculate_prescale(rz_mtu3_pwm, period_cycles);
 
 	/*
-	 * Prescalar is shared by multiple channels, so prescale can
-	 * NOT be modified when there are multiple channels in use with
-	 * different settings. Modify prescalar if other PWM is off or handle
-	 * it, if current prescale value is less than the one we want to set.
+	 * The counter is shared by all IOs of a HW channel, and we cannot clear
+	 * it from multiple sources, as the TCR register for each HW channel can
+	 * only select one clearing source between TGRA, TGRB, TGRC, and TGRD.
+	 * Enforce that all IOs use the same period cycle.
 	 */
 	if (rz_mtu3_pwm->user_count[ch] > 1) {
 		u32 sibling_hwpwm = rz_mtu3_sibling_hwpwm(rz_mtu3_pwm, pwm->hwpwm);
 
 		if (rz_mtu3_pwm_is_ch_enabled(rz_mtu3_pwm, sibling_hwpwm)) {
-			if (rz_mtu3_pwm->prescale[ch] > prescale)
+			if (rz_mtu3_pwm->period_cycles[ch] > period_cycles)
 				return -EBUSY;
 
-			prescale = rz_mtu3_pwm->prescale[ch];
+			period_cycles = rz_mtu3_pwm->period_cycles[ch];
 		}
 	}
 
+	prescale = rz_mtu3_pwm_calculate_prescale(rz_mtu3_pwm, period_cycles);
 	pv = rz_mtu3_pwm_calculate_pv_or_dc(period_cycles, prescale);
 
 	duty_cycles = mul_u64_u32_div(state->duty_cycle, rz_mtu3_pwm->rate,
 				      NSEC_PER_SEC);
+	if (duty_cycles > period_cycles)
+		duty_cycles = period_cycles;
 	dc = rz_mtu3_pwm_calculate_pv_or_dc(duty_cycles, prescale);
 
 	/*
@@ -382,22 +368,21 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			return rc;
 	}
 
-	val = RZ_MTU3_TCR_CKEG_RISING | prescale;
-
 	/* Counter must be stopped while updating TCR register */
 	if (rz_mtu3_pwm->prescale[ch] != prescale && rz_mtu3_pwm->enable_count[ch])
 		rz_mtu3_disable(priv->mtu);
 
+	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA |
+			      RZ_MTU3_TCR_CKEG_RISING | prescale);
+
+	/* TGRA is used to reset the counter for both IOs. */
+	rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
+
 	if (priv->map->base_pwm_number == pwm->hwpwm) {
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR,
-				      RZ_MTU3_TCR_CCLR_TGRA | val);
-		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRA, pv,
-						RZ_MTU3_TGRB, dc);
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRB, dc);
 	} else {
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR,
-				      RZ_MTU3_TCR_CCLR_TGRC | val);
-		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRC, pv,
-						RZ_MTU3_TGRD, dc);
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRC, pv);
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRD, dc);
 	}
 
 	if (rz_mtu3_pwm->prescale[ch] != prescale) {
@@ -411,6 +396,8 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (rz_mtu3_pwm->enable_count[ch])
 			rz_mtu3_enable(priv->mtu);
 	}
+
+	rz_mtu3_pwm->period_cycles[ch] = period_cycles;
 
 	/* If the PWM is not enabled, turn the clock off again to save power. */
 	if (!pwm->state.enabled)
