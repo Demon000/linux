@@ -339,8 +339,12 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * NOT be modified when there are multiple channels in use with
 	 * different settings. Modify prescalar if other PWM is off or handle
 	 * it, if current prescale value is less than the one we want to set.
+	 *
+	 * enable_count includes this IO only if it is already enabled.
+	 * pwm->state.enabled indicates whether this PWM is already enabled.
+	 * Compare them to determine whether the other IO is enabled.
 	 */
-	if (rz_mtu3_pwm->enable_count[ch] > 1) {
+	if (rz_mtu3_pwm->enable_count[ch] > pwm->state.enabled) {
 		if (rz_mtu3_pwm->prescale[ch] > prescale)
 			return -EBUSY;
 
