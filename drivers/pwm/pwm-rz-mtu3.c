@@ -347,11 +347,14 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* Counter must be stopped while updating TCR register */
-	if (rz_mtu3_pwm->prescale[ch] != prescale && rz_mtu3_pwm->enable_count[ch])
-		rz_mtu3_disable(priv->mtu);
+	if (rz_mtu3_pwm->prescale[ch] != prescale) {
+		if (rz_mtu3_pwm->enable_count[ch])
+			rz_mtu3_disable(priv->mtu);
 
-	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA |
-			      RZ_MTU3_TCR_CKEG_RISING | prescale);
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR,
+				      RZ_MTU3_TCR_CCLR_TGRA |
+				      RZ_MTU3_TCR_CKEG_RISING | prescale);
+	}
 
 	/* TGRA is used to reset the counter for both IOs. */
 	rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
@@ -476,6 +479,7 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		rz_mtu3_pwm->channel_data[j].mtu = &parent_ddata->channels[i];
 		rz_mtu3_pwm->channel_data[j].mtu->dev = dev;
 		rz_mtu3_pwm->channel_data[j].map = &channel_map[j];
+		rz_mtu3_pwm->prescale[j] = U8_MAX;
 		j++;
 	}
 
