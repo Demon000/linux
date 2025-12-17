@@ -357,7 +357,8 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	/* TGRA is used to reset the counter for both IOs. */
-	rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
+	if (rz_mtu3_pwm->period_cycles[ch] != period_cycles)
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
 
 	if (priv->map->base_pwm_number == pwm->hwpwm) {
 		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRB, dc);
