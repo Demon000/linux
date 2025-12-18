@@ -405,6 +405,16 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		state->period = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, pv, prescale);
 		state->duty_cycle = rz_mtu3_pwm_calculate_ns(rz_mtu3_pwm, dc, prescale);
 
+		pr_err("%s: ch: %u\n", __func__, ch);
+		pr_err("%s: rate: %lu\n", __func__, rz_mtu3_pwm->rate);
+		pr_err("%s: state->period: %llu\n", __func__, state->period);
+		pr_err("%s: state->duty_cycle: %llu\n", __func__, state->duty_cycle);
+		pr_err("%s: priv->period_cycles: %llu\n", __func__, priv->period_cycles);
+		pr_err("%s: priv->prescale: %u\n", __func__, priv->prescale);
+		pr_err("%s: prescale: %u\n", __func__, prescale);
+		pr_err("%s: pv: %u\n", __func__, pv);
+		pr_err("%s: dc: %u\n", __func__, dc);
+
 		if (state->duty_cycle > state->period)
 			state->duty_cycle = state->period;
 	}
@@ -459,6 +469,18 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
 	if (rc)
 		return rc;
+
+	pr_err("%s: ch: %u\n", __func__, ch);
+	pr_err("%s: rate: %lu\n", __func__, rz_mtu3_pwm->rate);
+	pr_err("%s: state->period: %llu\n", __func__, state->period);
+	pr_err("%s: state->duty_cycle: %llu\n", __func__, state->duty_cycle);
+	pr_err("%s: priv->period_cycles: %llu\n", __func__, priv->period_cycles);
+	pr_err("%s: period_cycles: %llu\n", __func__, period_cycles);
+	pr_err("%s: duty_cycles: %llu\n", __func__, duty_cycles);
+	pr_err("%s: priv->prescale: %u\n", __func__, priv->prescale);
+	pr_err("%s: prescale: %u\n", __func__, prescale);
+	pr_err("%s: pv: %u\n", __func__, pv);
+	pr_err("%s: dc: %u\n", __func__, dc);
 
 	/* Counter must be stopped while updating TCR register */
 	if (priv->prescale != prescale) {
