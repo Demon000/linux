@@ -61,11 +61,14 @@ struct rzt2h_icu_priv {
 };
 
 void rzt2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
-				u16 req_no)
+				int req_no)
 {
 	struct rzt2h_icu_priv *priv = platform_get_drvdata(icu_dev);
 	u8 y, upper;
 	u32 val;
+
+	if (req_no < 0)
+		req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT;
 
 	y = dmac_channel / 3;
 	upper = dmac_channel % 3;
@@ -81,9 +84,6 @@ EXPORT_SYMBOL_GPL(rzt2h_icu_register_dma_req);
 void rzt2h_icu_register_dma_req_new(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
 				    int req_no)
 {
-	if (req_no < 0)
-		req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT;
-
 	rzt2h_icu_register_dma_req(icu_dev, dmac_index, dmac_channel, req_no);
 }
 EXPORT_SYMBOL_GPL(rzt2h_icu_register_dma_req_new);
