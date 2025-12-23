@@ -10,8 +10,6 @@
 
 #include <linux/platform_device.h>
 
-#define RZV2H_ICU_DMAC_REQ_NO_DEFAULT		0x3ff
-
 #ifdef CONFIG_RENESAS_RZV2H_ICU
 void rzv2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
 				int req_no);
