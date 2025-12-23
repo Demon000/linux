@@ -53,6 +53,8 @@
 #define RZT2H_ICU_DMAC_REQ_SELx_MASK(x)		(GENMASK(9, 0) << ((x) * 10))
 #define RZT2H_ICU_DMAC_REQ_SELx_PREP(x, val)	(FIELD_PREP(GENMASK(9, 0), val) << ((x) * 10))
 
+#define RZT2H_ICU_DMAC_REQ_NO_DEFAULT		0x3ff
+
 struct rzt2h_icu_priv {
 	void __iomem		*base_ns;
 	void __iomem		*base_s;
