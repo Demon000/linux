@@ -98,8 +98,7 @@ struct rz_dmac_icu {
 
 struct rz_dmac_info {
 	void (*icu_register_dma_req)(struct platform_device *icu_dev,
-				     u8 dmac_index, u8 dmac_channel, u16 req_no);
-	u16 default_dma_req_no;
+				     u8 dmac_index, u8 dmac_channel, int req_no);
 };
 
 struct rz_dmac {
@@ -312,11 +311,14 @@ static void rz_dmac_disable_hw(struct rz_dmac_chan *channel)
 	local_irq_restore(flags);
 }
 
-static void rz_dmac_set_dmars_register(struct rz_dmac *dmac, int nr, u32 dmars)
+static void rz_dmac_set_dmars_register(struct rz_dmac *dmac, int nr, int dmars)
 {
 	u32 dmars_offset = (nr / 2) * 4;
 	u32 shift = (nr % 2) * 16;
 	u32 dmars32;
+
+	if (dmars < 0)
+		dmars = 0;
 
 	dmars32 = rz_dmac_ext_readl(dmac, dmars_offset);
 	dmars32 &= ~(0xffff << shift);
@@ -352,7 +354,7 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV;
 
-	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
+	rz_dmac_set_dma_req_no(dmac, channel->index, -1);
 
 	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG | CHCTRL_SETEN;
@@ -681,7 +683,7 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
 
-	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
+	rz_dmac_set_dma_req_no(dmac, channel->index, -1);
 }
 
 /*
@@ -1072,18 +1074,14 @@ static void rz_dmac_remove(struct platform_device *pdev)
 }
 
 static const struct rz_dmac_info rz_dmac_v2h_info = {
-	.icu_register_dma_req = rzv2h_icu_register_dma_req,
-	.default_dma_req_no = RZV2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.icu_register_dma_req = rzv2h_icu_register_dma_req_new,
 };
 
 static const struct rz_dmac_info rz_dmac_t2h_info = {
-	.icu_register_dma_req = rzt2h_icu_register_dma_req,
-	.default_dma_req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.icu_register_dma_req = rzt2h_icu_register_dma_req_new,
 };
 
-static const struct rz_dmac_info rz_dmac_generic_info = {
-	.default_dma_req_no = 0,
-};
+static const struct rz_dmac_info rz_dmac_generic_info = {};
 
 static const struct of_device_id of_rz_dmac_match[] = {
 	{ .compatible = "renesas,r9a09g057-dmac", .data = &rz_dmac_v2h_info },
