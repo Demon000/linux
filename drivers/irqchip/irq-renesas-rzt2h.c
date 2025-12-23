@@ -78,6 +78,16 @@ void rzt2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, 
 }
 EXPORT_SYMBOL_GPL(rzt2h_icu_register_dma_req);
 
+void rzt2h_icu_register_dma_req_new(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
+				    int req_no)
+{
+	if (req_no < 0)
+		req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT;
+
+	rzt2h_icu_register_dma_req(icu_dev, dmac_index, dmac_channel, req_no);
+}
+EXPORT_SYMBOL_GPL(rzt2h_icu_register_dma_req_new);
+
 static inline struct rzt2h_icu_priv *irq_data_to_priv(struct irq_data *data)
 {
 	return data->domain->host_data;
