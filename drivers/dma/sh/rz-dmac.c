@@ -1074,11 +1074,11 @@ static void rz_dmac_remove(struct platform_device *pdev)
 }
 
 static const struct rz_dmac_info rz_dmac_v2h_info = {
-	.icu_register_dma_req = rzv2h_icu_register_dma_req_new,
+	.icu_register_dma_req = rzv2h_icu_register_dma_req,
 };
 
 static const struct rz_dmac_info rz_dmac_t2h_info = {
-	.icu_register_dma_req = rzt2h_icu_register_dma_req_new,
+	.icu_register_dma_req = rzt2h_icu_register_dma_req,
 };
 
 static const struct rz_dmac_info rz_dmac_generic_info = {};
