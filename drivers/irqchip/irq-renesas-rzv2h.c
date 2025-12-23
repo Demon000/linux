@@ -150,13 +150,6 @@ void rzv2h_icu_register_dma_req(struct platform_device *icu_dev, u8 dmac_index, 
 }
 EXPORT_SYMBOL_GPL(rzv2h_icu_register_dma_req);
 
-void rzv2h_icu_register_dma_req_new(struct platform_device *icu_dev, u8 dmac_index, u8 dmac_channel,
-				    int req_no)
-{
-	rzv2h_icu_register_dma_req(icu_dev, dmac_index, dmac_channel, req_no);
-}
-EXPORT_SYMBOL_GPL(rzv2h_icu_register_dma_req_new);
-
 static inline struct rzv2h_icu_priv *irq_data_to_priv(struct irq_data *data)
 {
 	return data->domain->host_data;
