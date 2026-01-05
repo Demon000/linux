@@ -85,7 +85,8 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g057-rspi
+            enum:
+              - renesas,r9a09g057-rspi
     then:
       properties:
         clocks:
@@ -105,7 +106,8 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,r9a09g077-rspi
+            enum:
+              - renesas,r9a09g077-rspi
     then:
       properties:
         clocks:
