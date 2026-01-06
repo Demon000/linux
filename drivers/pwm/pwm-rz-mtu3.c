@@ -33,8 +33,6 @@
 #include <linux/pwm.h>
 #include <linux/time.h>
 
-#define RZ_MTU3_MAX_HW_CHANNELS		7
-
 /**
  * struct rz_mtu3_pwm_channel - MTU3 pwm channel data
  *
@@ -64,7 +62,7 @@ struct rz_mtu3_pwm_chip {
 	struct clk *clk;
 	struct mutex lock;
 	unsigned long rate;
-	struct rz_mtu3_pwm_channel channel_data[RZ_MTU3_MAX_HW_CHANNELS];
+	struct rz_mtu3_pwm_channel channel_data[RZ_MTU_NUM_CHANNELS];
 };
 
 struct mtu_tpsc {
@@ -75,8 +73,9 @@ struct mtu_tpsc {
 /*
  * The MTU channels are {0..4, 6, 7} and the number of IO on MTU1
  * and MTU2 channel is 1 compared to 2 on others.
+ * MTU channels 5 and 8 cannot be used for PWM.
  */
-static const u8 rz_mtu3_pwm_channel_map[] = { 2, 1, 1, 2, 2, 2, 2 };
+static const u8 rz_mtu3_pwm_channel_map[] = { 2, 1, 1, 2, 2, 0, 2, 2, 0 };
 
 /*
  * Register field values extracted from rom RZ/G2L User Manual, Table 16.7,
@@ -100,8 +99,10 @@ static const struct mtu_tpsc rz_mtu3_pwm_tpsc_256[] = {
 	{ 0b000, 0b100 },
 	{ 0b100, 0b000 },
 	{ 0b100, 0b000 },
+	{ 0b000, 0b000 }, /* MTU5 is unused */
 	{ 0b100, 0b000 },
 	{ 0b100, 0b000 },
+	{ 0b000, 0b000 }, /* MTU8 is unused */
 };
 
 static const struct mtu_tpsc rz_mtu3_pwm_tpsc_1024[] = {
@@ -110,8 +111,10 @@ static const struct mtu_tpsc rz_mtu3_pwm_tpsc_1024[] = {
 	{ 0b111, 0b000 },
 	{ 0b101, 0b000 },
 	{ 0b101, 0b000 },
+	{ 0b000, 0b000 }, /* MTU5 is unused */
 	{ 0b101, 0b000 },
 	{ 0b101, 0b000 },
+	{ 0b000, 0b000 }, /* MTU8 is unused */
 };
 
 static inline struct rz_mtu3_pwm_chip *to_rz_mtu3_pwm_chip(struct pwm_chip *chip)
@@ -216,7 +219,7 @@ rz_mtu3_get_channel(struct rz_mtu3_pwm_chip *rz_mtu3_pwm, u32 hwpwm, bool *prima
 	unsigned int base_pwm = 0;
 	unsigned int ch;
 
-	for (ch = 0; ch < RZ_MTU3_MAX_HW_CHANNELS; ch++) {
+	for (ch = 0; ch < RZ_MTU_NUM_CHANNELS; ch++) {
 		if (primary)
 			*primary = base_pwm == hwpwm;
 
@@ -317,7 +320,7 @@ static void rz_mtu3_pwm_set_toer_bit(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
 	 */
 	if (ch == 4)
 		reg = RZ_MTU3_TOERA;
-	else if (ch == 6)
+	else if (ch == 7)
 		reg = RZ_MTU3_TOERB;
 	else
 		return;
@@ -626,9 +629,8 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm;
-	unsigned int num_channels = 0;
+	unsigned int i, num_channels = 0;
 	struct pwm_chip *chip;
-	unsigned int i, j = 0;
 	int ret;
 
 	for (i = 0; i < RZ_MTU_NUM_CHANNELS; i++)
@@ -645,9 +647,8 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		if (i == RZ_MTU3_CHAN_5 || i == RZ_MTU3_CHAN_8)
 			continue;
 
-		rz_mtu3_pwm->channel_data[j].mtu = &parent_ddata->channels[i];
-		rz_mtu3_pwm->channel_data[j].prescale = U8_MAX;
-		j++;
+		rz_mtu3_pwm->channel_data[i].mtu = &parent_ddata->channels[i];
+		rz_mtu3_pwm->channel_data[i].prescale = U8_MAX;
 	}
 
 	mutex_init(&rz_mtu3_pwm->lock);
