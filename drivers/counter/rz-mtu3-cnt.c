@@ -880,13 +880,6 @@ static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_cnt_pm_ops,
 				 rz_mtu3_cnt_pm_runtime_suspend,
 				 rz_mtu3_cnt_pm_runtime_resume, NULL);
 
-static void rz_mtu3_cnt_pm_disable(void *data)
-{
-	struct device *dev = data;
-
-	pm_runtime_disable(dev);
-}
-
 static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *ddata = dev_get_drvdata(pdev->dev.parent);
@@ -910,9 +903,9 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv->clk);
-	pm_runtime_enable(&pdev->dev);
-	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_cnt_pm_disable, dev);
-	if (ret < 0)
+
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
 		return ret;
 
 	counter->name = dev_name(dev);
