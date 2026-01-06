@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -172,13 +173,12 @@ void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch, u16 offset,
 				   u16 pos, u8 val)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long reg_val, flags;
+	unsigned long reg_val;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 	reg_val = rz_mtu3_shared_reg_read(ch, offset);
 	__assign_bit(pos, &reg_val, !!val);
 	rz_mtu3_shared_reg_write(ch, offset, reg_val);
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_shared_reg_update_bit);
 
@@ -251,7 +251,7 @@ static void rz_mtu3_start_stop_ch(struct rz_mtu3_channel *ch, bool start)
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long flags, tstr;
+	unsigned long tstr;
 	u16 offset;
 	u8 bitpos;
 
@@ -259,9 +259,8 @@ bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
 	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
 
 	/* start stop register shared by multiple timer channels */
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 	tstr = rz_mtu3_shared_reg_read(ch, offset);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return tstr & BIT(bitpos);
 }
@@ -285,14 +284,11 @@ EXPORT_SYMBOL_GPL(rz_mtu3_disable);
 
 bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
 {
-	mutex_lock(&ch->lock);
-	if (ch->is_busy) {
-		mutex_unlock(&ch->lock);
+	guard(mutex)(&ch->lock);
+	if (ch->is_busy)
 		return false;
-	}
 
 	ch->is_busy = true;
-	mutex_unlock(&ch->lock);
 
 	return true;
 }
@@ -300,9 +296,8 @@ EXPORT_SYMBOL_GPL(rz_mtu3_request_channel);
 
 void rz_mtu3_release_channel(struct rz_mtu3_channel *ch)
 {
-	mutex_lock(&ch->lock);
+	guard(mutex)(&ch->lock);
 	ch->is_busy = false;
-	mutex_unlock(&ch->lock);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_release_channel);
 
