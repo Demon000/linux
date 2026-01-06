@@ -589,13 +589,6 @@ static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_pwm_pm_ops,
 				 rz_mtu3_pwm_pm_runtime_suspend,
 				 rz_mtu3_pwm_pm_runtime_resume, NULL);
 
-static void rz_mtu3_pwm_pm_disable(void *data)
-{
-	struct pwm_chip *chip = data;
-
-	pm_runtime_disable(pwmchip_parent(chip));
-}
-
 static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
@@ -636,10 +629,8 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	if (rz_mtu3_pwm->rate > NSEC_PER_SEC)
 		return -EINVAL;
 
-	pm_runtime_enable(&pdev->dev);
-	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_pwm_pm_disable,
-				       chip);
-	if (ret < 0)
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret)
 		return ret;
 
 	chip->ops = &rz_mtu3_pwm_ops;
