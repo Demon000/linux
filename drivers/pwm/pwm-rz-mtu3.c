@@ -592,9 +592,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_pwm_pm_ops,
 static void rz_mtu3_pwm_pm_disable(void *data)
 {
 	struct pwm_chip *chip = data;
-	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 
-	clk_rate_exclusive_put(rz_mtu3_pwm->clk);
 	pm_runtime_disable(pwmchip_parent(chip));
 }
 
@@ -626,17 +624,17 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	mutex_init(&rz_mtu3_pwm->lock);
 	platform_set_drvdata(pdev, chip);
 
-	clk_rate_exclusive_get(rz_mtu3_pwm->clk);
+	ret = devm_clk_rate_exclusive_get(&pdev->dev, rz_mtu3_pwm->clk);
+	if (ret)
+		return ret;
 
 	rz_mtu3_pwm->rate = clk_get_rate(rz_mtu3_pwm->clk);
 	/*
 	 * Refuse clk rates > 1 GHz to prevent overflow later for computing
 	 * period and duty cycle.
 	 */
-	if (rz_mtu3_pwm->rate > NSEC_PER_SEC) {
-		clk_rate_exclusive_put(rz_mtu3_pwm->clk);
+	if (rz_mtu3_pwm->rate > NSEC_PER_SEC)
 		return -EINVAL;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_pwm_pm_disable,
