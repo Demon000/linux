@@ -36,6 +36,13 @@
 #define RZ_MTU3_MAX_PWM_CHANNELS	12
 #define RZ_MTU3_MAX_HW_CHANNELS		7
 
+/*
+ * Since HW channel 5 does not support PWM and the private channel data
+ * skips it, channel 6 correspond to HW channel 7.
+ */
+#define RZ_MTU3_HW_CHANNEL_4		4
+#define RZ_MTU3_HW_CHANNEL_7		6
+
 /**
  * struct rz_mtu3_channel_io_map - MTU3 pwm channel map
  *
@@ -207,10 +214,40 @@ static void rz_mtu3_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	mutex_unlock(&rz_mtu3_pwm->lock);
 }
 
+static void rz_mtu3_pwm_set_toer_bit(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
+				     struct rz_mtu3_pwm_channel *priv,
+				     bool is_primary, bool set)
+{
+	u8 bitpos;
+	u16 reg;
+	u32 ch;
+
+	ch = priv - rz_mtu3_pwm->channel_data;
+
+	/*
+	 * HW channels 4 and 7 require an additional register write to enable
+	 * PWM output.
+	 */
+	if (ch == RZ_MTU3_HW_CHANNEL_4)
+		reg = RZ_MTU3_TOERA;
+	else if (ch == RZ_MTU3_HW_CHANNEL_7)
+		reg = RZ_MTU3_TOERB;
+	else
+		return;
+
+	if (is_primary)
+		bitpos = 1;
+	else
+		bitpos = 4;
+
+	rz_mtu3_shared_reg_update_bit(priv->mtu, reg, bitpos, set);
+}
+
 static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
+	bool is_primary;
 	u32 ch;
 	u8 val;
 	int rc;
@@ -221,10 +258,15 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 	ch = priv - rz_mtu3_pwm->channel_data;
+	is_primary = priv->map->base_pwm_number == pwm->hwpwm;
+
 	val = RZ_MTU3_TIOR_OC_IOB_TOGGLE | RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
-	if (priv->map->base_pwm_number == pwm->hwpwm)
+
+	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, priv, is_primary, true);
+
+	if (is_primary)
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, val);
 	else
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, val);
@@ -243,16 +285,20 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
+	bool is_primary;
 	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 	ch = priv - rz_mtu3_pwm->channel_data;
+	is_primary = priv->map->base_pwm_number == pwm->hwpwm;
 
 	/* Disable output pins of MTU3 channel */
-	if (priv->map->base_pwm_number == pwm->hwpwm)
+	if (is_primary)
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, RZ_MTU3_TIOR_OC_RETAIN);
 	else
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, RZ_MTU3_TIOR_OC_RETAIN);
+
+	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, priv, is_primary, false);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
 	rz_mtu3_pwm->enable_count[ch]--;
