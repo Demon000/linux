@@ -173,13 +173,12 @@ void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch, u16 offset,
 				   u16 pos, u8 val)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long tmdr, flags;
+	unsigned long tmdr;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 	tmdr = rz_mtu3_shared_reg_read(ch, offset);
 	__assign_bit(pos, &tmdr, !!val);
 	rz_mtu3_shared_reg_write(ch, offset, tmdr);
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_shared_reg_update_bit);
 
@@ -246,7 +245,7 @@ static u8 rz_mtu3_get_tstr_bit_pos(struct rz_mtu3_channel *ch)
 static void rz_mtu3_start_stop_ch(struct rz_mtu3_channel *ch, bool start)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long flags, tstr;
+	unsigned long tstr;
 	u16 offset;
 	u8 bitpos;
 
@@ -254,19 +253,16 @@ static void rz_mtu3_start_stop_ch(struct rz_mtu3_channel *ch, bool start)
 	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
 
 	/* start stop register shared by multiple timer channels */
-	spin_lock_irqsave(&priv->lock, flags);
-
+	guard(spinlock_irqsave)(&priv->lock);
 	tstr = rz_mtu3_shared_reg_read(ch, offset);
 	__assign_bit(bitpos, &tstr, start);
 	rz_mtu3_shared_reg_write(ch, offset, tstr);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long flags, tstr;
+	unsigned long tstr;
 	u16 offset;
 	u8 bitpos;
 
@@ -274,9 +270,8 @@ bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
 	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
 
 	/* start stop register shared by multiple timer channels */
-	spin_lock_irqsave(&priv->lock, flags);
+	guard(spinlock_irqsave)(&priv->lock);
 	tstr = rz_mtu3_shared_reg_read(ch, offset);
-	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return tstr & BIT(bitpos);
 }
