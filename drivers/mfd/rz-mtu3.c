@@ -244,19 +244,8 @@ static u8 rz_mtu3_get_tstr_bit_pos(struct rz_mtu3_channel *ch)
 
 static void rz_mtu3_start_stop_ch(struct rz_mtu3_channel *ch, bool start)
 {
-	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long tstr;
-	u16 offset;
-	u8 bitpos;
-
-	offset = rz_mtu3_get_tstr_offset(ch);
-	bitpos = rz_mtu3_get_tstr_bit_pos(ch);
-
-	/* start stop register shared by multiple timer channels */
-	guard(spinlock_irqsave)(&priv->lock);
-	tstr = rz_mtu3_shared_reg_read(ch, offset);
-	__assign_bit(bitpos, &tstr, start);
-	rz_mtu3_shared_reg_write(ch, offset, tstr);
+	rz_mtu3_shared_reg_update_bit(ch, rz_mtu3_get_tstr_offset(ch),
+				      rz_mtu3_get_tstr_bit_pos(ch), start);
 }
 
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch)
