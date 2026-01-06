@@ -814,9 +814,7 @@ static int rz_mtu3_cnt_pm_runtime_resume(struct device *dev)
 {
 	struct clk *const clk = dev_get_drvdata(dev);
 
-	clk_prepare_enable(clk);
-
-	return 0;
+	return clk_prepare_enable(clk);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_cnt_pm_ops,
