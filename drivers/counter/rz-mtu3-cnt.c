@@ -885,7 +885,6 @@ static void rz_mtu3_cnt_pm_disable(void *data)
 	struct device *dev = data;
 
 	pm_runtime_disable(dev);
-	pm_runtime_set_suspended(dev);
 }
 
 static int rz_mtu3_cnt_probe(struct platform_device *pdev)
@@ -911,12 +910,10 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv->clk);
-	clk_prepare_enable(priv->clk);
-	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_cnt_pm_disable, dev);
 	if (ret < 0)
-		goto disable_clock;
+		return ret;
 
 	counter->name = dev_name(dev);
 	counter->parent = dev;
@@ -930,17 +927,10 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 
 	/* Register Counter device */
 	ret = devm_counter_add(dev, counter);
-	if (ret < 0) {
-		dev_err_probe(dev, ret, "Failed to add counter\n");
-		goto disable_clock;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to add counter\n");
 
 	return 0;
-
-disable_clock:
-	clk_disable_unprepare(priv->clk);
-
-	return ret;
 }
 
 static struct platform_driver rz_mtu3_cnt_driver = {
