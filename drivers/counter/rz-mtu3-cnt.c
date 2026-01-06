@@ -925,12 +925,7 @@ static int rz_mtu3_cnt_probe(struct platform_device *pdev)
 	counter->ext = rz_mtu3_device_ext;
 	counter->num_ext = ARRAY_SIZE(rz_mtu3_device_ext);
 
-	/* Register Counter device */
-	ret = devm_counter_add(dev, counter);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Failed to add counter\n");
-
-	return 0;
+	return devm_counter_add(dev, counter);
 }
 
 static struct platform_driver rz_mtu3_cnt_driver = {
