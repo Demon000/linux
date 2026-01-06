@@ -33,7 +33,6 @@
 #include <linux/pwm.h>
 #include <linux/time.h>
 
-#define RZ_MTU3_MAX_PWM_CHANNELS	12
 #define RZ_MTU3_MAX_HW_CHANNELS		7
 
 /**
@@ -627,12 +626,15 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm;
+	unsigned int num_channels = 0;
 	struct pwm_chip *chip;
 	unsigned int i, j = 0;
 	int ret;
 
-	chip = devm_pwmchip_alloc(&pdev->dev, RZ_MTU3_MAX_PWM_CHANNELS,
-				  sizeof(*rz_mtu3_pwm));
+	for (i = 0; i < RZ_MTU_NUM_CHANNELS; i++)
+		num_channels += rz_mtu3_pwm_channel_map[i];
+
+	chip = devm_pwmchip_alloc(&pdev->dev, num_channels, sizeof(*rz_mtu3_pwm));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
