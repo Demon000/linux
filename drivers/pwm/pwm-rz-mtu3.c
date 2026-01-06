@@ -218,6 +218,34 @@ static void rz_mtu3_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	mutex_unlock(&rz_mtu3_pwm->lock);
 }
 
+static void rz_mtu3_pwm_set_toer_bit(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
+				     u32 hwpwm, bool set)
+{
+	struct rz_mtu3_pwm_channel *priv;
+	u8 bitpos;
+	u16 reg;
+
+	priv = rz_mtu3_get_channel(rz_mtu3_pwm, hwpwm);
+
+	/*
+	 * HW channels 4 and 7 require an additional register write to enable
+	 * PWM output.
+	 */
+	if (priv->mtu->channel_number == RZ_MTU3_CHAN_4)
+		reg = RZ_MTU3_TOERA;
+	else if (priv->mtu->channel_number == RZ_MTU3_CHAN_7)
+		reg = RZ_MTU3_TOERB;
+	else
+		return;
+
+	if (priv->map->base_pwm_number == hwpwm)
+		bitpos = 1;
+	else
+		bitpos = 4;
+
+	rz_mtu3_shared_reg_update_bit(priv->mtu, reg, bitpos, set);
+}
+
 static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
@@ -235,6 +263,9 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	val = RZ_MTU3_TIOR_OC_IOB_TOGGLE | RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
+
+	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, true);
+
 	if (priv->map->base_pwm_number == pwm->hwpwm)
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, val);
 	else
@@ -264,6 +295,8 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, RZ_MTU3_TIOR_OC_RETAIN);
 	else
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, RZ_MTU3_TIOR_OC_RETAIN);
+
+	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, false);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
 	rz_mtu3_pwm->enable_count[ch]--;
