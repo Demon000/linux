@@ -622,6 +622,9 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	rz_mtu3_pwm->rate = clk_get_rate(rz_mtu3_pwm->clk);
+	if (!rz_mtu3_pwm->rate)
+		return -EINVAL;
+
 	/*
 	 * Refuse clk rates > 1 GHz to prevent overflow later for computing
 	 * period and duty cycle.
