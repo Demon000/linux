@@ -580,7 +580,7 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	 * Refuse clk rates > 1 GHz to prevent overflow later for computing
 	 * period and duty cycle.
 	 */
-	if (rz_mtu3_pwm->rate > NSEC_PER_SEC)
+	if (!rz_mtu3_pwm->rate || rz_mtu3_pwm->rate > NSEC_PER_SEC)
 		return -EINVAL;
 
 	ret = devm_pm_runtime_enable(dev);
