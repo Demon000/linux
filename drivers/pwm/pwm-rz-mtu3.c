@@ -645,11 +645,8 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	chip->ops = &rz_mtu3_pwm_ops;
-	ret = devm_pwmchip_add(&pdev->dev, chip);
-	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
-	return 0;
+	return devm_pwmchip_add(&pdev->dev, chip);
 }
 
 static struct platform_driver rz_mtu3_pwm_driver = {
