@@ -64,6 +64,8 @@
 
 /* Temperature calculation constants from datasheet */
 #define TSU_CODE_MAX		0xFFF
+#define TSU_CODE_LO		782
+#define TSU_CODE_HI		3258
 
 /* Timing specifications from datasheet */
 #define TSU_POWERUP_TIME_US	120	/* 120T at 1MHz sensor clock per datasheet */
@@ -411,10 +413,13 @@ static int rzg3e_thermal_probe(struct platform_device *pdev)
 
 	if (!priv->trmval0 || !priv->trmval1 ||
 	    priv->trmval0 == priv->trmval1 ||
-	    priv->trmval0 == TSU_CODE_MAX || priv->trmval1 == TSU_CODE_MAX)
-		return dev_err_probe(priv->dev, -EINVAL,
-				     "Invalid calibration: b=0x%03x, c=0x%03x\n",
-				     priv->trmval0, priv->trmval1);
+	    priv->trmval0 == TSU_CODE_MAX || priv->trmval1 == TSU_CODE_MAX) {
+		dev_err(priv->dev,
+			"Invalid calibration: b=0x%03x, c=0x%03x, using defaults\n",
+			priv->trmval0, priv->trmval1);
+		priv->trmval0 = TSU_CODE_LO;
+		priv->trmval1 = TSU_CODE_HI;
+	}
 
 	dev_dbg(priv->dev, "Calibration: b=0x%03x (%u), c=0x%03x (%u)\n",
 		priv->trmval0, priv->trmval0, priv->trmval1, priv->trmval1);
