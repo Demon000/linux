@@ -34,6 +34,9 @@
 #include "renesas-cpg-mssr.h"
 #include "clk-div6.h"
 
+#undef dev_dbg
+#define dev_dbg dev_err
+
 #ifdef DEBUG
 #define WARN_DEBUG(x)	WARN_ON(x)
 #else
