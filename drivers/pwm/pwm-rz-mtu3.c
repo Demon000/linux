@@ -488,35 +488,12 @@ static const struct pwm_ops rz_mtu3_pwm_ops = {
 	.apply = rz_mtu3_pwm_apply,
 };
 
-static int rz_mtu3_pwm_pm_runtime_suspend(struct device *dev)
-{
-	struct pwm_chip *chip = dev_get_drvdata(dev);
-	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
-
-	clk_disable_unprepare(rz_mtu3_pwm->clk);
-
-	return 0;
-}
-
-static int rz_mtu3_pwm_pm_runtime_resume(struct device *dev)
-{
-	struct pwm_chip *chip = dev_get_drvdata(dev);
-	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
-
-	return clk_prepare_enable(rz_mtu3_pwm->clk);
-}
-
-static DEFINE_RUNTIME_DEV_PM_OPS(rz_mtu3_pwm_pm_ops,
-				 rz_mtu3_pwm_pm_runtime_suspend,
-				 rz_mtu3_pwm_pm_runtime_resume, NULL);
-
 static void rz_mtu3_pwm_pm_disable(void *data)
 {
 	struct pwm_chip *chip = data;
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 
 	clk_rate_exclusive_put(rz_mtu3_pwm->clk);
-	pm_runtime_disable(pwmchip_parent(chip));
 	pm_runtime_set_suspended(pwmchip_parent(chip));
 }
 
@@ -525,7 +502,6 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm;
 	struct pwm_chip *chip;
-	struct device *dev = &pdev->dev;
 	unsigned int i, j = 0;
 	int ret;
 
@@ -548,9 +524,6 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 
 	mutex_init(&rz_mtu3_pwm->lock);
 	platform_set_drvdata(pdev, chip);
-	ret = clk_prepare_enable(rz_mtu3_pwm->clk);
-	if (ret)
-		return dev_err_probe(dev, ret, "Clock enable failed\n");
 
 	clk_rate_exclusive_get(rz_mtu3_pwm->clk);
 
@@ -560,12 +533,10 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	 * period and duty cycle.
 	 */
 	if (rz_mtu3_pwm->rate > NSEC_PER_SEC) {
-		ret = -EINVAL;
 		clk_rate_exclusive_put(rz_mtu3_pwm->clk);
-		goto disable_clock;
+		return -EINVAL;
 	}
 
-	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 	ret = devm_add_action_or_reset(&pdev->dev, rz_mtu3_pwm_pm_disable,
 				       chip);
@@ -580,16 +551,11 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	pm_runtime_idle(&pdev->dev);
 
 	return 0;
-
-disable_clock:
-	clk_disable_unprepare(rz_mtu3_pwm->clk);
-	return ret;
 }
 
 static struct platform_driver rz_mtu3_pwm_driver = {
 	.driver = {
 		.name = "pwm-rz-mtu3",
-		.pm = pm_ptr(&rz_mtu3_pwm_pm_ops),
 	},
 	.probe = rz_mtu3_pwm_probe,
 };
