@@ -607,8 +607,6 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
-	pm_runtime_idle(&pdev->dev);
-
 	return 0;
 }
 
