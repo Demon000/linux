@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/spinlock.h>
 
@@ -354,6 +355,10 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		ddata->channels[i].is_busy = false;
 		mutex_init(&ddata->channels[i].lock);
 	}
+
+	ret = devm_pm_runtime_enable(&pdev->dev);
+	if (ret)
+		return ret;
 
 	ret = mfd_add_devices(&pdev->dev, 0, rz_mtu3_devs,
 			      ARRAY_SIZE(rz_mtu3_devs), NULL, 0, NULL);
