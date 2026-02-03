@@ -246,12 +246,43 @@ static void rz_mtu3_pwm_set_toer_bit(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
 	rz_mtu3_shared_reg_update_bit(priv->mtu, reg, bitpos, set);
 }
 
+static u8 rz_mtu3_pwm_tior(u16 pv, u16 dc)
+{
+	/*
+	 * At 0% duty, the line is toggled high by the period match, and then
+	 * toggled low by the duty match one cycle later, causing a spike.
+	 * Output constant low for 0% duty.
+	 */
+	if (dc == 0)
+		return RZ_MTU3_TIOR_CONST_LOW;
+
+	/*
+	 * At 100% duty, the period and duty compare matches occur at the same
+	 * time, in which case the output does not change.
+	 * See RZ/T2H User Manual Figure 18.29.
+	 */
+	if (dc >= pv)
+		return RZ_MTU3_TIOR_CONST_HIGH;
+
+	return RZ_MTU3_TIOR_OC_IOB_L_COMP_MATCH | RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
+}
+
+static void rz_mtu3_pwm_set_tior(struct rz_mtu3_pwm_channel *priv, u32 hwpwm,
+				 u16 pv, u16 dc)
+{
+	u8 val = rz_mtu3_pwm_tior(pv, dc);
+
+	if (priv->map->base_pwm_number == hwpwm)
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, val);
+	else
+		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, val);
+}
+
 static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
 	u32 ch;
-	u8 val;
 	int rc;
 
 	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
@@ -260,16 +291,8 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 	ch = priv - rz_mtu3_pwm->channel_data;
-	val = RZ_MTU3_TIOR_OC_IOB_L_COMP_MATCH | RZ_MTU3_TIOR_OC_IOA_H_COMP_MATCH;
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
-
-	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, true);
-
-	if (priv->map->base_pwm_number == pwm->hwpwm)
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORH, val);
-	else
-		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, val);
 
 	mutex_lock(&rz_mtu3_pwm->lock);
 	if (!rz_mtu3_pwm->enable_count[ch])
@@ -326,12 +349,18 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		u64 tmp;
 
 		priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
-		if (priv->map->base_pwm_number == pwm->hwpwm)
+		if (priv->map->base_pwm_number == pwm->hwpwm) {
 			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRA, &pv,
 						       RZ_MTU3_TGRB, &dc);
-		else
+			val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORH);
+		} else {
 			rz_mtu3_pwm_read_tgr_registers(priv, RZ_MTU3_TGRC, &pv,
 						       RZ_MTU3_TGRD, &dc);
+			val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TIORL);
+		}
+
+		if (val == RZ_MTU3_TIOR_CONST_HIGH)
+			dc = pv;
 
 		val = rz_mtu3_8bit_ch_read(priv->mtu, RZ_MTU3_TCR);
 		prescale = FIELD_GET(RZ_MTU3_TCR_TPCS, val);
@@ -366,6 +395,7 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	u64 duty_cycles;
 	u8 prescale;
 	u16 pv, dc;
+	u16 dc_reg;
 	u32 ch;
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
@@ -419,14 +449,23 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TCR, RZ_MTU3_TCR_CCLR_TGRA |
 			      RZ_MTU3_TCR_CKEG_RISING | prescale);
 
+	/*
+	 * At 100% duty, the period and duty compare matches occur at the same
+	 * time, in which case they are ignored. Limit duty to be one less than
+	 * period to avoid it.
+	 */
+	dc_reg = dc;
+	if (dc_reg >= pv && pv != 0)
+		dc_reg = pv - 1;
+
 	if (priv->map->base_pwm_number == pwm->hwpwm) {
 		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRA, pv,
-						RZ_MTU3_TGRB, dc);
+						RZ_MTU3_TGRB, dc_reg);
 	} else {
 		/* TGRA is used to reset the counter for both IOs. */
 		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TGRA, pv);
 		rz_mtu3_pwm_write_tgr_registers(priv, RZ_MTU3_TGRC, pv,
-						RZ_MTU3_TGRD, dc);
+						RZ_MTU3_TGRD, dc_reg);
 	}
 
 	/*
@@ -436,6 +475,13 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (!rz_mtu3_pwm->enable_count[ch])
 		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TCNT, 0);
+
+	/*
+	 * TOERA/TOERB must be set before TIOR, see RZ/T2H User Manual Section
+	 * 18.3.23.
+	 */
+	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, true);
+	rz_mtu3_pwm_set_tior(priv, pwm->hwpwm, pv, dc);
 
 	if (rz_mtu3_pwm->prescale[ch] != prescale) {
 		/*
