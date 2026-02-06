@@ -22,7 +22,9 @@
 
 struct rz_mtu3_priv {
 	void __iomem *mmio;
+	struct device *dev;
 	spinlock_t lock;
+	bool handoff_pm_refs[RZ_MTU_NUM_CHANNELS];
 };
 
 /******* MTU3 registers (original offset is +0x1200) *******/
@@ -284,9 +286,21 @@ EXPORT_SYMBOL_GPL(rz_mtu3_disable);
 
 bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
 {
+	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
+
 	guard(mutex)(&ch->lock);
 	if (ch->is_busy)
 		return false;
+
+	/*
+	 * The child driver that takes over a boot-enabled channel is
+	 * expected to hold its own runtime PM reference before calling
+	 * rz_mtu3_request_channel().
+	 */
+	if (priv->handoff_pm_refs[ch->channel_number]) {
+		pm_runtime_put(priv->dev);
+		priv->handoff_pm_refs[ch->channel_number] = false;
+	}
 
 	ch->is_busy = true;
 
@@ -310,6 +324,38 @@ static const struct mfd_cell rz_mtu3_devs[] = {
 	},
 };
 
+static void rz_mtu3_handoff_pm_put(void *data)
+{
+	struct rz_mtu3_priv *priv = data;
+
+	for (unsigned int i = 0; i < RZ_MTU_NUM_CHANNELS; i++) {
+		if (priv->handoff_pm_refs[i])
+			pm_runtime_put_noidle(priv->dev);
+	}
+
+	pm_runtime_idle(priv->dev);
+}
+
+static int rz_mtu3_handoff_pm_get(struct rz_mtu3 *ddata)
+{
+	struct rz_mtu3_priv *priv = ddata->priv_data;
+	int ret;
+
+	PM_RUNTIME_ACQUIRE_IF_ENABLED(priv->dev, pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
+		return ret;
+
+	for (unsigned int i = 0; i < RZ_MTU_NUM_CHANNELS; i++) {
+		if (rz_mtu3_is_enabled(&ddata->channels[i])) {
+			pm_runtime_get_noresume(priv->dev);
+			priv->handoff_pm_refs[i] = true;
+		}
+	}
+
+	return 0;
+}
+
 static int rz_mtu3_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -328,6 +374,7 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	priv = ddata->priv_data;
+	priv->dev = dev;
 
 	priv->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->mmio))
@@ -351,6 +398,14 @@ static int rz_mtu3_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
+
+	ret = rz_mtu3_handoff_pm_get(ddata);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, rz_mtu3_handoff_pm_put, priv);
 	if (ret)
 		return ret;
 
