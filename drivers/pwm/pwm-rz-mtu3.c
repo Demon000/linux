@@ -713,6 +713,49 @@ static const struct pwm_ops rz_mtu3_pwm_ops = {
 	.write_waveform = rz_mtu3_pwm_write_waveform,
 };
 
+static void rz_mtu3_pwm_handoff_pm_put(void *data)
+{
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm;
+	struct pwm_chip *chip = data;
+	unsigned int i;
+
+	rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+
+	for (i = 0; i < RZ_MTU3_MAX_PWM_CHANNELS; i++) {
+		if (!rz_mtu3_pwm_is_enabled(rz_mtu3_pwm, i))
+			continue;
+
+		pm_runtime_put_noidle(pwmchip_parent(chip));
+	}
+
+	pm_runtime_idle(pwmchip_parent(chip));
+}
+
+static int rz_mtu3_pwm_handoff_pm_get(struct pwm_chip *chip)
+{
+	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
+	struct rz_mtu3_pwm_channel *priv;
+	unsigned int i;
+	int ret;
+
+	PM_RUNTIME_ACQUIRE_IF_ENABLED(pwmchip_parent(chip), pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < RZ_MTU3_MAX_PWM_CHANNELS; i++) {
+		if (!rz_mtu3_pwm_is_ch_enabled(rz_mtu3_pwm, i))
+			continue;
+
+		priv = rz_mtu3_get_channel(rz_mtu3_pwm, i);
+		priv->enable_mask |= BIT(rz_mtu3_hwpwm_io(i));
+
+		pm_runtime_get_noresume(pwmchip_parent(chip));
+	}
+
+	return 0;
+}
+
 static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
@@ -759,6 +802,14 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
+
+	ret = rz_mtu3_pwm_handoff_pm_get(chip);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, rz_mtu3_pwm_handoff_pm_put, chip);
 	if (ret)
 		return ret;
 
