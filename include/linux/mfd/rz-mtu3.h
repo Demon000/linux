@@ -151,27 +151,8 @@ struct rz_mtu3 {
 	void *priv_data;
 };
 
-static inline bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
-{
-	mutex_lock(&ch->lock);
-	if (ch->is_busy) {
-		mutex_unlock(&ch->lock);
-		return false;
-	}
-
-	ch->is_busy = true;
-	mutex_unlock(&ch->lock);
-
-	return true;
-}
-
-static inline void rz_mtu3_release_channel(struct rz_mtu3_channel *ch)
-{
-	mutex_lock(&ch->lock);
-	ch->is_busy = false;
-	mutex_unlock(&ch->lock);
-}
-
+bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch);
+void rz_mtu3_release_channel(struct rz_mtu3_channel *ch);
 bool rz_mtu3_is_enabled(struct rz_mtu3_channel *ch);
 void rz_mtu3_disable(struct rz_mtu3_channel *ch);
 int rz_mtu3_enable(struct rz_mtu3_channel *ch);

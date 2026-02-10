@@ -283,6 +283,29 @@ void rz_mtu3_disable(struct rz_mtu3_channel *ch)
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_disable);
 
+bool rz_mtu3_request_channel(struct rz_mtu3_channel *ch)
+{
+	mutex_lock(&ch->lock);
+	if (ch->is_busy) {
+		mutex_unlock(&ch->lock);
+		return false;
+	}
+
+	ch->is_busy = true;
+	mutex_unlock(&ch->lock);
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(rz_mtu3_request_channel);
+
+void rz_mtu3_release_channel(struct rz_mtu3_channel *ch)
+{
+	mutex_lock(&ch->lock);
+	ch->is_busy = false;
+	mutex_unlock(&ch->lock);
+}
+EXPORT_SYMBOL_GPL(rz_mtu3_release_channel);
+
 static const struct mfd_cell rz_mtu3_devs[] = {
 	{
 		.name = "rz-mtu3-counter",
