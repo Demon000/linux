@@ -541,6 +541,7 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 {
 	struct rz_mtu3 *parent_ddata = dev_get_drvdata(pdev->dev.parent);
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm;
+	struct device *dev = &pdev->dev;
 	struct pwm_chip *chip;
 	unsigned int i, j = 0;
 	int ret;
@@ -550,9 +551,9 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	 * Reuse the parent device tree node to allow the PWM core to retrieve
 	 * the PWM chip based on it.
 	 */
-	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+	device_set_of_node_from_dev(dev, pdev->dev.parent);
 
-	chip = devm_pwmchip_alloc(&pdev->dev, RZ_MTU3_MAX_PWM_CHANNELS,
+	chip = devm_pwmchip_alloc(dev, RZ_MTU3_MAX_PWM_CHANNELS,
 				  sizeof(*rz_mtu3_pwm));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
@@ -570,7 +571,7 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	mutex_init(&rz_mtu3_pwm->lock);
 	platform_set_drvdata(pdev, chip);
 
-	ret = devm_clk_rate_exclusive_get(&pdev->dev, parent_ddata->clk);
+	ret = devm_clk_rate_exclusive_get(dev, parent_ddata->clk);
 	if (ret)
 		return ret;
 
@@ -582,14 +583,14 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	if (rz_mtu3_pwm->rate > NSEC_PER_SEC)
 		return -EINVAL;
 
-	ret = devm_pm_runtime_enable(&pdev->dev);
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
 		return ret;
 
 	chip->ops = &rz_mtu3_pwm_ops;
-	ret = devm_pwmchip_add(&pdev->dev, chip);
+	ret = devm_pwmchip_add(dev, chip);
 	if (ret)
-		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
+		return dev_err_probe(dev, ret, "failed to add PWM chip\n");
 
 	return 0;
 }
