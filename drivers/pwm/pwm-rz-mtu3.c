@@ -479,6 +479,13 @@ static int rz_mtu3_pwm_probe(struct platform_device *pdev)
 	unsigned int i, j = 0;
 	int ret;
 
+	/*
+	 * This MFD sub-device does not have an associated device tree node.
+	 * Reuse the parent device tree node to allow the PWM core to retrieve
+	 * the PWM chip based on it.
+	 */
+	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
+
 	chip = devm_pwmchip_alloc(&pdev->dev, RZ_MTU3_MAX_PWM_CHANNELS,
 				  sizeof(*rz_mtu3_pwm));
 	if (IS_ERR(chip))
