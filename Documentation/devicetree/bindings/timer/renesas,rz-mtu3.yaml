@@ -221,10 +221,7 @@ properties:
     maxItems: 1
 
   "#pwm-cells":
-    oneOf:
-      - const: 2
-        deprecated: true
-      - const: 3
+    const: 3
 
 required:
   - compatible
