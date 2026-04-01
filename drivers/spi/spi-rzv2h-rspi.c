@@ -463,10 +463,10 @@ static void rzv2h_rspi_find_rate_variable(struct clk *clk, u32 hz,
 	 * determine.
 	 *
 	 * To find the rate, having hz, spr and brdv:
-	 * rate = hz * (spr + 1) * (1 << (brdv + 1)
+	 * rate = hz * (spr + 1) * (1 << (brdv + 1))
 	 *
 	 * To find the spr, having rate, hz, and spr:
-	 * spr = rate / (hz * (1 << (brdv + 1)) - 1
+	 * spr = rate / (hz * (1 << (brdv + 1))) - 1
 	 */
 
 	for (brdv = RSPI_SPCMD_BRDV_MIN; brdv <= RSPI_SPCMD_BRDV_MAX; brdv++) {
