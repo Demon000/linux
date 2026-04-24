@@ -101,8 +101,8 @@ struct rzv2h_rspi_info {
 struct rzv2h_rspi_priv {
 	struct spi_controller *controller;
 	const struct rzv2h_rspi_info *info;
-	struct platform_device *pdev;
 	void __iomem *base;
+	phys_addr_t phys_base;
 	struct clk *tclk;
 	struct clk *pclk;
 	wait_queue_head_t wait;
@@ -277,8 +277,8 @@ rzv2h_rspi_setup_dma_channel(struct rzv2h_rspi_priv *rspi,
 			     enum dma_transfer_direction direction)
 {
 	struct dma_slave_config config = {
-		.dst_addr = rspi->pdev->resource->start + RSPI_SPDR,
-		.src_addr = rspi->pdev->resource->start + RSPI_SPDR,
+		.dst_addr = rspi->phys_base + RSPI_SPDR,
+		.src_addr = rspi->phys_base + RSPI_SPDR,
 		.dst_addr_width = width,
 		.src_addr_width = width,
 		.direction = direction,
@@ -714,6 +714,7 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	struct rzv2h_rspi_priv *rspi;
 	struct reset_control *reset;
 	struct clk_bulk_data *clks;
+	struct resource *res;
 	long tclk_rate;
 	int ret, i;
 
@@ -725,13 +726,14 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rspi);
 
 	rspi->controller = controller;
-	rspi->pdev = pdev;
 
 	rspi->info = device_get_match_data(dev);
 
-	rspi->base = devm_platform_ioremap_resource(pdev, 0);
+	rspi->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(rspi->base))
 		return PTR_ERR(rspi->base);
+
+	rspi->phys_base = res->start;
 
 	ret = devm_clk_bulk_get_all_enabled(dev, &clks);
 	if (ret != rspi->info->num_clks)
