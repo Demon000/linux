@@ -443,6 +443,11 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV | HEADER_LE;
 
+	if (++lmdesc >= (channel->lmdesc.base + DMAC_NR_LMDESC))
+		lmdesc = channel->lmdesc.base;
+
+	channel->lmdesc.tail = lmdesc;
+
 	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
 
 	channel->chcfg = chcfg;
