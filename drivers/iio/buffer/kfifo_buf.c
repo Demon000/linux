@@ -186,16 +186,16 @@ static int iio_kfifo_write(struct iio_buffer *r, size_t n,
 }
 
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
-	.store_to = &iio_store_to_kfifo,
-	.read = &iio_read_kfifo,
+	.store_to = iio_store_to_kfifo,
+	.read = iio_read_kfifo,
 	.data_available = iio_kfifo_buf_data_available,
-	.remove_from = &iio_kfifo_remove_from,
-	.write = &iio_kfifo_write,
-	.space_available = &iio_kfifo_buf_space_available,
-	.request_update = &iio_request_update_kfifo,
-	.set_bytes_per_datum = &iio_set_bytes_per_datum_kfifo,
-	.set_length = &iio_set_length_kfifo,
-	.release = &iio_kfifo_buffer_release,
+	.remove_from = iio_kfifo_remove_from,
+	.write = iio_kfifo_write,
+	.space_available = iio_kfifo_buf_space_available,
+	.request_update = iio_request_update_kfifo,
+	.set_bytes_per_datum = iio_set_bytes_per_datum_kfifo,
+	.set_length = iio_set_length_kfifo,
+	.release = iio_kfifo_buffer_release,
 
 	.modes = INDIO_BUFFER_SOFTWARE | INDIO_BUFFER_TRIGGERED,
 };
