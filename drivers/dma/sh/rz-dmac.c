@@ -79,7 +79,6 @@ enum rz_dmac_chan_status {
 struct rz_dmac_chan {
 	struct virt_dma_chan vc;
 	void __iomem *ch_base;
-	void __iomem *ch_cmn_base;
 	unsigned int index;
 	struct rz_dmac_desc *desc;
 	int descs_allocated;
@@ -236,21 +235,15 @@ static u32 rz_dmac_ext_readl(struct rz_dmac *dmac, unsigned int offset)
 }
 
 static void rz_dmac_ch_writel(struct rz_dmac_chan *channel, unsigned int val,
-			      unsigned int offset, int which)
+			      unsigned int offset)
 {
-	if (which)
-		writel(val, channel->ch_base + offset);
-	else
-		writel(val, channel->ch_cmn_base + offset);
+	writel(val, channel->ch_base + offset);
 }
 
 static u32 rz_dmac_ch_readl(struct rz_dmac_chan *channel,
-			    unsigned int offset, int which)
+			    unsigned int offset)
 {
-	if (which)
-		return readl(channel->ch_base + offset);
-	else
-		return readl(channel->ch_cmn_base + offset);
+	return readl(channel->ch_base + offset);
 }
 
 /*
@@ -304,14 +297,14 @@ static void rz_dmac_lmdesc_recycle(struct rz_dmac_chan *channel)
 
 static bool rz_dmac_chan_is_enabled(struct rz_dmac_chan *channel)
 {
-	u32 val = rz_dmac_ch_readl(channel, CHSTAT, 1);
+	u32 val = rz_dmac_ch_readl(channel, CHSTAT);
 
 	return !!(val & CHSTAT_EN);
 }
 
 static bool rz_dmac_chan_is_paused(struct rz_dmac_chan *channel)
 {
-	u32 val = rz_dmac_ch_readl(channel, CHSTAT, 1);
+	u32 val = rz_dmac_ch_readl(channel, CHSTAT);
 
 	return !!(val & CHSTAT_SUS);
 }
@@ -337,10 +330,10 @@ static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
 	nxla = rz_dmac_lmdesc_addr(channel, channel->lmdesc.head);
 
 	chctrl = (channel->chctrl | CHCTRL_SETEN);
-	rz_dmac_ch_writel(channel, nxla, NXLA, 1);
-	rz_dmac_ch_writel(channel, channel->chcfg, CHCFG, 1);
-	rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL, 1);
-	rz_dmac_ch_writel(channel, chctrl, CHCTRL, 1);
+	rz_dmac_ch_writel(channel, nxla, NXLA);
+	rz_dmac_ch_writel(channel, channel->chcfg, CHCFG);
+	rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
+	rz_dmac_ch_writel(channel, chctrl, CHCTRL);
 }
 
 static void rz_dmac_disable_hw(struct rz_dmac_chan *channel)
@@ -350,7 +343,7 @@ static void rz_dmac_disable_hw(struct rz_dmac_chan *channel)
 
 	dev_dbg(dmac->dev, "%s channel %d\n", __func__, channel->index);
 
-	rz_dmac_ch_writel(channel, CHCTRL_DEFAULT, CHCTRL, 1);
+	rz_dmac_ch_writel(channel, CHCTRL_DEFAULT, CHCTRL);
 }
 
 static void rz_dmac_set_dmars_register(struct rz_dmac *dmac, int nr, u32 dmars)
@@ -921,7 +914,7 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 		return;
 
 	ret = read_poll_timeout(rz_dmac_ch_readl, chstat, !(chstat & CHSTAT_EN),
-				100, 100000, false, channel, CHSTAT, 1);
+				100, 100000, false, channel, CHSTAT);
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
 
@@ -1006,10 +999,10 @@ static int rz_dmac_chan_get_residue(struct device *dev, struct rz_dmac_chan *cha
 	 * should be enough: initial read, retry, retry for the paranoid.
 	 */
 	for (i = 0; i < 3; i++) {
-		crla = rz_dmac_ch_readl(channel, CRLA, 1);
-		crtb = rz_dmac_ch_readl(channel, CRTB, 1);
+		crla = rz_dmac_ch_readl(channel, CRLA);
+		crtb = rz_dmac_ch_readl(channel, CRTB);
 		/* Still the same? */
-		if (crla == rz_dmac_ch_readl(channel, CRLA, 1))
+		if (crla == rz_dmac_ch_readl(channel, CRLA))
 			break;
 	}
 
@@ -1067,10 +1060,10 @@ static int rz_dmac_device_pause_set(struct rz_dmac_chan *channel,
 	if (rz_dmac_chan_is_paused(channel))
 		goto set_bit;
 
-	rz_dmac_ch_writel(channel, CHCTRL_SETSUS, CHCTRL, 1);
+	rz_dmac_ch_writel(channel, CHCTRL_SETSUS, CHCTRL);
 	ret = read_poll_timeout_atomic(rz_dmac_ch_readl, val,
 				       (val & CHSTAT_SUS), 1, 1024, false,
-				       channel, CHSTAT, 1);
+				       channel, CHSTAT);
 
 set_bit:
 	channel->status |= set_bitmask;
@@ -1140,11 +1133,11 @@ static int rz_dmac_device_resume_set(struct rz_dmac_chan *channel,
 	 * is enabled/disabled anyway.
 	 */
 
-	rz_dmac_ch_writel(channel, CHCTRL_CLRSUS | CHCTRL_SETEN, CHCTRL, 1);
+	rz_dmac_ch_writel(channel, CHCTRL_CLRSUS | CHCTRL_SETEN, CHCTRL);
 
 	ret = read_poll_timeout_atomic(rz_dmac_ch_readl, val,
 				       ((val & (CHSTAT_SUS | CHSTAT_EN)) == CHSTAT_EN),
-				       1, 1024, false, channel, CHSTAT, 1);
+				       1, 1024, false, channel, CHSTAT);
 
 	channel->status &= ~clear_bitmask;
 
@@ -1191,7 +1184,7 @@ static void rz_dmac_irq_handle_channel(struct rz_dmac_chan *channel)
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	u32 chstat;
 
-	chstat = rz_dmac_ch_readl(channel, CHSTAT, 1);
+	chstat = rz_dmac_ch_readl(channel, CHSTAT);
 	if (chstat & CHSTAT_ER) {
 		dev_err(dmac->dev, "DMAC err CHSTAT_%d = %08X\n",
 			channel->index, chstat);
@@ -1205,7 +1198,7 @@ static void rz_dmac_irq_handle_channel(struct rz_dmac_chan *channel)
 	 * No need to lock. This just clears the END interrupt. Writing
 	 * zeros to CHCTRL is just ignored by HW.
 	 */
-	rz_dmac_ch_writel(channel, CHCTRL_CLREND, CHCTRL, 1);
+	rz_dmac_ch_writel(channel, CHCTRL_CLREND, CHCTRL);
 }
 
 static irqreturn_t rz_dmac_irq_handler(int irq, void *dev_id)
@@ -1304,11 +1297,9 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 	if (index < 8) {
 		channel->ch_base = dmac->base + CHANNEL_0_7_OFFSET +
 			EACH_CHANNEL_OFFSET * index;
-		channel->ch_cmn_base = dmac->base + CHANNEL_0_7_COMMON_BASE;
 	} else {
 		channel->ch_base = dmac->base + CHANNEL_8_15_OFFSET +
 			EACH_CHANNEL_OFFSET * (index - 8);
-		channel->ch_cmn_base = dmac->base + CHANNEL_8_15_COMMON_BASE;
 	}
 
 	/* Allocate descriptors */
@@ -1589,7 +1580,7 @@ static int rz_dmac_suspend(struct device *dev)
 			break;
 		}
 
-		channel->pm_state.nxla = rz_dmac_ch_readl(channel, NXLA, 1);
+		channel->pm_state.nxla = rz_dmac_ch_readl(channel, NXLA);
 	}
 
 	if (ret)
@@ -1647,10 +1638,10 @@ static int rz_dmac_resume(struct device *dev)
 		rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
 		rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
 
-		rz_dmac_ch_writel(channel, channel->pm_state.nxla, NXLA, 1);
-		rz_dmac_ch_writel(channel, channel->chcfg, CHCFG, 1);
-		rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL, 1);
-		rz_dmac_ch_writel(channel, channel->chctrl, CHCTRL, 1);
+		rz_dmac_ch_writel(channel, channel->pm_state.nxla, NXLA);
+		rz_dmac_ch_writel(channel, channel->chcfg, CHCFG);
+		rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
+		rz_dmac_ch_writel(channel, channel->chctrl, CHCTRL);
 
 		ret = rz_dmac_device_resume_internal(channel);
 		if (ret) {
