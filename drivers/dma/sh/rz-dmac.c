@@ -57,14 +57,8 @@ struct rz_sw_lmdesc {
 
 struct rz_dmac_desc {
 	struct virt_dma_desc vd;
-	dma_addr_t src;
-	dma_addr_t dest;
 	size_t len;
-	size_t period_len;
-	enum dma_transfer_direction direction;
 	enum rz_dmac_prep_type type;
-	/* For slave sg */
-	struct scatterlist *sg;
 	unsigned int num_lmdesc;
 	struct rz_sw_lmdesc lmdesc[] __counted_by(num_lmdesc);
 };
@@ -450,104 +444,6 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 	return lmdesc;
 }
 
-static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel,
-					    struct rz_dmac_desc *d)
-{
-	struct rz_lmdesc *lmdesc;
-
-	/* prepare descriptor */
-	lmdesc = rz_dmac_desc_alloc_lmdesc(channel, d, 0, 0);
-	lmdesc->sa = d->src;
-	lmdesc->da = d->dest;
-	lmdesc->tb = d->len;
-	lmdesc->chcfg = CHCFG_MEM_COPY | CHCFG_SEL(channel->index);
-	lmdesc->chitvl = 0;
-	lmdesc->chext = 0;
-	lmdesc->header = HEADER_LV | HEADER_LE;
-}
-
-static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel,
-					       struct rz_dmac_desc *d)
-{
-	struct scatterlist *sg, *sgl = d->sg;
-	struct rz_lmdesc *lmdesc;
-	unsigned int i, sg_len = d->num_lmdesc;
-	u32 chcfg;
-
-	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DEM | CHCFG_DMS;
-
-	if (d->direction == DMA_DEV_TO_MEM) {
-		chcfg |= CHCFG_SAD;
-		chcfg &= ~CHCFG_REQD;
-	} else {
-		chcfg |= CHCFG_DAD | CHCFG_REQD;
-	}
-
-	for (i = 0, sg = sgl; i < sg_len; i++, sg = sg_next(sg)) {
-		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, d, i, 0);
-
-		if (d->direction == DMA_DEV_TO_MEM) {
-			lmdesc->sa = channel->src_per_address;
-			lmdesc->da = sg_dma_address(sg);
-		} else {
-			lmdesc->sa = sg_dma_address(sg);
-			lmdesc->da = channel->dst_per_address;
-		}
-
-		lmdesc->tb = sg_dma_len(sg);
-		lmdesc->chitvl = 0;
-		lmdesc->chext = 0;
-		if (i == (sg_len - 1)) {
-			lmdesc->chcfg = chcfg & ~CHCFG_DEM;
-			lmdesc->header = HEADER_LV | HEADER_LE;
-		} else {
-			lmdesc->chcfg = chcfg;
-			lmdesc->header = HEADER_LV;
-		}
-	}
-}
-
-static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel,
-					     struct rz_dmac_desc *d)
-{
-	size_t period_len = d->period_len;
-	struct rz_lmdesc *lmdesc;
-	size_t periods = d->num_lmdesc;
-	u32 chcfg;
-
-	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DMS;
-
-	if (d->direction == DMA_DEV_TO_MEM) {
-		chcfg |= CHCFG_SAD;
-		chcfg &= ~CHCFG_REQD;
-	} else {
-		chcfg |= CHCFG_DAD | CHCFG_REQD;
-	}
-
-	for (size_t i = 0; i < periods; i++) {
-		unsigned int lmdesc_flags = 0;
-
-		if (i == periods - 1)
-			lmdesc_flags |= RZ_DMAC_LMDESC_CYCLE;
-
-		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, d, i, lmdesc_flags);
-
-		if (d->direction == DMA_DEV_TO_MEM) {
-			lmdesc->sa = d->src;
-			lmdesc->da = d->dest + (i * period_len);
-		} else {
-			lmdesc->sa = d->src + (i * period_len);
-			lmdesc->da = d->dest;
-		}
-
-		lmdesc->tb = period_len;
-		lmdesc->chitvl = 0;
-		lmdesc->chext = 0;
-		lmdesc->chcfg = chcfg;
-		lmdesc->header = HEADER_LV | HEADER_WBD;
-	}
-}
-
 static void rz_dmac_xfer_desc(struct rz_dmac_chan *channel)
 {
 	struct dma_chan *chan = &channel->vc.chan;
@@ -630,6 +526,7 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_dmac_desc *desc;
+	struct rz_lmdesc *lmdesc;
 
 	dev_dbg(dmac->dev, "%s channel: %d src=0x%pad dst=0x%pad len=%zu\n",
 		__func__, channel->index, &src, &dest, len);
@@ -639,12 +536,16 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 
 	desc->type = RZ_DMAC_DESC_MEMCPY;
-	desc->src = src;
-	desc->dest = dest;
 	desc->len = len;
-	desc->direction = DMA_MEM_TO_MEM;
 
-	rz_dmac_prepare_desc_for_memcpy(channel, desc);
+	lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, 0, 0);
+	lmdesc->sa = src;
+	lmdesc->da = dest;
+	lmdesc->tb = len;
+	lmdesc->chcfg = CHCFG_MEM_COPY | CHCFG_SEL(channel->index);
+	lmdesc->chitvl = 0;
+	lmdesc->chext = 0;
+	lmdesc->header = HEADER_LV | HEADER_LE;
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
@@ -657,28 +558,51 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 {
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
 	struct rz_dmac_desc *desc;
+	struct rz_lmdesc *lmdesc;
 	struct scatterlist *sg;
-	int dma_length = 0;
-	int i = 0;
-
-	for_each_sg(sgl, sg, sg_len, i)
-		dma_length += sg_dma_len(sg);
+	u32 chcfg;
+	int i;
 
 	desc = rz_dmac_alloc_desc(channel, sg_len);
 	if (!desc)
 		return NULL;
 
 	desc->type = RZ_DMAC_DESC_SLAVE_SG;
-	desc->sg = sgl;
-	desc->len = dma_length;
-	desc->direction = direction;
+	desc->len = 0;
 
-	if (direction == DMA_DEV_TO_MEM)
-		desc->src = channel->src_per_address;
-	else
-		desc->dest = channel->dst_per_address;
+	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DEM | CHCFG_DMS;
 
-	rz_dmac_prepare_descs_for_slave_sg(channel, desc);
+	if (direction == DMA_DEV_TO_MEM) {
+		chcfg |= CHCFG_SAD;
+		chcfg &= ~CHCFG_REQD;
+	} else {
+		chcfg |= CHCFG_DAD | CHCFG_REQD;
+	}
+
+	for_each_sg(sgl, sg, sg_len, i) {
+		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, i, 0);
+
+		if (direction == DMA_DEV_TO_MEM) {
+			lmdesc->sa = channel->src_per_address;
+			lmdesc->da = sg_dma_address(sg);
+		} else {
+			lmdesc->sa = sg_dma_address(sg);
+			lmdesc->da = channel->dst_per_address;
+		}
+
+		lmdesc->tb = sg_dma_len(sg);
+		lmdesc->chitvl = 0;
+		lmdesc->chext = 0;
+		if (i == (sg_len - 1)) {
+			lmdesc->chcfg = chcfg & ~CHCFG_DEM;
+			lmdesc->header = HEADER_LV | HEADER_LE;
+		} else {
+			lmdesc->chcfg = chcfg;
+			lmdesc->header = HEADER_LV;
+		}
+
+		desc->len += lmdesc->tb;
+	}
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
@@ -691,7 +615,9 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 {
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
 	struct rz_dmac_desc *desc;
+	struct rz_lmdesc *lmdesc;
 	size_t periods;
+	u32 chcfg;
 
 	if (!is_slave_direction(direction))
 		return NULL;
@@ -709,18 +635,38 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 
 	desc->type = RZ_DMAC_DESC_CYCLIC;
 	desc->len = buf_len;
-	desc->period_len = period_len;
-	desc->direction = direction;
+
+	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DMS;
 
 	if (direction == DMA_DEV_TO_MEM) {
-		desc->src = channel->src_per_address;
-		desc->dest = buf_addr;
+		chcfg |= CHCFG_SAD;
+		chcfg &= ~CHCFG_REQD;
 	} else {
-		desc->src = buf_addr;
-		desc->dest = channel->dst_per_address;
+		chcfg |= CHCFG_DAD | CHCFG_REQD;
 	}
 
-	rz_dmac_prepare_descs_for_cyclic(channel, desc);
+	for (size_t i = 0; i < periods; i++) {
+		unsigned int lmdesc_flags = 0;
+
+		if (i == periods - 1)
+			lmdesc_flags |= RZ_DMAC_LMDESC_CYCLE;
+
+		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, i, lmdesc_flags);
+
+		if (direction == DMA_DEV_TO_MEM) {
+			lmdesc->sa = channel->src_per_address;
+			lmdesc->da = buf_addr + (i * period_len);
+		} else {
+			lmdesc->sa = buf_addr + (i * period_len);
+			lmdesc->da = channel->dst_per_address;
+		}
+
+		lmdesc->tb = period_len;
+		lmdesc->chitvl = 0;
+		lmdesc->chext = 0;
+		lmdesc->chcfg = chcfg;
+		lmdesc->header = HEADER_LV | HEADER_WBD;
+	}
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
