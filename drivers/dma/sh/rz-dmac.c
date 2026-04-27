@@ -68,12 +68,10 @@ struct rz_dmac_desc {
 /**
  * enum rz_dmac_chan_status: RZ DMAC channel status
  * @RZ_DMAC_CHAN_STATUS_PAUSED: Channel is paused though DMA engine callbacks
- * @RZ_DMAC_CHAN_STATUS_CYCLIC: Channel is cyclic
  * @RZ_DMAC_CHAN_STATUS_PAUSED_INTERNAL: Channel is paused through driver internal logic
  */
 enum rz_dmac_chan_status {
 	RZ_DMAC_CHAN_STATUS_PAUSED,
-	RZ_DMAC_CHAN_STATUS_CYCLIC,
 	RZ_DMAC_CHAN_STATUS_PAUSED_INTERNAL,
 };
 
@@ -315,6 +313,13 @@ static bool rz_dmac_chan_is_paused(struct rz_dmac_chan *channel)
 	u32 val = rz_dmac_ch_readl(channel, CHSTAT, 1);
 
 	return !!(val & CHSTAT_SUS);
+}
+
+static bool rz_dmac_chan_is_cyclic(struct rz_dmac_chan *channel)
+{
+	lockdep_assert_held(&channel->vc.lock);
+
+	return channel->desc && channel->desc->type == RZ_DMAC_DESC_CYCLIC;
 }
 
 static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
@@ -752,16 +757,11 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		return NULL;
 
 	scoped_guard(spinlock_irqsave, &channel->vc.lock) {
-		if (channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC))
-			return NULL;
-
 		desc = list_first_entry_or_null(&channel->ld_free, struct rz_dmac_desc, node);
 		if (!desc)
 			return NULL;
 
 		list_del(&desc->node);
-
-		channel->status |= BIT(RZ_DMAC_CHAN_STATUS_CYCLIC);
 	}
 
 	desc->type = RZ_DMAC_DESC_CYCLIC;
@@ -951,7 +951,7 @@ static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 	}
 
 	/* Calculate residue from next lmdesc to end of virtual desc */
-	if (channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC)) {
+	if (rz_dmac_chan_is_cyclic(channel)) {
 		u32 start_lmdesc_addr = rz_dmac_lmdesc_addr(channel, desc->start_lmdesc);
 
 		while (lmdesc->nxla != start_lmdesc_addr) {
@@ -1231,7 +1231,7 @@ static irqreturn_t rz_dmac_irq_handler_thread(int irq, void *dev_id)
 	if (!desc)
 		return IRQ_HANDLED;
 
-	if (channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC)) {
+	if (rz_dmac_chan_is_cyclic(channel)) {
 		vchan_cyclic_callback(&desc->vd);
 	} else {
 		vchan_cookie_complete(&desc->vd);
@@ -1562,7 +1562,7 @@ static void rz_dmac_suspend_recover(struct rz_dmac *dmac)
 
 		guard(spinlock_irqsave)(&channel->vc.lock);
 
-		if (!(channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC)))
+		if (!rz_dmac_chan_is_cyclic(channel))
 			continue;
 
 		rz_dmac_device_resume_internal(channel);
@@ -1579,7 +1579,7 @@ static int rz_dmac_suspend(struct device *dev)
 
 		guard(spinlock_irqsave)(&channel->vc.lock);
 
-		if (!(channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC)))
+		if (!rz_dmac_chan_is_cyclic(channel))
 			continue;
 
 		ret = rz_dmac_device_pause_internal(channel);
@@ -1641,7 +1641,7 @@ static int rz_dmac_resume(struct device *dev)
 
 		rz_dmac_disable_hw(&dmac->channels[i]);
 
-		if (!(channel->status & BIT(RZ_DMAC_CHAN_STATUS_CYCLIC)))
+		if (!rz_dmac_chan_is_cyclic(channel))
 			continue;
 
 		rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
