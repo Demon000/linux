@@ -54,6 +54,7 @@ struct rz_dmac_desc {
 	dma_addr_t src;
 	dma_addr_t dest;
 	size_t len;
+	size_t period_len;
 	struct list_head node;
 	enum dma_transfer_direction direction;
 	enum rz_dmac_prep_type type;
@@ -503,10 +504,9 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_dmac_desc *d = channel->desc;
-	size_t period_len = d->sgcount;
+	size_t period_len = d->period_len;
 	struct rz_lmdesc *lmdesc;
-	size_t buf_len = d->len;
-	size_t periods = buf_len / period_len;
+	size_t periods = d->sgcount;
 	u32 chcfg;
 
 	lockdep_assert_held(&channel->vc.lock);
@@ -754,8 +754,9 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	}
 
 	desc->type = RZ_DMAC_DESC_CYCLIC;
-	desc->sgcount = period_len;
+	desc->sgcount = periods;
 	desc->len = buf_len;
+	desc->period_len = period_len;
 	desc->direction = direction;
 
 	if (direction == DMA_DEV_TO_MEM) {
