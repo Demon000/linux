@@ -61,6 +61,7 @@ struct rz_dmac_desc {
 	struct scatterlist *sg;
 	unsigned int sgcount;
 	struct rz_lmdesc *start_lmdesc;
+	struct rz_lmdesc *end_lmdesc;
 };
 
 #define to_rz_dmac_desc(d)	container_of(d, struct rz_dmac_desc, vd)
@@ -452,6 +453,7 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 		lmdesc = channel->lmdesc.base;
 
 	channel->lmdesc.tail = lmdesc;
+	d->end_lmdesc = lmdesc;
 
 	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
 
@@ -504,6 +506,7 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 	}
 
 	channel->lmdesc.tail = lmdesc;
+	d->end_lmdesc = lmdesc;
 
 	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
 	rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
@@ -558,6 +561,7 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 	}
 
 	channel->lmdesc.tail = lmdesc;
+	d->end_lmdesc = lmdesc;
 
 	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
 	rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
@@ -942,27 +946,23 @@ static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 	struct rz_lmdesc *lmdesc = desc->start_lmdesc;
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	u32 residue = 0, i = 0;
+	u32 residue = 0;
 
-	while (lmdesc->nxla != crla) {
+	while (rz_dmac_lmdesc_addr(channel, lmdesc) != crla) {
 		lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-		if (++i >= DMAC_NR_LMDESC)
+		if (lmdesc == desc->start_lmdesc)
 			return 0;
 	}
 
-	/* Calculate residue from next lmdesc to end of virtual desc */
-	if (rz_dmac_chan_is_cyclic(channel)) {
-		u32 start_lmdesc_addr = rz_dmac_lmdesc_addr(channel, desc->start_lmdesc);
+	/*
+	 * CRTB contains the number of bytes left to transfer in the current
+	 * lmdesc, so sum the transfer bytes starting with the next lmdesc.
+	 */
+	lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
 
-		while (lmdesc->nxla != start_lmdesc_addr) {
-			residue += lmdesc->tb;
-			lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-		}
-	} else {
-		while (lmdesc->chcfg & CHCFG_DEM) {
-			residue += lmdesc->tb;
-			lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-		}
+	while (lmdesc != desc->end_lmdesc) {
+		residue += lmdesc->tb;
+		lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
 	}
 
 	dev_dbg(dmac->dev, "%s: VD residue is %u\n", __func__, residue);
