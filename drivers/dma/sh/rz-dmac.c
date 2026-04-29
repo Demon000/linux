@@ -55,7 +55,6 @@ struct rz_dmac_desc {
 	dma_addr_t dest;
 	size_t len;
 	size_t period_len;
-	struct list_head node;
 	enum dma_transfer_direction direction;
 	enum rz_dmac_prep_type type;
 	/* For slave sg */
@@ -86,7 +85,6 @@ struct rz_dmac_chan {
 	void __iomem *ch_base;
 	unsigned int index;
 	struct rz_dmac_desc *desc;
-	int descs_allocated;
 
 	dma_addr_t src_per_address;
 	dma_addr_t dst_per_address;
@@ -101,8 +99,6 @@ struct rz_dmac_chan {
 	struct {
 		u32 nxla;
 	} pm_state;
-
-	struct list_head ld_free;
 
 	struct {
 		struct rz_lmdesc *base;
@@ -210,7 +206,6 @@ struct rz_dmac {
 #define HEADER_LE			BIT(1)
 #define HEADER_WBD			BIT(2)
 
-#define RZ_DMAC_MAX_CHAN_DESCRIPTORS	16
 #define RZ_DMAC_MAX_CHANNELS		16
 #define DMAC_NR_LMDESC			64
 
@@ -352,6 +347,26 @@ static void rz_dmac_set_dma_req_no(struct rz_dmac *dmac, unsigned int index,
 						 index, req_no);
 	else
 		rz_dmac_set_dmars_register(dmac, index, req_no);
+}
+
+static void rz_dmac_free_desc(struct rz_dmac_chan *channel,
+			      struct rz_dmac_desc *desc)
+{
+	kfree(desc);
+}
+
+static struct rz_dmac_desc *
+rz_dmac_alloc_desc(struct rz_dmac_chan *channel, unsigned int num_lmdesc)
+{
+	struct rz_dmac_desc *desc;
+
+	desc = kzalloc_obj(*desc, GFP_NOWAIT);
+	if (!desc)
+		return NULL;
+
+	desc->num_lmdesc = num_lmdesc;
+
+	return desc;
 }
 
 /*
@@ -586,33 +601,10 @@ static void rz_dmac_xfer_desc(struct rz_dmac_chan *channel)
  * DMA engine operations
  */
 
-static int rz_dmac_alloc_chan_resources(struct dma_chan *chan)
-{
-	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
-
-	while (channel->descs_allocated < RZ_DMAC_MAX_CHAN_DESCRIPTORS) {
-		struct rz_dmac_desc *desc;
-
-		desc = kzalloc_obj(*desc);
-		if (!desc)
-			break;
-
-		/* No need to lock. This is called only for the 1st client. */
-		list_add_tail(&desc->node, &channel->ld_free);
-		channel->descs_allocated++;
-	}
-
-	if (!channel->descs_allocated)
-		return -ENOMEM;
-
-	return channel->descs_allocated;
-}
-
 static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 {
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	struct rz_dmac_desc *desc, *_desc;
 	unsigned long flags;
 	int ret;
 
@@ -643,18 +635,6 @@ static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 	spin_unlock_irqrestore(&channel->vc.lock, flags);
 
 	vchan_free_chan_resources(&channel->vc);
-
-	spin_lock_irqsave(&channel->vc.lock, flags);
-
-	list_for_each_entry_safe(desc, _desc, &channel->ld_free, node) {
-		list_del(&desc->node);
-		kfree(desc);
-		channel->descs_allocated--;
-	}
-
-	INIT_LIST_HEAD(&channel->ld_free);
-
-	spin_unlock_irqrestore(&channel->vc.lock, flags);
 }
 
 static struct dma_async_tx_descriptor *
@@ -668,13 +648,9 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	dev_dbg(dmac->dev, "%s channel: %d src=0x%pad dst=0x%pad len=%zu\n",
 		__func__, channel->index, &src, &dest, len);
 
-	scoped_guard(spinlock_irqsave, &channel->vc.lock) {
-		desc = list_first_entry_or_null(&channel->ld_free, struct rz_dmac_desc, node);
-		if (!desc)
-			return NULL;
-
-		list_del(&desc->node);
-	}
+	desc = rz_dmac_alloc_desc(channel, 1);
+	if (!desc)
+		return NULL;
 
 	desc->type = RZ_DMAC_DESC_MEMCPY;
 	desc->src = src;
@@ -697,20 +673,15 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	int dma_length = 0;
 	int i = 0;
 
-	scoped_guard(spinlock_irqsave, &channel->vc.lock) {
-		desc = list_first_entry_or_null(&channel->ld_free, struct rz_dmac_desc, node);
-		if (!desc)
-			return NULL;
-
-		list_del(&desc->node);
-	}
-
 	for_each_sg(sgl, sg, sg_len, i)
 		dma_length += sg_dma_len(sg);
 
+	desc = rz_dmac_alloc_desc(channel, sg_len);
+	if (!desc)
+		return NULL;
+
 	desc->type = RZ_DMAC_DESC_SLAVE_SG;
 	desc->sg = sgl;
-	desc->num_lmdesc = sg_len;
 	desc->len = dma_length;
 	desc->direction = direction;
 
@@ -742,16 +713,11 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	if (!periods || periods > DMAC_NR_LMDESC)
 		return NULL;
 
-	scoped_guard(spinlock_irqsave, &channel->vc.lock) {
-		desc = list_first_entry_or_null(&channel->ld_free, struct rz_dmac_desc, node);
-		if (!desc)
-			return NULL;
-
-		list_del(&desc->node);
-	}
+	desc = rz_dmac_alloc_desc(channel, periods);
+	if (!desc)
+		return NULL;
 
 	desc->type = RZ_DMAC_DESC_CYCLIC;
-	desc->num_lmdesc = periods;
 	desc->len = buf_len;
 	desc->period_len = period_len;
 	desc->direction = direction;
@@ -881,12 +847,9 @@ static int rz_dmac_config(struct dma_chan *chan,
 static void rz_dmac_virt_desc_free(struct virt_dma_desc *vd)
 {
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(vd->tx.chan);
-	struct virt_dma_chan *vc = to_virt_chan(vd->tx.chan);
 	struct rz_dmac_desc *desc = to_rz_dmac_desc(vd);
 
-	guard(spinlock_irqsave)(&vc->lock);
-
-	list_add_tail(&desc->node, &channel->ld_free);
+	rz_dmac_free_desc(channel, desc);
 }
 
 static void rz_dmac_device_synchronize(struct dma_chan *chan)
@@ -1304,7 +1267,6 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 
 	channel->vc.desc_free = rz_dmac_virt_desc_free;
 	vchan_init(&channel->vc, &dmac->engine);
-	INIT_LIST_HEAD(&channel->ld_free);
 
 	/* Initialize register for each channel */
 	rz_dmac_disable_hw(channel);
@@ -1483,7 +1445,6 @@ static int rz_dmac_probe(struct platform_device *pdev)
 
 	engine->dev = &pdev->dev;
 
-	engine->device_alloc_chan_resources = rz_dmac_alloc_chan_resources;
 	engine->device_free_chan_resources = rz_dmac_free_chan_resources;
 	engine->device_tx_status = rz_dmac_tx_status;
 	engine->device_prep_slave_sg = rz_dmac_prep_slave_sg;
