@@ -49,6 +49,11 @@ struct rz_lmdesc {
 	u32 nxla;
 };
 
+struct rz_sw_lmdesc {
+	struct rz_lmdesc *hw;
+	dma_addr_t dma_addr;
+};
+
 struct rz_dmac_desc {
 	struct virt_dma_desc vd;
 	dma_addr_t src;
@@ -60,8 +65,7 @@ struct rz_dmac_desc {
 	/* For slave sg */
 	struct scatterlist *sg;
 	unsigned int num_lmdesc;
-	struct rz_lmdesc *start_lmdesc;
-	struct rz_lmdesc *end_lmdesc;
+	struct rz_sw_lmdesc lmdesc[] __counted_by(num_lmdesc);
 };
 
 #define to_rz_dmac_desc(d)	container_of(d, struct rz_dmac_desc, vd)
@@ -299,7 +303,7 @@ static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
 
 	dev_dbg(dmac->dev, "%s channel %d\n", __func__, channel->index);
 
-	nxla = rz_dmac_lmdesc_addr(channel, channel->desc->start_lmdesc);
+	nxla = channel->desc->lmdesc[0].dma_addr;
 
 	chctrl = (channel->chctrl | CHCTRL_SETEN);
 	rz_dmac_ch_writel(channel, nxla, NXLA);
@@ -311,7 +315,7 @@ static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
 	 * first LM descriptor. See the CAUTION in the Link Mode section of the
 	 * RZ/G2L User Manual.
 	 */
-	rz_dmac_ch_writel(channel, channel->desc->start_lmdesc->chcfg, CHCFG);
+	rz_dmac_ch_writel(channel, channel->desc->lmdesc[0].hw->chcfg, CHCFG);
 	rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
 	rz_dmac_ch_writel(channel, chctrl, CHCTRL);
 }
@@ -360,7 +364,7 @@ rz_dmac_alloc_desc(struct rz_dmac_chan *channel, unsigned int num_lmdesc)
 {
 	struct rz_dmac_desc *desc;
 
-	desc = kzalloc_obj(*desc, GFP_NOWAIT);
+	desc = kzalloc_flex(*desc, lmdesc, num_lmdesc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
@@ -428,20 +432,22 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 			  unsigned int i, unsigned int flags)
 {
 	struct rz_lmdesc *lmdesc;
+	dma_addr_t dma_addr;
 
 	lmdesc = channel->lmdesc.tail;
-	if (i == 0)
-		desc->start_lmdesc = lmdesc;
+	dma_addr = rz_dmac_lmdesc_addr(channel, lmdesc);
+
+	desc->lmdesc[i].hw = lmdesc;
+	desc->lmdesc[i].dma_addr = dma_addr;
 
 	if (++channel->lmdesc.tail >= (channel->lmdesc.base + DMAC_NR_LMDESC))
 		channel->lmdesc.tail = channel->lmdesc.base;
 
-	desc->end_lmdesc = channel->lmdesc.tail;
-
 	if (flags & RZ_DMAC_LMDESC_CYCLE)
-		lmdesc->nxla = rz_dmac_lmdesc_addr(channel, desc->start_lmdesc);
-	else
-		lmdesc->nxla = rz_dmac_lmdesc_addr(channel, desc->end_lmdesc);
+		lmdesc->nxla = desc->lmdesc[0].dma_addr;
+
+	if (i != 0)
+		desc->lmdesc[i - 1].hw->nxla = dma_addr;
 
 	return lmdesc;
 }
@@ -875,41 +881,27 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	rz_dmac_reset_dma_ack_no(dmac, channel->dmac_ack);
 }
 
-static struct rz_lmdesc *
-rz_dmac_get_next_lmdesc(struct rz_lmdesc *base, struct rz_lmdesc *lmdesc)
-{
-	struct rz_lmdesc *next = ++lmdesc;
-
-	if (next >= base + DMAC_NR_LMDESC)
-		next = base;
-
-	return next;
-}
-
 static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 						 struct rz_dmac_desc *desc, u32 crla)
 {
-	struct rz_lmdesc *lmdesc = desc->start_lmdesc;
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	u32 residue = 0;
+	unsigned int i;
 
-	while (rz_dmac_lmdesc_addr(channel, lmdesc) != crla) {
-		lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-		if (lmdesc == desc->start_lmdesc)
-			return 0;
-	}
+	for (i = 0; i < desc->num_lmdesc; i++)
+		if (desc->lmdesc[i].dma_addr == crla)
+			break;
+
+	if (i == desc->num_lmdesc)
+		return 0;
 
 	/*
 	 * CRTB contains the number of bytes left to transfer in the current
 	 * lmdesc, so sum the transfer bytes starting with the next lmdesc.
 	 */
-	lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-
-	while (lmdesc != desc->end_lmdesc) {
-		residue += lmdesc->tb;
-		lmdesc = rz_dmac_get_next_lmdesc(channel->lmdesc.base, lmdesc);
-	}
+	for (i++; i < desc->num_lmdesc; i++)
+		residue += desc->lmdesc[i].hw->tb;
 
 	dev_dbg(dmac->dev, "%s: VD residue is %u\n", __func__, residue);
 
@@ -1590,7 +1582,7 @@ static int rz_dmac_resume(struct device *dev)
 		rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
 
 		rz_dmac_ch_writel(channel, channel->pm_state.nxla, NXLA);
-		rz_dmac_ch_writel(channel, channel->desc->start_lmdesc->chcfg, CHCFG);
+		rz_dmac_ch_writel(channel, channel->desc->lmdesc[0].hw->chcfg, CHCFG);
 		rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
 		rz_dmac_ch_writel(channel, channel->chctrl, CHCTRL);
 
