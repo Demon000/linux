@@ -60,7 +60,7 @@ struct rz_dmac_desc {
 	enum rz_dmac_prep_type type;
 	/* For slave sg */
 	struct scatterlist *sg;
-	unsigned int sgcount;
+	unsigned int num_lmdesc;
 	struct rz_lmdesc *start_lmdesc;
 	struct rz_lmdesc *end_lmdesc;
 };
@@ -452,7 +452,7 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 	struct rz_dmac_desc *d = channel->desc;
 	struct scatterlist *sg, *sgl = d->sg;
 	struct rz_lmdesc *lmdesc;
-	unsigned int i, sg_len = d->sgcount;
+	unsigned int i, sg_len = d->num_lmdesc;
 	u32 chcfg;
 
 	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DEM | CHCFG_DMS;
@@ -506,7 +506,7 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 	struct rz_dmac_desc *d = channel->desc;
 	size_t period_len = d->period_len;
 	struct rz_lmdesc *lmdesc;
-	size_t periods = d->sgcount;
+	size_t periods = d->num_lmdesc;
 	u32 chcfg;
 
 	lockdep_assert_held(&channel->vc.lock);
@@ -713,7 +713,7 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	desc->type = RZ_DMAC_DESC_SLAVE_SG;
 	desc->sg = sgl;
-	desc->sgcount = sg_len;
+	desc->num_lmdesc = sg_len;
 	desc->len = dma_length;
 	desc->direction = direction;
 
@@ -754,7 +754,7 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	}
 
 	desc->type = RZ_DMAC_DESC_CYCLIC;
-	desc->sgcount = periods;
+	desc->num_lmdesc = periods;
 	desc->len = buf_len;
 	desc->period_len = period_len;
 	desc->direction = direction;
