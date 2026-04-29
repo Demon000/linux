@@ -101,7 +101,6 @@ struct rz_dmac_chan {
 
 	struct {
 		struct rz_lmdesc *base;
-		struct rz_lmdesc *head;
 		struct rz_lmdesc *tail;
 		dma_addr_t base_dma;
 	} lmdesc;
@@ -258,7 +257,6 @@ static void rz_lmdesc_setup(struct rz_dmac_chan *channel,
 	u32 nxla;
 
 	channel->lmdesc.base = lmdesc;
-	channel->lmdesc.head = lmdesc;
 	channel->lmdesc.tail = lmdesc;
 	nxla = channel->lmdesc.base_dma;
 	while (lmdesc < (channel->lmdesc.base + (DMAC_NR_LMDESC - 1))) {
@@ -281,19 +279,6 @@ static u32 rz_dmac_lmdesc_addr(struct rz_dmac_chan *channel, struct rz_lmdesc *l
 {
 	return channel->lmdesc.base_dma +
 	       (sizeof(struct rz_lmdesc) * (lmdesc - channel->lmdesc.base));
-}
-
-static void rz_dmac_lmdesc_recycle(struct rz_dmac_chan *channel)
-{
-	struct rz_lmdesc *lmdesc = channel->lmdesc.head;
-
-	while (!(lmdesc->header & HEADER_LV)) {
-		lmdesc->header = 0;
-		lmdesc++;
-		if (lmdesc >= (channel->lmdesc.base + DMAC_NR_LMDESC))
-			lmdesc = channel->lmdesc.base;
-	}
-	channel->lmdesc.head = lmdesc;
 }
 
 static bool rz_dmac_chan_is_enabled(struct rz_dmac_chan *channel)
@@ -326,9 +311,7 @@ static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
 
 	dev_dbg(dmac->dev, "%s channel %d\n", __func__, channel->index);
 
-	rz_dmac_lmdesc_recycle(channel);
-
-	nxla = rz_dmac_lmdesc_addr(channel, channel->lmdesc.head);
+	nxla = rz_dmac_lmdesc_addr(channel, channel->desc->start_lmdesc);
 
 	chctrl = (channel->chctrl | CHCTRL_SETEN);
 	rz_dmac_ch_writel(channel, nxla, NXLA);
