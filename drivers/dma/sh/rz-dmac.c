@@ -556,6 +556,8 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 
 	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
 	rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
+
+	channel->chctrl = 0;
 }
 
 static void rz_dmac_xfer_desc(struct rz_dmac_chan *chan)
