@@ -563,34 +563,34 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 	channel->chctrl = 0;
 }
 
-static void rz_dmac_xfer_desc(struct rz_dmac_chan *chan)
+static void rz_dmac_xfer_desc(struct rz_dmac_chan *channel)
 {
 	struct virt_dma_desc *vd;
 
-	vd = vchan_next_desc(&chan->vc);
+	vd = vchan_next_desc(&channel->vc);
 	if (!vd) {
-		chan->desc = NULL;
+		channel->desc = NULL;
 		return;
 	}
 
 	list_del(&vd->node);
-	chan->desc = to_rz_dmac_desc(vd);
+	channel->desc = to_rz_dmac_desc(vd);
 
-	switch (chan->desc->type) {
+	switch (channel->desc->type) {
 	case RZ_DMAC_DESC_MEMCPY:
-		rz_dmac_prepare_desc_for_memcpy(chan);
+		rz_dmac_prepare_desc_for_memcpy(channel);
 		break;
 
 	case RZ_DMAC_DESC_SLAVE_SG:
-		rz_dmac_prepare_descs_for_slave_sg(chan);
+		rz_dmac_prepare_descs_for_slave_sg(channel);
 		break;
 
 	case RZ_DMAC_DESC_CYCLIC:
-		rz_dmac_prepare_descs_for_cyclic(chan);
+		rz_dmac_prepare_descs_for_cyclic(channel);
 		break;
 	}
 
-	rz_dmac_enable_hw(chan);
+	rz_dmac_enable_hw(channel);
 }
 
 /*
