@@ -13,6 +13,7 @@
 #include <linux/cleanup.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/dmapool.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/irqchip/irq-renesas-rzv2h.h>
@@ -103,12 +104,6 @@ struct rz_dmac_chan {
 	struct {
 		u32 nxla;
 	} pm_state;
-
-	struct {
-		struct rz_lmdesc *base;
-		struct rz_lmdesc *tail;
-		dma_addr_t base_dma;
-	} lmdesc;
 };
 
 #define to_rz_dmac_chan(c)	container_of(c, struct rz_dmac_chan, vc.chan)
@@ -135,6 +130,8 @@ struct rz_dmac {
 	struct reset_control *rstc;
 	void __iomem *base;
 	void __iomem *ext_base;
+
+	struct dma_pool *lmdesc_pool;
 
 	unsigned int n_channels;
 	struct rz_dmac_chan *channels;
@@ -211,7 +208,6 @@ struct rz_dmac {
 #define HEADER_WBD			BIT(2)
 
 #define RZ_DMAC_MAX_CHANNELS		16
-#define DMAC_NR_LMDESC			64
 
 /* RZ/V2H ICU related */
 #define RZV2H_MAX_DMAC_INDEX		4
@@ -252,26 +248,8 @@ static u32 rz_dmac_ch_readl(struct rz_dmac_chan *channel,
 
 /*
  * -----------------------------------------------------------------------------
- * Initialization
- */
-
-static void rz_lmdesc_setup(struct rz_dmac_chan *channel,
-			    struct rz_lmdesc *lmdesc)
-{
-	channel->lmdesc.base = lmdesc;
-	channel->lmdesc.tail = lmdesc;
-}
-
-/*
- * -----------------------------------------------------------------------------
  * Descriptors preparation
  */
-
-static u32 rz_dmac_lmdesc_addr(struct rz_dmac_chan *channel, struct rz_lmdesc *lmdesc)
-{
-	return channel->lmdesc.base_dma +
-	       (sizeof(struct rz_lmdesc) * (lmdesc - channel->lmdesc.base));
-}
 
 static bool rz_dmac_chan_is_enabled(struct rz_dmac_chan *channel)
 {
@@ -356,19 +334,45 @@ static void rz_dmac_set_dma_req_no(struct rz_dmac *dmac, unsigned int index,
 static void rz_dmac_free_desc(struct rz_dmac_chan *channel,
 			      struct rz_dmac_desc *desc)
 {
+	struct dma_chan *chan = &channel->vc.chan;
+	struct rz_dmac *dmac = to_rz_dmac(chan->device);
+
+	for (unsigned int i = 0; i < desc->num_lmdesc; i++) {
+		if (!desc->lmdesc[i].hw)
+			break;
+
+		dma_pool_free(dmac->lmdesc_pool, desc->lmdesc[i].hw,
+			      desc->lmdesc[i].dma_addr);
+	}
+
 	kfree(desc);
 }
 
 static struct rz_dmac_desc *
 rz_dmac_alloc_desc(struct rz_dmac_chan *channel, unsigned int num_lmdesc)
 {
+	struct dma_chan *chan = &channel->vc.chan;
+	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_dmac_desc *desc;
+	struct rz_lmdesc *lmdesc;
+	dma_addr_t dma_addr;
 
 	desc = kzalloc_flex(*desc, lmdesc, num_lmdesc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
 	desc->num_lmdesc = num_lmdesc;
+
+	for (unsigned int i = 0; i < desc->num_lmdesc; i++) {
+		lmdesc = dma_pool_zalloc(dmac->lmdesc_pool, GFP_NOWAIT, &dma_addr);
+		if (!lmdesc) {
+			rz_dmac_free_desc(channel, desc);
+			return NULL;
+		}
+
+		desc->lmdesc[i].hw = lmdesc;
+		desc->lmdesc[i].dma_addr = dma_addr;
+	}
 
 	return desc;
 }
@@ -434,14 +438,8 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 	struct rz_lmdesc *lmdesc;
 	dma_addr_t dma_addr;
 
-	lmdesc = channel->lmdesc.tail;
-	dma_addr = rz_dmac_lmdesc_addr(channel, lmdesc);
-
-	desc->lmdesc[i].hw = lmdesc;
-	desc->lmdesc[i].dma_addr = dma_addr;
-
-	if (++channel->lmdesc.tail >= (channel->lmdesc.base + DMAC_NR_LMDESC))
-		channel->lmdesc.tail = channel->lmdesc.base;
+	lmdesc = desc->lmdesc[i].hw;
+	dma_addr = desc->lmdesc[i].dma_addr;
 
 	if (flags & RZ_DMAC_LMDESC_CYCLE)
 		lmdesc->nxla = desc->lmdesc[0].dma_addr;
@@ -623,8 +621,6 @@ static void rz_dmac_free_chan_resources(struct dma_chan *chan)
 
 	spin_lock_irqsave(&channel->vc.lock, flags);
 
-	rz_lmdesc_setup(channel, channel->lmdesc.base);
-
 	/*  Skip touching HW if RPM resume failed. Let the cleanup do its jobs. */
 	if (!ret)
 		rz_dmac_disable_hw(channel);
@@ -716,7 +712,7 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		return NULL;
 
 	periods = buf_len / period_len;
-	if (!periods || periods > DMAC_NR_LMDESC)
+	if (!periods)
 		return NULL;
 
 	desc = rz_dmac_alloc_desc(channel, periods);
@@ -758,7 +754,6 @@ static int rz_dmac_terminate_all(struct dma_chan *chan)
 	/* Don't return if RPM failed. Let the cleanup do its jobs. */
 	if (!ret)
 		rz_dmac_disable_hw(channel);
-	rz_lmdesc_setup(channel, channel->lmdesc.base);
 
 	if (channel->desc) {
 		vchan_terminate_vdesc(&channel->desc->vd);
@@ -1229,7 +1224,6 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 			      u8 index)
 {
 	struct platform_device *pdev = to_platform_device(dmac->dev);
-	struct rz_lmdesc *lmdesc;
 	char pdev_irqname[6];
 	char *irqname;
 	int irq, ret;
@@ -1246,16 +1240,6 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 		channel->ch_base = dmac->base + CHANNEL_8_15_OFFSET +
 			EACH_CHANNEL_OFFSET * (index - 8);
 	}
-
-	/* Allocate descriptors */
-	lmdesc = dmam_alloc_coherent(&pdev->dev,
-				     sizeof(struct rz_lmdesc) * DMAC_NR_LMDESC,
-				     &channel->lmdesc.base_dma, GFP_KERNEL);
-	if (!lmdesc) {
-		dev_err(&pdev->dev, "Can't allocate memory (lmdesc)\n");
-		return -ENOMEM;
-	}
-	rz_lmdesc_setup(channel, lmdesc);
 
 	channel->vc.desc_free = rz_dmac_virt_desc_free;
 	vchan_init(&channel->vc, &dmac->engine);
@@ -1368,6 +1352,15 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	dmac->channels = devm_kcalloc(&pdev->dev, dmac->n_channels,
 				      sizeof(*dmac->channels), GFP_KERNEL);
 	if (!dmac->channels)
+		return -ENOMEM;
+
+	/*
+	 * NXLA requires the link address to be aligned to a 4-byte boundary.
+	 * See RZ/G2L User Manual Section 14.4.12 Next Link Address Register.
+	 */
+	dmac->lmdesc_pool = dmam_pool_create(dev_name(&pdev->dev), &pdev->dev,
+					     sizeof(struct rz_lmdesc), 4, 0);
+	if (!dmac->lmdesc_pool)
 		return -ENOMEM;
 
 	/* Request resources */
