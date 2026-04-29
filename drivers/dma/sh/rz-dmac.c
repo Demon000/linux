@@ -181,11 +181,12 @@ struct rz_dmac {
 
 #define CHCFG_DMS			BIT(31)
 #define CHCFG_DEM			BIT(24)
+#define CHCFG_TM			BIT(22)
 #define CHCFG_DAD			BIT(21)
 #define CHCFG_SAD			BIT(20)
 #define CHCFG_REQD			BIT(3)
 #define CHCFG_SEL(bits)			((bits) & 0x07)
-#define CHCFG_MEM_COPY			(0x80400008)
+#define CHCFG_MEM_COPY			(CHCFG_DMS | CHCFG_TM | CHCFG_REQD)
 #define CHCFG_FILL_DDS_MASK		GENMASK(19, 16)
 #define CHCFG_FILL_SDS_MASK		GENMASK(15, 12)
 #define CHCFG_FILL_TM(a)		(((a) & BIT(5)) << 22)
