@@ -528,15 +528,11 @@ static int tiadc_request_dma(struct platform_device *pdev,
 			     struct tiadc_device *adc_dev)
 {
 	struct tiadc_dma	*dma = &adc_dev->dma;
-	dma_cap_mask_t		mask;
 
 	/* Default slave configuration parameters */
 	dma->conf.direction = DMA_DEV_TO_MEM;
 	dma->conf.src_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 	dma->conf.src_addr = adc_dev->mfd_tscadc->tscadc_phys_base + REG_FIFO1;
-
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_CYCLIC, mask);
 
 	/* Get a channel for RX */
 	dma->chan = dma_request_chan(adc_dev->mfd_tscadc->dev, "fifo1");
