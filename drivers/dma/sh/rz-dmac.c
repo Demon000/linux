@@ -450,11 +450,9 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 	return lmdesc;
 }
 
-static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
+static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel,
+					    struct rz_dmac_desc *d)
 {
-	struct dma_chan *chan = &channel->vc.chan;
-	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	struct rz_dmac_desc *d = channel->desc;
 	struct rz_lmdesc *lmdesc;
 
 	/* prepare descriptor */
@@ -466,17 +464,11 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->chitvl = 0;
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV | HEADER_LE;
-
-	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
-
-	channel->chctrl = CHCTRL_STG;
 }
 
-static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
+static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel,
+					       struct rz_dmac_desc *d)
 {
-	struct dma_chan *chan = &channel->vc.chan;
-	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	struct rz_dmac_desc *d = channel->desc;
 	struct scatterlist *sg, *sgl = d->sg;
 	struct rz_lmdesc *lmdesc;
 	unsigned int i, sg_len = d->num_lmdesc;
@@ -513,24 +505,15 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 			lmdesc->header = HEADER_LV;
 		}
 	}
-
-	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
-	rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
-
-	channel->chctrl = 0;
 }
 
-static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
+static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel,
+					     struct rz_dmac_desc *d)
 {
-	struct dma_chan *chan = &channel->vc.chan;
-	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	struct rz_dmac_desc *d = channel->desc;
 	size_t period_len = d->period_len;
 	struct rz_lmdesc *lmdesc;
 	size_t periods = d->num_lmdesc;
 	u32 chcfg;
-
-	lockdep_assert_held(&channel->vc.lock);
 
 	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DMS;
 
@@ -563,15 +546,12 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 		lmdesc->chcfg = chcfg;
 		lmdesc->header = HEADER_LV | HEADER_WBD;
 	}
-
-	rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
-	rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
-
-	channel->chctrl = 0;
 }
 
 static void rz_dmac_xfer_desc(struct rz_dmac_chan *channel)
 {
+	struct dma_chan *chan = &channel->vc.chan;
+	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct virt_dma_desc *vd;
 
 	vd = vchan_next_desc(&channel->vc);
@@ -585,15 +565,19 @@ static void rz_dmac_xfer_desc(struct rz_dmac_chan *channel)
 
 	switch (channel->desc->type) {
 	case RZ_DMAC_DESC_MEMCPY:
-		rz_dmac_prepare_desc_for_memcpy(channel);
+		rz_dmac_set_dma_req_no(dmac, channel->index,
+				       dmac->info->default_dma_req_no);
+		channel->chctrl = CHCTRL_STG;
 		break;
 
 	case RZ_DMAC_DESC_SLAVE_SG:
-		rz_dmac_prepare_descs_for_slave_sg(channel);
+	case RZ_DMAC_DESC_CYCLIC:
+		rz_dmac_set_dma_req_no(dmac, channel->index, channel->mid_rid);
+		rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
+		channel->chctrl = 0;
 		break;
 
-	case RZ_DMAC_DESC_CYCLIC:
-		rz_dmac_prepare_descs_for_cyclic(channel);
+	default:
 		break;
 	}
 
@@ -660,6 +644,8 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	desc->len = len;
 	desc->direction = DMA_MEM_TO_MEM;
 
+	rz_dmac_prepare_desc_for_memcpy(channel, desc);
+
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
 
@@ -691,6 +677,8 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		desc->src = channel->src_per_address;
 	else
 		desc->dest = channel->dst_per_address;
+
+	rz_dmac_prepare_descs_for_slave_sg(channel, desc);
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
@@ -731,6 +719,8 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 		desc->src = buf_addr;
 		desc->dest = channel->dst_per_address;
 	}
+
+	rz_dmac_prepare_descs_for_cyclic(channel, desc);
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
