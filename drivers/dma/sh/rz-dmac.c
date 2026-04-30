@@ -345,28 +345,13 @@ static void rz_dmac_free_desc(struct rz_dmac_chan *channel,
 static struct rz_dmac_desc *
 rz_dmac_alloc_desc(struct rz_dmac_chan *channel, unsigned int num_lmdesc)
 {
-	struct dma_chan *chan = &channel->vc.chan;
-	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_dmac_desc *desc;
-	struct rz_lmdesc *lmdesc;
-	dma_addr_t dma_addr;
 
 	desc = kzalloc_flex(*desc, lmdesc, num_lmdesc, GFP_NOWAIT);
 	if (!desc)
 		return NULL;
 
 	desc->num_lmdesc = num_lmdesc;
-
-	for (unsigned int i = 0; i < desc->num_lmdesc; i++) {
-		lmdesc = dma_pool_zalloc(dmac->lmdesc_pool, GFP_NOWAIT, &dma_addr);
-		if (!lmdesc) {
-			rz_dmac_free_desc(channel, desc);
-			return NULL;
-		}
-
-		desc->lmdesc[i].hw = lmdesc;
-		desc->lmdesc[i].dma_addr = dma_addr;
-	}
 
 	return desc;
 }
@@ -429,11 +414,17 @@ static struct rz_lmdesc *
 rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *desc,
 			  unsigned int i, unsigned int flags)
 {
+	struct dma_chan *chan = &channel->vc.chan;
+	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_lmdesc *lmdesc;
 	dma_addr_t dma_addr;
 
-	lmdesc = desc->lmdesc[i].hw;
-	dma_addr = desc->lmdesc[i].dma_addr;
+	lmdesc = dma_pool_zalloc(dmac->lmdesc_pool, GFP_NOWAIT, &dma_addr);
+	if (!lmdesc)
+		return NULL;
+
+	desc->lmdesc[i].hw = lmdesc;
+	desc->lmdesc[i].dma_addr = dma_addr;
 
 	if (flags & RZ_DMAC_LMDESC_CYCLE)
 		lmdesc->nxla = desc->lmdesc[0].dma_addr;
@@ -539,6 +530,11 @@ rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	desc->len = len;
 
 	lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, 0, 0);
+	if (!lmdesc) {
+		rz_dmac_free_desc(channel, desc);
+		return NULL;
+	}
+
 	lmdesc->sa = src;
 	lmdesc->da = dest;
 	lmdesc->tb = len;
@@ -581,6 +577,10 @@ rz_dmac_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, i, 0);
+		if (!lmdesc) {
+			rz_dmac_free_desc(channel, desc);
+			return NULL;
+		}
 
 		if (direction == DMA_DEV_TO_MEM) {
 			lmdesc->sa = channel->src_per_address;
@@ -652,6 +652,10 @@ rz_dmac_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 			lmdesc_flags |= RZ_DMAC_LMDESC_CYCLE;
 
 		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, i, lmdesc_flags);
+		if (!lmdesc) {
+			rz_dmac_free_desc(channel, desc);
+			return NULL;
+		}
 
 		if (direction == DMA_DEV_TO_MEM) {
 			lmdesc->sa = channel->src_per_address;
