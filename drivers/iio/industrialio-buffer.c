@@ -2383,14 +2383,31 @@ static const void *iio_demux(struct iio_buffer *buffer,
 	return buffer->demux_bounce;
 }
 
-static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
+static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data,
+			      unsigned int n, size_t stride)
 {
-	const void *dataout = iio_demux(buffer, data);
+	unsigned int stored;
 	int ret;
 
-	ret = buffer->access->store_to(buffer, dataout);
-	if (ret)
-		return ret;
+	if (list_empty(&buffer->demux_list) && buffer->access->store_n_to) {
+		ret = buffer->access->store_n_to(buffer, data, n);
+		if (ret < 0)
+			return ret;
+
+		stored = ret;
+		ret = 0;
+	} else {
+		for (stored = 0; stored < n; stored++) {
+			ret = buffer->access->store_to(buffer, iio_demux(buffer, data));
+			if (ret)
+				break;
+
+			data += stride;
+		}
+	}
+
+	if (!stored)
+		return ret ?: -EBUSY;
 
 	/*
 	 * We can't just test for watermark to decide if we wake the poll queue
@@ -2399,6 +2416,32 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
 	wake_up_interruptible_poll(&buffer->pollq, EPOLLIN | EPOLLRDNORM);
 	return 0;
 }
+
+/**
+ * iio_push_to_buffers_bulk() - push @n consecutive scans to registered buffers.
+ * @indio_dev:		iio_dev structure for device.
+ * @data:		@n consecutive scans, indio_dev->scan_bytes apart.
+ * @n:			number of scans to push.
+ *
+ * Context: Any context.
+ * Return: 0 on success, negative error code on failure.
+ */
+int iio_push_to_buffers_bulk(struct iio_dev *indio_dev, const void *data,
+			     unsigned int n)
+{
+	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
+	struct iio_buffer *buf;
+	int ret;
+
+	list_for_each_entry(buf, &iio_dev_opaque->buffer_list, buffer_list) {
+		ret = iio_push_to_buffer(buf, data, n, indio_dev->scan_bytes);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iio_push_to_buffers_bulk);
 
 /**
  * iio_push_to_buffers() - push to a registered buffer.
@@ -2410,17 +2453,7 @@ static int iio_push_to_buffer(struct iio_buffer *buffer, const void *data)
  */
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data)
 {
-	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	int ret;
-	struct iio_buffer *buf;
-
-	list_for_each_entry(buf, &iio_dev_opaque->buffer_list, buffer_list) {
-		ret = iio_push_to_buffer(buf, data);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return iio_push_to_buffers_bulk(indio_dev, data, 1);
 }
 EXPORT_SYMBOL_GPL(iio_push_to_buffers);
 

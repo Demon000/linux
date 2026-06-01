@@ -17,6 +17,8 @@ enum iio_buffer_direction {
 };
 
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
+int iio_push_to_buffers_bulk(struct iio_dev *indio_dev, const void *data,
+			     unsigned int n);
 
 int iio_pop_from_buffer(struct iio_buffer *buffer, void *data);
 
