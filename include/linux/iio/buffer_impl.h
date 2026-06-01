@@ -26,6 +26,10 @@ struct sg_table;
  * struct iio_buffer_access_funcs - access functions for buffers.
  * @store_to:		actually store stuff to the buffer - must be safe to
  *			call from any context (e.g. must not sleep).
+ * @store_n_to:		bulk variant of @store_to: store multiple consecutive
+ *			scans in a single call - must be safe to call from any
+ *			context (e.g. must not sleep). Returns a negative error
+ *			or the number of stored scans.
  * @read:		try to get a specified number of bytes (must exist)
  * @data_available:	indicates how much data is available for reading from
  *			the buffer.
@@ -68,6 +72,8 @@ struct sg_table;
  **/
 struct iio_buffer_access_funcs {
 	int (*store_to)(struct iio_buffer *buffer, const void *data);
+	int (*store_n_to)(struct iio_buffer *buffer, const void *data,
+			  unsigned int n);
 	int (*read)(struct iio_buffer *buffer, size_t n, char __user *buf);
 	size_t (*data_available)(struct iio_buffer *buffer);
 	int (*remove_from)(struct iio_buffer *buffer, void *data);
