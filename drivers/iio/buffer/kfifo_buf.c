@@ -87,6 +87,14 @@ static int iio_set_length_kfifo(struct iio_buffer *r, unsigned int length)
 	return 0;
 }
 
+static int iio_store_n_to_kfifo(struct iio_buffer *r, const void *data,
+				unsigned int n)
+{
+	struct iio_kfifo *kf = iio_to_kfifo(r);
+
+	return kfifo_in(&kf->kf, data, n);
+}
+
 static int iio_store_to_kfifo(struct iio_buffer *r,
 			      const void *data)
 {
@@ -187,6 +195,7 @@ static int iio_kfifo_write(struct iio_buffer *r, size_t n,
 
 static const struct iio_buffer_access_funcs kfifo_access_funcs = {
 	.store_to = iio_store_to_kfifo,
+	.store_n_to = iio_store_n_to_kfifo,
 	.read = iio_read_kfifo,
 	.data_available = iio_kfifo_buf_data_available,
 	.remove_from = iio_kfifo_remove_from,
