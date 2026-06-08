@@ -90,7 +90,7 @@ struct rzt2h_adc {
 
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
-	u16 buf[RZT2H_ADC_MAX_CHANNELS];
+	u16 buf[RZT2H_ADC_MAX_CHANNELS * RZT2H_ADC_DMA_PERIOD_SAMPLES];
 
 	unsigned long adclk_rate;
 	int samp_freq_avail[3];
@@ -225,9 +225,10 @@ static void rzt2h_adc_push_period(struct iio_dev *indio_dev, u16 *period,
 			dst[i] = src[adc->dma.gather[i]];
 
 		src += adc->dma.sample_chans;
-
-		iio_push_to_buffers(indio_dev, adc->buf);
+		dst += adc->dma.gather_len;
 	}
+
+	iio_push_to_buffers_bulk(indio_dev, adc->buf, RZT2H_ADC_DMA_PERIOD_SAMPLES);
 }
 
 static void rzt2h_adc_advance_period_index(struct rzt2h_adc *adc, unsigned int i)
