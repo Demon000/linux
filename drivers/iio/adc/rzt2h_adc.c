@@ -64,15 +64,6 @@ struct rzt2h_adc_dma {
 	u16 *buf;
 	dma_addr_t addr;
 
-	unsigned int overruns;
-	unsigned int periods;
-	unsigned int failed;
-	unsigned int callbacks;
-	unsigned int max_pending_periods;
-	u64 period_ns_sum;
-	u64 period_ns_min;
-	u64 period_ns_max;
-
 	unsigned int period_index;
 	unsigned int period_bytes;
 	unsigned int first_chan;
@@ -225,10 +216,6 @@ static void rzt2h_adc_push_period(struct iio_dev *indio_dev, u16 *period,
 	struct rzt2h_adc *adc = iio_priv(indio_dev);
 	u16 *dst = adc->buf;
 	u16 *src = period;
-	u64 ts1, ts2;
-	int ret;
-
-	ts1 = ktime_get_ns();
 
 	dma_sync_single_for_cpu(adc->dev, addr, adc->dma.period_bytes,
 				DMA_FROM_DEVICE);
@@ -239,17 +226,8 @@ static void rzt2h_adc_push_period(struct iio_dev *indio_dev, u16 *period,
 
 		src += adc->dma.sample_chans;
 
-		ret = iio_push_to_buffers(indio_dev, adc->buf);
-		if (ret)
-			adc->dma.failed++;
+		iio_push_to_buffers(indio_dev, adc->buf);
 	}
-
-	ts2 = ktime_get_ns() - ts1;
-
-	adc->dma.period_ns_sum += ts2;
-	adc->dma.period_ns_max = max(adc->dma.period_ns_max, ts2);
-	if (!adc->dma.period_ns_min || ts2 < adc->dma.period_ns_min)
-		adc->dma.period_ns_min = ts2;
 }
 
 static void rzt2h_adc_advance_period_index(struct rzt2h_adc *adc, unsigned int i)
@@ -267,13 +245,8 @@ static void rzt2h_adc_dma_thread_loop(struct iio_dev *indio_dev)
 
 	pending = atomic_xchg(&adc->dma.pending_periods, 0);
 
-	if (pending > adc->dma.max_pending_periods)
-		adc->dma.max_pending_periods = pending;
-
 	if (pending >= RZT2H_ADC_DMA_PERIODS) {
 		drop = pending - RZT2H_ADC_DMA_PERIODS + 1;
-
-		adc->dma.overruns += drop;
 
 		rzt2h_adc_advance_period_index(adc, drop);
 		pending -= drop;
@@ -287,8 +260,6 @@ static void rzt2h_adc_dma_thread_loop(struct iio_dev *indio_dev)
 
 		rzt2h_adc_push_period(indio_dev, period, addr);
 		rzt2h_adc_advance_period_index(adc, 1);
-
-		adc->dma.periods++;
 	}
 }
 
@@ -316,7 +287,6 @@ static void rzt2h_adc_dma_callback(void *data)
 	struct iio_dev *indio_dev = data;
 	struct rzt2h_adc *adc = iio_priv(indio_dev);
 
-	adc->dma.callbacks++;
 	atomic_inc(&adc->dma.pending_periods);
 	wake_up(&adc->dma.wq);
 }
@@ -390,12 +360,6 @@ static int rzt2h_adc_start_dma(struct iio_dev *indio_dev)
 
 	buffer_bytes = RZT2H_ADC_DMA_PERIODS * adc->dma.period_bytes;
 
-	dev_err(adc->dev, "first_chan: %u\n", adc->dma.first_chan);
-	dev_err(adc->dev, "sample_chans: %u\n", adc->dma.sample_chans);
-	dev_err(adc->dev, "src_addr_width: %u\n", config.src_addr_width);
-	dev_err(adc->dev, "period_bytes: %u\n", adc->dma.period_bytes);
-	dev_err(adc->dev, "buffer_bytes: %u\n", buffer_bytes);
-
 	ret = dmaengine_slave_config(adc->dma.chan, &config);
 	if (ret)
 		return ret;
@@ -450,16 +414,6 @@ static int rzt2h_adc_buffer_postenable(struct iio_dev *indio_dev)
 	}
 
 	writew(val, adc->base + RZT2H_ADANSA0_REG);
-	dev_info(dev, "ADANSA0 = %04x\n", readw(adc->base + RZT2H_ADANSA0_REG));
-
-	adc->dma.overruns = 0;
-	adc->dma.callbacks = 0;
-	adc->dma.periods = 0;
-	adc->dma.failed = 0;
-	adc->dma.max_pending_periods = 0;
-	adc->dma.period_ns_sum = 0;
-	adc->dma.period_ns_min = 0;
-	adc->dma.period_ns_max = 0;
 
 	adc->dma.period_index = 0;
 	atomic_set(&adc->dma.pending_periods, 0);
@@ -485,27 +439,6 @@ static int rzt2h_adc_buffer_predisable(struct iio_dev *indio_dev)
 	dmaengine_terminate_sync(adc->dma.chan);
 
 	kthread_stop(adc->dma.thread);
-
-	dev_err(dev, "dma stats: "
-		"callbacks=%u "
-		"processed=%u "
-		"failed=%u "
-		"overruns=%u "
-		"pending=%d "
-		"max_pending_periods=%d\n",
-		adc->dma.callbacks,
-		adc->dma.periods,
-		adc->dma.failed,
-		adc->dma.overruns,
-		atomic_read(&adc->dma.pending_periods),
-		adc->dma.max_pending_periods);
-
-	if (adc->dma.periods)
-		dev_err(dev,
-			"period push ns: min=%llu avg=%llu max=%llu over %u periods\n",
-			adc->dma.period_ns_min,
-			adc->dma.period_ns_sum / adc->dma.periods,
-			adc->dma.period_ns_max, adc->dma.periods);
 
 	enable_irq(adc->irq);
 
