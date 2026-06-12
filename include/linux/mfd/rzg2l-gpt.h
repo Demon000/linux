@@ -43,6 +43,7 @@ struct rzg2l_gpt_info {
 struct rzg2l_gpt {
 	void __iomem *mmio;
 	struct clk *clk;
+	unsigned int num_channels;
 	const struct rzg2l_gpt_info *info;
 };
 

@@ -72,6 +72,7 @@ static const struct mfd_cell rzg2l_gpt_devs[] = {
 
 static int rzg2l_gpt_probe(struct platform_device *pdev)
 {
+	u32 num_channels = RZG2L_MAX_HW_CHANNELS;
 	struct device *dev = &pdev->dev;
 	struct rzg2l_gpt_priv *priv;
 	struct rzg2l_gpt *ddata;
@@ -79,12 +80,18 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	unsigned int i;
 
+	if (!device_property_read_u32(dev, "renesas,num-channels", &num_channels)) {
+		if (num_channels > RZG2L_MAX_HW_CHANNELS)
+			return -EINVAL;
+	}
+
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	ddata = &priv->gpt;
 	ddata->info = device_get_match_data(dev);
+	ddata->num_channels = num_channels;
 
 	ddata->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddata->mmio))
