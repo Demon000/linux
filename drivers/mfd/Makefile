@@ -191,6 +191,7 @@ mt6397-objs			:= mt6397-core.o mt6397-irq.o mt6358-irq.o
 obj-$(CONFIG_MFD_MT6397)	+= mt6397.o
 
 obj-$(CONFIG_RZ_MTU3)		+= rz-mtu3.o
+obj-$(CONFIG_RZG2L_GPT)		+= rzg2l-gpt.o
 obj-$(CONFIG_ABX500_CORE)	+= abx500-core.o
 obj-$(CONFIG_MFD_DB8500_PRCMU)	+= db8500-prcmu.o
 # ab8500-core need to come after db8500-prcmu (which provides the channel)

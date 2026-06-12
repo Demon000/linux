@@ -1543,6 +1543,17 @@ config MFD_SC27XX_PMIC
 	  This driver provides common support for accessing the SC27xx PMICs,
 	  and it also adds the irq_chip parts for handling the PMIC chip events.
 
+config RZG2L_GPT
+	tristate "Renesas RZ/G2L GPT core driver"
+	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
+	select MFD_CORE
+	help
+	  Select this option to enable Renesas RZ/G2L GPT core driver for
+	  the General PWM Timer (GPT) hardware available on SoCs from Renesas.
+	  The core driver provides common support for acessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 config RZ_MTU3
 	tristate "Renesas RZ/G2L MTU3a core driver"
 	depends on (ARCH_RZG2L && OF) || COMPILE_TEST
