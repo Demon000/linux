@@ -100,7 +100,6 @@
 struct rzg2l_gpt_chip {
 	struct rzg2l_gpt *gpt;
 	struct mutex lock; /* lock to protect shared channel resources */
-	const struct rzg2l_gpt_info *info;
 	unsigned long rate_khz;
 	u64 period_ticks[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
@@ -150,7 +149,7 @@ static void rzg2l_gpt_modify(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 clr,
 static u8 rzg2l_gpt_calculate_prescale(struct rzg2l_gpt_chip *rzg2l_gpt,
 				       u64 period_ticks)
 {
-	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
+	const struct rzg2l_gpt_info *info = rzg2l_gpt->gpt->info;
 	u32 prescaled_period_ticks;
 	u8 prescale;
 
@@ -167,12 +166,12 @@ static u8 rzg2l_gpt_calculate_prescale(struct rzg2l_gpt_chip *rzg2l_gpt,
 
 static u8 rzg2l_gpt_prescale_to_tpcs(struct rzg2l_gpt_chip *rzg2l_gpt, u8 prescale)
 {
-	return rzg2l_gpt->info->prescales[prescale];
+	return rzg2l_gpt->gpt->info->prescales[prescale];
 }
 
 static u8 rzg2l_gpt_tpcs_to_prescale(struct rzg2l_gpt_chip *rzg2l_gpt, u8 tpcs)
 {
-	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
+	const struct rzg2l_gpt_info *info = rzg2l_gpt->gpt->info;
 
 	for (unsigned int i = 0; i < info->num_prescales; i++) {
 		if (info->prescales[i] == tpcs)
@@ -363,7 +362,7 @@ static int rzg2l_gpt_read_waveform(struct pwm_chip *chip,
 
 	guard(mutex)(&rzg2l_gpt->lock);
 	if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm, &gtcr)) {
-		u8 tpcs = field_get(rzg2l_gpt->info->gtcr_tpcs, gtcr);
+		u8 tpcs = field_get(rzg2l_gpt->gpt->info->gtcr_tpcs, gtcr);
 
 		wfhw->prescale = rzg2l_gpt_tpcs_to_prescale(rzg2l_gpt, tpcs);
 		wfhw->gtpr = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch));
@@ -411,8 +410,8 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTUDDTYC(ch), RZG2L_GTUDDTYC_UP_COUNTING);
 
 		/* Select count clock */
-		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), rzg2l_gpt->info->gtcr_tpcs,
-				 field_prep(rzg2l_gpt->info->gtcr_tpcs, tpcs));
+		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), rzg2l_gpt->gpt->info->gtcr_tpcs,
+				 field_prep(rzg2l_gpt->gpt->info->gtcr_tpcs, tpcs));
 
 		/* Set period */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), wfhw->gtpr);
@@ -554,7 +553,6 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 
 	rzg2l_gpt->gpt = ddata;
-	rzg2l_gpt->info = ddata->info;
 
 	ret = devm_clk_rate_exclusive_get(dev, ddata->clk);
 	if (ret)
