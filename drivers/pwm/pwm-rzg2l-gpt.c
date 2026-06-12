@@ -99,7 +99,6 @@
 
 struct rzg2l_gpt_chip {
 	struct rzg2l_gpt *gpt;
-	void __iomem *mmio;
 	struct mutex lock; /* lock to protect shared channel resources */
 	const struct rzg2l_gpt_info *info;
 	unsigned long rate_khz;
@@ -133,12 +132,12 @@ static inline unsigned int rzg2l_gpt_sibling(unsigned int hwpwm)
 
 static void rzg2l_gpt_write(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 data)
 {
-	writel(data, rzg2l_gpt->mmio + reg);
+	writel(data, rzg2l_gpt->gpt->mmio + reg);
 }
 
 static u32 rzg2l_gpt_read(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg)
 {
-	return readl(rzg2l_gpt->mmio + reg);
+	return readl(rzg2l_gpt->gpt->mmio + reg);
 }
 
 static void rzg2l_gpt_modify(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 clr,
@@ -555,7 +554,6 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 
 	rzg2l_gpt->gpt = ddata;
-	rzg2l_gpt->mmio = ddata->mmio;
 	rzg2l_gpt->info = ddata->info;
 
 	ret = devm_clk_rate_exclusive_get(dev, ddata->clk);
