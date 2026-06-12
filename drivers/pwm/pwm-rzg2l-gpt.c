@@ -173,7 +173,7 @@ static u8 rzg3e_gpt_calculate_prescale(u64 period_ticks)
 	u8 prescale;
 
 	prescaled_period_ticks = period_ticks >> 32;
-	if (prescaled_period_ticks > 64 && prescaled_period_ticks < 256)
+	if (prescaled_period_ticks >= 64 && prescaled_period_ticks < 256)
 		prescale = 8;
 	else if (prescaled_period_ticks >= 256)
 		prescale = 10;
