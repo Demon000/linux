@@ -90,6 +90,16 @@ config MICROCHIP_TCB_CAPTURE
 	  To compile this driver as a module, choose M here: the
 	  module will be called microchip-tcb-capture.
 
+config RZG2L_GPT_CNT
+	tristate "Renesas RZ/G2L GPT counter driver"
+	depends on RZ_MTU3
+	help
+	  Enable support for GPT counter driver found on Renesas RZ/G2L alike
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rzg2l-gpt-cnt.
+
 config RZ_MTU3_CNT
 	tristate "Renesas RZ/G2L MTU3a counter driver"
 	depends on RZ_MTU3

@@ -12,14 +12,26 @@
 #define RZG2L_GET_CH(hwpwm)		((hwpwm) / 2)
 #define RZG2L_GET_CH_OFFS(ch)		(0x100 * (ch))
 
+#define RZG2L_GTUPSR(ch)		(0x1c + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTDNSR(ch)		(0x20 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTCR(ch)			(0x2c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTUDDTYC(ch)		(0x30 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTIOR(ch)			(0x34 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTINTAD(ch)		(0x38 + RZG2L_GET_CH_OFFS(ch))
+#define RZG2L_GTST(ch)			(0x3c + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTBER(ch)			(0x40 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTCNT(ch)			(0x48 + RZG2L_GET_CH_OFFS(ch))
 #define RZG2L_GTCCR(ch, sub_ch)		(0x4c + RZG2L_GET_CH_OFFS(ch) + 4 * (sub_ch))
 #define RZG2L_GTPR(ch)			(0x64 + RZG2L_GET_CH_OFFS(ch))
+
+#define RZG2L_GTUPDNSR_CARBL		BIT(8)
+#define RZG2L_GTUPDNSR_CARBH		BIT(9)
+#define RZG2L_GTUPDNSR_CAFBL		BIT(10)
+#define RZG2L_GTUPDNSR_CAFBH		BIT(11)
+#define RZG2L_GTUPDNSR_CBRAL		BIT(12)
+#define RZG2L_GTUPDNSR_CBRAH		BIT(13)
+#define RZG2L_GTUPDNSR_CBFAL		BIT(14)
+#define RZG2L_GTUPDNSR_CBFAH		BIT(15)
 
 #define RZG2L_GTCR_CST			BIT(0)
 #define RZG2L_GTCR_MD			GENMASK(18, 16)
@@ -57,6 +69,8 @@
 	 RZG2L_GTIOR_GTIOA_OUT_HI_END_TOGGLE_CMP_MATCH)
 
 #define RZG2L_GTINTAD_GRP_MASK		GENMASK(25, 24)
+
+#define RZG2L_GTST_TUCF			BIT(15)
 
 #define RZG2L_MAX_HW_CHANNELS		8
 
