@@ -68,6 +68,7 @@ EXPORT_SYMBOL_GPL(rzg2l_gpt_release_channel);
 
 static const struct mfd_cell rzg2l_gpt_devs[] = {
 	MFD_CELL_NAME("pwm-rzg2l-gpt"),
+	MFD_CELL_NAME("rzg2l-gpt-cnt"),
 };
 
 static int rzg2l_gpt_probe(struct platform_device *pdev)
