@@ -97,10 +97,16 @@
 #define RZG2L_MAX_POEG_GROUPS	4
 #define RZG2L_LAST_POEG_GROUP	3
 
+#define RZG2L_INVALID_TPCS	0xff
+
 struct rzg2l_gpt_info {
-	u8 (*calculate_prescale)(u64 period);
+	/*
+	 * Maps a prescale to its GTCR.TPCS value. Unsupported prescales must be
+	 * RZG2L_INVALID_TPCS. Last entry must be valid.
+	 */
+	const u8 *prescales;
+	unsigned int num_prescales;
 	u32 gtcr_tpcs;
-	u8 prescale_mult;
 };
 
 struct rzg2l_gpt_chip {
@@ -153,34 +159,39 @@ static void rzg2l_gpt_modify(struct rzg2l_gpt_chip *rzg2l_gpt, u32 reg, u32 clr,
 			(rzg2l_gpt_read(rzg2l_gpt, reg) & ~clr) | set);
 }
 
-static u8 rzg2l_gpt_calculate_prescale(u64 period_ticks)
+static u8 rzg2l_gpt_calculate_prescale(struct rzg2l_gpt_chip *rzg2l_gpt,
+				       u64 period_ticks)
 {
+	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 	u32 prescaled_period_ticks;
 	u8 prescale;
 
 	prescaled_period_ticks = period_ticks >> 32;
-	if (prescaled_period_ticks >= 256)
-		prescale = 5;
-	else
-		prescale = (fls(prescaled_period_ticks) + 1) / 2;
+	prescale = fls(prescaled_period_ticks);
 
-	return prescale;
+	for (unsigned int i = prescale; i < info->num_prescales; i++) {
+		if (info->prescales[i] != RZG2L_INVALID_TPCS)
+			return i;
+	}
+
+	return info->num_prescales - 1;
 }
 
-static u8 rzg3e_gpt_calculate_prescale(u64 period_ticks)
+static u8 rzg2l_gpt_prescale_to_tpcs(struct rzg2l_gpt_chip *rzg2l_gpt, u8 prescale)
 {
-	u32 prescaled_period_ticks;
-	u8 prescale;
+	return rzg2l_gpt->info->prescales[prescale];
+}
 
-	prescaled_period_ticks = period_ticks >> 32;
-	if (prescaled_period_ticks >= 64 && prescaled_period_ticks < 256)
-		prescale = 8;
-	else if (prescaled_period_ticks >= 256)
-		prescale = 10;
-	else
-		prescale = fls(prescaled_period_ticks);
+static u8 rzg2l_gpt_tpcs_to_prescale(struct rzg2l_gpt_chip *rzg2l_gpt, u8 tpcs)
+{
+	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 
-	return prescale;
+	for (unsigned int i = 0; i < info->num_prescales; i++) {
+		if (info->prescales[i] == tpcs)
+			return i;
+	}
+
+	return 0;
 }
 
 static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -259,30 +270,25 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 static u64 rzg2l_gpt_calculate_period_or_duty(struct rzg2l_gpt_chip *rzg2l_gpt,
 					      u32 val, u8 prescale)
 {
-	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 	u64 tmp;
 
 	/*
-	 * The calculation doesn't overflow a u64 because,
-	 * prescale ≤ 5 for info->prescale_mult = 2,
-	 * prescale ≤ 10 for info->prescale_mult = 1, and so
-	 * tmp = val << (info->prescale_mult * prescale) * USEC_PER_SEC
+	 * The calculation doesn't overflow a u64 because, prescale ≤ 10, and so
+	 * tmp = val << prescale * USEC_PER_SEC
 	 *     < 2^32 * 2^10 * 10^6
 	 *     < 2^32 * 2^10 * 2^20
 	 *     = 2^62
 	 */
-	tmp = (u64)val << (info->prescale_mult * prescale);
+	tmp = (u64)val << prescale;
 	tmp *= USEC_PER_SEC;
 
 	return DIV64_U64_ROUND_UP(tmp, rzg2l_gpt->rate_khz);
 }
 
-static u32 rzg2l_gpt_calculate_pv_or_dc(const struct rzg2l_gpt_info *info,
-					u64 period_or_duty_cycle, u8 prescale)
+static u32 rzg2l_gpt_calculate_pv_or_dc(u64 period_or_duty_cycle, u8 prescale)
 {
 	return min_t(u64,
-		     DIV_ROUND_DOWN_ULL(period_or_duty_cycle,
-					1 << (info->prescale_mult * prescale)),
+		     DIV_ROUND_DOWN_ULL(period_or_duty_cycle, 1 << prescale),
 		     U32_MAX);
 }
 
@@ -292,7 +298,6 @@ static int rzg2l_gpt_round_waveform_tohw(struct pwm_chip *chip,
 					 void *_wfhw)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
-	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 	struct rzg2l_gpt_waveform *wfhw = _wfhw;
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 	u64 period_ticks, duty_ticks;
@@ -330,13 +335,13 @@ static int rzg2l_gpt_round_waveform_tohw(struct pwm_chip *chip,
 		}
 	}
 
-	wfhw->prescale = info->calculate_prescale(period_ticks);
-	wfhw->gtpr = rzg2l_gpt_calculate_pv_or_dc(info, period_ticks, wfhw->prescale);
+	wfhw->prescale = rzg2l_gpt_calculate_prescale(rzg2l_gpt, period_ticks);
+	wfhw->gtpr = rzg2l_gpt_calculate_pv_or_dc(period_ticks, wfhw->prescale);
 
 	duty_ticks = mul_u64_u64_div_u64(wf->duty_length_ns, rzg2l_gpt->rate_khz, USEC_PER_SEC);
 	if (duty_ticks > period_ticks)
 		duty_ticks = period_ticks;
-	wfhw->gtccr = rzg2l_gpt_calculate_pv_or_dc(info, duty_ticks, wfhw->prescale);
+	wfhw->gtccr = rzg2l_gpt_calculate_pv_or_dc(duty_ticks, wfhw->prescale);
 
 	return ret;
 }
@@ -370,7 +375,9 @@ static int rzg2l_gpt_read_waveform(struct pwm_chip *chip,
 
 	guard(mutex)(&rzg2l_gpt->lock);
 	if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm, &gtcr)) {
-		wfhw->prescale = field_get(rzg2l_gpt->info->gtcr_tpcs, gtcr);
+		u8 tpcs = field_get(rzg2l_gpt->info->gtcr_tpcs, gtcr);
+
+		wfhw->prescale = rzg2l_gpt_tpcs_to_prescale(rzg2l_gpt, tpcs);
 		wfhw->gtpr = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch));
 		wfhw->gtccr = rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch));
 		if (wfhw->gtccr > wfhw->gtpr)
@@ -382,9 +389,9 @@ static int rzg2l_gpt_read_waveform(struct pwm_chip *chip,
 	return 0;
 }
 
-static u64 rzg2l_gpt_calculate_cycles(u32 value, u8 mult, u8 prescale)
+static u64 rzg2l_gpt_calculate_cycles(u32 value, u8 prescale)
 {
-	return (u64)value << (mult * prescale);
+	return (u64)value << prescale;
 }
 
 static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
@@ -392,7 +399,6 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 				    const void *_wfhw)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
-	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 	const struct rzg2l_gpt_waveform *wfhw = _wfhw;
 	u8 sub_ch = rzg2l_gpt_subchannel(pwm->hwpwm);
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
@@ -405,6 +411,8 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 	 * first enabled channel.
 	 */
 	if (!(rzg2l_gpt->enable_mask[ch] & ~BIT(sub_ch))) {
+		u8 tpcs = rzg2l_gpt_prescale_to_tpcs(rzg2l_gpt, wfhw->prescale);
+
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 		/* GPT set operating mode (saw-wave up-counting) */
@@ -416,7 +424,7 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 
 		/* Select count clock */
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), rzg2l_gpt->info->gtcr_tpcs,
-				 field_prep(rzg2l_gpt->info->gtcr_tpcs, wfhw->prescale));
+				 field_prep(rzg2l_gpt->info->gtcr_tpcs, tpcs));
 
 		/* Set period */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), wfhw->gtpr);
@@ -429,7 +437,6 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 		if (wfhw->gtpr)
 			rzg2l_gpt->period_ticks[ch] =
 				rzg2l_gpt_calculate_cycles(wfhw->gtpr,
-							   info->prescale_mult,
 							   wfhw->prescale);
 	} else if (wfhw->gtpr && (wfhw->gtpr < rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch)))) {
 		return -EBUSY;
@@ -619,16 +626,44 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const u8 rzg3e_gpt_prescales[] = {
+	[0] = 0x0,
+	[1] = 0x1,
+	[2] = 0x2,
+	[3] = 0x3,
+	[4] = 0x4,
+	[5] = 0x5,
+	[6] = 0x6,
+	[7] = RZG2L_INVALID_TPCS,
+	[8] = 0x8,
+	[9] = RZG2L_INVALID_TPCS,
+	[10] = 0xA,
+};
+
 static const struct rzg2l_gpt_info rzg3e_data = {
-	.calculate_prescale = rzg3e_gpt_calculate_prescale,
+	.prescales = rzg3e_gpt_prescales,
+	.num_prescales = ARRAY_SIZE(rzg3e_gpt_prescales),
 	.gtcr_tpcs = RZG3E_GTCR_TPCS,
-	.prescale_mult = 1,
+};
+
+static const u8 rzg2l_gpt_prescales[] = {
+	[0] = 0x0,
+	[1] = RZG2L_INVALID_TPCS,
+	[2] = 0x1,
+	[3] = RZG2L_INVALID_TPCS,
+	[4] = 0x2,
+	[5] = RZG2L_INVALID_TPCS,
+	[6] = 0x3,
+	[7] = RZG2L_INVALID_TPCS,
+	[8] = 0x4,
+	[9] = RZG2L_INVALID_TPCS,
+	[10] = 0x5,
 };
 
 static const struct rzg2l_gpt_info rzg2l_data = {
-	.calculate_prescale = rzg2l_gpt_calculate_prescale,
+	.prescales = rzg2l_gpt_prescales,
+	.num_prescales = ARRAY_SIZE(rzg2l_gpt_prescales),
 	.gtcr_tpcs = RZG2L_GTCR_TPCS,
-	.prescale_mult = 2,
 };
 
 static const struct of_device_id rzg2l_gpt_of_table[] = {
