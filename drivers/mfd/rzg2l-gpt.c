@@ -100,7 +100,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++)
 		mutex_init(&priv->channels[i].lock);
 
-	rstc = devm_reset_control_get_exclusive_deasserted(dev, NULL);
+	rstc = devm_reset_control_get_optional_exclusive_deasserted(dev, NULL);
 	if (IS_ERR(rstc))
 		return dev_err_probe(dev, PTR_ERR(rstc), "Cannot deassert reset control\n");
 
