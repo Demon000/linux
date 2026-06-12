@@ -136,8 +136,15 @@ static int rzg2l_gpt_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 	u32 ch = RZG2L_GET_CH(pwm->hwpwm);
+	int ret;
 
 	guard(mutex)(&rzg2l_gpt->lock);
+	if (!rzg2l_gpt->channel_request_count[ch]) {
+		ret = rzg2l_gpt_request_channel(rzg2l_gpt->gpt, ch);
+		if (ret)
+			return ret;
+	}
+
 	rzg2l_gpt->channel_request_count[ch]++;
 
 	return 0;
@@ -150,6 +157,9 @@ static void rzg2l_gpt_free(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	guard(mutex)(&rzg2l_gpt->lock);
 	rzg2l_gpt->channel_request_count[ch]--;
+
+	if (!rzg2l_gpt->channel_request_count[ch])
+		rzg2l_gpt_release_channel(rzg2l_gpt->gpt, ch);
 }
 
 static bool rzg2l_gpt_is_ch_enabled(struct rzg2l_gpt_chip *rzg2l_gpt, u8 hwpwm,
