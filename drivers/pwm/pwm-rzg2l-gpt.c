@@ -41,7 +41,6 @@
 #include <linux/units.h>
 
 #define RZG2L_CHANNELS_PER_IO	2
-#define RZG2L_MAX_PWM_CHANNELS	(RZG2L_MAX_HW_CHANNELS * RZG2L_CHANNELS_PER_IO)
 #define RZG2L_MAX_SCALE_FACTOR	1024
 #define RZG2L_MAX_TICKS		((u64)U32_MAX * RZG2L_MAX_SCALE_FACTOR)
 
@@ -459,9 +458,9 @@ static int rzg2l_gpt_poeg_init(struct platform_device *pdev,
 		if (ret)
 			return ret;
 
-		if (of_args.args[0] >= RZG2L_MAX_HW_CHANNELS) {
+		if (of_args.args[0] >= rzg2l_gpt->gpt->num_channels) {
 			dev_err(&pdev->dev, "Invalid channel %u >= %u\n",
-				of_args.args[0], RZG2L_MAX_HW_CHANNELS);
+				of_args.args[0], rzg2l_gpt->gpt->num_channels);
 			goto err_of_node;
 		}
 
@@ -508,7 +507,8 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	unsigned long rate;
 	int ret;
 
-	chip = devm_pwmchip_alloc(dev, RZG2L_MAX_PWM_CHANNELS, sizeof(*rzg2l_gpt));
+	chip = devm_pwmchip_alloc(dev, ddata->num_channels * RZG2L_CHANNELS_PER_IO,
+				  sizeof(*rzg2l_gpt));
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
 	rzg2l_gpt = to_rzg2l_gpt_chip(chip);
