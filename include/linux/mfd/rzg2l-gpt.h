@@ -46,4 +46,7 @@ struct rzg2l_gpt {
 	const struct rzg2l_gpt_info *info;
 };
 
+int rzg2l_gpt_request_channel(struct rzg2l_gpt *gpt, unsigned int index);
+void rzg2l_gpt_release_channel(struct rzg2l_gpt *gpt, unsigned int index);
+
 #endif /* __MFD_RZG2L_GPT_H__ */

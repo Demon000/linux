@@ -3,17 +3,68 @@
  * Copyright (C) 2026 Renesas Electronics Corporation
  */
 
+#include <linux/cleanup.h>
+#include <linux/container_of.h>
 #include <linux/clk.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rzg2l-gpt.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 
+struct rzg2l_gpt_channel {
+	struct mutex lock; /* Protect busy flag */
+	bool is_busy;
+};
+
 struct rzg2l_gpt_priv {
 	struct rzg2l_gpt gpt;
+	struct rzg2l_gpt_channel channels[RZG2L_MAX_HW_CHANNELS];
 };
+
+static struct rzg2l_gpt_priv *gpt_to_priv(struct rzg2l_gpt *ddata)
+{
+	return container_of(ddata, struct rzg2l_gpt_priv, gpt);
+}
+
+int rzg2l_gpt_request_channel(struct rzg2l_gpt *ddata, unsigned int index)
+{
+	struct rzg2l_gpt_priv *priv = gpt_to_priv(ddata);
+	struct rzg2l_gpt_channel *ch;
+
+	if (index >= ddata->num_channels)
+		return -EINVAL;
+
+	ch = &priv->channels[index];
+
+	guard(mutex)(&ch->lock);
+	if (ch->is_busy)
+		return -EBUSY;
+
+	ch->is_busy = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rzg2l_gpt_request_channel);
+
+void rzg2l_gpt_release_channel(struct rzg2l_gpt *ddata, unsigned int index)
+{
+	struct rzg2l_gpt_priv *priv = gpt_to_priv(ddata);
+	struct rzg2l_gpt_channel *ch;
+
+	if (index >= ddata->num_channels)
+		return;
+
+	ch = &priv->channels[index];
+
+	guard(mutex)(&ch->lock);
+	WARN_ON(!ch->is_busy);
+
+	ch->is_busy = false;
+}
+EXPORT_SYMBOL_GPL(rzg2l_gpt_release_channel);
 
 static const struct mfd_cell rzg2l_gpt_devs[] = {
 	MFD_CELL_NAME("pwm-rzg2l-gpt"),
@@ -26,6 +77,7 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	struct rzg2l_gpt *ddata;
 	struct reset_control *rstc;
 	struct clk *clk;
+	unsigned int i;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -37,6 +89,9 @@ static int rzg2l_gpt_probe(struct platform_device *pdev)
 	ddata->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ddata->mmio))
 		return PTR_ERR(ddata->mmio);
+
+	for (i = 0; i < RZG2L_MAX_HW_CHANNELS; i++)
+		mutex_init(&priv->channels[i].lock);
 
 	rstc = devm_reset_control_get_exclusive_deasserted(dev, NULL);
 	if (IS_ERR(rstc))
