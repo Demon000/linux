@@ -165,6 +165,7 @@ static const struct rzg2l_gpt_info rzg2l_data = {
 
 static const struct of_device_id rzg2l_gpt_of_match[] = {
 	{ .compatible = "renesas,r9a09g047-gpt", .data = &rzg3e_data },
+	{ .compatible = "renesas,r9a09g077-gpt", .data = &rzg3e_data },
 	{ .compatible = "renesas,rzg2l-gpt", .data = &rzg2l_data, },
 	{ /* sentinel */ }
 };
