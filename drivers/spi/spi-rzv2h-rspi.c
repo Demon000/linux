@@ -327,6 +327,7 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 	enum dma_slave_buswidth width;
 	dma_cookie_t cookie;
 	int ret;
+	u64 ms;
 
 	width = rzv2h_rspi_dma_width(rspi);
 	if (width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
@@ -366,7 +367,21 @@ static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
 	dma_async_issue_pending(rspi->controller->dma_tx);
 	rzv2h_rspi_clear_all_irqs(rspi);
 
-	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked, HZ);
+	/*
+	 * For each byte we wait for 8 cycles of the SPI clock. Since speed is
+	 * defined in Hz and we want milliseconds, use respective multiplier,
+	 * but before the division, otherwise we may get 0 for short transfers.
+	 * Increase it twice and add 200 ms tolerance, use predefined maximum in
+	 * case of overflow.
+	 */
+	ms = 8ULL * MSEC_PER_SEC * transfer->len;
+	do_div(ms, rspi->freq);
+	ms += ms + 200;
+	if (ms > UINT_MAX)
+		ms = UINT_MAX;
+
+	ret = wait_event_interruptible_timeout(rspi->wait, rspi->dma_callbacked,
+					       msecs_to_jiffies(ms));
 	if (ret > 0) {
 		dmaengine_synchronize(rspi->controller->dma_tx);
 		dmaengine_synchronize(rspi->controller->dma_rx);
