@@ -10,6 +10,7 @@
 #include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/limits.h>
@@ -794,6 +795,18 @@ static int rzv2h_rspi_probe(struct platform_device *pdev)
 		if (ret == -EPROBE_DEFER)
 			return ret;
 		controller->dma_rx = NULL;
+	}
+
+	if (controller->dma_tx && controller->dma_rx) {
+		/*
+		 * The DMA controller cannot map the entire memory in the
+		 * system, it needs to use a bounce buffer via swiotlb. Limit
+		 * the maximum segment size to the maximum DMA mapping size,
+		 * which is swiotlb-aware.
+		 */
+		controller->max_dma_len = min(
+			dma_max_mapping_size(controller->dma_tx->device->dev),
+			dma_max_mapping_size(controller->dma_rx->device->dev));
 	}
 
 	ret = devm_spi_register_controller(dev, controller);
