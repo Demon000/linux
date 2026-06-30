@@ -242,7 +242,6 @@ static bool rzv2h_rspi_can_dma(struct spi_controller *ctlr, struct spi_device *s
 }
 
 static int rzv2h_rspi_transfer_pio(struct rzv2h_rspi_priv *rspi,
-				   struct spi_device *spi,
 				   struct spi_transfer *transfer,
 				   unsigned int words_to_transfer)
 {
@@ -319,7 +318,6 @@ rzv2h_rspi_dma_width(struct rzv2h_rspi_priv *rspi)
 }
 
 static int rzv2h_rspi_transfer_dma(struct rzv2h_rspi_priv *rspi,
-				   struct spi_device *spi,
 				   struct spi_transfer *transfer,
 				   unsigned int words_to_transfer)
 {
@@ -410,9 +408,9 @@ static int rzv2h_rspi_transfer_one(struct spi_controller *controller,
 	words_to_transfer = transfer->len / rspi->bytes_per_word;
 
 	if (is_dma)
-		ret = rzv2h_rspi_transfer_dma(rspi, spi, transfer, words_to_transfer);
+		ret = rzv2h_rspi_transfer_dma(rspi, transfer, words_to_transfer);
 	else
-		ret = rzv2h_rspi_transfer_pio(rspi, spi, transfer, words_to_transfer);
+		ret = rzv2h_rspi_transfer_pio(rspi, transfer, words_to_transfer);
 
 	rzv2h_rspi_clear_all_irqs(rspi);
 
