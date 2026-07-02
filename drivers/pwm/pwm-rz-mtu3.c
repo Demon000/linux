@@ -379,15 +379,12 @@ static void rz_mtu3_pwm_set_tior(struct rz_mtu3_pwm_channel *priv, u32 hwpwm,
 		rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TIORL, val);
 }
 
-static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+static void rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	struct rz_mtu3_pwm_channel *priv;
-	int rc;
 
-	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
-	if (rc)
-		return rc;
+	pm_runtime_get_noresume(pwmchip_parent(chip));
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 
@@ -397,8 +394,6 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 		rz_mtu3_enable(priv->mtu);
 
 	priv->enable_count++;
-
-	return 0;
 }
 
 static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
@@ -420,7 +415,7 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	if (!priv->enable_count)
 		rz_mtu3_disable(priv->mtu);
 
-	pm_runtime_put_sync(pwmchip_parent(chip));
+	pm_runtime_put_noidle(pwmchip_parent(chip));
 }
 
 static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -429,7 +424,8 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct rz_mtu3_pwm_chip *rz_mtu3_pwm = to_rz_mtu3_pwm_chip(chip);
 	int rc;
 
-	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
+	PM_RUNTIME_ACQUIRE_IF_ENABLED(pwmchip_parent(chip), pm);
+	rc = PM_RUNTIME_ACQUIRE_ERR(&pm);
 	if (rc)
 		return rc;
 
@@ -461,10 +457,8 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 		tpsc2 = FIELD_GET(RZ_MTU3_TCR2_TPSC2, val);
 
 		rc = rz_mtu3_pwm_tpsc_to_prescale(priv, tpsc, tpsc2, &prescale);
-		if (rc) {
-			pm_runtime_put(pwmchip_parent(chip));
+		if (rc)
 			return rc;
-		}
 
 		/* With prescale <= 10 and pv <= 0xffff this doesn't overflow. */
 		tmp = NSEC_PER_SEC * (u64)pv << prescale;
@@ -477,7 +471,6 @@ static int rz_mtu3_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 
 	state->polarity = PWM_POLARITY_NORMAL;
-	pm_runtime_put(pwmchip_parent(chip));
 
 	return 0;
 }
@@ -534,16 +527,6 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	rc = rz_mtu3_pwm_prescale_to_tpsc(priv, prescale, &tpsc, &tpsc2);
 	if (rc)
 		return rc;
-
-	/*
-	 * If the PWM channel is disabled, make sure to turn on the clock
-	 * before writing the register.
-	 */
-	if (!pwm->state.enabled) {
-		rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
-		if (rc)
-			return rc;
-	}
 
 	/* Counter must be stopped while updating TCR register */
 	if (priv->prescale != prescale && priv->enable_count)
@@ -604,10 +587,6 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	priv->period_cycles = period_cycles;
 
-	/* If the PWM is not enabled, turn the clock off again to save power. */
-	if (!pwm->state.enabled)
-		pm_runtime_put(pwmchip_parent(chip));
-
 	return 0;
 }
 
@@ -620,6 +599,11 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
+
+	PM_RUNTIME_ACQUIRE_IF_ENABLED(pwmchip_parent(chip), pm);
+	ret = PM_RUNTIME_ACQUIRE_ERR(&pm);
+	if (ret)
+		return ret;
 
 	guard(mutex)(&rz_mtu3_pwm->lock);
 
@@ -635,9 +619,9 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return ret;
 
 	if (!enabled)
-		ret = rz_mtu3_pwm_enable(chip, pwm);
+		rz_mtu3_pwm_enable(chip, pwm);
 
-	return ret;
+	return 0;
 }
 
 static const struct pwm_ops rz_mtu3_pwm_ops = {
