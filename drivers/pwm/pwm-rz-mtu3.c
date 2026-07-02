@@ -429,6 +429,14 @@ static int rz_mtu3_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 						RZ_MTU3_TGRD, dc);
 	}
 
+	/*
+	 * The counter keeps its value after a disable. Clear it before
+	 * enabling, otherwise counting will start mid-cycle and it will
+	 * generate a malformed first cycle.
+	 */
+	if (!rz_mtu3_pwm->enable_count[ch])
+		rz_mtu3_16bit_ch_write(priv->mtu, RZ_MTU3_TCNT, 0);
+
 	if (rz_mtu3_pwm->prescale[ch] != prescale) {
 		/*
 		 * Prescalar is shared by multiple channels, we cache the
