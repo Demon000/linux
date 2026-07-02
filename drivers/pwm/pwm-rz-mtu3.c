@@ -31,6 +31,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/limits.h>
 #include <linux/mfd/rz-mtu3.h>
@@ -183,7 +184,8 @@ static int rz_mtu3_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 
-	mutex_lock(&rz_mtu3_pwm->lock);
+	guard(mutex)(&rz_mtu3_pwm->lock);
+
 	/*
 	 * Each channel must be requested only once, so if the channel
 	 * serves two PWMs and the other is already requested, skip over
@@ -191,14 +193,11 @@ static int rz_mtu3_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 	 */
 	if (!priv->user_count) {
 		is_mtu3_channel_available = rz_mtu3_request_channel(priv->mtu);
-		if (!is_mtu3_channel_available) {
-			mutex_unlock(&rz_mtu3_pwm->lock);
+		if (!is_mtu3_channel_available)
 			return -EBUSY;
-		}
 	}
 
 	priv->user_count++;
-	mutex_unlock(&rz_mtu3_pwm->lock);
 
 	return 0;
 }
@@ -210,12 +209,11 @@ static void rz_mtu3_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	priv = rz_mtu3_get_channel(rz_mtu3_pwm, pwm->hwpwm);
 
-	mutex_lock(&rz_mtu3_pwm->lock);
+	guard(mutex)(&rz_mtu3_pwm->lock);
+
 	priv->user_count--;
 	if (!priv->user_count)
 		rz_mtu3_release_channel(priv->mtu);
-
-	mutex_unlock(&rz_mtu3_pwm->lock);
 }
 
 static void rz_mtu3_pwm_set_toer_bit(struct rz_mtu3_pwm_chip *rz_mtu3_pwm,
@@ -292,12 +290,10 @@ static int rz_mtu3_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	rz_mtu3_8bit_ch_write(priv->mtu, RZ_MTU3_TMDR1, RZ_MTU3_TMDR1_MD_PWMMODE1);
 
-	mutex_lock(&rz_mtu3_pwm->lock);
 	if (!priv->enable_count)
 		rz_mtu3_enable(priv->mtu);
 
 	priv->enable_count++;
-	mutex_unlock(&rz_mtu3_pwm->lock);
 
 	return 0;
 }
@@ -317,12 +313,9 @@ static void rz_mtu3_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	rz_mtu3_pwm_set_toer_bit(rz_mtu3_pwm, pwm->hwpwm, false);
 
-	mutex_lock(&rz_mtu3_pwm->lock);
 	priv->enable_count--;
 	if (!priv->enable_count)
 		rz_mtu3_disable(priv->mtu);
-
-	mutex_unlock(&rz_mtu3_pwm->lock);
 
 	pm_runtime_put_sync(pwmchip_parent(chip));
 }
@@ -508,6 +501,8 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->polarity != PWM_POLARITY_NORMAL)
 		return -EINVAL;
 
+	guard(mutex)(&rz_mtu3_pwm->lock);
+
 	if (!state->enabled) {
 		if (enabled)
 			rz_mtu3_pwm_disable(chip, pwm);
@@ -515,9 +510,7 @@ static int rz_mtu3_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	mutex_lock(&rz_mtu3_pwm->lock);
 	ret = rz_mtu3_pwm_config(chip, pwm, state);
-	mutex_unlock(&rz_mtu3_pwm->lock);
 	if (ret)
 		return ret;
 
