@@ -423,6 +423,17 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 
 		/* Set period */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTPR(ch), wfhw->gtpr);
+
+		/*
+		 * GPT counter is shared by multiple channels, we cache the
+		 * period ticks from the first enabled channel and use the same
+		 * value for both channels.
+		 */
+		if (wfhw->gtpr)
+			rzg2l_gpt->period_ticks[ch] =
+				rzg2l_gpt_calculate_cycles(wfhw->gtpr,
+							   info->prescale_mult,
+							   wfhw->prescale);
 	} else if (wfhw->gtpr && (wfhw->gtpr < rzg2l_gpt_read(rzg2l_gpt, RZG2L_GTPR(ch)))) {
 		return -EBUSY;
 	}
@@ -443,19 +454,10 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 					 RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 	}
 
-	if (wfhw->gtpr && !(rzg2l_gpt->enable_mask[ch] & BIT(sub_ch))) {
+	if (wfhw->gtpr && !(rzg2l_gpt->enable_mask[ch] & BIT(sub_ch)))
 		rzg2l_gpt_enable(rzg2l_gpt, pwm);
-		/*
-		 * GPT counter is shared by multiple channels, we cache the
-		 * period ticks from the first enabled channel and use the same
-		 * value for both channels.
-		 */
-		rzg2l_gpt->period_ticks[ch] = rzg2l_gpt_calculate_cycles(wfhw->gtpr,
-									 info->prescale_mult,
-									 wfhw->prescale);
-	} else if (!wfhw->gtpr && (rzg2l_gpt->enable_mask[ch] & BIT(sub_ch))) {
+	else if (!wfhw->gtpr && (rzg2l_gpt->enable_mask[ch] & BIT(sub_ch)))
 		rzg2l_gpt_disable(rzg2l_gpt, pwm);
-	}
 
 	return 0;
 }
