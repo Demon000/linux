@@ -294,9 +294,9 @@ static int rzg2l_gpt_round_waveform_tohw(struct pwm_chip *chip,
 	struct rzg2l_gpt_chip *rzg2l_gpt = to_rzg2l_gpt_chip(chip);
 	const struct rzg2l_gpt_info *info = rzg2l_gpt->info;
 	struct rzg2l_gpt_waveform *wfhw = _wfhw;
-	bool is_small_second_period = false;
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 	u64 period_ticks, duty_ticks;
+	int ret = 0;
 
 	if (wf->period_length_ns == 0) {
 		*wfhw = (struct rzg2l_gpt_waveform){
@@ -324,7 +324,7 @@ static int rzg2l_gpt_round_waveform_tohw(struct pwm_chip *chip,
 
 		if (rzg2l_gpt_is_ch_enabled(rzg2l_gpt, sibling_ch, NULL)) {
 			if (period_ticks < rzg2l_gpt->period_ticks[ch])
-				is_small_second_period = true;
+				ret = 1;
 
 			period_ticks = rzg2l_gpt->period_ticks[ch];
 		}
@@ -332,16 +332,13 @@ static int rzg2l_gpt_round_waveform_tohw(struct pwm_chip *chip,
 
 	wfhw->prescale = info->calculate_prescale(period_ticks);
 	wfhw->gtpr = rzg2l_gpt_calculate_pv_or_dc(info, period_ticks, wfhw->prescale);
-	wfhw->gtccr = 0;
-	if (is_small_second_period)
-		return 1;
 
 	duty_ticks = mul_u64_u64_div_u64(wf->duty_length_ns, rzg2l_gpt->rate_khz, USEC_PER_SEC);
 	if (duty_ticks > period_ticks)
 		duty_ticks = period_ticks;
 	wfhw->gtccr = rzg2l_gpt_calculate_pv_or_dc(info, duty_ticks, wfhw->prescale);
 
-	return 0;
+	return ret;
 }
 
 static int rzg2l_gpt_round_waveform_fromhw(struct pwm_chip *chip,
