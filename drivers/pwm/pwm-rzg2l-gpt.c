@@ -110,7 +110,7 @@ struct rzg2l_gpt_chip {
 	unsigned long rate_khz;
 	u64 period_ticks[RZG2L_MAX_HW_CHANNELS];
 	u32 channel_request_count[RZG2L_MAX_HW_CHANNELS];
-	u32 channel_enable_count[RZG2L_MAX_HW_CHANNELS];
+	u8 enable_mask[RZG2L_MAX_HW_CHANNELS];
 	DECLARE_BITMAP(poeg_gpt_link, RZG2L_MAX_POEG_GROUPS * RZG2L_MAX_HW_CHANNELS);
 };
 
@@ -233,10 +233,10 @@ static void rzg2l_gpt_enable(struct rzg2l_gpt_chip *rzg2l_gpt,
 	rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTIOR(ch), val,
 			 RZG2L_GTIOR_GTIOx_OUT_HI_END_TOGGLE_CMP_MATCH(sub_ch));
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt->enable_mask[ch])
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), 0, RZG2L_GTCR_CST);
 
-	rzg2l_gpt->channel_enable_count[ch]++;
+	rzg2l_gpt->enable_mask[ch] |= BIT(sub_ch);
 }
 
 /* Caller holds the lock while calling rzg2l_gpt_disable() */
@@ -247,9 +247,9 @@ static void rzg2l_gpt_disable(struct rzg2l_gpt_chip *rzg2l_gpt,
 	u8 ch = RZG2L_GET_CH(pwm->hwpwm);
 
 	/* Stop count, Output low on GTIOCx pin when counting stops */
-	rzg2l_gpt->channel_enable_count[ch]--;
+	rzg2l_gpt->enable_mask[ch] &= ~BIT(sub_ch);
 
-	if (!rzg2l_gpt->channel_enable_count[ch])
+	if (!rzg2l_gpt->enable_mask[ch])
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 	/* Disable pin output */
@@ -407,7 +407,7 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 	 * between both channels. So allow updating these registers only for the
 	 * first enabled channel.
 	 */
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	if (!(rzg2l_gpt->enable_mask[ch] & ~BIT(sub_ch))) {
 		rzg2l_gpt_modify(rzg2l_gpt, RZG2L_GTCR(ch), RZG2L_GTCR_CST, 0);
 
 		/* GPT set operating mode (saw-wave up-counting) */
@@ -430,7 +430,7 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 	/* Set duty cycle */
 	rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCCR(ch, sub_ch), wfhw->gtccr);
 
-	if (rzg2l_gpt->channel_enable_count[ch] <= 1) {
+	if (!(rzg2l_gpt->enable_mask[ch] & ~BIT(sub_ch))) {
 		/* Set initial value for counter */
 		rzg2l_gpt_write(rzg2l_gpt, RZG2L_GTCNT(ch), 0);
 
@@ -443,7 +443,7 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 					 RZG2L_GTCR_CST, RZG2L_GTCR_CST);
 	}
 
-	if (wfhw->gtpr && !rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm, NULL)) {
+	if (wfhw->gtpr && !(rzg2l_gpt->enable_mask[ch] & BIT(sub_ch))) {
 		rzg2l_gpt_enable(rzg2l_gpt, pwm);
 		/*
 		 * GPT counter is shared by multiple channels, we cache the
@@ -453,7 +453,7 @@ static int rzg2l_gpt_write_waveform(struct pwm_chip *chip,
 		rzg2l_gpt->period_ticks[ch] = rzg2l_gpt_calculate_cycles(wfhw->gtpr,
 									 info->prescale_mult,
 									 wfhw->prescale);
-	} else if (!wfhw->gtpr && rzg2l_gpt_is_ch_enabled(rzg2l_gpt, pwm->hwpwm, NULL)) {
+	} else if (!wfhw->gtpr && (rzg2l_gpt->enable_mask[ch] & BIT(sub_ch))) {
 		rzg2l_gpt_disable(rzg2l_gpt, pwm);
 	}
 
