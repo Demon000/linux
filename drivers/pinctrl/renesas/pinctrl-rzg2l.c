@@ -406,7 +406,6 @@ struct rzg2l_pinctrl {
 	struct regmap			*syscon;
 
 	struct gpio_chip		gpio_chip;
-	struct pinctrl_gpio_range	gpio_range;
 	DECLARE_BITMAP(tint_slot, RZG2L_TINT_MAX_INTERRUPT);
 	spinlock_t			bitmap_lock; /* protect tint_slot bitmap */
 	unsigned int			hwirq[RZG2L_TINT_MAX_INTERRUPT];
@@ -3228,12 +3227,6 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	girq->child_irq_domain_ops.free = rzg2l_gpio_irq_domain_free;
 	girq->init_valid_mask = rzg2l_init_irq_valid_mask;
 
-	pctrl->gpio_range.id = 0;
-	pctrl->gpio_range.pin_base = 0;
-	pctrl->gpio_range.base = 0;
-	pctrl->gpio_range.npins = chip->ngpio;
-	pctrl->gpio_range.name = chip->label;
-	pctrl->gpio_range.gc = chip;
 	ret = devm_gpiochip_add_data(pctrl->dev, chip, pctrl);
 	if (ret)
 		return dev_err_probe(pctrl->dev, ret, "failed to add GPIO controller\n");
