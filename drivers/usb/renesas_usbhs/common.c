@@ -584,7 +584,7 @@ static const struct of_device_id usbhs_of_match[] = {
 	},
 	{
 		.compatible = "renesas,usbhs-r9a09g077",
-		.data = &usbhs_rzg2l_plat_info,
+		.data = &usbhs_rzt2h_plat_info,
 	},
 	{
 		.compatible = "renesas,rcar-gen2-usbhs",

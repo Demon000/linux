@@ -84,3 +84,20 @@ const struct renesas_usbhs_platform_info usbhs_rzg2l_plat_info = {
 		.cfifo_byte_addr = 1,
 	},
 };
+
+const struct renesas_usbhs_platform_info usbhs_rzt2h_plat_info = {
+	.platform_callback = {
+		.hardware_init = usbhs_rza2_hardware_init,
+		.hardware_exit = usbhs_rza2_hardware_exit,
+		.power_ctrl = usbhs_rza2_power_ctrl,
+		.get_id = usbhs_get_id_as_gadget,
+	},
+	.driver_param = {
+		.buswait_bwait = 10,
+		.has_usb_dmac = 1,
+		.has_cnen = 1,
+		.cfifo_byte_addr = 1,
+		.has_await = 1,
+		.dma_manual_short_packet_handling = 1,
+	},
+};
