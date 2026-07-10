@@ -189,6 +189,8 @@ struct rz_dmac {
 #define CHCFG_TM			BIT(22)
 #define CHCFG_DAD			BIT(21)
 #define CHCFG_SAD			BIT(20)
+#define CHCFG_LVL			BIT(6)
+#define CHCFG_HIEN			BIT(5)
 #define CHCFG_REQD			BIT(3)
 #define CHCFG_SEL(bits)			((bits) & 0x07)
 #define CHCFG_MEM_COPY			(CHCFG_TM | CHCFG_REQD)
@@ -210,6 +212,25 @@ struct rz_dmac {
 #define HEADER_LV			BIT(0)
 #define HEADER_LE			BIT(1)
 #define HEADER_WBD			BIT(2)
+
+/*
+ * Default values from RZ/T2H User Manual, Section 32.3.17.3, CHCFG.
+ * LVL and HIEN must always be set to 1.
+ * The maximum transfer size for beat-unaligned data is 32 bytes.
+ */
+#define USBHS_CHCFG_DS_32_BYTES		5
+#define USBHS_CHCFG_VAL			(FIELD_PREP_CONST(CHCFG_LVL, 1) | \
+					 FIELD_PREP_CONST(CHCFG_HIEN, 1) | \
+					 FIELD_PREP_CONST(CHCFG_FILL_DDS_MASK, \
+							  USBHS_CHCFG_DS_32_BYTES) | \
+					 FIELD_PREP_CONST(CHCFG_FILL_SDS_MASK, \
+							  USBHS_CHCFG_DS_32_BYTES))
+
+#define USBHS_HEADER_LV			BIT(24)
+#define USBHS_HEADER_LE			BIT(25)
+#define USBHS_HEADER_WBD		BIT(26)
+#define USBHS_HEADER_DSCFM_MASK		GENMASK(31, 28)
+#define USBHS_HEADER_DSCFM_8WORD	FIELD_PREP_CONST(USBHS_HEADER_DSCFM_MASK, 1)
 
 #define RZ_DMAC_MAX_CHANNELS		16
 
@@ -1630,9 +1651,19 @@ static const struct rz_dmac_info rz_dmac_generic_info = {
 	.ds_max = 7,
 };
 
+static const struct rz_dmac_info rz_dmac_usbhs_info = {
+	.header_lv = USBHS_HEADER_LV | USBHS_HEADER_DSCFM_8WORD,
+	.header_le = USBHS_HEADER_LE,
+	.header_wbd = USBHS_HEADER_WBD,
+	.default_chcfg = USBHS_CHCFG_VAL,
+	.ds_max = 5,
+	.fixed_channels = true,
+};
+
 static const struct of_device_id of_rz_dmac_match[] = {
 	{ .compatible = "renesas,r9a09g057-dmac", .data = &rz_dmac_v2h_info },
 	{ .compatible = "renesas,r9a09g077-dmac", .data = &rz_dmac_t2h_info },
+	{ .compatible = "renesas,r9a09g077-usbhs-dmac", .data = &rz_dmac_usbhs_info },
 	{ .compatible = "renesas,rz-dmac", .data = &rz_dmac_generic_info },
 	{ /* Sentinel */ }
 };
