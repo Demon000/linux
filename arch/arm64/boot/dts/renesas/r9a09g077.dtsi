@@ -1872,15 +1872,27 @@
 
 		hsusb: usb@92041000 {
 			compatible = "renesas,usbhs-r9a09g077";
-			reg = <0 0x92041000 0 0x1000>;
-			interrupts = <GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0 0x92041000 0 0x400>;
+			interrupts = <GIC_SPI 587 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 408>;
+			dmas = <&hsusb_dmac 0>, <&hsusb_dmac 1>;
+			dma-names = "ch0", "ch1";
 			phys = <&usb2_phy 3>;
 			phy-names = "usb";
 			power-domains = <&cpg>;
 			status = "disabled";
+		};
+
+		hsusb_dmac: dma-controller@92041400 {
+			compatible = "renesas,r9a09g077-usbhs-dmac";
+			reg = <0 0x92041400 0 0x330>;
+			interrupts = <GIC_SPI 588 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 589 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ch0", "ch1";
+			clocks = <&cpg CPG_MOD 408>;
+			power-domains = <&cpg>;
+			#dma-cells = <1>;
+			dma-channels = <2>;
 		};
 
 		sdhi0: mmc@92080000  {
