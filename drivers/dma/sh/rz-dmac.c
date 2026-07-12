@@ -1058,11 +1058,19 @@ static int rz_dmac_device_resume_internal(struct rz_dmac_chan *channel)
  * IRQ handling
  */
 
-static void rz_dmac_irq_handle_channel(struct rz_dmac_chan *channel)
+static irqreturn_t rz_dmac_irq_handler(int irq, void *dev_id)
 {
-	struct dma_chan *chan = &channel->vc.chan;
-	struct rz_dmac *dmac = to_rz_dmac(chan->device);
+	struct rz_dmac_chan *channel = dev_id;
+	struct rz_dmac_desc *desc;
+	struct dma_chan *chan;
+	struct rz_dmac *dmac;
 	u32 chstat;
+
+	if (!channel)
+		return IRQ_HANDLED; /* DMAERR irq */
+
+	chan = &channel->vc.chan;
+	dmac = to_rz_dmac(chan->device);
 
 	chstat = rz_dmac_ch_readl(channel, CHSTAT);
 	if (chstat & CHSTAT_ER) {
@@ -1071,7 +1079,7 @@ static void rz_dmac_irq_handle_channel(struct rz_dmac_chan *channel)
 
 		scoped_guard(spinlock_irqsave, &channel->vc.lock)
 			rz_dmac_disable_hw(channel);
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -1079,24 +1087,6 @@ static void rz_dmac_irq_handle_channel(struct rz_dmac_chan *channel)
 	 * zeros to CHCTRL is just ignored by HW.
 	 */
 	rz_dmac_ch_writel(channel, CHCTRL_CLREND, CHCTRL);
-}
-
-static irqreturn_t rz_dmac_irq_handler(int irq, void *dev_id)
-{
-	struct rz_dmac_chan *channel = dev_id;
-
-	if (channel) {
-		rz_dmac_irq_handle_channel(channel);
-		return IRQ_WAKE_THREAD;
-	}
-	/* handle DMAERR irq */
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t rz_dmac_irq_handler_thread(int irq, void *dev_id)
-{
-	struct rz_dmac_chan *channel = dev_id;
-	struct rz_dmac_desc *desc;
 
 	guard(spinlock_irqsave)(&channel->vc.lock);
 
@@ -1198,9 +1188,8 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 	if (!irqname)
 		return -ENOMEM;
 
-	ret = devm_request_threaded_irq(dmac->dev, irq, rz_dmac_irq_handler,
-					rz_dmac_irq_handler_thread, 0,
-					irqname, channel);
+	ret = devm_request_irq(dmac->dev, irq, rz_dmac_irq_handler, 0,
+			       irqname, channel);
 	if (ret)
 		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n", irq, ret);
 
