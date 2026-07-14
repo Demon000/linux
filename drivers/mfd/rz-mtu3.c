@@ -171,12 +171,12 @@ void rz_mtu3_shared_reg_update_bit(struct rz_mtu3_channel *ch, u16 offset,
 				   u16 pos, u8 val)
 {
 	struct rz_mtu3_priv *priv = rz_mtu3_ch_to_priv(ch);
-	unsigned long tmdr, flags;
+	unsigned long reg_val, flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	tmdr = rz_mtu3_shared_reg_read(ch, offset);
-	__assign_bit(pos, &tmdr, !!val);
-	rz_mtu3_shared_reg_write(ch, offset, tmdr);
+	reg_val = rz_mtu3_shared_reg_read(ch, offset);
+	__assign_bit(pos, &reg_val, !!val);
+	rz_mtu3_shared_reg_write(ch, offset, reg_val);
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 EXPORT_SYMBOL_GPL(rz_mtu3_shared_reg_update_bit);
