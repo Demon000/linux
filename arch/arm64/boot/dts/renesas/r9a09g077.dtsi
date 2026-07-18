@@ -284,10 +284,6 @@
 			clocks = <&cpg CPG_CORE R9A09G077_CLK_PCLKM>,
 				 <&cpg CPG_MOD 602>;
 			clock-names = "pclk", "pclkspi";
-			dmas = <&dmac0 0x2689>, <&dmac0 0x268a>,
-			       <&dmac1 0x2689>, <&dmac1 0x268a>,
-			       <&dmac2 0x2689>, <&dmac2 0x268a>;
-			dma-names = "rx", "tx", "rx", "tx", "rx", "tx";
 			power-domains = <&cpg>;
 			#address-cells = <1>;
 			#size-cells = <0>;
