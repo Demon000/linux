@@ -117,6 +117,7 @@ struct rz_dmac_info {
 				     u8 dmac_index, u8 dmac_channel, u16 ack_no);
 	u16 default_dma_ack_no;
 	u16 default_dma_req_no;
+	u8 ds_max;
 };
 
 struct rz_dmac {
@@ -734,7 +735,8 @@ static void rz_dmac_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&channel->vc.lock, flags);
 }
 
-static u8 rz_dmac_ds_to_val_mapping(enum dma_slave_buswidth ds)
+static u8 rz_dmac_ds_to_val_mapping(struct rz_dmac *dmac,
+				    enum dma_slave_buswidth ds)
 {
 	u8 i;
 	static const enum dma_slave_buswidth ds_lut[] = {
@@ -748,7 +750,7 @@ static u8 rz_dmac_ds_to_val_mapping(enum dma_slave_buswidth ds)
 		DMA_SLAVE_BUSWIDTH_128_BYTES,
 	};
 
-	for (i = 0; i < ARRAY_SIZE(ds_lut); i++) {
+	for (i = 0; i <= dmac->info->ds_max; i++) {
 		if (ds_lut[i] == ds)
 			return i;
 	}
@@ -760,12 +762,13 @@ static int rz_dmac_config(struct dma_chan *chan,
 			  struct dma_slave_config *config)
 {
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
+	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	u32 val;
 
 	channel->dst_per_address = config->dst_addr;
 	channel->chcfg &= ~CHCFG_FILL_DDS_MASK;
 	if (channel->dst_per_address) {
-		val = rz_dmac_ds_to_val_mapping(config->dst_addr_width);
+		val = rz_dmac_ds_to_val_mapping(dmac, config->dst_addr_width);
 		if (val == CHCFG_DS_INVALID)
 			return -EINVAL;
 
@@ -775,7 +778,7 @@ static int rz_dmac_config(struct dma_chan *chan,
 	channel->src_per_address = config->src_addr;
 	channel->chcfg &= ~CHCFG_FILL_SDS_MASK;
 	if (channel->src_per_address) {
-		val = rz_dmac_ds_to_val_mapping(config->src_addr_width);
+		val = rz_dmac_ds_to_val_mapping(dmac, config->src_addr_width);
 		if (val == CHCFG_DS_INVALID)
 			return -EINVAL;
 
@@ -1526,15 +1529,18 @@ static const struct rz_dmac_info rz_dmac_v2h_info = {
 	.icu_register_dma_ack = rzv2h_icu_register_dma_ack,
 	.default_dma_ack_no = RZV2H_ICU_DMAC_ACK_NO_DEFAULT,
 	.default_dma_req_no = RZV2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.ds_max = 5,
 };
 
 static const struct rz_dmac_info rz_dmac_t2h_info = {
 	.icu_register_dma_req = rzt2h_icu_register_dma_req,
 	.default_dma_req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.ds_max = 5,
 };
 
 static const struct rz_dmac_info rz_dmac_generic_info = {
 	.default_dma_req_no = 0,
+	.ds_max = 7,
 };
 
 static const struct of_device_id of_rz_dmac_match[] = {
