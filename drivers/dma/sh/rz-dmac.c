@@ -543,32 +543,81 @@ static struct dma_async_tx_descriptor *
 rz_dmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 			size_t len, unsigned long flags)
 {
-	unsigned int lmdesc_flags = RZ_DMAC_LMDESC_END | RZ_DMAC_LMDESC_IRQ;
 	struct rz_dmac_chan *channel = to_rz_dmac_chan(chan);
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_dmac_desc *desc;
 	struct rz_lmdesc *lmdesc;
+	unsigned int nr_segs = 0;
+	dma_addr_t body_start;
+	dma_addr_t body_end;
+	size_t seg_lens[3];
+	unsigned int i;
+	u8 ds;
 
 	dev_dbg(dmac->dev, "%s channel: %d src=0x%pad dst=0x%pad len=%zu\n",
 		__func__, channel->index, &src, &dest, len);
 
-	desc = rz_dmac_alloc_desc(channel, 1);
+	if (!len)
+		return NULL;
+
+	/*
+	 * The widest usable transfer unit is decided by the relative alignment
+	 * of the source and destination addresses. Both can be walked up to a
+	 * unit boundary by a head segment, but only if they reach it at the
+	 * same time.
+	 * The body covers the unit-aligned window of the transfer, the head and
+	 * tail cover the rest using a narrower unit.
+	 */
+	ds = __ffs((src ^ dest) | BIT(dmac->info->ds_max));
+	body_start = round_up(src, BIT(ds));
+	body_end = round_down(src + len, BIT(ds));
+
+	if (body_start < body_end) {
+		if (body_start != src)
+			seg_lens[nr_segs++] = body_start - src;
+
+		seg_lens[nr_segs++] = body_end - body_start;
+
+		if (body_end != src + len)
+			seg_lens[nr_segs++] = src + len - body_end;
+	} else {
+		seg_lens[nr_segs++] = len;
+	}
+
+	desc = rz_dmac_alloc_desc(channel, nr_segs);
 	if (!desc)
 		return NULL;
 
 	desc->type = RZ_DMAC_DESC_MEMCPY;
 	desc->len = len;
 
-	lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, 0, DMA_MEM_TO_MEM,
-					   CHCFG_MEM_COPY, lmdesc_flags);
-	if (!lmdesc) {
-		rz_dmac_free_desc(channel, desc);
-		return NULL;
-	}
+	for (i = 0; i < nr_segs; i++) {
+		unsigned int lmdesc_flags = 0;
+		u32 chcfg;
 
-	lmdesc->sa = src;
-	lmdesc->da = dest;
-	lmdesc->tb = len;
+		if (i == nr_segs - 1)
+			lmdesc_flags |= RZ_DMAC_LMDESC_END | RZ_DMAC_LMDESC_IRQ;
+
+		ds = min_t(u8, __ffs(src | dest | seg_lens[i]),
+			   dmac->info->ds_max);
+		chcfg = CHCFG_MEM_COPY |
+			FIELD_PREP(CHCFG_FILL_SDS_MASK, ds) |
+			FIELD_PREP(CHCFG_FILL_DDS_MASK, ds);
+
+		lmdesc = rz_dmac_desc_alloc_lmdesc(channel, desc, i,
+						   DMA_MEM_TO_MEM, chcfg,
+						   lmdesc_flags);
+		if (!lmdesc) {
+			rz_dmac_free_desc(channel, desc);
+			return NULL;
+		}
+
+		lmdesc->sa = src;
+		lmdesc->da = dest;
+		lmdesc->tb = seg_lens[i];
+		src += seg_lens[i];
+		dest += seg_lens[i];
+	}
 
 	return vchan_tx_prep(&channel->vc, &desc->vd, flags);
 }
