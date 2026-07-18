@@ -162,8 +162,6 @@ allOf:
           interrupts:
             items:
               - description: USB function interrupt USB_FI
-              - description: USB function DMA0 transmit completion interrupt USB_FDMA0
-              - description: USB function DMA1 transmit completion interrupt USB_FDMA1
       else:
         properties:
           interrupts:
