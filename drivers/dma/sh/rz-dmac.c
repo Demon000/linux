@@ -117,6 +117,9 @@ struct rz_dmac_info {
 				     u8 dmac_index, u8 dmac_channel, u16 ack_no);
 	u16 default_dma_ack_no;
 	u16 default_dma_req_no;
+	u32 header_lv;
+	u32 header_le;
+	u32 header_wbd;
 	u8 ds_max;
 };
 
@@ -422,8 +425,8 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 {
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
+	u32 header = dmac->info->header_lv;
 	struct rz_lmdesc *lmdesc;
-	u32 header = HEADER_LV;
 	dma_addr_t dma_addr;
 
 	lmdesc = dma_pool_zalloc(dmac->lmdesc_pool, GFP_NOWAIT, &dma_addr);
@@ -443,10 +446,10 @@ rz_dmac_desc_alloc_lmdesc(struct rz_dmac_chan *channel, struct rz_dmac_desc *des
 		chcfg |= CHCFG_DEM;
 
 	if (flags & RZ_DMAC_LMDESC_END)
-		header |= HEADER_LE;
+		header |= dmac->info->header_le;
 
 	if (flags & RZ_DMAC_LMDESC_KEEP)
-		header |= HEADER_WBD;
+		header |= dmac->info->header_wbd;
 
 	lmdesc->chitvl = 0;
 	lmdesc->chext = 0;
@@ -1594,17 +1597,26 @@ static const struct rz_dmac_info rz_dmac_v2h_info = {
 	.icu_register_dma_ack = rzv2h_icu_register_dma_ack,
 	.default_dma_ack_no = RZV2H_ICU_DMAC_ACK_NO_DEFAULT,
 	.default_dma_req_no = RZV2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.header_lv = HEADER_LV,
+	.header_le = HEADER_LE,
+	.header_wbd = HEADER_WBD,
 	.ds_max = 5,
 };
 
 static const struct rz_dmac_info rz_dmac_t2h_info = {
 	.icu_register_dma_req = rzt2h_icu_register_dma_req,
 	.default_dma_req_no = RZT2H_ICU_DMAC_REQ_NO_DEFAULT,
+	.header_lv = HEADER_LV,
+	.header_le = HEADER_LE,
+	.header_wbd = HEADER_WBD,
 	.ds_max = 5,
 };
 
 static const struct rz_dmac_info rz_dmac_generic_info = {
 	.default_dma_req_no = 0,
+	.header_lv = HEADER_LV,
+	.header_le = HEADER_LE,
+	.header_wbd = HEADER_WBD,
 	.ds_max = 7,
 };
 
