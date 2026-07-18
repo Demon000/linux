@@ -120,7 +120,9 @@ struct rz_dmac_info {
 	u32 header_lv;
 	u32 header_le;
 	u32 header_wbd;
+	u32 default_chcfg;
 	u8 ds_max;
+	u32 fixed_channels : 1;
 };
 
 struct rz_dmac {
@@ -326,6 +328,9 @@ static void rz_dmac_set_dmars_register(struct rz_dmac *dmac, int nr, u32 dmars)
 static void rz_dmac_set_dma_req_no(struct rz_dmac *dmac, unsigned int index,
 				   int req_no)
 {
+	if (dmac->info->fixed_channels)
+		return;
+
 	if (dmac->info->icu_register_dma_req)
 		dmac->info->icu_register_dma_req(dmac->icu.pdev, dmac->icu.dmac_index,
 						 index, req_no);
@@ -1189,6 +1194,11 @@ static bool rz_dmac_chan_filter(struct dma_chan *chan, void *arg)
 	struct of_phandle_args *dma_spec = arg;
 	u32 ch_cfg;
 
+	if (dmac->info->fixed_channels) {
+		channel->chcfg = dmac->info->default_chcfg;
+		return channel->index == dma_spec->args[0];
+	}
+
 	channel->mid_rid = dma_spec->args[0] & MID_RID_MASK;
 	ch_cfg = (dma_spec->args[0] & CHCFG_MASK) >> 10;
 	channel->chcfg = CHCFG_FILL_TM(ch_cfg) | CHCFG_FILL_AM(ch_cfg) |
@@ -1368,7 +1378,7 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	if (IS_ERR(dmac->base))
 		return PTR_ERR(dmac->base);
 
-	if (!dmac->info->icu_register_dma_req) {
+	if (!dmac->info->icu_register_dma_req && !dmac->info->fixed_channels) {
 		dmac->ext_base = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dmac->ext_base))
 			return PTR_ERR(dmac->ext_base);
