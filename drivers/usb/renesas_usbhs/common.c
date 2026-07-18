@@ -288,6 +288,9 @@ static void usbhsc_set_buswait(struct usbhs_priv *priv)
 	/* set bus wait if platform have */
 	if (wait)
 		usbhs_bset(priv, BUSWAIT, 0x000F, wait);
+
+	if (wait && usbhs_get_dparam(priv, has_await))
+		usbhs_bset(priv, BUSWAIT, 0x0F00, wait << 8);
 }
 
 static bool usbhsc_is_multi_clks(struct usbhs_priv *priv)

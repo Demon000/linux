@@ -173,6 +173,13 @@ struct renesas_usbhs_driver_param {
 	/*
 	 * option:
 	 *
+	 * Some SoCs have a separate AHB-DMA Bridge Bus Access Wait field that
+	 * needs to be set in addition to the CPU Bus Access Wait.
+	 */
+	u32 has_await:1;
+	/*
+	 * option:
+	 *
 	 * The DMA controller has no hardware awareness of USB packet framing,
 	 * so it can't recognize a short packet in either direction.
 	 * RX BRDY interrupt handler needs to manually terminate the DMA
