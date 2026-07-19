@@ -332,7 +332,15 @@ static void rz_dmac_enable_hw(struct rz_dmac_chan *channel)
 
 	chctrl = (channel->chctrl | CHCTRL_SETEN);
 	rz_dmac_ch_writel(channel, nxla, NXLA);
-	rz_dmac_ch_writel(channel, channel->chcfg, CHCFG);
+	/*
+	 * In link mode, the CHCFG settings are loaded from the LM descriptors,
+	 * but the loaded AM, LVL, HIEN, LOEN and SEL bits must already be set
+	 * in the CHCFG register when the channel is enabled to synchronize them
+	 * with peripheral module requests. Write the whole CHCFG value of the
+	 * first LM descriptor. See the CAUTION in the Link Mode section of the
+	 * RZ/G2L User Manual.
+	 */
+	rz_dmac_ch_writel(channel, channel->desc->start_lmdesc->chcfg, CHCFG);
 	rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
 	rz_dmac_ch_writel(channel, chctrl, CHCTRL);
 }
@@ -430,7 +438,6 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
 	struct rz_lmdesc *lmdesc = channel->lmdesc.tail;
 	struct rz_dmac_desc *d = channel->desc;
-	u32 chcfg = CHCFG_MEM_COPY | CHCFG_SEL(channel->index);
 
 	d->start_lmdesc = lmdesc;
 
@@ -438,7 +445,7 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 	lmdesc->sa = d->src;
 	lmdesc->da = d->dest;
 	lmdesc->tb = d->len;
-	lmdesc->chcfg = chcfg;
+	lmdesc->chcfg = CHCFG_MEM_COPY | CHCFG_SEL(channel->index);
 	lmdesc->chitvl = 0;
 	lmdesc->chext = 0;
 	lmdesc->header = HEADER_LV | HEADER_LE;
@@ -451,7 +458,6 @@ static void rz_dmac_prepare_desc_for_memcpy(struct rz_dmac_chan *channel)
 
 	rz_dmac_set_dma_req_no(dmac, channel->index, dmac->info->default_dma_req_no);
 
-	channel->chcfg = chcfg;
 	channel->chctrl = CHCTRL_STG;
 }
 
@@ -463,14 +469,15 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 	struct scatterlist *sg, *sgl = d->sg;
 	struct rz_lmdesc *lmdesc;
 	unsigned int i, sg_len = d->sgcount;
+	u32 chcfg;
 
-	channel->chcfg |= CHCFG_SEL(channel->index) | CHCFG_DEM | CHCFG_DMS;
+	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DEM | CHCFG_DMS;
 
 	if (d->direction == DMA_DEV_TO_MEM) {
-		channel->chcfg |= CHCFG_SAD;
-		channel->chcfg &= ~CHCFG_REQD;
+		chcfg |= CHCFG_SAD;
+		chcfg &= ~CHCFG_REQD;
 	} else {
-		channel->chcfg |= CHCFG_DAD | CHCFG_REQD;
+		chcfg |= CHCFG_DAD | CHCFG_REQD;
 	}
 
 	lmdesc = channel->lmdesc.tail;
@@ -489,10 +496,10 @@ static void rz_dmac_prepare_descs_for_slave_sg(struct rz_dmac_chan *channel)
 		lmdesc->chitvl = 0;
 		lmdesc->chext = 0;
 		if (i == (sg_len - 1)) {
-			lmdesc->chcfg = (channel->chcfg & ~CHCFG_DEM);
+			lmdesc->chcfg = chcfg & ~CHCFG_DEM;
 			lmdesc->header = HEADER_LV | HEADER_LE;
 		} else {
-			lmdesc->chcfg = channel->chcfg;
+			lmdesc->chcfg = chcfg;
 			lmdesc->header = HEADER_LV;
 		}
 		if (++lmdesc >= (channel->lmdesc.base + DMAC_NR_LMDESC))
@@ -517,16 +524,17 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 	struct rz_lmdesc *lmdesc;
 	size_t buf_len = d->len;
 	size_t periods = buf_len / period_len;
+	u32 chcfg;
 
 	lockdep_assert_held(&channel->vc.lock);
 
-	channel->chcfg |= CHCFG_SEL(channel->index) | CHCFG_DMS;
+	chcfg = channel->chcfg | CHCFG_SEL(channel->index) | CHCFG_DMS;
 
 	if (d->direction == DMA_DEV_TO_MEM) {
-		channel->chcfg |= CHCFG_SAD;
-		channel->chcfg &= ~CHCFG_REQD;
+		chcfg |= CHCFG_SAD;
+		chcfg &= ~CHCFG_REQD;
 	} else {
-		channel->chcfg |= CHCFG_DAD | CHCFG_REQD;
+		chcfg |= CHCFG_DAD | CHCFG_REQD;
 	}
 
 	lmdesc = channel->lmdesc.tail;
@@ -544,7 +552,7 @@ static void rz_dmac_prepare_descs_for_cyclic(struct rz_dmac_chan *channel)
 		lmdesc->tb = period_len;
 		lmdesc->chitvl = 0;
 		lmdesc->chext = 0;
-		lmdesc->chcfg = channel->chcfg;
+		lmdesc->chcfg = chcfg;
 		lmdesc->header = HEADER_LV | HEADER_WBD;
 
 		if (i == periods - 1)
@@ -1640,7 +1648,7 @@ static int rz_dmac_resume(struct device *dev)
 		rz_dmac_set_dma_ack_no(dmac, channel->index, channel->dmac_ack);
 
 		rz_dmac_ch_writel(channel, channel->pm_state.nxla, NXLA);
-		rz_dmac_ch_writel(channel, channel->chcfg, CHCFG);
+		rz_dmac_ch_writel(channel, channel->desc->start_lmdesc->chcfg, CHCFG);
 		rz_dmac_ch_writel(channel, CHCTRL_SWRST, CHCTRL);
 		rz_dmac_ch_writel(channel, channel->chctrl, CHCTRL);
 
