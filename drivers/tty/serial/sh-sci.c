@@ -2676,6 +2676,19 @@ static void sci_reset(struct uart_port *port)
 	}
 }
 
+void sci_update_rx_timeout(struct uart_port *port, unsigned int baud,
+			   unsigned int bits)
+{
+	struct sci_port *s = to_sci_port(port);
+
+	/* Calculate delay for 2 DMA buffers (4 FIFO). */
+	s->rx_frame = (10000 * bits) / (baud / 100);
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	s->rx_timeout = s->buf_len_rx * 2 * s->rx_frame;
+#endif
+}
+EXPORT_SYMBOL_NS_GPL(sci_update_rx_timeout, "SH_SCI");
+
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 		            const struct ktermios *old)
 {
@@ -2912,11 +2925,7 @@ done:
 		udelay(DIV_ROUND_UP(10 * 1000000, baud));
 	}
 
-	/* Calculate delay for 2 DMA buffers (4 FIFO). */
-	s->rx_frame = (10000 * bits) / (baud / 100);
-#ifdef CONFIG_SERIAL_SH_SCI_DMA
-	s->rx_timeout = s->buf_len_rx * 2 * s->rx_frame;
-#endif
+	sci_update_rx_timeout(port, baud, bits);
 
 	if ((termios->c_cflag & CREAD) != 0)
 		sci_start_rx(port);

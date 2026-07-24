@@ -46,6 +46,8 @@ void sci_config_port(struct uart_port *port, int flags);
 int sci_verify_port(struct uart_port *port, struct serial_struct *ser);
 void sci_pm(struct uart_port *port, unsigned int state,
 		   unsigned int oldstate);
+void sci_update_rx_timeout(struct uart_port *port, unsigned int baud,
+			   unsigned int bits);
 
 struct plat_sci_reg {
 	u8 offset;
