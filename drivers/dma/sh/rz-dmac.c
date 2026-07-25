@@ -144,7 +144,8 @@ struct rz_dmac {
  * Registers
  */
 
-#define CRTB				0x0020
+#define CRSA				0x0018
+#define CRDA				0x001c
 #define CHSTAT				0x0024
 #define CHCTRL				0x0028
 #define CHCFG				0x002c
@@ -869,12 +870,14 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 }
 
 static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
-						 struct rz_dmac_desc *desc, u32 crla)
+						 struct rz_dmac_desc *desc, u32 crla,
+						 u32 craddr)
 {
 	struct dma_chan *chan = &channel->vc.chan;
 	struct rz_dmac *dmac = to_rz_dmac(chan->device);
-	u32 residue = 0;
+	struct rz_lmdesc *hw;
 	unsigned int i;
+	u32 residue;
 
 	for (i = 0; i < desc->num_lmdesc; i++)
 		if (desc->lmdesc[i].dma_addr == crla)
@@ -884,9 +887,17 @@ static u32 rz_dmac_calculate_residue_bytes_in_vd(struct rz_dmac_chan *channel,
 		return 0;
 
 	/*
-	 * CRTB contains the number of bytes left to transfer in the current
-	 * lmdesc, so sum the transfer bytes starting with the next lmdesc.
+	 * Calculate the bytes remaining in the current LM descriptor from the
+	 * address that advances during the transfer.
 	 */
+	hw = desc->lmdesc[i].hw;
+	residue = hw->tb;
+
+	if (hw->chcfg & CHCFG_DAD)
+		residue -= craddr - hw->sa;
+	else
+		residue -= craddr - hw->da;
+
 	for (i++; i < desc->num_lmdesc; i++)
 		residue += desc->lmdesc[i].hw->tb;
 
@@ -900,7 +911,7 @@ static int rz_dmac_chan_get_residue(struct device *dev, struct rz_dmac_chan *cha
 {
 	struct rz_dmac_desc *desc = NULL;
 	struct virt_dma_desc *vd;
-	u32 crla, crtb, i;
+	u32 crla, craddr, i;
 	int ret;
 
 	vd = vchan_find_desc(&channel->vc, cookie);
@@ -926,13 +937,18 @@ static int rz_dmac_chan_get_residue(struct device *dev, struct rz_dmac_chan *cha
 		return ret;
 
 	/*
-	 * We need to read two registers. Make sure the hardware does not move
-	 * to next lmdesc while reading the current lmdesc. Trying it 3 times
-	 * should be enough: initial read, retry, retry for the paranoid.
+	 * Read the current link address alongside the current source or
+	 * destination address, whichever advances for the current lmdesc. Make
+	 * sure the hardware does not move to the next lmdesc while reading, so
+	 * the two form a consistent snapshot. Trying it 3 times should be
+	 * enough: initial read, retry, retry for the paranoid.
 	 */
 	for (i = 0; i < 3; i++) {
 		crla = rz_dmac_ch_readl(channel, CRLA);
-		crtb = rz_dmac_ch_readl(channel, CRTB);
+		if (desc->lmdesc[0].hw->chcfg & CHCFG_DAD)
+			craddr = rz_dmac_ch_readl(channel, CRSA);
+		else
+			craddr = rz_dmac_ch_readl(channel, CRDA);
 		/* Still the same? */
 		if (crla == rz_dmac_ch_readl(channel, CRLA))
 			break;
@@ -944,7 +960,7 @@ static int rz_dmac_chan_get_residue(struct device *dev, struct rz_dmac_chan *cha
 	 * Calculate number of bytes transferred in processing virtual descriptor.
 	 * One virtual descriptor can have many lmdesc.
 	 */
-	*residue = crtb + rz_dmac_calculate_residue_bytes_in_vd(channel, desc, crla);
+	*residue = rz_dmac_calculate_residue_bytes_in_vd(channel, desc, crla, craddr);
 
 	return 0;
 }
