@@ -63,6 +63,7 @@ MODULE_IMPORT_NS("SH_SCI");
 
 /* CCR2 (Common Control Register 2) */
 #define CCR2_INIT			0xFF000004
+#define CCR2_MDDR			GENMASK(31, 24)	/* Modulation Duty setting */
 #define CCR2_CKS_TCLK			(0)	/* TCLK clock */
 #define CCR2_CKS_TCLK_DIV4		BIT(20)	/* TCLK/4 clock */
 #define CCR2_CKS_TCLK_DIV16		BIT(21)	/* TCLK16 clock */
@@ -218,7 +219,7 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	unsigned int ccr2_val = CCR2_INIT, ccr3_val = CCR3_INIT;
 	unsigned int ccr0_val = 0, ccr1_val = 0, ccr4_val = 0;
-	unsigned int brr = 255, cks = 0, srr = 15;
+	unsigned int brr = 255, cks = 0, srr = 15, mddr = 256;
 	struct sci_port *s = to_sci_port(port);
 	unsigned long max_freq = 0;
 	unsigned int baud, i;
@@ -265,7 +266,7 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, max_freq);
 
 	/* Divided Functional Clock using standard Bit Rate Register */
-	err = sci_scbrr_calc(s, baud, &brr, &srr, &cks, NULL);
+	err = sci_scbrr_calc(s, baud, &brr, &srr, &cks, &mddr);
 	dev_dbg(port->dev, "Using clk %pC for %u%+d bps\n",
 		s->clks[SCI_FCK], baud, err);
 
@@ -280,6 +281,10 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 	rsci_serial_out(port, CCR3, ccr3_val);
 
 	ccr2_val |= (cks << 20) | (brr << 8);
+	if (mddr < 256) {
+		FIELD_MODIFY(CCR2_MDDR, &ccr2_val, mddr);
+		ccr2_val |= CCR2_BRME;
+	}
 	rsci_serial_out(port, CCR2, ccr2_val);
 
 	rsci_serial_out(port, CCR1, ccr1_val);
