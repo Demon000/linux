@@ -1596,11 +1596,30 @@ static void sci_dma_tx_release(struct sci_port *s)
 	dma_release_channel(chan);
 }
 
+static int sci_dma_rx_submit_fail(struct sci_port *s, bool port_lock_held,
+				  bool terminate)
+{
+	struct uart_port *port = &s->port;
+	unsigned long flags;
+
+	if (!port_lock_held)
+		uart_port_lock_irqsave(port, &flags);
+
+	if (terminate)
+		dmaengine_terminate_async(s->chan_rx);
+
+	sci_dma_rx_chan_invalidate(s);
+	sci_start_rx(port);
+
+	if (!port_lock_held)
+		uart_port_unlock_irqrestore(port, flags);
+
+	return -EAGAIN;
+}
+
 static int sci_dma_rx_submit(struct sci_port *s, bool port_lock_held)
 {
 	struct dma_chan *chan = s->chan_rx;
-	struct uart_port *port = &s->port;
-	unsigned long flags;
 	int i;
 
 	for (i = 0; i < 2; i++) {
@@ -1611,32 +1630,19 @@ static int sci_dma_rx_submit(struct sci_port *s, bool port_lock_held)
 			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 		if (!desc)
-			goto fail;
+			return sci_dma_rx_submit_fail(s, port_lock_held, i > 0);
 
 		desc->callback = sci_dma_rx_complete;
 		desc->callback_param = s;
 		s->cookie_rx[i] = dmaengine_submit(desc);
 		if (dma_submit_error(s->cookie_rx[i]))
-			goto fail;
-
+			return sci_dma_rx_submit_fail(s, port_lock_held, i > 0);
 	}
 
 	s->active_rx = s->cookie_rx[0];
 
 	dma_async_issue_pending(chan);
 	return 0;
-
-fail:
-	/* Switch to PIO */
-	if (!port_lock_held)
-		uart_port_lock_irqsave(port, &flags);
-	if (i)
-		dmaengine_terminate_async(chan);
-	sci_dma_rx_chan_invalidate(s);
-	sci_start_rx(port);
-	if (!port_lock_held)
-		uart_port_unlock_irqrestore(port, flags);
-	return -EAGAIN;
 }
 
 static void sci_dma_tx_work_fn(struct work_struct *work)
