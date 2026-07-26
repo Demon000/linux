@@ -1704,7 +1704,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 switch_to_pio:
 	uart_port_lock_irqsave(port, &flags);
 	s->chan_tx = NULL;
-	sci_start_tx(port);
+	port->ops->start_tx(port);
 	uart_port_unlock_irqrestore(port, flags);
 	return;
 }
