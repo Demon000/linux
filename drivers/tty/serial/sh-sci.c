@@ -2575,11 +2575,13 @@ static int sci_brg_calc(struct sci_port *s, unsigned int bps,
 
 /* calculate sample rate, BRR, and clock select */
 int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
-		   unsigned int *srr, unsigned int *cks)
+		   unsigned int *srr, unsigned int *cks, unsigned int *mddr)
 {
 	unsigned long freq = s->clk_rates[SCI_FCK];
 	unsigned int sr, br, prediv, scrate, c;
 	int err, min_err = INT_MAX;
+	unsigned long base;
+	unsigned int m;
 
 	if (s->type != PORT_HSCIF)
 		freq *= 2;
@@ -2617,10 +2619,28 @@ int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 				break;
 
 			scrate = prediv * bps;
-			br = DIV_ROUND_CLOSEST(freq, scrate);
+
+			/*
+			 * If baud rate modulation is supported, round down the
+			 * baud rate divider, so that the base rate is greater
+			 * than or equal to the target baud rate. Modulation
+			 * scales it by M / 256.
+			 */
+			if (mddr)
+				br = freq / scrate;
+			else
+				br = DIV_ROUND_CLOSEST(freq, scrate);
+
 			br = clamp(br, 1U, 256U);
 
-			err = DIV_ROUND_CLOSEST(freq, br * prediv) - bps;
+			base = DIV_ROUND_CLOSEST(freq, br * prediv);
+			if (mddr) {
+				m = DIV_ROUND_CLOSEST(256UL * bps, base);
+				m = clamp(m, 128U, 256U);
+				base = DIV_ROUND_CLOSEST(base * m, 256);
+			}
+
+			err = base - bps;
 			if (abs(err) >= abs(min_err))
 				continue;
 
@@ -2628,6 +2648,8 @@ int sci_scbrr_calc(struct sci_port *s, unsigned int bps, unsigned int *brr,
 			*brr = br - 1;
 			*srr = sr - 1;
 			*cks = c;
+			if (mddr)
+				*mddr = m;
 
 			if (!err)
 				goto found;
@@ -2786,7 +2808,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	/* Divided Functional Clock using standard Bit Rate Register */
-	err = sci_scbrr_calc(s, baud, &brr1, &srr1, &cks1);
+	err = sci_scbrr_calc(s, baud, &brr1, &srr1, &cks1, NULL);
 	if (abs(err) < abs(min_err)) {
 		best_clk = SCI_FCK;
 		scr_val = 0;
