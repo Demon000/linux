@@ -63,6 +63,8 @@ struct sci_port_params_bits {
 struct sci_common_regs {
 	unsigned int status;
 	unsigned int control;
+	unsigned int rx_data;
+	unsigned int tx_data;
 };
 
 /* The actual number of needed registers. This is used by sci only */

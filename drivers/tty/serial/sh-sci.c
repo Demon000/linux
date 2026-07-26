@@ -1773,8 +1773,11 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 					     enum dma_transfer_direction dir)
 {
+	struct sci_port *s = to_sci_port(port);
+	const struct sci_common_regs *regs = s->params->common_regs;
 	struct dma_chan *chan;
 	struct dma_slave_config cfg;
+	unsigned int tx_data, rx_data;
 	int ret;
 
 	chan = dma_request_chan(port->dev, dir == DMA_MEM_TO_DEV ? "tx" : "rx");
@@ -1785,11 +1788,16 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.direction = dir;
-	cfg.dst_addr = port->mapbase +
-		(sci_getreg(port, SCxTDR)->offset << port->regshift);
+	if (sci_getreg(port, SCxTDR)->size) {
+		tx_data = sci_getreg(port, SCxTDR)->offset << port->regshift;
+		rx_data = sci_getreg(port, SCxRDR)->offset << port->regshift;
+	} else {
+		tx_data = regs->tx_data;
+		rx_data = regs->rx_data;
+	}
+	cfg.dst_addr = port->mapbase + tx_data;
+	cfg.src_addr = port->mapbase + rx_data;
 	cfg.dst_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-	cfg.src_addr = port->mapbase +
-		(sci_getreg(port, SCxRDR)->offset << port->regshift);
 	cfg.src_addr_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 
 	ret = dmaengine_slave_config(chan, &cfg);
