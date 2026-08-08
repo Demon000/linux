@@ -1821,6 +1821,23 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	return chan;
 }
 
+static void sci_dma_rx_pingpong_fill(struct sci_port *s, void *buf, dma_addr_t dma)
+{
+	unsigned int i;
+
+	for (i = 0; i < 2; i++) {
+		struct scatterlist *sg = &s->sg_rx[i];
+
+		sg_init_table(sg, 1);
+		s->rx_buf[i] = buf;
+		sg_dma_address(sg) = dma;
+		sg_dma_len(sg) = s->buf_len_rx;
+
+		buf += s->buf_len_rx;
+		dma += s->buf_len_rx;
+	}
+}
+
 static void sci_request_dma(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
@@ -1872,7 +1889,6 @@ static void sci_request_dma(struct uart_port *port)
 	chan = sci_request_dma_chan(port, DMA_DEV_TO_MEM);
 	dev_dbg(port->dev, "%s: RX: got channel %p\n", __func__, chan);
 	if (chan) {
-		unsigned int i;
 		dma_addr_t dma;
 		void *buf;
 
@@ -1886,17 +1902,7 @@ static void sci_request_dma(struct uart_port *port)
 			return;
 		}
 
-		for (i = 0; i < 2; i++) {
-			struct scatterlist *sg = &s->sg_rx[i];
-
-			sg_init_table(sg, 1);
-			s->rx_buf[i] = buf;
-			sg_dma_address(sg) = dma;
-			sg_dma_len(sg) = s->buf_len_rx;
-
-			buf += s->buf_len_rx;
-			dma += s->buf_len_rx;
-		}
+		sci_dma_rx_pingpong_fill(s, buf, dma);
 
 		hrtimer_setup(&s->rx_timer, sci_dma_rx_timer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
