@@ -1430,8 +1430,10 @@ static void sci_dma_tx_complete(void *arg)
 		schedule_work(&s->work_tx);
 	} else {
 		s->cookie_tx = -EINVAL;
-		if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
-		    s->regtype == SCIx_RZ_SCIFA_REGTYPE) {
+		if (sci_is_rsci_type(s->type)) {
+			enable_irq(s->irqs[SCIx_TXI_IRQ]);
+		} else if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
+			   s->regtype == SCIx_RZ_SCIFA_REGTYPE) {
 			u16 ctrl = sci_serial_in(port, SCSCR);
 			sci_serial_out(port, SCSCR, ctrl & ~SCSCR_TIE);
 			if (s->regtype == SCIx_RZ_SCIFA_REGTYPE) {
@@ -1518,6 +1520,12 @@ static void sci_dma_rx_reenable_irq(struct sci_port *s)
 {
 	struct uart_port *port = &s->port;
 	u16 scr;
+
+	if (sci_is_rsci_type(s->type)) {
+		enable_irq(s->irqs[SCIx_RXI_IRQ]);
+		s->ops->set_rtrg(port, s->rx_trigger);
+		return;
+	}
 
 	/* Direct new serial port interrupts back to CPU */
 	scr = sci_serial_in(port, SCSCR);
@@ -1778,7 +1786,8 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 	}
 
 	if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
-	    s->regtype == SCIx_RZ_SCIFA_REGTYPE)
+	    s->regtype == SCIx_RZ_SCIFA_REGTYPE ||
+	    sci_is_rsci_type(s->type))
 		sci_dma_rx_submit(s, true);
 
 	sci_dma_rx_reenable_irq(s);
@@ -1916,7 +1925,8 @@ static void sci_request_dma(struct uart_port *port)
 		s->chan_rx_saved = s->chan_rx = chan;
 
 		if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
-		    s->regtype == SCIx_RZ_SCIFA_REGTYPE)
+		    s->regtype == SCIx_RZ_SCIFA_REGTYPE ||
+		    sci_is_rsci_type(s->type))
 			sci_dma_rx_submit(s, false);
 	}
 }
@@ -1981,6 +1991,13 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 	struct sci_port *s = to_sci_port(port);
 
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
+	if (s->chan_rx && sci_is_rsci_type(s->type)) {
+		disable_irq_nosync(s->irqs[SCIx_RXI_IRQ]);
+		s->ops->set_rtrg(port, 1);
+		start_hrtimer_us(&s->rx_timer, s->rx_timeout);
+		return IRQ_HANDLED;
+	}
+
 	if (s->chan_rx) {
 		u16 scr = sci_serial_in(port, SCSCR);
 		u16 ssr = sci_serial_in(port, SCxSR);

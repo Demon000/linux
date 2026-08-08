@@ -5,12 +5,15 @@
 
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
+#include <linux/dmaengine.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/serial_core.h>
 #include <linux/serial_sci.h>
 #include <linux/tty_flip.h>
+#include <linux/workqueue.h>
 
 #include "serial_mctrl_gpio.h"
 #include "rsci.h"
@@ -214,6 +217,14 @@ static int rsci_scif_set_rtrg(struct uart_port *port, int rx_trig)
 	return rx_trig;
 }
 
+static void rsci_scif_set_ttrg(struct uart_port *port, int tx_trig)
+{
+	u32 fcr = rsci_serial_in(port, FCR);
+
+	FIELD_MODIFY(FCR_TTRG, &fcr, tx_trig);
+	rsci_serial_out(port, FCR, fcr);
+}
+
 static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 			     const struct ktermios *old)
 {
@@ -296,8 +307,13 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 	ctrl |= (FCR_RFRST | FCR_TFRST);
 	rsci_serial_out(port, FCR, ctrl);
 
-	if (s->rx_trigger > 1)
+	if (s->chan_rx)
+		rsci_scif_set_rtrg(port, 1);
+	else if (s->rx_trigger > 1)
 		rsci_scif_set_rtrg(port, s->rx_trigger);
+
+	if (s->chan_tx)
+		rsci_scif_set_ttrg(port, 0x0F);
 
 	port->status &= ~UPSTAT_AUTOCTS;
 	s->autorts = false;
@@ -381,13 +397,63 @@ static void rsci_clear_CFC(struct uart_port *port, unsigned int mask)
 	rsci_serial_out(port, CFCLR, mask);
 }
 
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+static void rsci_dma_tx_drain(struct uart_port *port)
+{
+	u32 csr;
+
+	/*
+	 * The RZ/T2H User Manual, Section 33.3.11, FCR, mentions that TTRG
+	 * should be set to the maximum possible value when using DMA to drive
+	 * the FIFO. DMA completes the transfer as soon as it has written all of
+	 * its data to the FIFO, without guaranteeing that the data in the FIFO
+	 * has been written out. Wait for the FIFO data to be written out.
+	 */
+	readl_poll_timeout(port->membase + CSR, csr, csr & CSR_TEND, 20,
+			   jiffies_to_usecs(uart_fifo_timeout(port)));
+}
+
+static void rsci_dma_tx_enable(struct uart_port *port)
+{
+	unsigned long flags;
+	u32 ctrl;
+
+	uart_port_lock_irqsave(port, &flags);
+	ctrl = rsci_serial_in(port, CCR0);
+	rsci_serial_out(port, CCR0, ctrl & ~CCR0_TE);
+	rsci_serial_out(port, CCR0, ctrl | CCR0_TIE | CCR0_TE);
+	uart_port_unlock_irqrestore(port, flags);
+}
+
+static void rsci_flush_buffer(struct uart_port *port)
+{
+	struct sci_port *s = to_sci_port(port);
+
+	s->tx_dma_len = 0;
+	if (s->chan_tx) {
+		dmaengine_terminate_async(s->chan_tx);
+		s->cookie_tx = -EINVAL;
+	}
+}
+#endif /* CONFIG_SERIAL_SH_SCI_DMA */
+
 static void rsci_start_tx(struct uart_port *port)
 {
 	struct sci_port *sp = to_sci_port(port);
 	u32 ctrl;
 
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	if (sp->chan_tx && !kfifo_is_empty(&port->state->port.xmit_fifo) &&
+	    dma_submit_error(sp->cookie_tx)) {
+		disable_irq_nosync(sp->irqs[SCIx_TXI_IRQ]);
+		sp->cookie_tx = 0;
+		schedule_work(&sp->work_tx);
+		return;
+	}
+
 	if (sp->chan_tx)
 		return;
+#endif
 
 	/*
 	 * TE (Transmit Enable) must be set after setting TIE
@@ -426,8 +492,12 @@ static void rsci_transmit_chars(struct uart_port *port)
 {
 	unsigned int stopped = uart_tx_stopped(port);
 	struct tty_port *tport = &port->state->port;
+	struct sci_port *s = to_sci_port(port);
 	u32 status, ctrl;
 	int count;
+
+	if (s->chan_tx)
+		return;
 
 	status = rsci_serial_in(port, CSR);
 	if (!(status & CSR_TDRE)) {
@@ -617,6 +687,8 @@ static void rsci_shutdown_complete(struct uart_port *port)
 static const struct sci_common_regs rsci_common_regs = {
 	.status = CSR,
 	.control = CCR0,
+	.rx_data = RDR,
+	.tx_data = TDR,
 };
 
 static const struct sci_port_params_bits rsci_port_param_bits = {
@@ -659,6 +731,9 @@ static const struct uart_ops rsci_uart_ops = {
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,
 	.set_termios	= rsci_set_termios,
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	.flush_buffer	= rsci_flush_buffer,
+#endif
 	.pm		= sci_pm,
 	.type		= rsci_type,
 	.release_port	= sci_release_port,
@@ -679,6 +754,10 @@ static const struct sci_port_ops rsci_port_ops = {
 	.suspend_regs_size	= rsci_suspend_regs_size,
 	.set_rtrg		= rsci_scif_set_rtrg,
 	.shutdown_complete	= rsci_shutdown_complete,
+#ifdef CONFIG_SERIAL_SH_SCI_DMA
+	.dma_tx_drain		= rsci_dma_tx_drain,
+	.dma_tx_enable		= rsci_dma_tx_enable,
+#endif
 };
 
 struct sci_of_data of_rsci_rzg3e_data = {
