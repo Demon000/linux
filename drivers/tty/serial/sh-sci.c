@@ -1483,6 +1483,11 @@ static void sci_dma_rx_chan_invalidate(struct sci_port *s)
 	s->active_rx = 0;
 }
 
+static size_t sci_dma_rx_buf_len(struct sci_port *s)
+{
+	return s->buf_len_rx * 2;
+}
+
 static void sci_dma_rx_release(struct sci_port *s)
 {
 	struct dma_chan *chan = s->chan_rx_saved;
@@ -1495,8 +1500,8 @@ static void sci_dma_rx_release(struct sci_port *s)
 	uart_port_unlock_irqrestore(port, flags);
 
 	dmaengine_terminate_sync(chan);
-	dma_free_coherent(chan->device->dev, s->buf_len_rx * 2, s->rx_buf[0],
-			  sg_dma_address(&s->sg_rx[0]));
+	dma_free_coherent(chan->device->dev, sci_dma_rx_buf_len(s),
+			  s->rx_buf[0], sg_dma_address(&s->sg_rx[0]));
 	dma_release_channel(chan);
 }
 
@@ -1872,7 +1877,7 @@ static void sci_request_dma(struct uart_port *port)
 		void *buf;
 
 		s->buf_len_rx = 2 * max_t(size_t, 16, port->fifosize);
-		buf = dma_alloc_coherent(chan->device->dev, s->buf_len_rx * 2,
+		buf = dma_alloc_coherent(chan->device->dev, sci_dma_rx_buf_len(s),
 					 &dma, GFP_KERNEL);
 		if (!buf) {
 			dev_warn(port->dev,
@@ -2720,7 +2725,7 @@ void sci_update_rx_timeout(struct uart_port *port, unsigned int baud,
 	/* Calculate delay for 2 DMA buffers (4 FIFO). */
 	s->rx_frame = (10000 * bits) / (baud / 100);
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-	s->rx_timeout = s->buf_len_rx * 2 * s->rx_frame;
+	s->rx_timeout = sci_dma_rx_buf_len(s) * s->rx_frame;
 #endif
 }
 EXPORT_SYMBOL_NS_GPL(sci_update_rx_timeout, "SH_SCI");
