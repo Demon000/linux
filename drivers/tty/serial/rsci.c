@@ -275,6 +275,8 @@ static void rsci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
+	sci_update_rx_timeout(port, baud, tty_get_frame_size(termios->c_cflag));
+
 	rsci_serial_out(port, CCR0, ccr0_val);
 
 	ccr3_val |= CCR3_FM;
