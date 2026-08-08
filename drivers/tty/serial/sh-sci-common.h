@@ -97,6 +97,9 @@ struct sci_port_ops {
 
 	void (*shutdown_complete)(struct uart_port *port);
 
+	void (*dma_tx_drain)(struct uart_port *port);
+	void (*dma_tx_enable)(struct uart_port *port);
+
 	void (*prepare_console_write)(struct uart_port *port, u32 ctrl);
 	void (*finish_console_write)(struct uart_port *port, u32 ctrl);
 	void (*console_save)(struct uart_port *port);

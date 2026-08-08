@@ -1703,7 +1703,14 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	dev_dbg(port->dev, "%s: %p: %u, cookie %d\n",
 		__func__, tport->xmit_buf, tail, s->cookie_tx);
 
+	if (s->ops->dma_tx_drain)
+		s->ops->dma_tx_drain(port);
+
 	dma_async_issue_pending(chan);
+
+	if (s->ops->dma_tx_enable)
+		s->ops->dma_tx_enable(port);
+
 	return;
 
 switch_to_pio:
