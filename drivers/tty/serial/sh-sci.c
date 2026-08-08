@@ -252,6 +252,8 @@ enum {
 
 #define SCI_PUBLIC_PORT_ID(port) (((port) & BIT(7)) ? PORT_GENERIC : (port))
 
+#define SCI_DMA_RX_CYCLIC_PERIODS	16
+
 static struct sci_port sci_ports[SCI_NPORTS];
 static unsigned long sci_ports_in_use;
 static struct uart_driver sci_uart_driver;
@@ -1487,6 +1489,9 @@ static void sci_dma_rx_chan_invalidate(struct sci_port *s)
 
 static size_t sci_dma_rx_buf_len(struct sci_port *s)
 {
+	if (sci_is_rsci_type(s->type))
+		return s->buf_len_rx * SCI_DMA_RX_CYCLIC_PERIODS;
+
 	return s->buf_len_rx * 2;
 }
 
@@ -1609,6 +1614,83 @@ static void sci_dma_tx_release(struct sci_port *s)
 	dma_release_channel(chan);
 }
 
+static int sci_dma_rx_cyclic_drain(struct sci_port *s)
+{
+	size_t ring = sci_dma_rx_buf_len(s);
+	struct dma_tx_state state;
+	unsigned int head, avail, chunk;
+	int count = 0;
+
+	dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
+	head = (ring - state.residue) % ring;
+	avail = (head - s->rx_offset + ring) % ring;
+
+	while (avail) {
+		chunk = min(avail, (unsigned int)(ring - s->rx_offset));
+		count += sci_dma_rx_push(s, (u8 *)s->rx_buf[0] + s->rx_offset,
+					 chunk);
+		s->rx_offset = (s->rx_offset + chunk) % ring;
+		avail -= chunk;
+	}
+
+	return count;
+}
+
+static void sci_dma_rx_cyclic_complete(void *arg)
+{
+	struct sci_port *s = arg;
+	struct uart_port *port = &s->port;
+	unsigned long flags;
+	int count;
+
+	uart_port_lock_irqsave(port, &flags);
+	count = sci_dma_rx_cyclic_drain(s);
+	uart_port_unlock_irqrestore(port, flags);
+
+	if (count)
+		tty_flip_buffer_push(&port->state->port);
+}
+
+static enum hrtimer_restart sci_dma_rx_cyclic_timer(struct sci_port *s)
+{
+	struct uart_port *port = &s->port;
+	unsigned long flags;
+	int count;
+
+	uart_port_lock_irqsave(port, &flags);
+	count = sci_dma_rx_cyclic_drain(s);
+	uart_port_unlock_irqrestore(port, flags);
+
+	if (count)
+		tty_flip_buffer_push(&port->state->port);
+
+	start_hrtimer_us(&s->rx_timer, s->rx_timeout);
+	return HRTIMER_NORESTART;
+}
+
+static int sci_dma_rx_cyclic_submit(struct sci_port *s)
+{
+	struct dma_chan *chan = s->chan_rx;
+	struct dma_async_tx_descriptor *desc;
+
+	desc = dmaengine_prep_dma_cyclic(chan, sg_dma_address(&s->sg_rx[0]),
+					 sci_dma_rx_buf_len(s), s->buf_len_rx,
+					 DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
+	if (!desc)
+		return -EAGAIN;
+
+	desc->callback = sci_dma_rx_cyclic_complete;
+	desc->callback_param = s;
+	s->rx_offset = 0;
+	s->cookie_rx[0] = dmaengine_submit(desc);
+	if (dma_submit_error(s->cookie_rx[0]))
+		return -EAGAIN;
+
+	s->active_rx = s->cookie_rx[0];
+	dma_async_issue_pending(chan);
+	return 0;
+}
+
 static int sci_dma_rx_submit_fail(struct sci_port *s, bool port_lock_held,
 				  bool terminate)
 {
@@ -1634,6 +1716,13 @@ static int sci_dma_rx_submit(struct sci_port *s, bool port_lock_held)
 {
 	struct dma_chan *chan = s->chan_rx;
 	int i;
+
+	if (sci_is_rsci_type(s->type)) {
+		if (sci_dma_rx_cyclic_submit(s))
+			return sci_dma_rx_submit_fail(s, port_lock_held, true);
+
+		return 0;
+	}
 
 	for (i = 0; i < 2; i++) {
 		struct scatterlist *sg = &s->sg_rx[i];
@@ -1742,6 +1831,9 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 
 	dev_dbg(port->dev, "DMA Rx timed out\n");
 
+	if (sci_is_rsci_type(s->type))
+		return sci_dma_rx_cyclic_timer(s);
+
 	uart_port_lock_irqsave(port, &flags);
 
 	active = sci_dma_rx_find_active(s);
@@ -1837,6 +1929,15 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 	return chan;
 }
 
+static void sci_dma_rx_cyclic_fill(struct sci_port *s, void *buf, dma_addr_t dma)
+{
+	sg_init_table(&s->sg_rx[0], 1);
+	s->rx_buf[0] = buf;
+	sg_dma_address(&s->sg_rx[0]) = dma;
+	sg_dma_len(&s->sg_rx[0]) = sci_dma_rx_buf_len(s);
+	s->rx_offset = 0;
+}
+
 static void sci_dma_rx_pingpong_fill(struct sci_port *s, void *buf, dma_addr_t dma)
 {
 	unsigned int i;
@@ -1918,7 +2019,10 @@ static void sci_request_dma(struct uart_port *port)
 			return;
 		}
 
-		sci_dma_rx_pingpong_fill(s, buf, dma);
+		if (sci_is_rsci_type(s->type))
+			sci_dma_rx_cyclic_fill(s, buf, dma);
+		else
+			sci_dma_rx_pingpong_fill(s, buf, dma);
 
 		hrtimer_setup(&s->rx_timer, sci_dma_rx_timer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 

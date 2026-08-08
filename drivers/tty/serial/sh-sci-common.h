@@ -150,6 +150,7 @@ struct sci_port {
 	struct scatterlist		sg_rx[2];
 	void				*rx_buf[2];
 	size_t				buf_len_rx;
+	unsigned int			rx_offset;
 	struct work_struct		work_tx;
 	struct hrtimer			rx_timer;
 	unsigned int			rx_timeout;	/* microseconds */
