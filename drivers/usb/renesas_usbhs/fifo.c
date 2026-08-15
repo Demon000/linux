@@ -153,7 +153,8 @@ enum {
 	USBHSF_PKT_DMA_DONE,
 };
 
-static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
+static int usbhsf_pkt_handler_for_pkt(struct usbhs_pipe *pipe, int type,
+				      struct usbhs_pkt *expected)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pkt *pkt;
@@ -171,6 +172,9 @@ static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 		ret = -EINVAL;
 		goto __usbhs_pkt_handler_end;
 	}
+
+	if (expected && pkt != expected)
+		goto __usbhs_pkt_handler_end;
 
 	switch (type) {
 	case USBHSF_PKT_PREPARE:
@@ -203,6 +207,11 @@ __usbhs_pkt_handler_end:
 	}
 
 	return ret;
+}
+
+static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
+{
+	return usbhsf_pkt_handler_for_pkt(pipe, type, NULL);
 }
 
 void usbhs_pkt_start(struct usbhs_pipe *pipe)
@@ -1383,7 +1392,7 @@ static void usbhsf_dma_complete(void *arg,
 	int ret;
 
 	pkt->dma_result = result;
-	ret = usbhsf_pkt_handler(pipe, USBHSF_PKT_DMA_DONE);
+	ret = usbhsf_pkt_handler_for_pkt(pipe, USBHSF_PKT_DMA_DONE, pkt);
 	if (ret < 0)
 		dev_err(dev, "dma_complete run_error %d : %d\n",
 			usbhs_pipe_number(pipe), ret);
