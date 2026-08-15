@@ -3,6 +3,7 @@
 #ifndef __SH_SCI_COMMON_H__
 #define __SH_SCI_COMMON_H__
 
+#include <linux/interrupt.h>
 #include <linux/serial_core.h>
 
 /* Private port IDs */
@@ -169,9 +170,28 @@ struct sci_port {
 	bool has_rtscts;
 	bool autorts;
 	bool tx_occurred;
+	bool tx_dma_irq_masked;
 };
 
 #define to_sci_port(uart) container_of((uart), struct sci_port, port)
+
+static inline void sci_dma_tx_irq_mask(struct sci_port *s)
+{
+	if (s->tx_dma_irq_masked)
+		return;
+
+	disable_irq_nosync(s->irqs[SCIx_TXI_IRQ]);
+	s->tx_dma_irq_masked = true;
+}
+
+static inline void sci_dma_tx_irq_unmask(struct sci_port *s)
+{
+	if (!s->tx_dma_irq_masked)
+		return;
+
+	enable_irq(s->irqs[SCIx_TXI_IRQ]);
+	s->tx_dma_irq_masked = false;
+}
 
 void sci_port_disable(struct sci_port *sci_port);
 void sci_port_enable(struct sci_port *sci_port);

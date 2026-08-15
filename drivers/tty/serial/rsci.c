@@ -432,6 +432,7 @@ static void rsci_flush_buffer(struct uart_port *port)
 	s->tx_dma_len = 0;
 	if (s->chan_tx) {
 		dmaengine_terminate_async(s->chan_tx);
+		sci_dma_tx_irq_unmask(s);
 		s->cookie_tx = -EINVAL;
 	}
 }
@@ -445,7 +446,7 @@ static void rsci_start_tx(struct uart_port *port)
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	if (sp->chan_tx && !kfifo_is_empty(&port->state->port.xmit_fifo) &&
 	    dma_submit_error(sp->cookie_tx)) {
-		disable_irq_nosync(sp->irqs[SCIx_TXI_IRQ]);
+		sci_dma_tx_irq_mask(sp);
 		sp->cookie_tx = 0;
 		schedule_work(&sp->work_tx);
 		return;

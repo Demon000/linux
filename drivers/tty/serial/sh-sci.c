@@ -1433,7 +1433,7 @@ static void sci_dma_tx_complete(void *arg)
 	} else {
 		s->cookie_tx = -EINVAL;
 		if (sci_is_rsci_type(s->type)) {
-			enable_irq(s->irqs[SCIx_TXI_IRQ]);
+			sci_dma_tx_irq_unmask(s);
 		} else if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
 			   s->regtype == SCIx_RZ_SCIFA_REGTYPE) {
 			u16 ctrl = sci_serial_in(port, SCSCR);
@@ -1525,12 +1525,6 @@ static void sci_dma_rx_reenable_irq(struct sci_port *s)
 {
 	struct uart_port *port = &s->port;
 	u16 scr;
-
-	if (sci_is_rsci_type(s->type)) {
-		enable_irq(s->irqs[SCIx_RXI_IRQ]);
-		s->ops->set_rtrg(port, s->rx_trigger);
-		return;
-	}
 
 	/* Direct new serial port interrupts back to CPU */
 	scr = sci_serial_in(port, SCSCR);
@@ -1813,6 +1807,7 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 switch_to_pio:
 	uart_port_lock_irqsave(port, &flags);
 	s->chan_tx = NULL;
+	sci_dma_tx_irq_unmask(s);
 	port->ops->start_tx(port);
 	uart_port_unlock_irqrestore(port, flags);
 	return;
@@ -1878,8 +1873,7 @@ static enum hrtimer_restart sci_dma_rx_timer_fn(struct hrtimer *t)
 	}
 
 	if (s->type == PORT_SCIFA || s->type == PORT_SCIFB ||
-	    s->regtype == SCIx_RZ_SCIFA_REGTYPE ||
-	    sci_is_rsci_type(s->type))
+	    s->regtype == SCIx_RZ_SCIFA_REGTYPE)
 		sci_dma_rx_submit(s, true);
 
 	sci_dma_rx_reenable_irq(s);
@@ -1935,7 +1929,6 @@ static void sci_dma_rx_cyclic_fill(struct sci_port *s, void *buf, dma_addr_t dma
 	s->rx_buf[0] = buf;
 	sg_dma_address(&s->sg_rx[0]) = dma;
 	sg_dma_len(&s->sg_rx[0]) = sci_dma_rx_buf_len(s);
-	s->rx_offset = 0;
 }
 
 static void sci_dma_rx_pingpong_fill(struct sci_port *s, void *buf, dma_addr_t dma)
@@ -1974,6 +1967,7 @@ static void sci_request_dma(struct uart_port *port)
 		return;
 
 	s->cookie_tx = -EINVAL;
+	s->tx_dma_irq_masked = false;
 
 	/*
 	 * Don't request a dma channel if no channel was specified
