@@ -98,6 +98,35 @@ static void usbhsf_fifo_unselect(struct usbhs_pipe *pipe,
 				 struct usbhs_fifo *fifo);
 static struct dma_chan *usbhsf_dma_chan_get(struct usbhs_fifo *fifo,
 					    struct usbhs_pkt *pkt);
+
+static struct usbhs_dma_slot *usbhsf_dma_slot_get(struct usbhs_fifo *fifo,
+						  struct usbhs_pkt *pkt)
+{
+	if (&usbhs_fifo_dma_push_handler == pkt->handler)
+		return &fifo->tx_slot;
+
+	if (&usbhs_fifo_dma_pop_handler == pkt->handler)
+		return &fifo->rx_slot;
+
+	return NULL;
+}
+
+static void usbhsf_dma_terminate(struct usbhs_fifo *fifo,
+				 struct usbhs_pkt *pkt, struct dma_chan *chan)
+{
+	struct usbhs_dma_slot *slot = usbhsf_dma_slot_get(fifo, pkt);
+
+	if (slot->pkt != pkt || slot->state != USBHS_DMA_SLOT_ACTIVE)
+		return;
+
+	slot->pkt = NULL;
+	slot->state = USBHS_DMA_SLOT_TERMINATING;
+
+	dmaengine_terminate_async(chan);
+
+	schedule_work(&slot->work);
+}
+
 #define usbhsf_dma_map(p)	__usbhsf_dma_map_ctrl(p, 1)
 #define usbhsf_dma_unmap(p)	__usbhsf_dma_map_ctrl(p, 0)
 static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map);
@@ -123,7 +152,7 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 		if (fifo)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
-			dmaengine_terminate_sync(chan);
+			usbhsf_dma_terminate(fifo, pkt, chan);
 			usbhsf_dma_unmap(pkt);
 		} else {
 			if (usbhs_pipe_is_dir_in(pipe))
@@ -794,7 +823,10 @@ static struct usbhs_fifo *usbhsf_get_dma_fifo(struct usbhs_priv *priv,
 	int i;
 
 	usbhs_for_each_dfifo(priv, fifo, i) {
+		struct usbhs_dma_slot *slot = usbhsf_dma_slot_get(fifo, pkt);
+
 		if (usbhsf_dma_chan_get(fifo, pkt) &&
+		    slot->state == USBHS_DMA_SLOT_IDLE &&
 		    !usbhsf_fifo_is_busy(fifo))
 			return fifo;
 	}
@@ -826,12 +858,30 @@ static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 
 static void usbhsf_dma_complete(void *arg,
 				const struct dmaengine_result *result);
+static void usbhsf_dma_slot_synchronize(struct work_struct *work)
+{
+	struct usbhs_dma_slot *slot =
+		container_of(work, struct usbhs_dma_slot, work);
+	unsigned long flags;
+
+	dmaengine_synchronize(slot->chan);
+
+	usbhs_lock(slot->priv, flags);
+	if (slot->state == USBHS_DMA_SLOT_TERMINATING) {
+		slot->pipe = NULL;
+		slot->chan = NULL;
+		slot->state = USBHS_DMA_SLOT_IDLE;
+	}
+	usbhs_unlock(slot->priv, flags);
+}
+
 static void usbhsf_dma_xfer_preparing(struct usbhs_pkt *pkt)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_fifo *fifo;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct dma_async_tx_descriptor *desc;
+	struct usbhs_dma_slot *slot;
 	struct dma_chan *chan;
 	struct device *dev = usbhs_priv_to_dev(priv);
 	enum dma_transfer_direction dir;
@@ -842,7 +892,11 @@ static void usbhsf_dma_xfer_preparing(struct usbhs_pkt *pkt)
 		return;
 
 	chan = usbhsf_dma_chan_get(fifo, pkt);
+	slot = usbhsf_dma_slot_get(fifo, pkt);
 	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
+
+	if (slot->state != USBHS_DMA_SLOT_IDLE)
+		return;
 
 	desc = dmaengine_prep_slave_single(chan, pkt->dma + pkt->actual,
 					pkt->trans, dir,
@@ -851,10 +905,18 @@ static void usbhsf_dma_xfer_preparing(struct usbhs_pkt *pkt)
 		return;
 
 	desc->callback_result	= usbhsf_dma_complete;
-	desc->callback_param	= pkt;
+	desc->callback_param	= slot;
+	slot->pipe		= pipe;
+	slot->pkt		= pkt;
+	slot->chan		= chan;
+	slot->state		= USBHS_DMA_SLOT_ACTIVE;
 
 	cookie = dmaengine_submit(desc);
 	if (cookie < 0) {
+		slot->pipe = NULL;
+		slot->pkt = NULL;
+		slot->chan = NULL;
+		slot->state = USBHS_DMA_SLOT_IDLE;
 		dev_err(dev, "Failed to submit dma descriptor\n");
 		return;
 	}
@@ -1261,6 +1323,9 @@ static bool usbhsf_dma_filter(struct dma_chan *chan, void *param)
 
 static void usbhsf_dma_quit(struct usbhs_priv *priv, struct usbhs_fifo *fifo)
 {
+	flush_work(&fifo->tx_slot.work);
+	flush_work(&fifo->rx_slot.work);
+
 	if (fifo->tx_chan)
 		dma_release_channel(fifo->tx_chan);
 	if (fifo->rx_chan)
@@ -1311,6 +1376,11 @@ static void usbhsf_dma_init(struct usbhs_priv *priv, struct usbhs_fifo *fifo,
 			    int channel)
 {
 	struct device *dev = usbhs_priv_to_dev(priv);
+
+	fifo->tx_slot.priv = priv;
+	INIT_WORK(&fifo->tx_slot.work, usbhsf_dma_slot_synchronize);
+	fifo->rx_slot.priv = priv;
+	INIT_WORK(&fifo->rx_slot.work, usbhsf_dma_slot_synchronize);
 
 	if (dev_of_node(dev))
 		usbhsf_dma_init_dt(dev, fifo, channel);
@@ -1390,11 +1460,33 @@ static int usbhsf_irq_ready(struct usbhs_priv *priv,
 static void usbhsf_dma_complete(void *arg,
 				const struct dmaengine_result *result)
 {
-	struct usbhs_pkt *pkt = arg;
-	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
-	struct device *dev = usbhs_priv_to_dev(priv);
+	struct usbhs_dma_slot *slot = arg;
+	struct usbhs_pkt *pkt;
+	struct usbhs_pipe *pipe;
+	struct usbhs_priv *priv;
+	struct device *dev;
+	unsigned long flags;
+	bool complete = false;
 	int ret;
+
+	usbhs_lock(slot->priv, flags);
+	if (slot->state == USBHS_DMA_SLOT_ACTIVE) {
+		pkt = slot->pkt;
+		pipe = slot->pipe;
+		if (pkt && pkt == __usbhsf_pkt_get(pipe))
+			complete = true;
+		slot->pkt = NULL;
+		slot->pipe = NULL;
+		slot->chan = NULL;
+		slot->state = USBHS_DMA_SLOT_IDLE;
+	}
+	usbhs_unlock(slot->priv, flags);
+
+	if (!complete)
+		return;
+
+	priv = usbhs_pipe_to_priv(pipe);
+	dev = usbhs_priv_to_dev(priv);
 
 	ret = usbhsf_pkt_handler_for_pkt(pipe, USBHSF_PKT_DMA_DONE, pkt, result);
 	if (ret < 0)

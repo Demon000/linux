@@ -14,6 +14,21 @@
 #include <asm/dma.h>
 #include "pipe.h"
 
+enum usbhs_dma_slot_state {
+	USBHS_DMA_SLOT_IDLE,
+	USBHS_DMA_SLOT_ACTIVE,
+	USBHS_DMA_SLOT_TERMINATING,
+};
+
+struct usbhs_dma_slot {
+	struct usbhs_priv *priv;
+	struct usbhs_pipe *pipe;
+	struct usbhs_pkt *pkt;
+	struct dma_chan *chan;
+	struct work_struct work;
+	enum usbhs_dma_slot_state state;
+};
+
 struct usbhs_fifo {
 	char *name;
 	u32 port;	/* xFIFO */
@@ -24,6 +39,8 @@ struct usbhs_fifo {
 
 	struct dma_chan		*tx_chan;
 	struct dma_chan		*rx_chan;
+	struct usbhs_dma_slot	tx_slot;
+	struct usbhs_dma_slot	rx_slot;
 
 	struct sh_dmae_slave	tx_slave;
 	struct sh_dmae_slave	rx_slave;
