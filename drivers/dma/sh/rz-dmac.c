@@ -167,6 +167,7 @@ struct rz_dmac {
 
 #define CHSTAT_ER			BIT(4)
 #define CHSTAT_SUS			BIT(3)
+#define CHSTAT_TACT			BIT(2)
 #define CHSTAT_EN			BIT(0)
 
 #define CHCTRL_CLRINTMSK		BIT(17)
@@ -889,7 +890,7 @@ static void rz_dmac_device_synchronize(struct dma_chan *chan)
 	if (ret)
 		return;
 
-	ret = read_poll_timeout(rz_dmac_ch_readl, chstat, !(chstat & CHSTAT_EN),
+	ret = read_poll_timeout(rz_dmac_ch_readl, chstat, !(chstat & CHSTAT_TACT),
 				100, 100000, false, channel, CHSTAT);
 	if (ret < 0)
 		dev_warn(dmac->dev, "DMA Timeout");
