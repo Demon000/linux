@@ -50,7 +50,6 @@ struct usbhs_pkt {
 		     struct usbhs_pkt *pkt);
 	struct work_struct work;
 	dma_addr_t dma;
-	const struct dmaengine_result *dma_result;
 	void *buf;
 	int length;
 	int trans;
@@ -62,7 +61,8 @@ struct usbhs_pkt {
 struct usbhs_pkt_handle {
 	int (*prepare)(struct usbhs_pkt *pkt, int *is_done);
 	int (*try_run)(struct usbhs_pkt *pkt, int *is_done);
-	int (*dma_done)(struct usbhs_pkt *pkt, int *is_done);
+	int (*dma_done)(struct usbhs_pkt *pkt, int *is_done,
+			const struct dmaengine_result *result);
 };
 
 /*

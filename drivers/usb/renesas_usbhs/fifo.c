@@ -154,12 +154,13 @@ enum {
 };
 
 static int usbhsf_pkt_handler_for_pkt(struct usbhs_pipe *pipe, int type,
-				      struct usbhs_pkt *expected)
+				      struct usbhs_pkt *expected,
+				      const struct dmaengine_result *result)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_pkt *pkt;
 	struct device *dev = usbhs_priv_to_dev(priv);
-	int (*func)(struct usbhs_pkt *pkt, int *is_done);
+	int (*func)(struct usbhs_pkt *pkt, int *is_done) = NULL;
 	unsigned long flags;
 	int ret = 0;
 	int is_done = 0;
@@ -184,7 +185,8 @@ static int usbhsf_pkt_handler_for_pkt(struct usbhs_pipe *pipe, int type,
 		func = pkt->handler->try_run;
 		break;
 	case USBHSF_PKT_DMA_DONE:
-		func = pkt->handler->dma_done;
+		if (likely(pkt->handler->dma_done))
+			ret = pkt->handler->dma_done(pkt, &is_done, result);
 		break;
 	default:
 		dev_err(dev, "unknown pkt handler\n");
@@ -211,7 +213,7 @@ __usbhs_pkt_handler_end:
 
 static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 {
-	return usbhsf_pkt_handler_for_pkt(pipe, type, NULL);
+	return usbhsf_pkt_handler_for_pkt(pipe, type, NULL, NULL);
 }
 
 void usbhs_pkt_start(struct usbhs_pipe *pipe)
@@ -949,7 +951,8 @@ usbhsf_pio_prepare_push:
 	return pkt->handler->prepare(pkt, is_done);
 }
 
-static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done)
+static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done,
+				const struct dmaengine_result *result)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	int is_short = pkt->trans % usbhs_pipe_get_maxpacket(pipe);
@@ -1169,14 +1172,15 @@ static int usbhsf_dma_pop_done_with_rx_irq(struct usbhs_pkt *pkt, int *is_done)
 	return 0;
 }
 
-static size_t usbhs_dma_calc_received_size(struct usbhs_pkt *pkt,
-					   struct dma_chan *chan, int dtln)
+static size_t
+usbhs_dma_calc_received_size(struct usbhs_pkt *pkt,
+			     const struct dmaengine_result *result, int dtln)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	size_t received_size;
 	int maxp = usbhs_pipe_get_maxpacket(pipe);
 
-	received_size = pkt->length - pkt->dma_result->residue;
+	received_size = pkt->length - result->residue;
 
 	if (dtln) {
 		received_size -= USBHS_USB_DMAC_XFER_SIZE;
@@ -1188,12 +1192,12 @@ static size_t usbhs_dma_calc_received_size(struct usbhs_pkt *pkt,
 }
 
 static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
-					     int *is_done)
+					     int *is_done,
+					     const struct dmaengine_result *result)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
-	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 	int rcv_len;
 
 	/*
@@ -1205,7 +1209,7 @@ static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
 
 	rcv_len = usbhsf_fifo_rcv_len(priv, fifo);
 	usbhsf_fifo_clear(pipe, fifo);
-	pkt->actual = usbhs_dma_calc_received_size(pkt, chan, rcv_len);
+	pkt->actual = usbhs_dma_calc_received_size(pkt, result, rcv_len);
 
 	usbhs_pipe_running(pipe, 0);
 	usbhsf_dma_stop(pipe, fifo);
@@ -1218,12 +1222,13 @@ static int usbhsf_dma_pop_done_with_usb_dmac(struct usbhs_pkt *pkt,
 	return 0;
 }
 
-static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done)
+static int usbhsf_dma_pop_done(struct usbhs_pkt *pkt, int *is_done,
+			       const struct dmaengine_result *result)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pkt->pipe);
 
 	if (usbhs_get_dparam(priv, has_usb_dmac))
-		return usbhsf_dma_pop_done_with_usb_dmac(pkt, is_done);
+		return usbhsf_dma_pop_done_with_usb_dmac(pkt, is_done, result);
 	else
 		return usbhsf_dma_pop_done_with_rx_irq(pkt, is_done);
 }
@@ -1391,8 +1396,7 @@ static void usbhsf_dma_complete(void *arg,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int ret;
 
-	pkt->dma_result = result;
-	ret = usbhsf_pkt_handler_for_pkt(pipe, USBHSF_PKT_DMA_DONE, pkt);
+	ret = usbhsf_pkt_handler_for_pkt(pipe, USBHSF_PKT_DMA_DONE, pkt, result);
 	if (ret < 0)
 		dev_err(dev, "dma_complete run_error %d : %d\n",
 			usbhs_pipe_number(pipe), ret);
