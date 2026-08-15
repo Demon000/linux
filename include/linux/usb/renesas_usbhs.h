@@ -170,6 +170,16 @@ struct renesas_usbhs_driver_param {
 #define USBHS_USB_DMAC_XFER_SIZE	32	/* hardcode the xfer size */
 	u32 multi_clks:1;
 	u32 has_new_pipe_configs:1;
+	/*
+	 * option:
+	 *
+	 * The DMA controller has no hardware awareness of USB packet framing,
+	 * so it can't recognize a short packet in either direction.
+	 * RX BRDY interrupt handler needs to manually terminate the DMA
+	 * transfer, and TX short packet needs to manually set BVAL to flush the
+	 * pipe.
+	 */
+	u32 dma_manual_short_packet_handling:1;
 };
 
 /*

@@ -117,7 +117,16 @@ static bool usbhsf_dma_terminate(struct usbhs_fifo *fifo,
 {
 	struct usbhs_dma_slot *slot = usbhsf_dma_slot_get(fifo, pkt);
 
-	if (slot->pkt != pkt || slot->state != USBHS_DMA_SLOT_ACTIVE)
+	if (slot->pkt != pkt)
+		return false;
+
+	if (slot->state == USBHS_DMA_SLOT_TERMINATING) {
+		slot->short_packet = false;
+		slot->status = status;
+		return true;
+	}
+
+	if (slot->state != USBHS_DMA_SLOT_ACTIVE)
 		return false;
 
 	slot->status = status;
@@ -877,8 +886,10 @@ static void usbhsf_dma_slot_synchronize(struct work_struct *work)
 		container_of(work, struct usbhs_dma_slot, work);
 	struct usbhs_pipe *pipe = NULL;
 	struct usbhs_pkt *pkt = NULL;
+	bool short_packet = false;
 	bool free_pipe = false;
 	unsigned long flags;
+	u32 residue = 0;
 	int status = 0;
 
 	dmaengine_synchronize(slot->chan);
@@ -888,9 +899,11 @@ static void usbhsf_dma_slot_synchronize(struct work_struct *work)
 		pipe = slot->pipe;
 		pkt = slot->pkt;
 		status = slot->status;
+		short_packet = slot->short_packet;
 		free_pipe = slot->free_pipe;
+		residue = slot->residue;
 
-		if (pkt) {
+		if (pkt && !short_packet) {
 			usbhsf_dma_unmap(pkt);
 			usbhsf_fifo_unselect(pipe, usbhs_pipe_to_fifo(pipe));
 		}
@@ -899,12 +912,21 @@ static void usbhsf_dma_slot_synchronize(struct work_struct *work)
 		slot->pkt = NULL;
 		slot->chan = NULL;
 		slot->free_pipe = false;
+		slot->short_packet = false;
 		slot->state = USBHS_DMA_SLOT_IDLE;
 	}
 	usbhs_unlock(slot->priv, flags);
 
-	if (pkt)
+	if (short_packet && pkt) {
+		struct dmaengine_result result = {
+			.result = DMA_TRANS_NOERROR,
+			.residue = residue,
+		};
+
+		usbhsf_pkt_handler_for_pkt(pipe, USBHSF_PKT_DMA_DONE, pkt, &result);
+	} else if (pkt) {
 		pkt->done(slot->priv, pkt, status);
+	}
 
 	if (free_pipe) {
 		pipe->mod_private = NULL;
@@ -989,6 +1011,7 @@ static void usbhsf_dma_xfer_preparing(struct usbhs_pkt *pkt)
 		dev_err(dev, "Failed to submit dma descriptor\n");
 		return;
 	}
+	slot->cookie = cookie;
 
 	dev_dbg(dev, "  %s %d (%d/ %d)\n",
 		fifo->name, usbhs_pipe_number(pipe), pkt->length, pkt->zero);
@@ -1086,6 +1109,7 @@ static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done,
 				const struct dmaengine_result *result)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	int is_short = pkt->trans % usbhs_pipe_get_maxpacket(pipe);
 
 	pkt->actual += pkt->trans;
@@ -1101,6 +1125,10 @@ static int usbhsf_dma_push_done(struct usbhs_pkt *pkt, int *is_done,
 
 	usbhsf_dma_stop(pipe, pipe->fifo);
 	usbhsf_dma_unmap(pkt);
+
+	if (is_short && usbhs_get_dparam(priv, dma_manual_short_packet_handling))
+		usbhsf_send_terminator(pipe, pipe->fifo);
+
 	usbhsf_fifo_unselect(pipe, pipe->fifo);
 
 	if (!*is_done) {
@@ -1165,12 +1193,16 @@ static int usbhsf_dma_prepare_pop_with_usb_dmac(struct usbhs_pkt *pkt,
 
 	/* DMA */
 
-	/*
-	 * usbhs_fifo_dma_pop_handler :: prepare
-	 * enabled irq to come here.
-	 * but it is no longer needed for DMA. disable it.
-	 */
-	usbhsf_rx_irq_ctrl(pipe, 0);
+	if (usbhs_get_dparam(priv, dma_manual_short_packet_handling)) {
+		usbhsf_rx_irq_ctrl(pipe, 1);
+	} else {
+		/*
+		 * usbhs_fifo_dma_pop_handler :: prepare
+		 * enabled irq to come here.
+		 * but it is no longer needed for DMA. disable it.
+		 */
+		usbhsf_rx_irq_ctrl(pipe, 0);
+	}
 
 	pkt->trans = pkt->length;
 
@@ -1270,11 +1302,49 @@ usbhsf_pio_prepare_pop:
 	return pkt->handler->try_run(pkt, is_done);
 }
 
+static int usbhsf_dma_try_pop_with_usb_dmac(struct usbhs_pkt *pkt, int *is_done)
+{
+	struct usbhs_pipe *pipe = pkt->pipe;
+	struct dma_tx_state state = {};
+	struct usbhs_dma_slot *slot;
+	struct usbhs_fifo *fifo;
+	struct dma_chan *chan;
+	enum dma_status status;
+
+	if (!usbhs_pipe_is_running(pipe))
+		return 0;
+
+	fifo = usbhs_pipe_to_fifo(pipe);
+	if (!fifo)
+		return 0;
+
+	chan = usbhsf_dma_chan_get(fifo, pkt);
+	slot = usbhsf_dma_slot_get(fifo, pkt);
+	if (!chan || slot->state != USBHS_DMA_SLOT_ACTIVE || slot->pkt != pkt)
+		return 0;
+
+	status = dmaengine_tx_status(chan, slot->cookie, &state);
+	if (status == DMA_COMPLETE)
+		return 0;
+
+	slot->residue = state.residue;
+	slot->short_packet = true;
+
+	usbhsf_dma_terminate(fifo, pkt, chan, 0);
+
+	return 0;
+}
+
 static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pkt->pipe);
 
-	BUG_ON(usbhs_get_dparam(priv, has_usb_dmac));
+	if (usbhs_get_dparam(priv, has_usb_dmac)) {
+		if (usbhs_get_dparam(priv, dma_manual_short_packet_handling))
+			return usbhsf_dma_try_pop_with_usb_dmac(pkt, is_done);
+
+		BUG_ON(usbhs_get_dparam(priv, has_usb_dmac));
+	}
 
 	return usbhsf_dma_try_pop_with_rx_irq(pkt, is_done);
 }

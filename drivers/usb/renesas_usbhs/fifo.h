@@ -25,10 +25,13 @@ struct usbhs_dma_slot {
 	struct usbhs_pipe *pipe;
 	struct usbhs_pkt *pkt;
 	struct dma_chan *chan;
+	dma_cookie_t cookie;
 	struct work_struct work;
 	enum usbhs_dma_slot_state state;
 	bool free_pipe;
+	bool short_packet;
 	int status;
+	u32 residue;
 };
 
 struct usbhs_fifo {
