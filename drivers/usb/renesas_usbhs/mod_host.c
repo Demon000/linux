@@ -626,14 +626,14 @@ static void usbhsh_device_detach(struct usbhsh_hpriv *hpriv,
 /*
  *		queue push/pop
  */
-static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
+static void usbhsh_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt,
+			      int status)
 {
 	struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
 	struct usb_hcd *hcd = usbhsh_hpriv_to_hcd(hpriv);
 	struct urb *urb = ureq->urb;
 	struct device *dev = usbhs_priv_to_dev(priv);
-	int status = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
 
@@ -717,7 +717,7 @@ static void usbhsh_queue_force_pop(struct usbhs_priv *priv,
 		 * will be called.
 		 * then, attached device/endpoint/pipe will be detached
 		 */
-		pkt->done(priv, pkt);
+		pkt->done(priv, pkt, 0);
 	}
 }
 
@@ -795,7 +795,7 @@ static void usbhsh_setup_stage_packet_push(struct usbhsh_hpriv *hpriv,
  *		DCP data stage
  */
 static void usbhsh_data_stage_packet_done(struct usbhs_priv *priv,
-					  struct usbhs_pkt *pkt)
+					  struct usbhs_pkt *pkt, int status)
 {
 	struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
@@ -1038,7 +1038,7 @@ static int usbhsh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		struct usbhs_pkt *pkt = &ureq->pkt;
 
 		usbhs_pkt_pop(pkt->pipe, pkt);
-		usbhsh_queue_done(priv, pkt);
+		usbhsh_queue_done(priv, pkt, 0);
 	}
 
 	return 0;

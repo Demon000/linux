@@ -64,7 +64,7 @@ struct usbhs_pkt {
 	struct usbhs_pipe *pipe;
 	const struct usbhs_pkt_handle *handler;
 	void (*done)(struct usbhs_priv *priv,
-		     struct usbhs_pkt *pkt);
+		     struct usbhs_pkt *pkt, int status);
 	struct work_struct work;
 	dma_addr_t dma;
 	void *buf;
@@ -110,7 +110,7 @@ extern const struct usbhs_pkt_handle usbhs_dcp_data_stage_out_handler;
 void usbhs_pkt_init(struct usbhs_pkt *pkt);
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void (*done)(struct usbhs_priv *priv,
-				 struct usbhs_pkt *pkt),
+				 struct usbhs_pkt *pkt, int status),
 		    void *buf, int len, int zero, int sequence);
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
 void usbhs_pkt_start(struct usbhs_pipe *pipe);

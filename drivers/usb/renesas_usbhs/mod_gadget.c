@@ -146,7 +146,8 @@ static void usbhsg_queue_pop(struct usbhsg_uep *uep,
 	usbhs_unlock(priv, flags);
 }
 
-static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
+static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt,
+			      int status)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
 	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
@@ -157,7 +158,7 @@ static void usbhsg_queue_done(struct usbhs_priv *priv, struct usbhs_pkt *pkt)
 
 	usbhs_lock(priv, flags);
 	if (uep)
-		__usbhsg_queue_pop(uep, ureq, 0);
+		__usbhsg_queue_pop(uep, ureq, status);
 	usbhs_unlock(priv, flags);
 }
 

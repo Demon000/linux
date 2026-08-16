@@ -44,7 +44,7 @@ static const struct usbhs_pkt_handle usbhsf_null_handler = {
 
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void (*done)(struct usbhs_priv *priv,
-				 struct usbhs_pkt *pkt),
+				 struct usbhs_pkt *pkt, int status),
 		    void *buf, int len, int zero, int sequence)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
@@ -233,7 +233,7 @@ __usbhs_pkt_handler_end:
 	/********************  spin unlock ******************/
 
 	if (is_done) {
-		pkt->done(priv, pkt);
+		pkt->done(priv, pkt, 0);
 		usbhs_pkt_start(pipe);
 	}
 
