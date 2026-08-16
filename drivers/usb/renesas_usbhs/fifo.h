@@ -27,6 +27,7 @@ struct usbhs_dma_slot {
 	struct dma_chan *chan;
 	struct work_struct work;
 	enum usbhs_dma_slot_state state;
+	bool free_pipe;
 };
 
 struct usbhs_fifo {
@@ -114,6 +115,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void *buf, int len, int zero, int sequence);
 struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 				int status);
+void usbhs_pkt_pipe_free(struct usbhs_pipe *pipe);
 void usbhs_pkt_start(struct usbhs_pipe *pipe);
 struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe);
 

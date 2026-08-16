@@ -644,10 +644,8 @@ static int usbhsg_ep_disable(struct usb_ep *ep)
 		goto out;
 
 	usbhsg_pipe_disable(uep);
-	usbhs_pipe_free(pipe);
-
-	uep->pipe->mod_private	= NULL;
-	uep->pipe		= NULL;
+	uep->pipe = NULL;
+	usbhs_pkt_pipe_free(pipe);
 
 out:
 	spin_unlock_irqrestore(&uep->lock, flags);

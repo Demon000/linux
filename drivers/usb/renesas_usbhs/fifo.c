@@ -866,17 +866,60 @@ static void usbhsf_dma_slot_synchronize(struct work_struct *work)
 {
 	struct usbhs_dma_slot *slot =
 		container_of(work, struct usbhs_dma_slot, work);
+	struct usbhs_pipe *pipe = NULL;
+	bool free_pipe = false;
 	unsigned long flags;
 
 	dmaengine_synchronize(slot->chan);
 
 	usbhs_lock(slot->priv, flags);
 	if (slot->state == USBHS_DMA_SLOT_TERMINATING) {
+		pipe = slot->pipe;
+		free_pipe = slot->free_pipe;
+
 		slot->pipe = NULL;
 		slot->chan = NULL;
+		slot->free_pipe = false;
 		slot->state = USBHS_DMA_SLOT_IDLE;
 	}
 	usbhs_unlock(slot->priv, flags);
+
+	if (free_pipe) {
+		pipe->mod_private = NULL;
+		usbhs_pipe_free(pipe);
+	}
+}
+
+static bool usbhsf_dma_slot_mark_free_pipe(struct usbhs_dma_slot *slot,
+					   struct usbhs_pipe *pipe)
+{
+	if (slot->state != USBHS_DMA_SLOT_TERMINATING || slot->pipe != pipe)
+		return false;
+
+	slot->free_pipe = true;
+	return true;
+}
+
+void usbhs_pkt_pipe_free(struct usbhs_pipe *pipe)
+{
+	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
+	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
+	bool deferred = false;
+	unsigned long flags;
+
+	usbhs_lock(priv, flags);
+
+	if (fifo) {
+		deferred |= usbhsf_dma_slot_mark_free_pipe(&fifo->tx_slot, pipe);
+		deferred |= usbhsf_dma_slot_mark_free_pipe(&fifo->rx_slot, pipe);
+	}
+
+	if (!deferred) {
+		pipe->mod_private = NULL;
+		usbhs_pipe_free(pipe);
+	}
+
+	usbhs_unlock(priv, flags);
 }
 
 static void usbhsf_dma_xfer_preparing(struct usbhs_pkt *pkt)
