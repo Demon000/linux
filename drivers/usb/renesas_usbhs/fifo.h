@@ -28,6 +28,7 @@ struct usbhs_dma_slot {
 	struct work_struct work;
 	enum usbhs_dma_slot_state state;
 	bool free_pipe;
+	int status;
 };
 
 struct usbhs_fifo {

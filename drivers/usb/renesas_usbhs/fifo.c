@@ -111,20 +111,23 @@ static struct usbhs_dma_slot *usbhsf_dma_slot_get(struct usbhs_fifo *fifo,
 	return NULL;
 }
 
-static void usbhsf_dma_terminate(struct usbhs_fifo *fifo,
-				 struct usbhs_pkt *pkt, struct dma_chan *chan)
+static bool usbhsf_dma_terminate(struct usbhs_fifo *fifo,
+				 struct usbhs_pkt *pkt, struct dma_chan *chan,
+				 int status)
 {
 	struct usbhs_dma_slot *slot = usbhsf_dma_slot_get(fifo, pkt);
 
 	if (slot->pkt != pkt || slot->state != USBHS_DMA_SLOT_ACTIVE)
-		return;
+		return false;
 
-	slot->pkt = NULL;
+	slot->status = status;
 	slot->state = USBHS_DMA_SLOT_TERMINATING;
 
 	dmaengine_terminate_async(chan);
 
 	schedule_work(&slot->work);
+
+	return true;
 }
 
 #define usbhsf_dma_map(p)	__usbhsf_dma_map_ctrl(p, 1)
@@ -138,6 +141,8 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
 	unsigned long flags;
+	bool keep_fifo = false;
+	bool deferred = false;
 
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
@@ -153,8 +158,12 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		if (fifo)
 			chan = usbhsf_dma_chan_get(fifo, pkt);
 		if (chan) {
-			usbhsf_dma_terminate(fifo, pkt, chan);
-			usbhsf_dma_unmap(pkt);
+			struct usbhs_dma_slot *slot = usbhsf_dma_slot_get(fifo, pkt);
+
+			deferred = usbhsf_dma_terminate(fifo, pkt, chan, status);
+			if (!deferred)
+				usbhsf_dma_unmap(pkt);
+			keep_fifo = slot->state == USBHS_DMA_SLOT_TERMINATING;
 		} else {
 			if (usbhs_pipe_is_dir_in(pipe))
 				usbhsf_rx_irq_ctrl(pipe, 0);
@@ -168,13 +177,13 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		__usbhsf_pkt_del(pkt);
 	}
 
-	if (fifo)
+	if (fifo && !keep_fifo)
 		usbhsf_fifo_unselect(pipe, fifo);
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
 
-	if (pkt)
+	if (pkt && !deferred)
 		pkt->done(priv, pkt, status);
 
 	return pkt;
@@ -867,22 +876,35 @@ static void usbhsf_dma_slot_synchronize(struct work_struct *work)
 	struct usbhs_dma_slot *slot =
 		container_of(work, struct usbhs_dma_slot, work);
 	struct usbhs_pipe *pipe = NULL;
+	struct usbhs_pkt *pkt = NULL;
 	bool free_pipe = false;
 	unsigned long flags;
+	int status = 0;
 
 	dmaengine_synchronize(slot->chan);
 
 	usbhs_lock(slot->priv, flags);
 	if (slot->state == USBHS_DMA_SLOT_TERMINATING) {
 		pipe = slot->pipe;
+		pkt = slot->pkt;
+		status = slot->status;
 		free_pipe = slot->free_pipe;
 
+		if (pkt) {
+			usbhsf_dma_unmap(pkt);
+			usbhsf_fifo_unselect(pipe, usbhs_pipe_to_fifo(pipe));
+		}
+
 		slot->pipe = NULL;
+		slot->pkt = NULL;
 		slot->chan = NULL;
 		slot->free_pipe = false;
 		slot->state = USBHS_DMA_SLOT_IDLE;
 	}
 	usbhs_unlock(slot->priv, flags);
+
+	if (pkt)
+		pkt->done(slot->priv, pkt, status);
 
 	if (free_pipe) {
 		pipe->mod_private = NULL;
