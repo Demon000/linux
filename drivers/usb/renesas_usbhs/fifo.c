@@ -132,7 +132,8 @@ static void usbhsf_dma_terminate(struct usbhs_fifo *fifo,
 static int __usbhsf_dma_map_ctrl(struct usbhs_pkt *pkt, int map);
 static void usbhsf_tx_irq_ctrl(struct usbhs_pipe *pipe, int enable);
 static void usbhsf_rx_irq_ctrl(struct usbhs_pipe *pipe, int enable);
-struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
+struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
+				int status)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
@@ -172,6 +173,9 @@ struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt)
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
+
+	if (pkt)
+		pkt->done(priv, pkt, status);
 
 	return pkt;
 }

@@ -707,17 +707,15 @@ static void usbhsh_queue_force_pop(struct usbhs_priv *priv,
 {
 	struct usbhs_pkt *pkt;
 
+	/*
+	 * if all packet are gone, usbhsh_endpoint_disable()
+	 * will be called.
+	 * then, attached device/endpoint/pipe will be detached
+	 */
 	while (1) {
-		pkt = usbhs_pkt_pop(pipe, NULL);
+		pkt = usbhs_pkt_pop(pipe, NULL, 0);
 		if (!pkt)
 			break;
-
-		/*
-		 * if all packet are gone, usbhsh_endpoint_disable()
-		 * will be called.
-		 * then, attached device/endpoint/pipe will be detached
-		 */
-		pkt->done(priv, pkt, 0);
 	}
 }
 
@@ -799,6 +797,11 @@ static void usbhsh_data_stage_packet_done(struct usbhs_priv *priv,
 {
 	struct usbhsh_request *ureq = usbhsh_pkt_to_ureq(pkt);
 	struct usbhsh_hpriv *hpriv = usbhsh_priv_to_hpriv(priv);
+
+	if (status) {
+		usbhsh_queue_done(priv, pkt, status);
+		return;
+	}
 
 	/* this ureq was connected to urb when usbhsh_urb_enqueue()  */
 
@@ -1030,15 +1033,12 @@ usbhsh_urb_enqueue_error_not_linked:
 
 static int usbhsh_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
-	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
 	struct usbhsh_request *ureq = usbhsh_urb_to_ureq(urb);
 
 	if (ureq) {
-		struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
 		struct usbhs_pkt *pkt = &ureq->pkt;
 
-		usbhs_pkt_pop(pkt->pipe, pkt);
-		usbhsh_queue_done(priv, pkt, 0);
+		usbhs_pkt_pop(pkt->pipe, pkt, status);
 	}
 
 	return 0;

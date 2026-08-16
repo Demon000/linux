@@ -560,11 +560,9 @@ static int usbhsg_pipe_disable(struct usbhsg_uep *uep)
 	struct usbhs_pkt *pkt;
 
 	while (1) {
-		pkt = usbhs_pkt_pop(pipe, NULL);
+		pkt = usbhs_pkt_pop(pipe, NULL, -ESHUTDOWN);
 		if (!pkt)
 			break;
-
-		usbhsg_queue_pop(uep, usbhsg_pkt_to_ureq(pkt), -ESHUTDOWN);
 	}
 
 	usbhs_pipe_disable(pipe);
@@ -704,18 +702,20 @@ static int usbhsg_ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct usbhsg_uep *uep = usbhsg_ep_to_uep(ep);
 	struct usbhsg_request *ureq = usbhsg_req_to_ureq(req);
 	struct usbhs_pipe *pipe;
+	struct usbhs_pkt *pkt = NULL;
 	unsigned long flags;
 
 	spin_lock_irqsave(&uep->lock, flags);
 	pipe = usbhsg_uep_to_pipe(uep);
 	if (pipe)
-		usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq));
+		pkt = usbhs_pkt_pop(pipe, usbhsg_ureq_to_pkt(ureq), -ECONNRESET);
 
 	/*
 	 * To dequeue a request, this driver should call the usbhsg_queue_pop()
 	 * even if the pipe is NULL.
 	 */
-	usbhsg_queue_pop(uep, ureq, -ECONNRESET);
+	if (!pkt)
+		usbhsg_queue_pop(uep, ureq, -ECONNRESET);
 	spin_unlock_irqrestore(&uep->lock, flags);
 
 	return 0;

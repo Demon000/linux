@@ -112,7 +112,8 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void (*done)(struct usbhs_priv *priv,
 				 struct usbhs_pkt *pkt, int status),
 		    void *buf, int len, int zero, int sequence);
-struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt);
+struct usbhs_pkt *usbhs_pkt_pop(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
+				int status);
 void usbhs_pkt_start(struct usbhs_pipe *pipe);
 struct usbhs_pkt *__usbhsf_pkt_get(struct usbhs_pipe *pipe);
 
