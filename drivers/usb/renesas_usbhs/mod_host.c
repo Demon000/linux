@@ -717,7 +717,7 @@ static void usbhsh_queue_force_pop(struct usbhs_priv *priv,
 		 * will be called.
 		 * then, attached device/endpoint/pipe will be detached
 		 */
-		usbhsh_queue_done(priv, pkt);
+		pkt->done(priv, pkt);
 	}
 }
 
